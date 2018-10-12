@@ -25,6 +25,8 @@ import uk.gov.hmrc.serviceconfigs.ConfigService
 import uk.gov.hmrc.serviceconfigs.ConfigService.ConfigEntry
 
 import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 class ConfigServiceSpec extends WordSpec with MockitoSugar {
 
@@ -78,10 +80,10 @@ class ConfigServiceSpec extends WordSpec with MockitoSugar {
 //    }
 
   }
-//  private trait Setup {
-//    implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
-//
-//    val configConnector = mock[ConfigConnector]
-//    val service = new ConfigService(configConnector)
-//  }
+  private trait Setup {
+    implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
+
+    val configConnector = mock[ConfigConnector]
+    val service = new ConfigService(configConnector, new ConfigParser())
+  }
 }
