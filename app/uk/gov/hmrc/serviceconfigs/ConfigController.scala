@@ -20,8 +20,6 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import uk.gov.hmrc.serviceconfigs.ConfigService.BaseConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -29,37 +27,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ConfigController @Inject()(
   configService: ConfigService,
   mcc: MessagesControllerComponents
-) extends BackendController(mcc) {
-
-  implicit val configEntryReads = Json.reads[ConfigEntry]
-  implicit val configEntryWrites = Json.writes[ConfigEntry]
-
-  implicit val applicationConfReads = Json.reads[ApplicationConf]
-  implicit val applicationConfWrites = Json.writes[ApplicationConf]
-  implicit val baseConfigReads = Json.reads[BaseConfig]
-  implicit val baseConfigWrites = Json.writes[BaseConfig]
-  implicit val appConfigReads = Json.reads[AppConfig]
-  implicit val appConfigWrites = Json.writes[AppConfig]
-  implicit val appConfigCommonFixedReads = Json.reads[AppConfigCommonFixed]
-  implicit val appConfigCommonFixedWrites = Json.writes[AppConfigCommonFixed]
-  implicit val appConfigCommonOverridableReads = Json.reads[AppConfigCommonOverridable]
-  implicit val appConfigCommonOverridableWrites = Json.writes[AppConfigCommonOverridable]
-
-  implicit val configSourceReads = Json.reads[ConfigSource]
-  implicit val configSourceWrites = Json.writes[ConfigSource]
-
-  implicit val EnvironmentReads = Json.reads[Environment]
-  implicit val EnvironmentWrites = Json.writes[Environment]
-
-  implicit val EnvironmentConfigSourceReads = Json.reads[EnvironmentConfigSource]
-  implicit val EnvironmentConfigSourceWrites = Json.writes[EnvironmentConfigSource]
+) extends BackendController(mcc) with ConfigJson {
 
 
   def serviceConfig(serviceName: String) = Action.async { implicit request =>
     configService.configByEnvironment(serviceName).map {e =>
         Ok(Json.toJson(e))
     }
-
   }
+
+//  def serviceConfig(serviceNAme: String, environment: String) = Action.async { implicit request =>
+//    configService.configForEnvironment(serviceName, environment).map { c =>
+//      Ok(Json.toJson(c))
+//    }
+//  }
 
 }
