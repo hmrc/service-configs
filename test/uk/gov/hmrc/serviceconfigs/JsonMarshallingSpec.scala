@@ -21,6 +21,8 @@ import org.scalatest.WordSpec
 import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.ConfigService._
 
+import scala.collection.SortedMap
+
 class JsonMarshallingSpec extends WordSpec with ConfigJson {
 
 
@@ -33,38 +35,61 @@ class JsonMarshallingSpec extends WordSpec with ConfigJson {
       "unmarshal" in {
         Json.toJson(Environment("envtest", Seq(BaseConfig("basetest")))) shouldBe Json.parse(
           """
-            |{"name":"envtest",
-            |"configs":[{
-            |"name":"basetest"
-            |}]
-            |}
+            |{"name":"envtest"}
             |""".stripMargin)
+      }
+    }
+
+    "EnvironmentConfigSource" should {
+      "unmarshal" in {
+        val configSource = BaseConfig("configSource-base")
+        val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
+        val ecs = new EnvironmentConfigSource(environment, configSource)
+        Json.toJson(ecs) shouldBe Json.parse(
+          """|{
+              |"environment":"environmentName",
+              |"configSource":"configSource-base"
+             |}""".stripMargin
+        )
       }
     }
 
     "ConfigByEnvironment" should {
       "unmarshal" in {
-        val environment = Environment("environment", Seq(BaseConfig("configSource-base")))
         val configSource = BaseConfig("configSource-base")
+        val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
         val ecs = new EnvironmentConfigSource(environment, configSource)
         val cbe = Map(ecs -> Map("entry1" -> ConfigEntry("configEntry-1")))
 
         Json.toJson(cbe) shouldBe Json.parse(
+          """{
+              |"environmentName":{
+                |"entry1":{"value":"configEntry-1"}
+              |}
+             |}""".stripMargin
+          )
+      }
+    }
+    // type ConfigByKey = SortedMap[String, Map[EnvironmentConfigSource, ConfigEntry]]
+    "ConfigByKey" should {
+      "write to json" in {
+        val configSource = BaseConfig("configSource-base")
+        val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
+        val configByKey = Map("key1" -> Seq(ConfigByKeyEntry(environment.name, configSource.name, "configEntry1")) )
+
+        Json.toJson(configByKey) shouldBe Json.parse(
           """
-            |[[
-            |{"environment":{
-            |"name":"environment",
-            |"configs":[
-            |{"name":"configSource-base"}
-            |]},
-            |"conifigSource":
-            |{"name":"configSource-base"}
-            |},
-            |{"entry1":{
-            |"value":"configEntry-1"
+            |{
+              |"key1":[
+                |{
+                  |"environment":"environmentName",
+                  |"configSource":"configSource-base",
+                  |"value":"configEntry1"
+                |}
+              |]
             |}
-            |}
-            |]]""".stripMargin)
+          """.stripMargin
+        )
       }
     }
   }

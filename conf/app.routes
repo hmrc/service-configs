@@ -1,4 +1,4 @@
 # microservice specific routes
 
-GET        /all-config/:serviceName              uk.gov.hmrc.serviceconfigs.ConfigController.serviceConfig(serviceName)
-#GET        /config/:serviceName/:environment     uk.gov.hmrc.serviceconfigs.ConfigController.serviceConfig(serviceName, environment)
+GET        /config-by-env/:serviceName              uk.gov.hmrc.serviceconfigs.ConfigController.serviceConfig(serviceName)
+GET        /config-by-key/:serviceName              uk.gov.hmrc.serviceconfigs.ConfigController.configByKey(serviceName)

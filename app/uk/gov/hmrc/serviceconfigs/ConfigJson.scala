@@ -18,24 +18,36 @@ package uk.gov.hmrc.serviceconfigs
 
 import play.api.libs.json.{Json, Writes}
 import uk.gov.hmrc.serviceconfigs.ConfigService._
+import play.api.libs.functional.syntax._
 
 trait ConfigJson {
 
-  implicit val configWrites = new Writes[ConfigSource] {
+  implicit val configEntryReads = Json.reads[ConfigEntry]
+  implicit val configEntryWrites = Json.writes[ConfigEntry]
+
+  implicit val environmentConfigEntryWrites = Json.writes[ConfigByKeyEntry]
+
+  implicit val configSourceWrites = new Writes[ConfigSource] {
     def writes(configSource: ConfigSource) = Json.obj(
       "name" -> configSource.name
     )
   }
 
-  implicit val configEntryReads = Json.reads[ConfigEntry]
-  implicit val configEntryWrites = Json.writes[ConfigEntry]
-  implicit val environmentWrites = Json.writes[Environment]
+  implicit val environmentWrites = new Writes[Environment] {
+    def writes(env: Environment) = Json.obj(
+      "name" -> env.name
+    )
+  }
 
   implicit val environmentConfigSourceWrites = new Writes[EnvironmentConfigSource] {
     def writes(ecs: EnvironmentConfigSource) = Json.obj(
-      "environment" -> Json.toJson(ecs._1),
-      "conifigSource" -> Json.toJson(ecs._2)
+      "environment" -> ecs._1.name,
+      "configSource" -> ecs._2.name
     )
+  }
+
+  implicit val configByEnvironmentWrites = new Writes[ConfigByEnvironment] {
+    def writes(cbe: ConfigByEnvironment) = Json.toJson(cbe.map(e => e._1._1.name -> e._2))
   }
 
 }

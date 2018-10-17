@@ -30,29 +30,30 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
     allConfigs.foldLeft(Future.successful(newConfigMap)) { case (mapF, (env, source)) =>
       mapF flatMap { map => source.get(configConnector, configParser)(serviceName, env, map) }
     }
-//
-//  def configForEnvironment(serviceName: String, environment: String)(implicit hc: HeaderCarrier): Future[ConfigSource] = {
-//    allConfigs.filter(_._2.name == environment).map{c => c._2.get(configConnector, configParser)(serviceName, environment, c)}
-//  }
 
-  def configByKey(map: ConfigByEnvironment) =
-    map.foldLeft(Map[String, Map[EnvironmentConfigSource, ConfigEntry]]()) {
-      case (acc, (envSrc, keyValues)) =>
-        acc ++ (keyValues map {
-          case (key, value) =>
-            val keyMap = acc.getOrElse(key, Map[EnvironmentConfigSource, ConfigEntry]())
-            key -> (keyMap + (envSrc -> value))
-        })
+  def configByKey(map: ConfigByEnvironment): Map[String, List[ConfigByKeyEntry]] =
+    map.foldLeft(Map[String, List[ConfigByKeyEntry]]()) {
+      case (acc, (envSrc: EnvironmentConfigSource, keyValues: Map[String, ConfigEntry])) => {
+        acc ++ keyValues.map {
+          case (key: String, ce: ConfigEntry) =>
+            val mySeq: List[ConfigByKeyEntry] = acc.getOrElse(key, List[ConfigByKeyEntry]())
+            key -> (mySeq ++ List(ConfigByKeyEntry(envSrc._1.name, envSrc._2.name, ce.value)))
+        }
+      }
     }
 }
 
 @Singleton
 object ConfigService {
   type EnvironmentConfigSource = (Environment, ConfigSource)
+
   type ConfigByEnvironment = Map[EnvironmentConfigSource, Map[String, ConfigEntry]]
-  type ConfigByKey = Map[String, Map[EnvironmentConfigSource, ConfigEntry]]
+  type ConfigByKey = Map[String, Seq[ConfigByEnvironment]]
 
+  case class ConfigEntry(value: String)
+  case class Environment(name: String, configs: Seq[ConfigSource])
 
+  case class ConfigByKeyEntry(environment: String, configSource: String, value: String)
 
   //TODO how best to deal with this hierarchy of conifig sources?
 
@@ -108,9 +109,7 @@ object ConfigService {
       }) yield map + ((env, this) -> entries)
   }
 
-  case class ConfigEntry(value: String)
 
-  case class Environment(name: String, configs: Seq[ConfigSource])
 
 
   val applicationConf = ApplicationConf("applicationConf")
@@ -134,7 +133,6 @@ object ConfigService {
   val environments = Seq(development, qa, staging, integration, externalTest, production)
   val allConfigs: Seq[EnvironmentConfigSource] =
       Seq(service, base, development, qa, staging, integration, externalTest, production)
-//    Seq(service, base, development)
       .flatMap(env => env.configs.map(c => env -> c))
 
 
@@ -145,12 +143,12 @@ object ConfigService {
       .get("type")
       .map(t => t.value)
 
-
-  def prepareMapForPrint(byEnv: ConfigByEnvironment, byKey: ConfigByKey, envSource: EnvironmentConfigSource): Seq[(String, ConfigEntry, Seq[EnvironmentConfigSource])] = {
-    byEnv(envSource).map {
-      case (k, v) => (k, v, byKey(k).filter { case (key, value) => key != envSource && value == v }.keys.toSeq)
-    }.toSeq
-  }
+//
+//  def prepareMapForPrint(byEnv: ConfigByEnvironment, byKey: ConfigByKey, envSource: EnvironmentConfigSource): Seq[(String, ConfigEntry, Seq[EnvironmentConfigSource])] = {
+//    byEnv(envSource).map {
+//      case (k, v) => (k, v, byKey(k).filter { case (key, value) => key != envSource && value == v }.keys.toSeq)
+//    }.toSeq
+//  }
 
 
 }
