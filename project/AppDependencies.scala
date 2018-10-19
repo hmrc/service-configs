@@ -10,7 +10,7 @@ object AppDependencies {
     "uk.gov.hmrc"             %% "bootstrap-play-26"        % "0.20.0",
     "org.yaml"                % "snakeyaml"                 % "1.17",
     "uk.gov.hmrc"             %% "github-client"            % "2.4.0",
-    "uk.gov.hmrc"             %% "play-config"              % "1.0.0"
+    "uk.gov.hmrc"             %% "play-config"              % "7.0.0"
   )
 
   val test = Seq(
