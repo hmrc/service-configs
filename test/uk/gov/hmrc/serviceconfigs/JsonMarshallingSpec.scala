@@ -59,7 +59,7 @@ class JsonMarshallingSpec extends WordSpec with ConfigJson {
         val configSource = BaseConfig("configSource-base")
         val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
         val ecs = new EnvironmentConfigSource(environment, configSource)
-        val cbe = Map(ecs -> Map("entry1" -> ConfigEntry("configEntry-1")))
+        val cbe = Map(ecs -> Map("entry1" -> ConfigByEnvEntry("configEntry-1")))
 
         Json.toJson(cbe) shouldBe Json.parse(
           """{

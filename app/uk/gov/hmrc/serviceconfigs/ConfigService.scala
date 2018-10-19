@@ -33,9 +33,9 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
 
   def configByKey(map: ConfigByEnvironment): Map[String, List[ConfigByKeyEntry]] =
     map.foldLeft(Map[String, List[ConfigByKeyEntry]]()) {
-      case (acc, (envSrc: EnvironmentConfigSource, keyValues: Map[String, ConfigEntry])) => {
+      case (acc, (envSrc: EnvironmentConfigSource, keyValues: Map[String, ConfigByEnvEntry])) => {
         acc ++ keyValues.map {
-          case (key: String, ce: ConfigEntry) =>
+          case (key: String, ce: ConfigByEnvEntry) =>
             val mySeq: List[ConfigByKeyEntry] = acc.getOrElse(key, List[ConfigByKeyEntry]())
             key -> (mySeq ++ List(ConfigByKeyEntry(envSrc._1.name, envSrc._2.name, ce.value)))
         }
@@ -45,15 +45,18 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
 
 @Singleton
 object ConfigService {
-  type EnvironmentConfigSource = (Environment, ConfigSource)
 
-  type ConfigByEnvironment = Map[EnvironmentConfigSource, Map[String, ConfigEntry]]
-  type ConfigByKey = Map[String, Seq[ConfigByEnvironment]]
+  case class ConfigByEnvEntry(value: String)
+  case class ConfigByKeyEntry(environment: String, configSource: String, value: String)
 
-  case class ConfigEntry(value: String)
   case class Environment(name: String, configs: Seq[ConfigSource])
 
-  case class ConfigByKeyEntry(environment: String, configSource: String, value: String)
+  type EnvironmentConfigSource = (Environment, ConfigSource)
+
+  type ConfigByEnvironment = Map[EnvironmentConfigSource, Map[String, ConfigByEnvEntry]]
+  type ConfigByKey = Map[String, Seq[ConfigByEnvironment]]
+
+
 
   //TODO how best to deal with this hierarchy of conifig sources?
 
@@ -92,7 +95,7 @@ object ConfigService {
               .filterKeys(key => key.startsWith("hmrc_config.fixed"))
               .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
               .toMap }
-        case None => Future.successful(Map[String, ConfigEntry]())
+        case None => Future.successful(Map[String, ConfigByEnvEntry]())
       }) yield map + ((env, this) -> entries)
   }
 
@@ -105,7 +108,7 @@ object ConfigService {
               .filterKeys(key => key.startsWith("hmrc_config.overridable"))
               .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
               .toMap }
-        case None => Future.successful(Map[String, ConfigEntry]())
+        case None => Future.successful(Map[String, ConfigByEnvEntry]())
       }) yield map + ((env, this) -> entries)
   }
 
@@ -136,7 +139,7 @@ object ConfigService {
       .flatMap(env => env.configs.map(c => env -> c))
 
 
-  def newConfigMap = Map[EnvironmentConfigSource, Map[String, ConfigEntry]]()
+  def newConfigMap = Map[EnvironmentConfigSource, Map[String, ConfigByEnvEntry]]()
 
   def getServiceType(map: ConfigByEnvironment, env: Environment): Option[String] =
     map((env, appConfig))

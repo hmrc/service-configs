@@ -20,14 +20,14 @@ import java.util
 import com.typesafe.config._
 import javax.inject.Singleton
 import org.yaml.snakeyaml.Yaml
-import uk.gov.hmrc.serviceconfigs.ConfigService.ConfigEntry
+import uk.gov.hmrc.serviceconfigs.ConfigService.ConfigByEnvEntry
 
 import scala.collection.mutable
 
 @Singleton
 class ConfigParser {
 
-  def loadConfResponseToMap(responseString: String): scala.collection.mutable.Map[String, ConfigEntry] = {
+  def loadConfResponseToMap(responseString: String): scala.collection.mutable.Map[String, ConfigByEnvEntry] = {
     import scala.collection.mutable.Map
 
     val fallbackIncluder = ConfigParseOptions.defaults().getIncluder()
@@ -50,7 +50,7 @@ class ConfigParser {
     }
   }
 
-  def loadYamlResponseToMap(responseString: String): scala.collection.mutable.Map[String, ConfigEntry] = {
+  def loadYamlResponseToMap(responseString: String): scala.collection.mutable.Map[String, ConfigByEnvEntry] = {
     import scala.collection.JavaConversions.mapAsScalaMap
     import scala.collection.mutable.Map
     responseString match {
@@ -64,12 +64,12 @@ class ConfigParser {
   }
 
   private def flattenConfigToDotNotation(
-    start: mutable.Map[String, ConfigEntry],
-    input: Config,
-    prefix: String = ""): mutable.Map[String, ConfigEntry] = {
+                                          start: mutable.Map[String, ConfigByEnvEntry],
+                                          input: Config,
+                                          prefix: String = ""): mutable.Map[String, ConfigByEnvEntry] = {
     input.entrySet().toArray().foreach {
       case e: java.util.AbstractMap.SimpleImmutableEntry[Object, com.typesafe.config.ConfigValue] =>
-        start.put(s"${e.getKey.toString}", ConfigEntry(removeQuotes(e.getValue.render)))
+        start.put(s"${e.getKey.toString}", ConfigByEnvEntry(removeQuotes(e.getValue.render)))
       case e => println("Can't do that!")
     }
     start
@@ -83,16 +83,16 @@ class ConfigParser {
     }
 
   private def flattenYamlToDotNotation(
-    start: mutable.Map[String, ConfigEntry],
-    input: mutable.Map[String, Object],
-    currentPrefix: String = ""): mutable.Map[String, ConfigEntry] = {
+                                        start: mutable.Map[String, ConfigByEnvEntry],
+                                        input: mutable.Map[String, Object],
+                                        currentPrefix: String = ""): mutable.Map[String, ConfigByEnvEntry] = {
     import scala.collection.JavaConversions.mapAsScalaMap
     input foreach {
       case (k: String, v: mutable.Map[String, Object]) =>
         flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
       case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
         flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
-      case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), ConfigEntry(v.toString))
+      case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), ConfigByEnvEntry(v.toString))
     }
     start
   }

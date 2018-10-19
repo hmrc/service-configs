@@ -22,8 +22,8 @@ import play.api.libs.functional.syntax._
 
 trait ConfigJson {
 
-  implicit val configEntryReads = Json.reads[ConfigEntry]
-  implicit val configEntryWrites = Json.writes[ConfigEntry]
+  implicit val configEntryReads = Json.reads[ConfigByEnvEntry]
+  implicit val configEntryWrites = Json.writes[ConfigByEnvEntry]
 
   implicit val environmentConfigEntryWrites = Json.writes[ConfigByKeyEntry]
 
