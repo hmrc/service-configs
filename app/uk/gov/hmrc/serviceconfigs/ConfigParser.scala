@@ -93,6 +93,7 @@ class ConfigParser {
       case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
         flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
       case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), ConfigByEnvEntry(v.toString))
+      case _ =>
     }
     start
   }
