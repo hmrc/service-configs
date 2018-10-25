@@ -73,7 +73,7 @@ object ConfigService {
 
   case class BaseConfig(name: String) extends ConfigSource {
     def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
-      connector.serviceConfigConf(env.name, serviceName)
+      connector.serviceConfigConf("base", serviceName)
         .map(raw => map + ((env, this) -> parser.loadConfResponseToMap(raw).toMap))
   }
 
@@ -121,27 +121,24 @@ object ConfigService {
   val appConfigCommonFixed = AppConfigCommonFixed("appConfigCommonFixed")
   val appConfigCommonOverridable = AppConfigCommonOverridable("appConfigCommonOverridable")
 
-  val service = Environment(name = "internal", configs = Seq(applicationConf))
-  val base = Environment(name = "base", configs = Seq(baseConfig))
-  val development = Environment(name = "development", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
-  val qa = Environment(name = "qa", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
-  val staging = Environment(name = "staging", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
-  val integration = Environment(name = "integration", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
-  val externalTest = Environment(name = "externaltest", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
-  val production = Environment(name = "production", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
+  val local = Environment(name = "local", configs = Seq(applicationConf))
+  val development = Environment(name = "development", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
+  val qa = Environment(name = "qa", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
+  val staging = Environment(name = "staging", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
+  val integration = Environment(name = "integration", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
+  val externalTest = Environment(name = "externaltest", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
+  val production = Environment(name = "production", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
 
-  val environments = Seq(development, qa, staging, integration, externalTest, production)
+  val environments = Seq(local, development, qa, staging, integration, externalTest, production)
   val allConfigs: Seq[EnvironmentConfigSource] =
-      Seq(service, base, development, qa, staging, integration, externalTest, production)
+      Seq(local, development, qa, staging, integration, externalTest, production)
       .flatMap(env => env.configs.map(c => env -> c))
 
 
   def newConfigMap = Map[EnvironmentConfigSource, Map[String, ConfigByEnvEntry]]()
 
   def getServiceType(map: ConfigByEnvironment, env: Environment): Option[String] =
-    map((env, appConfig))
-      .get("type")
-      .map(t => t.value)
+    map.get((env, appConfig)).flatMap(ac => ac.get("type")).map(t => t.value)
 
 //
 //  def prepareMapForPrint(byEnv: ConfigByEnvironment, byKey: ConfigByKey, envSource: EnvironmentConfigSource): Seq[(String, ConfigEntry, Seq[EnvironmentConfigSource])] = {
