@@ -47,7 +47,12 @@ trait ConfigJson {
   }
 
   implicit val configByEnvironmentWrites = new Writes[ConfigByEnvironment] {
-    def writes(cbe: ConfigByEnvironment) = Json.toJson(cbe.map(e => e._1._1.name -> e._2))
+    def writes(cbe: ConfigByEnvironment) = {
+      Json.toJson(cbe.foldLeft(Map[String, Map[String, Map[String, ConfigByEnvEntry]]]()) {
+        case (map, ((e, cs), entries)) =>
+          val envMap = map.getOrElse(e.name, Map[String, Map[String, ConfigByEnvEntry]]())
+          map + (e.name -> (envMap + (cs.name -> entries)))
+      })
+    }
   }
-
 }

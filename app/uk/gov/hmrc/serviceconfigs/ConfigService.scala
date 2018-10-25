@@ -130,9 +130,6 @@ object ConfigService {
   val externalTest = Environment(name = "externaltest", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
   val production = Environment(name = "production", configs = Seq(appConfig, appConfigCommonFixed, appConfigCommonOverridable))
 
-
-
-
   val environments = Seq(development, qa, staging, integration, externalTest, production)
   val allConfigs: Seq[EnvironmentConfigSource] =
       Seq(service, base, development, qa, staging, integration, externalTest, production)
