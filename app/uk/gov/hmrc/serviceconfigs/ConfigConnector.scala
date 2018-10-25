@@ -16,21 +16,19 @@
 
 package uk.gov.hmrc.cataloguefrontend.connector
 
-import java.io.File
-
 import javax.inject.{Inject, Singleton}
 import play.Logger
-import play.api.libs.json._
-import uk.gov.hmrc.githubclient.GitApiConfig
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.serviceconfigs.GithubConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 @Singleton
 class ConfigConnector @Inject()(
-  http: HttpClient
+  http: HttpClient,
+  gitConf: GithubConfig
 ) {
 
 
@@ -38,35 +36,28 @@ class ConfigConnector @Inject()(
     override def read(method: String, url: String, response: HttpResponse): HttpResponse = response
   }
 
-  // TODO - where does this belong and how should it really be initiated?
-  val gitConf = {
-    if (new File(s"${System.getProperty("user.home")}/.github/.credentials").exists()) {
-      GitApiConfig.fromFile(s"${System.getProperty("user.home")}/.github/.credentials")
-    } else {
-      GitApiConfig("key-not-set", "token-not-set", "api-url-not-set")
-    }
-  }
+  private val configKey = gitConf.githubApiOpenConfig.key
 
   def serviceConfigYaml(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${gitConf.key}"))
+    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"https://raw.githubusercontent.com/hmrc/app-config-$env/master/$service.yaml"
     doCall(requestUrl, newHc)
   }
 
   def serviceConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${gitConf.key}"))
+    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"https://raw.githubusercontent.com/hmrc/app-config-$env/master/$service.conf"
     doCall(requestUrl, newHc)
   }
 
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${gitConf.key}"))
+    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"https://raw.githubusercontent.com/hmrc/app-config-common/master/$env-$serviceType-common.yaml"
     doCall(requestUrl, newHc)
   }
 
   def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier) = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${gitConf.key}"))
+    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"https://raw.githubusercontent.com/hmrc/$serviceName/master/conf/application.conf"
     doCall(requestUrl, newHc)
   }
