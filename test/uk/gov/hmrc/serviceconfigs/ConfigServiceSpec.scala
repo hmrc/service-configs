@@ -21,12 +21,6 @@ import org.scalatest.WordSpec
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.ConfigService
-import uk.gov.hmrc.serviceconfigs.ConfigService.ConfigByEnvEntry
-
-import scala.collection.mutable
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 class ConfigServiceSpec extends WordSpec with MockitoSugar {
 

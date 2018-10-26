@@ -25,81 +25,66 @@ import scala.collection.SortedMap
 
 class JsonMarshallingSpec extends WordSpec with ConfigJson {
 
-
-  "A ConfigSource case object" should {
-    "unmarshall BaseConfig" in {
-      Json.toJson(BaseConfig("test")) shouldBe Json.parse("""{"name":"test"}""")
-    }
-  }
-
-  "Environment" should {
-    "unmarshal" in {
-      Json.toJson(Environment("envtest", Seq(BaseConfig("basetest")))) shouldBe Json.parse(
-        """
-          |{"name":"envtest"}
-          |""".stripMargin)
-    }
-  }
-
-  "EnvironmentConfigSource" should {
-    "unmarshal" in {
-      val configSource = BaseConfig("configSource-base")
-      val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
-      val ecs = new EnvironmentConfigSource(environment, configSource)
-      Json.toJson(ecs) shouldBe Json.parse(
-        """|{
-            |"environment":"environmentName",
-            |"configSource":"configSource-base"
-           |}""".stripMargin
-      )
-    }
-  }
-
   "ConfigByEnvironment" should {
     "unmarshal" in {
-      val baseSource = BaseConfig("configSource-base")
-      val appConfigSource = AppConfig("configSource-appConfig")
+      val baseSource = BaseConfig()
+      val appConfigSource = AppConfig()
 
-      val environment = Environment("environmentName", Seq(baseSource, appConfigSource))
-
-      val baseECS = new EnvironmentConfigSource(environment, baseSource)
-      val appConfigECS = new EnvironmentConfigSource(environment, appConfigSource)
-
-      val cbe = Map(
-        baseECS -> Map("entry1" -> ConfigByEnvEntry("configEntry-1")),
-        appConfigECS -> Map("entry2" -> ConfigByEnvEntry("configEntry-2")))
+      val cbe: ConfigByEnvironment = Map(
+        "environmentName" -> Seq(
+          ConfigSourceEntries("baseConfig", 20, Map(
+            "entry1" -> "configEntry-1",
+            "entry2" -> "configEntry-2")),
+          ConfigSourceEntries("appConfig", 40, Map("entry3" -> "configEntry-3"))))
 
       Json.toJson(cbe) shouldBe Json.parse(
         """{
-            |"environmentName":{
-              |"configSource-base":{
-                |"entry1":{"value":"configEntry-1"}
+            |"environmentName":[
+              |{
+                |"source":"baseConfig",
+                |"precedence":20,
+                |"entries":{
+                  |"entry1":"configEntry-1",
+                  |"entry2":"configEntry-2"
+                |}
               |},
-              |"configSource-appConfig":{
-                |"entry2":{"value":"configEntry-2"}
+              |{
+                |"source":"appConfig",
+                |"precedence":40,
+                |"entries":{"entry3":"configEntry-3"}
               |}
-            |}
+            |]
            |}""".stripMargin
         )
     }
   }
+
   // type ConfigByKey = SortedMap[String, Map[EnvironmentConfigSource, ConfigEntry]]
   "ConfigByKey" should {
     "write to json" in {
-      val configSource = BaseConfig("configSource-base")
-      val environment = Environment("environmentName", Seq(BaseConfig("configSource-base")))
-      val configByKey = Map("key1" -> Seq(ConfigByKeyEntry(environment.name, configSource.name, "configEntry1")) )
+      val configByKey = Map("key1" ->
+        Map("environmentName" ->
+          Seq(
+            ConfigService.ConfigSourceValue("baseConfig", 10, "configEntry1"),
+            ConfigService.ConfigSourceValue("appConfig", 20, "configEntry2"))))
 
       Json.toJson(configByKey) shouldBe Json.parse(
         """
           |{
-            |"key1":[
-              |{
-                |"environment":"environmentName",
-                |"configSource":"configSource-base",
-                |"value":"configEntry1"
-              |}
-            |]
+            |"key1":{
+              |"environmentName":[
+                |{
+                  |"source":"baseConfig",
+                  |"precedence":10,
+                  |"value":"configEntry1"
+                |},
+                |{
+                  |"source":"appConfig",
+                  |"precedence":20,
+                  |"value":"configEntry2"
+                |}
+              |]
+            |}
           |}
         """.stripMargin
       )

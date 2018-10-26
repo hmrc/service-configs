@@ -19,25 +19,36 @@ package uk.gov.hmrc.serviceconfigs
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
-
-import scala.concurrent.Future
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 
-class ConfigService @Inject()(configConnector: ConfigConnector, configParser: ConfigParser){
+import scala.concurrent.Future
+
+class ConfigService @Inject()(configConnector: ConfigConnector, configParser: ConfigParser) {
+
   import ConfigService._
 
+  val environments = Seq(LocalEnvironment("local"), DeployedEnvironment("development"), DeployedEnvironment("qa"),
+    DeployedEnvironment("staging"), DeployedEnvironment("integration"), DeployedEnvironment("externaltest"),
+    DeployedEnvironment("production"))
+
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
-    allConfigs.foldLeft(Future.successful(newConfigMap)) { case (mapF, (env, source)) =>
-      mapF flatMap { map => source.get(configConnector, configParser)(serviceName, env, map) }
+    environments.foldLeft(Future.successful(Map[EnvironmentName, Seq[ConfigSourceEntries]]())) { case (mapF, e) =>
+      mapF.flatMap { map =>
+        e.configSourceEntries(configConnector, configParser)(serviceName).map(cse => map + (e.name -> cse))
+      }
     }
 
-  def configByKey(map: ConfigByEnvironment): Map[String, List[ConfigByKeyEntry]] =
-    map.foldLeft(Map[String, List[ConfigByKeyEntry]]()) {
-      case (acc, (envSrc: EnvironmentConfigSource, keyValues: Map[String, ConfigByEnvEntry])) => {
-        acc ++ keyValues.map {
-          case (key: String, ce: ConfigByEnvEntry) =>
-            val mySeq: List[ConfigByKeyEntry] = acc.getOrElse(key, List[ConfigByKeyEntry]())
-            key -> (mySeq ++ List(ConfigByKeyEntry(envSrc._1.name, envSrc._2.name, ce.value)))
+  def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
+    environments.foldLeft(Future.successful(Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]())) { case (mapF, e) =>
+      mapF.flatMap { map =>
+        e.configSourceEntries(configConnector, configParser)(serviceName).map { configSourceEntries =>
+          configSourceEntries.foldLeft(map) { case (subMap, cse) =>
+            subMap ++ cse.entries.map { case (key, value) =>
+              val envMap = subMap.getOrElse(key, Map[EnvironmentName, Seq[ConfigSourceValue]]())
+              val values = envMap.getOrElse(e.name, Seq())
+              key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.precedence, value))))
+            }
+          }
         }
       }
     }
@@ -45,107 +56,114 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
 
 @Singleton
 object ConfigService {
+  type EnvironmentName = String
+  type KeyName = String
 
-  case class ConfigByEnvEntry(value: String)
-  case class ConfigByKeyEntry(environment: String, configSource: String, value: String)
+  type ConfigByEnvironment = Map[EnvironmentName, Seq[ConfigSourceEntries]]
+  type ConfigByKey = Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]
 
-  case class Environment(name: String, configs: Seq[ConfigSource])
+  case class ConfigSourceEntries(source: String, precedence: Int, entries: Map[KeyName, String] = Map())
 
-  type EnvironmentConfigSource = (Environment, ConfigSource)
+  case class ConfigSourceValue(source: String, precedence: Int, value: String)
 
-  type ConfigByEnvironment = Map[EnvironmentConfigSource, Map[String, ConfigByEnvEntry]]
-  type ConfigByKey = Map[String, Seq[ConfigByEnvironment]]
-
-
-
-  //TODO how best to deal with this hierarchy of conifig sources?
-
-  sealed trait ConfigSource {
-    val name: String
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment]
+  case class LocalEnvironment(name: String) extends Environment {
+    def configSources = Seq(ApplicationConf())
   }
 
-  case class ApplicationConf(name: String) extends ConfigSource {
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
+  case class DeployedEnvironment(name: String) extends Environment {
+    def configSources = Seq(ApplicationConf(), BaseConfig(), AppConfig(), AppConfigCommonFixed(), AppConfigCommonOverridable())
+  }
+
+  sealed trait Environment {
+    def name: String
+
+    def configSources: Seq[ConfigSource]
+
+    def configSourceEntries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String)(implicit hc: HeaderCarrier) = {
+      configSources.foldLeft(Future.successful(Seq[ConfigSourceEntries]())) { case (seqF, cs) =>
+        seqF.flatMap { seq =>
+          cs.entries(connector, parser)(serviceName, name, getServiceType(seq)).map(entries => seq :+ entries)
+        }
+      }
+    }
+  }
+
+  case class ApplicationConf() extends ConfigSource {
+    val name = "applicationConf"
+    val precedence = 10
+
+    def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceApplicationConfigFile(serviceName)
-        .map(raw => map + ((env, this) -> parser.loadConfResponseToMap(raw).toMap))
+        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).toMap))
   }
 
-  case class BaseConfig(name: String) extends ConfigSource {
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
+  case class BaseConfig() extends ConfigSource {
+    val name = "baseConfig"
+    val precedence = 20
+
+    def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceConfigConf("base", serviceName)
-        .map(raw => map + ((env, this) -> parser.loadConfResponseToMap(raw).toMap))
+        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).toMap))
   }
 
-  case class AppConfig(name: String) extends ConfigSource {
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
-      connector.serviceConfigYaml(env.name, serviceName)
+  case class AppConfig() extends ConfigSource {
+    val name = "appConfigEnvironment"
+    val precedence = 40
+
+    def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      connector.serviceConfigYaml(env, serviceName)
         .map { raw =>
-          map + ((env, this) -> parser.loadYamlResponseToMap(raw)
+          ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
             .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
-            .toMap) }
+            .toMap)
+        }
   }
 
-  case class AppConfigCommonFixed(name: String) extends ConfigSource {
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
-      for (entries <- getServiceType(map, env) match {
-        case Some(serviceType) =>
-          connector.serviceCommonConfigYaml(env.name, serviceType).map { raw =>
-            parser.loadYamlResponseToMap(raw)
+  case class AppConfigCommonFixed() extends ConfigSource {
+    val name = "appConfigCommonFixed"
+    val precedence = 50
+
+    def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      for (entries <- serviceType match {
+        case Some(st) =>
+          connector.serviceCommonConfigYaml(env, st).map { raw =>
+            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
               .filterKeys(key => key.startsWith("hmrc_config.fixed"))
               .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
-              .toMap }
-        case None => Future.successful(Map[String, ConfigByEnvEntry]())
-      }) yield map + ((env, this) -> entries)
+              .toMap)
+          }
+        case None =>
+          Future.successful(ConfigSourceEntries(name, precedence))
+      }) yield entries
   }
 
-  case class AppConfigCommonOverridable(name: String) extends ConfigSource {
-    def get(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: Environment, map: ConfigByEnvironment)(implicit hc: HeaderCarrier) =
-      for (entries <- getServiceType(map, env) match {
-        case Some(serviceType) =>
-          connector.serviceCommonConfigYaml(env.name, serviceType).map { raw =>
-            parser.loadYamlResponseToMap(raw)
+  case class AppConfigCommonOverridable() extends ConfigSource {
+    val name = "appConfigCommonOverridable"
+    val precedence = 30
+
+    def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      for (entries <- serviceType match {
+        case Some(st) =>
+          connector.serviceCommonConfigYaml(env, st).map { raw =>
+            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
               .filterKeys(key => key.startsWith("hmrc_config.overridable"))
               .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
-              .toMap }
-        case None => Future.successful(Map[String, ConfigByEnvEntry]())
-      }) yield map + ((env, this) -> entries)
+              .toMap)
+          }
+        case None => Future.successful(ConfigSourceEntries(name, precedence))
+      }) yield entries
   }
 
+  sealed trait ConfigSource {
+    def name: String
 
+    def precedence: Int
 
+    def entries(connector: ConfigConnector, parser: ConfigParser)
+               (serviceName: String, env: String, serviceType: Option[String])
+               (implicit hc: HeaderCarrier): Future[ConfigSourceEntries]
+  }
 
-  val applicationConf = ApplicationConf("applicationConf")
-  val baseConfig = BaseConfig("baseConfig")
-  val appConfig = AppConfig("appConfig")
-  val appConfigCommonFixed = AppConfigCommonFixed("appConfigCommonFixed")
-  val appConfigCommonOverridable = AppConfigCommonOverridable("appConfigCommonOverridable")
-
-  val local = Environment(name = "local", configs = Seq(applicationConf))
-  val development = Environment(name = "development", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-  val qa = Environment(name = "qa", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-  val staging = Environment(name = "staging", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-  val integration = Environment(name = "integration", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-  val externalTest = Environment(name = "externaltest", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-  val production = Environment(name = "production", configs = Seq(applicationConf, baseConfig, appConfigCommonFixed, appConfig, appConfigCommonOverridable))
-
-  val environments = Seq(local, development, qa, staging, integration, externalTest, production)
-  val allConfigs: Seq[EnvironmentConfigSource] =
-      Seq(local, development, qa, staging, integration, externalTest, production)
-      .flatMap(env => env.configs.map(c => env -> c))
-
-
-  def newConfigMap = Map[EnvironmentConfigSource, Map[String, ConfigByEnvEntry]]()
-
-  def getServiceType(map: ConfigByEnvironment, env: Environment): Option[String] =
-    map.get((env, appConfig)).flatMap(ac => ac.get("type")).map(t => t.value)
-
-//
-//  def prepareMapForPrint(byEnv: ConfigByEnvironment, byKey: ConfigByKey, envSource: EnvironmentConfigSource): Seq[(String, ConfigEntry, Seq[EnvironmentConfigSource])] = {
-//    byEnv(envSource).map {
-//      case (k, v) => (k, v, byKey(k).filter { case (key, value) => key != envSource && value == v }.keys.toSeq)
-//    }.toSeq
-//  }
-
-
+  def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
+    configSourceEntries.find(cse => cse.source == AppConfig().name).flatMap(cse => cse.entries.get("type"))
 }

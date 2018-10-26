@@ -37,9 +37,8 @@ class ConfigController @Inject()(
   }
 
   def configByKey(serviceName: String) = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName).map {e =>
-        val result = configService.configByKey(e)
-        Ok(Json.toJson(result))
+    configService.configByKey(serviceName).map {k =>
+        Ok(Json.toJson(k))
     }
   }
 
