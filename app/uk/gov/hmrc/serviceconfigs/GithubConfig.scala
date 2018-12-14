@@ -27,6 +27,7 @@ class GithubConfig @Inject()(configuration: Configuration) {
 
   val githubOpenConfigKey = "github.open.api"
 
+  val githubRawUrl = configuration.getOptional[String](s"$githubOpenConfigKey.rawurl").getOrElse("https://raw.githubusercontent.com")
   val host = configuration.getOptional[String](s"$githubOpenConfigKey.host")
   val user = configuration.getOptional[String](s"$githubOpenConfigKey.user")
   val key = configuration.getOptional[String](s"$githubOpenConfigKey.key")
