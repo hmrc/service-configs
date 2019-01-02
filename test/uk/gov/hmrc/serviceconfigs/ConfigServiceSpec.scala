@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import org.scalatest.WordSpec
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 
 class ConfigServiceSpec extends WordSpec with MockitoSugar {
 

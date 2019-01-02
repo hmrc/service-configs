@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+@Singleton
+class NginxConfig @Inject()(configuration: Configuration) {
+
+  val configRepo = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
+  val frontendConfigFile = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
+
 }

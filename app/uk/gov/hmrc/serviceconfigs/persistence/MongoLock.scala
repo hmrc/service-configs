@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.persistence
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+class MongoLock {
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
 }

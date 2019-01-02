@@ -16,11 +16,26 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+import akka.actor.{Actor, ActorSystem, Props}
+import javax.inject.Inject
+import play.api.{Application, Configuration}
+import play.api.inject.ApplicationLifecycle
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+class FrontendRouteScheduler @Inject()(
+                                       actorSystem: ActorSystem,
+                                       configuration: Configuration) {
+
+
+  private val environments = Seq("production", "qa", "staging", "development")
+
+
+}
+
+
+class FrontendRouteActor()  extends Actor {
+  override def receive: Receive = {
+    ???
+  }
 }

@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.persistence.model
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+import org.joda.time.DateTime
+import play.api.libs.json.Json
+import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+
+case class MongoFrontendRoute(service: String, frontendPath: String, backendPath: String, environment: String, ruleConfigurationUrl: String = "", updateDate: DateTime = DateTime.now)
+
+object MongoFrontendRoute {
+
+  implicit val dateFormat = ReactiveMongoFormats.dateTimeFormats
+  implicit val formats = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
+
 }
