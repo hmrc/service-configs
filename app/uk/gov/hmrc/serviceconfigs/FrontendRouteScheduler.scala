@@ -18,24 +18,37 @@ package uk.gov.hmrc.serviceconfigs
 
 import akka.actor.{Actor, ActorSystem, Props}
 import javax.inject.Inject
-import play.api.{Application, Configuration}
-import play.api.inject.ApplicationLifecycle
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
+import play.api.{Configuration, Logger}
+import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 
-class FrontendRouteScheduler @Inject()(
-                                       actorSystem: ActorSystem,
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.postfixOps
+
+class FrontendRouteScheduler @Inject()(actorSystem: ActorSystem,
+                                       nginxConfig: NginxConfig,
+                                       nginxService: NginxService,
                                        configuration: Configuration) {
 
+  private val props = Props.create(classOf[FrontendRouteActor], nginxService)
+  private val frontendRouteActor = actorSystem.actorOf(props)
 
-  private val environments = Seq("production", "qa", "staging", "development")
-
+  if(nginxConfig.schedulerEnabled) {
+    Logger.info("Starting frontend route scheduler")
+    actorSystem.scheduler.schedule(20 seconds, nginxConfig.schedulerDelay minutes, frontendRouteActor, "tick")
+  }
+  else {
+    Logger.info("Frontend route scheduler is DISABLED. To enabled set 'nginx.reload.enabled' as true.")
+  }
 
 }
 
 
-class FrontendRouteActor()  extends Actor {
+class FrontendRouteActor(nginxService: NginxService)  extends Actor {
+
+  private val environments = Seq("production", "qa", "staging", "development")
+
   override def receive: Receive = {
-    ???
+    case _ => nginxService.update(environments)
   }
 }

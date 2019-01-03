@@ -16,22 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.google.inject.ProvidedBy
-import javax.inject.Singleton
-
 import scala.util.parsing.combinator.RegexParsers
 
 sealed trait MatchResult
 
-case class FrontendRoute(path: String, proxy: String) extends MatchResult
+case class ParserFrontendRoute(path: String, proxy: String) extends MatchResult
 
 case class NoFrontendRoute(err: String) extends MatchResult
 
 case class Comment(text: String)
 
-@Singleton
 trait FrontendRoutersParser {
-  def parseConfig(config: String): Seq[FrontendRoute]
+  def parseConfig(config: String): Seq[ParserFrontendRoute]
 }
 
 class NginxConfigParser extends RegexParsers with FrontendRoutersParser {
@@ -107,18 +103,18 @@ class NginxConfigParser extends RegexParsers with FrontendRoutersParser {
 
   def context =
     contextHeader ~ contextBody <~ contextEnd ^^ {
-      case Some(Location(p)) ~ Some(Param("proxy_pass", u)) => FrontendRoute(p, u.head)
+      case Some(Location(p)) ~ Some(Param("proxy_pass", u)) => ParserFrontendRoute(p, u.head)
       case x => NoFrontendRoute(x.toString())
     }
 
 
-  def nginxConfig: Parser[Seq[FrontendRoute]] = phrase(rep(comment | context)) ^^ {
-    seq => seq.filterNot(_.isInstanceOf[Comment]).map(_.asInstanceOf[FrontendRoute])
+  def nginxConfig: Parser[Seq[ParserFrontendRoute]] = phrase(rep(comment | context)) ^^ {
+    seq => seq.filter(_.isInstanceOf[ParserFrontendRoute]).map(_.asInstanceOf[ParserFrontendRoute])
   }
 
   override def skipWhitespace: Boolean = true
 
-  def parseConfig(config: String): Seq[FrontendRoute] =
-    parse(nginxConfig, config).getOrElse(Seq.empty[FrontendRoute])
+  def parseConfig(config: String): Seq[ParserFrontendRoute] =
+    parse(nginxConfig, config).getOrElse(Seq.empty[ParserFrontendRoute])
 
 }

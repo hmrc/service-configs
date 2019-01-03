@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.model
 import org.scalatest.{FlatSpec, Matchers, WordSpec}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
-class FrontendRoutesSpec extends FlatSpec with Matchers {
+class ParserFrontendRoutesSpec extends FlatSpec with Matchers {
 
 
   "frontendRoutes" should "group routes by environment" in {

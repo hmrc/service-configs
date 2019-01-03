@@ -16,13 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import javax.inject.{Inject, Singleton}
-import play.api.Configuration
+import com.google.inject.AbstractModule
+import uk.gov.hmrc.serviceconfigs.parser.{FrontendRoutersParser, NginxConfigParser}
 
-@Singleton
-class NginxConfig @Inject()(configuration: Configuration) {
-
-  val configRepo = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
-  val frontendConfigFile = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
-
+class FrontendRouteModule  extends AbstractModule {
+  override def configure(): Unit = {
+    bind(classOf[FrontendRouteScheduler]).asEagerSingleton()
+    bind(classOf[FrontendRoutersParser]).to(classOf[NginxConfigParser]).asEagerSingleton()
+  }
 }

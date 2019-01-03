@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.Inject
 import play.Logger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.serviceconfigs.{GithubConfig, NginxConfig}
+import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
+import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -34,17 +35,17 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
 
   private val configKey = gitConf.githubApiOpenConfig.key
 
-  def configFor(env: String) : Future[Option[String]] = {
+  def configFor(env: String) : Future[Option[NginxConfigFile]] = {
 
-    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/$env/${nginxConfig.frontendConfigFile}"
+    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/master/$env/${nginxConfig.frontendConfigFile}"
     implicit val hc = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 => {
-        Logger.warn("Failed to download nginx config")
+        Logger.warn(s"Failed to download nginx config from ${url}, server returned ${response.status}")
         None
       }
-      case response: HttpResponse => Option(response.body)
+      case response: HttpResponse => Option(NginxConfigFile(env, url, response.body))
     }
   }
 

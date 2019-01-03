@@ -22,17 +22,17 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
 
   "Indexer" should "find the line number of the first path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/shutter/employee-expenses") shouldBe 0
+    res("/shutter/employee-expenses") shouldBe 1
   }
 
   it should "find the index of the second path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/employee-expenses") shouldBe 6
+    res("/employee-expenses") shouldBe 7
   }
 
   it should "find the line number of the last path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/check-tax-on-goods-you-bring-into-the-uk") shouldBe 23
+    res("/check-tax-on-goods-you-bring-into-the-uk") shouldBe 24
   }
 
   it should "not find a non-existent location" in {

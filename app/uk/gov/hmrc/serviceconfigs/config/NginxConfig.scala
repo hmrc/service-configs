@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.persistence
+package uk.gov.hmrc.serviceconfigs.config
 
 import javax.inject.{Inject, Singleton}
-import org.joda.time.Duration
-import uk.gov.hmrc.lock.{LockKeeper, LockMongoRepository, LockRepository}
+import play.api.Configuration
 
 @Singleton
-class MongoLock @Inject()(mongoConnector: MongoConnector) extends LockKeeper {
-  override def repo: LockRepository = LockMongoRepository(mongoConnector.db)
+class NginxConfig @Inject()(configuration: Configuration) {
 
-  override def lockId: String = "teams-and-repositories-sync-job"
+  val configRepo: String         = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
+  val frontendConfigFile: String = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
 
-  override val forceLockReleaseAfter: Duration = Duration.standardMinutes(20)
+  val schedulerEnabled: Boolean  = configuration.getOptional[Boolean](s"nginx.reload.enabled").getOrElse(false)
+  val schedulerDelay: Long       = configuration.getOptional[Long](s"nginx.reload.intervalminutes").getOrElse(20)
+
 }

@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence.model
 
 import org.joda.time.DateTime
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json, OFormat}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 
@@ -25,7 +25,7 @@ case class MongoFrontendRoute(service: String, frontendPath: String, backendPath
 
 object MongoFrontendRoute {
 
-  implicit val dateFormat = ReactiveMongoFormats.dateTimeFormats
-  implicit val formats = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
+  implicit val dateFormat: Format[DateTime]         = ReactiveMongoFormats.dateTimeFormats
+  implicit val formats: OFormat[MongoFrontendRoute] = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
 
 }

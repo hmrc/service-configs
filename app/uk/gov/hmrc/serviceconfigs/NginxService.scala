@@ -16,14 +16,20 @@
 
 package uk.gov.hmrc.serviceconfigs
 
+import java.net.URL
+
 import javax.inject.{Inject, Singleton}
+import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRoute, FrontendRoutersParser}
-import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepo
+import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, NginxConfigFile}
+import uk.gov.hmrc.serviceconfigs.parser.{FrontendRoutersParser, NginxConfigIndexer, ParserFrontendRoute}
+import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 
 case class SearchRequest(path:String)
@@ -32,23 +38,52 @@ case class SearchResults(env: String, path: String, url: String)
 @Singleton
 class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
                              parser: FrontendRoutersParser,
-                             nginxConnector: NginxConfigConnector) {
+                             nginxConnector: NginxConfigConnector,
+                             mongoLock: MongoLock) {
 
-
-
-  val environments = Seq("production", "qa", "staging", "development")
 
   def search(request: SearchRequest) : Future[Seq[SearchResults]] = ???
 
   def findByService(repoName: String): Future[Seq[MongoFrontendRoute]] = frontendRouteRepo.findByService(repoName)
 
-  def retrieveConfig(env: String): Future[Seq[FrontendRoute]] = {
-    // download from github
-    nginxConnector.configFor(env).map( _.map(parser.parseConfig).getOrElse(Seq.empty) )
+  def update(environments: Seq[String]) = {
+
+    Logger.info("Refreshing frontend route data...")
+    val configs: Seq[NginxConfigFile] = Await.result( Future.sequence(environments.map(env => nginxConnector.configFor(env))), Duration(10, "seconds")).flatten
+
+    Logger.info(s"Downloaded ${configs.length} frontend route config files.")
+    val parsedConfigs: Seq[MongoFrontendRoute] = NginxService.joinConfigs( configs.map(c => NginxService.parseConfig(parser, c)) )
+
+    Logger.info("Starting updated...")
+    mongoLock.tryLock {
+      Future.sequence(parsedConfigs.map(frontendRouteRepo.update))
+    }
+
+    Logger.info("Update complete")
   }
 
-  def retrieveConfigs(envs: Seq[String] = environments): Future[Seq[Seq[FrontendRoute]]] = {
-    Future.sequence(envs.map(retrieveConfig))
+}
+
+
+object NginxService {
+
+  def urlToService(url: String) : String = Try(new URL(url).getHost).getOrElse(url)
+
+  def joinConfigs(configs: Seq[Seq[MongoFrontendRoute]]) : Seq[MongoFrontendRoute] =
+    configs.foldLeft(Seq.empty[MongoFrontendRoute])((res, v) => res ++ v )
+
+  def parseConfig(parser: FrontendRoutersParser, configFile: NginxConfigFile): Seq[MongoFrontendRoute] = {
+
+    Logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
+
+    val indexes: Map[String, Int] = NginxConfigIndexer.index(configFile.content)
+    parser.parseConfig(configFile.content)
+      .map(r => MongoFrontendRoute(
+        service              = NginxService.urlToService(r.proxy),
+        frontendPath         = r.path,
+        backendPath          = r.proxy,
+        environment          = configFile.environment,
+        ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.path, indexes).getOrElse("")))
   }
 
 }

@@ -19,8 +19,8 @@ package uk.gov.hmrc.serviceconfigs
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 

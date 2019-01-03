@@ -18,6 +18,10 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import scala.io.Source
 
+/**
+  * NginxConfigIndexer takes nginx config files and returns a map containing
+  * the line number of each path in the file.
+  */
 object NginxConfigIndexer {
 
   private val locationRegex = """location\s+[\^\~\~*\^~]*\s*(.+)\s*\{""".r
@@ -27,7 +31,7 @@ object NginxConfigIndexer {
       .getLines()
       .zipWithIndex
       .filter(_._1.contains("location"))
-      .map(z => locationRegex.findFirstMatchIn(z._1).map(_.group(1).trim).getOrElse(z._1) -> z._2)
+      .map(z => locationRegex.findFirstMatchIn(z._1).map(_.group(1).trim).getOrElse(z._1) -> (1 + z._2))
       .toMap
 
   }
