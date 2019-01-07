@@ -67,7 +67,9 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
 
 object NginxService {
 
-  def urlToService(url: String) : String = Try(new URL(url).getHost).getOrElse(url)
+  def urlToService(url: String) : String = Try(new URL(url).getHost)
+    .map(url => url.split("\\.").headOption.getOrElse(url))
+    .getOrElse(url)
 
   def joinConfigs(configs: Seq[Seq[MongoFrontendRoute]]) : Seq[MongoFrontendRoute] =
     configs.foldLeft(Seq.empty[MongoFrontendRoute])((res, v) => res ++ v )

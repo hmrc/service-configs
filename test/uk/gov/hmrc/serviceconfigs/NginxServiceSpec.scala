@@ -32,6 +32,24 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
 
+
+  "urlToService" should "extract the service name from url"  in {
+    val url = "https://test-service.public.mdtp"
+    NginxService.urlToService(url) shouldBe "test-service"
+  }
+
+  it should "return the input unmodified if its not a url" in {
+    val url = "test-service"
+    NginxService.urlToService(url) shouldBe "test-service"
+  }
+
+  it should "handle hostnames without dots" in {
+    val url = "https://test-service/test124?query=false"
+    NginxService.urlToService(url) shouldBe "test-service"
+
+  }
+
+
   "joinConfigs" should "join multiple parsed routes into a single list" in {
     val configs = Seq(
       Seq(MongoFrontendRoute("test1", "/", "http://www.com", "dev")),
