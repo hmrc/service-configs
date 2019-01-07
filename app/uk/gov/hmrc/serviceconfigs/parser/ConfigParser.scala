@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.parser
+
 import java.util
 
 import com.typesafe.config._
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 import org.yaml.snakeyaml.Yaml
 
 import scala.collection.mutable
+import scala.util.Try
 
 @Singleton
 class ConfigParser {
@@ -55,12 +57,13 @@ class ConfigParser {
     responseString match {
       case s: String if s.nonEmpty => {
         val yamlMap: Map[String, Object] =
-          new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]]
+         new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]]
         flattenYamlToDotNotation(Map(), yamlMap)
       }
       case _ => Map()
     }
   }
+
 
   private def flattenConfigToDotNotation(
                                           start: mutable.Map[String, String],

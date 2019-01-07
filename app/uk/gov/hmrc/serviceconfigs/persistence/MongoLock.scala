@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.persistence
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+import javax.inject.{Inject, Singleton}
+import org.joda.time.Duration
+import uk.gov.hmrc.lock.{LockKeeper, LockMongoRepository, LockRepository}
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+@Singleton
+class MongoLock @Inject()(mongoConnector: MongoConnector) extends LockKeeper {
+  override def repo: LockRepository = LockMongoRepository(mongoConnector.db)
+
+  override def lockId: String = "teams-and-repositories-sync-job"
+
+  override val forceLockReleaseAfter: Duration = Duration.standardMinutes(20)
 }

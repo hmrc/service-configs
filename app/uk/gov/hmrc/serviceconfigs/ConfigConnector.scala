@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import javax.inject.{Inject, Singleton}
 import play.Logger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.serviceconfigs.GithubConfig
+import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

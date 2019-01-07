@@ -10,4 +10,6 @@
 # Failing to follow this rule may result in test routes deployed in production.
 
 # Add all the application routes to the prod.routes file
-->         /                          prod.Routes
+POST       /test-only/routes                 @uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addRoutes
+DELETE     /test-only/routes                 @uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.clearRoutes
+->         /                                 prod.Routes

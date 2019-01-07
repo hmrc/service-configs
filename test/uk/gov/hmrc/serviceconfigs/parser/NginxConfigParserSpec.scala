@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.parser
 
-import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.serviceconfigs.ConfigService._
-import play.api.libs.functional.syntax._
+import org.scalatest.{FlatSpec, Matchers}
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+class NginxConfigParserSpec extends FlatSpec with Matchers{
+
+  val parser = new NginxConfigParser()
+
+  "contextId" should "identify only location or if" in {
+    parser.parse( parser.contextId, "location").successful shouldBe true
+    parser.parse( parser.contextId, "if").successful shouldBe true
+    parser.parse( parser.contextId, "server").successful shouldBe false
+  }
 }
