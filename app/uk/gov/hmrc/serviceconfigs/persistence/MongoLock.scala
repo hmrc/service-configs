@@ -24,7 +24,7 @@ import uk.gov.hmrc.lock.{LockKeeper, LockMongoRepository, LockRepository}
 class MongoLock @Inject()(mongoConnector: MongoConnector) extends LockKeeper {
   override def repo: LockRepository = LockMongoRepository(mongoConnector.db)
 
-  override def lockId: String = "teams-and-repositories-sync-job"
+  override def lockId: String = "service-configs-sync-job"
 
   override val forceLockReleaseAfter: Duration = Duration.standardMinutes(20)
 }
