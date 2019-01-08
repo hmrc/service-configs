@@ -54,7 +54,10 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
     Logger.info("Starting updated...")
     mongoLock.tryLock {
       Logger.info(s"About to update ${parsedConfigs.length}")
-      Future.sequence(parsedConfigs.map(frontendRouteRepo.update))
+      for {
+        _   <- frontendRouteRepo.clearAll()
+        res <- Future.sequence(parsedConfigs.map(frontendRouteRepo.update))
+      } yield res
     }
 
     Logger.info("Update complete")

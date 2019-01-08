@@ -22,24 +22,27 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
 
   "Indexer" should "find the line number of the first path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/shutter/employee-expenses") shouldBe 1
+    res("/shutter/employees") shouldBe 1
   }
 
   it should "find the index of the second path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/employee-expenses") shouldBe 7
+    res("/employees") shouldBe 7
   }
 
   it should "find the line number of the last path" in {
     val res = NginxConfigIndexer.index(config)
-    res("/check-tax-on-goods-you-bring-into-the-uk") shouldBe 24
+    res("/check-tax") shouldBe 24
   }
 
   it should "not find a non-existent location" in {
     NginxConfigIndexer.index(config).get("/this/doesnt/exist") shouldBe None
   }
 
-
+  it should "index regex paths" in {
+    val res = NginxConfigIndexer.index(config)
+    res("^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))") shouldBe 35
+  }
 
 
   "URL Generator" should "return none if path is not indexed" in {
@@ -53,25 +56,28 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
     NginxConfigIndexer.generateUrl("development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf#L4")
   }
 
-
+  it should "return a url for a regex path" in {
+    val res = NginxConfigIndexer.index(config)
+    NginxConfigIndexer.generateUrl("production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/production/frontend-proxy-application-rules.conf#L35")
+  }
 
 
   val config =
-    """location /shutter/employee-expenses {
+    """location /shutter/employees {
       |  more_set_headers 'Cache-Control: no-cache, no-store, max-age=0, must-revalidate';
       |  more_set_headers 'Pragma: no-cache';
       |  more_set_headers 'Expires: 0';
       |}
       |
-      |location /employee-expenses {
+      |location /employees {
       |  if ( -f /etc/nginx/switches/mdtp/offswitch ) {
       |    return 503;
       |  }
-      |  if ( -f /etc/nginx/switches/mdtp/employee-expenses-frontend ) {
-      |    error_page 503 /shutter/employee-expenses-frontend/index.html;
+      |  if ( -f /etc/nginx/switches/x/employees-frontend ) {
+      |    error_page 503 /shutter/employees-frontend/index.html;
       |    return 503;
       |  }
-      |  proxy_pass https://employee-expenses-frontend.local;
+      |  proxy_pass https://employees-frontend.local;
       |}
       |
       |location /shutter/bc-passengers-frontend {
@@ -80,15 +86,28 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
       |  more_set_headers 'Expires: 0';
       |}
       |
-      |location /check-tax-on-goods-you-bring-into-the-uk {
-      |  if ( -f /etc/nginx/switches/mdtp/offswitch ) {
+      |location /check-tax {
+      |  if ( -f /etc/nginx/switches/x/offswitch ) {
       |    return 503;
       |  }
-      |  if ( -f /etc/nginx/switches/mdtp/bc-passengers-frontend ) {
-      |    error_page 503 /shutter/bc-passengers-frontend/index.html;
+      |  if ( -f /etc/nginx/switches/x/passengers-frontend ) {
+      |    error_page 503 /shutter/passengers-frontend/index.html;
       |    return 503;
       |  }
-      |  proxy_pass https://bc-passengers-frontend.local;
-      |}"""
+      |  proxy_pass https://passengers-frontend.local;
+      |}
+      |
+      |location ~ ^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count)) {
+      |
+      |  if ( -f /etc/nginx/switches/x/offswitch )   {
+      |    return 503;
+      |  }
+      |
+      |  if ( -f /etc/nginx/switches/x/gateway )   {
+      |    return 503;
+      |  }
+      |  proxy_pass https://gateway.public.local;
+      |}
+      |"""
     .stripMargin
 }
