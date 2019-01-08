@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.Json
+import play.api.libs.json.{Json, OFormat}
 import play.api.mvc.MessagesControllerComponents
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoutes
@@ -28,7 +28,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @Singleton
 class NginxController @Inject()(db: FrontendRouteRepo, mcc: MessagesControllerComponents) extends BackendController(mcc) {
 
-  implicit val formats = Json.format[FrontendRoutes]
+  implicit val formats: OFormat[FrontendRoutes] = Json.format[FrontendRoutes]
 
   def searchByServiceName(serviceName: String) = Action.async { implicit request =>
     db.findByService(serviceName)
@@ -37,5 +37,11 @@ class NginxController @Inject()(db: FrontendRouteRepo, mcc: MessagesControllerCo
       .map(Ok(_))
   }
 
+
+  def findAll() = Action.async { implicit  request =>
+    db.findAll().map(FrontendRoutes.fromMongo)
+      .map(routes => Json.toJson(routes))
+      .map(Ok(_))
+  }
 
 }

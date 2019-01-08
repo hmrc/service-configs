@@ -57,7 +57,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
 
   def update(frontendRoute: MongoFrontendRoute): Future[MongoFrontendRoute] = {
-    logger.debug(s"updating ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath}")
+    logger.debug(s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}")
     val s = Json.obj(
       "service" -> Json.toJson[String](frontendRoute.service),
       "environment" -> Json.toJson[String](frontendRoute.environment),

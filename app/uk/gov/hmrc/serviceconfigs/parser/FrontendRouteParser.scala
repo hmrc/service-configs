@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.parser
 
-import com.google.inject.AbstractModule
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 
-class FrontendRouteModule  extends AbstractModule {
-  override def configure(): Unit = {
-    bind(classOf[FrontendRouteScheduler]).asEagerSingleton()
-    bind(classOf[FrontendRouteParser]).to(classOf[NginxConfigParser]).asEagerSingleton()
-  }
+case class ParserFrontendRoute(path: String, proxy: String)
+
+trait FrontendRouteParser {
+  def parseConfig(config: String): Seq[ParserFrontendRoute]
 }
