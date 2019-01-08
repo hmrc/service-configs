@@ -17,14 +17,34 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import Nginx._
 
 class NginxConfigParserSpec extends FlatSpec with Matchers{
 
-  val parser = new NginxConfigParser()
-
-  "contextId" should "identify only location or if" in {
-    parser.parse( parser.contextId, "location").successful shouldBe true
-    parser.parse( parser.contextId, "if").successful shouldBe true
-    parser.parse( parser.contextId, "server").successful shouldBe false
+  "NginxLexer" should "tokenize openBracket" in {
+    NginxLexer.parse(NginxLexer.openBracket, "{").get shouldBe OPEN_BRACKET()
   }
+
+  it should "tokenize closeBracket" in {
+    NginxLexer.parse(NginxLexer.closeBracket, "}").get shouldBe CLOSE_BRACKET()
+  }
+
+  it should "tokenize semicolon" in {
+    NginxLexer.parse(NginxLexer.semicolon, ";").get shouldBe SEMICOLON()
+  }
+
+  it should "tokenize comments" in {
+    NginxLexer.parse(NginxLexer.comment, "# this is a comment").get shouldBe COMMENT()
+  }
+
+  it should "tokenize keywords" in {
+    NginxLexer.parse(NginxLexer.keyword, "proxy_pass ").get shouldBe KEYWORD("proxy_pass")
+  }
+
+  it should "tokenize values" in {
+    NginxLexer.parse(NginxLexer.value, "abcd").get shouldBe VALUE("abcd")
+    NginxLexer.parse(NginxLexer.value, "'( this is -true )'").get shouldBe VALUE("'( this is -true )'")
+    NginxLexer.parse(NginxLexer.value, "http://www.url.com").get shouldBe VALUE("http://www.url.com")
+  }
+
 }

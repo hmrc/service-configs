@@ -21,10 +21,10 @@ import java.net.URL
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, NginxConfigFile}
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRoutersParser, NginxConfigIndexer, ParserFrontendRoute}
-import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
+import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
+import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -37,12 +37,9 @@ case class SearchResults(env: String, path: String, url: String)
 
 @Singleton
 class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
-                             parser: FrontendRoutersParser,
+                             parser: FrontendRouteParser,
                              nginxConnector: NginxConfigConnector,
                              mongoLock: MongoLock) {
-
-
-  def search(request: SearchRequest) : Future[Seq[SearchResults]] = ???
 
   def findByService(repoName: String): Future[Seq[MongoFrontendRoute]] = frontendRouteRepo.findByService(repoName)
 
@@ -56,6 +53,7 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
 
     Logger.info("Starting updated...")
     mongoLock.tryLock {
+      Logger.info(s"About to update ${parsedConfigs.length}")
       Future.sequence(parsedConfigs.map(frontendRouteRepo.update))
     }
 
@@ -74,7 +72,7 @@ object NginxService {
   def joinConfigs(configs: Seq[Seq[MongoFrontendRoute]]) : Seq[MongoFrontendRoute] =
     configs.foldLeft(Seq.empty[MongoFrontendRoute])((res, v) => res ++ v )
 
-  def parseConfig(parser: FrontendRoutersParser, configFile: NginxConfigFile): Seq[MongoFrontendRoute] = {
+  def parseConfig(parser: FrontendRouteParser, configFile: NginxConfigFile): Seq[MongoFrontendRoute] = {
 
     Logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
 
