@@ -61,13 +61,12 @@ object NginxLexer extends RegexParsers {
 
   def comment: Parser[COMMENT] = "#.+".r ^^ { _ => COMMENT() }
 
-  def unquotedValue: Parser[VALUE] = """[^{};]+""".r ^^ (k => VALUE(k))
+  def unquotedValue: Parser[VALUE] = """[^{};]+""".r ^^ (k => VALUE(k.trim))
 
-  def url: Parser[VALUE] = """https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)""".r ^^ (k => VALUE(k))
+  def url: Parser[VALUE] = """https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)""".r ^^ (k => VALUE(k.trim))
 
-  // TODO clean up this regex
   def quotedValue: Parser[VALUE] =
-    """'[^']+'""".r ^^ (k => VALUE(k))
+    """'[^']+'""".r ^^ (k => VALUE(k.trim))
 
   def value: Parser[VALUE] = url | quotedValue | unquotedValue
 
