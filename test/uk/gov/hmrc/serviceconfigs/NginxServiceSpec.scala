@@ -34,7 +34,7 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
 
 
   "urlToService" should "extract the service name from url"  in {
-    val url = "https://test-service.public.mdtp"
+    val url = "https://test-service.public.local"
     NginxService.urlToService(url) shouldBe "test-service"
   }
 
@@ -80,6 +80,7 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
       None
     })
 
+    when(repo.clearAll()).thenReturn(Future(true))
     when(repo.update(any())).thenReturn(Future(MongoFrontendRoute("","","","")))
 
     val envs = Seq("production", "development")
