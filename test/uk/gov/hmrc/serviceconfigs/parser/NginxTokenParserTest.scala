@@ -17,19 +17,20 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
-import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{OTHER_PARAM, PROXY_PASS}
+import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
+import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{LOCATION, OTHER_PARAM, PROXY_PASS}
 class NginxTokenParserTest extends FlatSpec with Matchers{
 
   import Nginx._
 
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe List(ParserFrontendRoute("/test", "http://www.com/123"))
+    NginxTokenParser(tokens) shouldBe List(FrontendRoute("/test", "http://www.com/123"))
   }
 
   it should "parse location blocks with prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("~"),  VALUE("/test/(test|dogs)"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe List(ParserFrontendRoute("/test/(test|dogs)", "http://www.com/123"))
+    NginxTokenParser(tokens) shouldBe List(FrontendRoute("/test/(test|dogs)", "http://www.com/123", isRegex = true))
   }
 
   it should "parse proxy_pass parameters" in {
@@ -42,6 +43,16 @@ class NginxTokenParserTest extends FlatSpec with Matchers{
     val tokens: Seq[NginxToken] = Seq(KEYWORD("setheader"), VALUE("'some quoted values'"), SEMICOLON())
     val reader = new NginxTokenParser.NginxTokenReader(tokens)
     NginxTokenParser.parameter(reader).get shouldBe OTHER_PARAM("setheader", "'some quoted values'")
+  }
+
+  "locToRoute" should "set the regex flag is the location contains a regex value" in {
+    val location = LOCATION(path = "/test/a.+", body = List(PROXY_PASS("http://www.com")), regex = true)
+    NginxTokenParser.locToRoute(location) shouldBe Some(FrontendRoute("/test/a.+", "http://www.com", isRegex = true))
+  }
+
+  it should "not set the regex flag on non-regex routes" in {
+    val location = LOCATION(path = "/test/a",  body = List(PROXY_PASS("http://www.com")))
+    NginxTokenParser.locToRoute(location) shouldBe Some(FrontendRoute("/test/a", "http://www.com", isRegex = false))
   }
 
 }

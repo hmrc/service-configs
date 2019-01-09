@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 
 class NginxConfigParserSpec extends FlatSpec with Matchers {
 
@@ -37,7 +38,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val cfg = new NginxConfigParser().parseConfig(configRegex)
-    cfg.head shouldBe ParserFrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local")
+    cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
   }
 
 
@@ -58,7 +59,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val cfg = new NginxConfigParser().parseConfig(configNormal)
-    cfg.head shouldBe ParserFrontendRoute("/mandate", "https://test-frontend.public.local")
+    cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local")
   }
 
 
@@ -88,7 +89,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
                  |}""".stripMargin
     val parsed = new NginxConfigParser().parseConfig(config)
 
-    parsed.head shouldBe ParserFrontendRoute("/assets","$s3_upstream")
+    parsed.head shouldBe FrontendRoute("/assets","$s3_upstream")
   }
 
   it should "parse routes with set header params" in {
@@ -99,7 +100,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
 
     val parsed = new NginxConfigParser().parseConfig(config)
 
-    parsed.head shouldBe ParserFrontendRoute("/lol", "https://lol-frontend.public.local")
+    parsed.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
   }
 }
 
