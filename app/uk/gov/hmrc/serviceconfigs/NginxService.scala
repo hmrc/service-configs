@@ -82,11 +82,12 @@ object NginxService {
     val indexes: Map[String, Int] = NginxConfigIndexer.index(configFile.content)
     parser.parseConfig(configFile.content)
       .map(r => MongoFrontendRoute(
-        service              = NginxService.urlToService(r.proxy),
-        frontendPath         = r.path,
-        backendPath          = r.proxy,
+        service              = NginxService.urlToService(r.backendPath),
+        frontendPath         = r.frontendPath,
+        backendPath          = r.backendPath,
         environment          = configFile.environment,
-        ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.path, indexes).getOrElse("")))
+        ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.frontendPath, indexes).getOrElse(""),
+        isRegex              = r.isRegex))
   }
 
 }

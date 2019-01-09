@@ -17,13 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import play.api.Logger
+import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
 class NginxConfigParser extends FrontendRouteParser {
-  override def parseConfig(config: String): Seq[ParserFrontendRoute] = {
+  override def parseConfig(config: String): Seq[FrontendRoute] = {
     NginxTokenParser(NginxLexer(config))
   }
 }
@@ -97,7 +98,7 @@ object NginxTokenParser extends Parsers {
   }
 
 
-  def apply(tokens: Seq[NginxToken]): List[ParserFrontendRoute] = {
+  def apply(tokens: Seq[NginxToken]): List[FrontendRoute] = {
     val reader = new NginxTokenReader(tokens.filterNot(_.isInstanceOf[COMMENT]))
     configFile(reader) match {
       case Success(result, _) => result.flatMap {
@@ -106,25 +107,25 @@ object NginxTokenParser extends Parsers {
       }
       case Failure(msg, _) => {
         Logger.error(s"Failed to parse nginx config: $msg")
-        List.empty[ParserFrontendRoute]
+        List.empty[FrontendRoute]
       }
       case Error(msg, _) => {
         Logger.error(s"Error while to parsing nginx config: $msg")
-        List.empty[ParserFrontendRoute]
+        List.empty[FrontendRoute]
       }
     }
   }
 
-  def locToRoute(loc: LOCATION): Option[ParserFrontendRoute] = {
+  def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
     loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
-      proxy => ParserFrontendRoute(loc.path, proxy)
+      proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex)
     )
   }
 
 
   sealed trait NGINX_AST
 
-  case class LOCATION(path: String, body: List[NGINX_AST]) extends NGINX_AST
+  case class LOCATION(path: String, body: List[NGINX_AST], regex: Boolean = false) extends NGINX_AST
 
   case class IFBLOCK(predicate: String, body: List[NGINX_AST]) extends NGINX_AST
 
@@ -160,7 +161,7 @@ object NginxTokenParser extends Parsers {
 
   def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
     case KEYWORD("location") ~  List(v) ~ _ ~ b ~ _ => LOCATION(v.v, b)
-    case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.v, b)
+    case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.v, b, regex = true)
     case KEYWORD("if") ~ cond ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.v).mkString, b)
   }
 

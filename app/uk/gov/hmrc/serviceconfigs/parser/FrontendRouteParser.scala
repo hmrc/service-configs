@@ -16,9 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-
-case class ParserFrontendRoute(path: String, proxy: String)
+import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 
 trait FrontendRouteParser {
-  def parseConfig(config: String): Seq[ParserFrontendRoute]
+  def parseConfig(config: String): Seq[FrontendRoute]
 }

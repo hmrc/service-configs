@@ -20,7 +20,7 @@ import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 
-case class FrontendRoute(frontendPath: String, backendPath :String, ruleConfigurationUrl: String = "")
+case class FrontendRoute(frontendPath: String, backendPath :String, ruleConfigurationUrl: String = "", isRegex: Boolean = false)
 
 case class FrontendRoutes(environment: String, routes: Seq[FrontendRoute])
 
@@ -29,7 +29,7 @@ object FrontendRoute {
   implicit val formats = Json.format[FrontendRoute]
 
   def fromMongo(mfr: MongoFrontendRoute) : FrontendRoute = {
-    FrontendRoute(frontendPath = mfr.frontendPath, backendPath = mfr.backendPath, ruleConfigurationUrl = mfr.ruleConfigurationUrl)
+    FrontendRoute(frontendPath = mfr.frontendPath, backendPath = mfr.backendPath, ruleConfigurationUrl = mfr.ruleConfigurationUrl, isRegex = mfr.isRegex)
   }
 }
 

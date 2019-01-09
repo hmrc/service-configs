@@ -21,7 +21,7 @@ import play.api.libs.json.{Format, Json, OFormat}
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 
-case class MongoFrontendRoute(service: String, frontendPath: String, backendPath: String, environment: String, ruleConfigurationUrl: String = "", updateDate: DateTime = DateTime.now)
+case class MongoFrontendRoute(service: String, frontendPath: String, backendPath: String, environment: String, ruleConfigurationUrl: String = "", isRegex: Boolean = false, updateDate: DateTime = DateTime.now)
 
 object MongoFrontendRoute {
 
