@@ -72,9 +72,10 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     collection.find(Json.obj("frontendPath" -> Json.toJson[String](path))).one[MongoFrontendRoute]
 
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
-    // val regex = "/lookup-address([^\\/])/i" // TODO build from path
-    val regex = path + "(\\/|$)" // TODO build from path -- here assumes path is a single path segment
-    logger.info(s">>>>>>>>>>>> searching for $path with regex $regex")
+    val paths = path.stripPrefix("/").split("/")
+    val regex = paths(0) + "(\\/|$)" // TODO build from path -- here assumes path is a single path segment
+    //val regex = paths.mkString("/") + "(\\/|$)" // TODO build from path -- here assumes path is a single path segment
+    logger.info(s">>>>>>>>>>>> searching for '$path' with regex '$regex'")
     val res = collection
       .find(Json.obj(
         "frontendPath" -> Json.obj(
@@ -86,15 +87,10 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     res
   }
 
-//db.getCollection('frontendRoutes').find({"frontendPath": { $regex: /\/lookup-address([^\/])/i } })
-
-
   def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =
     collection.find(Json.obj("service" -> Json.toJson[String](service))).cursor[MongoFrontendRoute]().collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
-
 
   def findAllRoutes() : Future[Seq[MongoFrontendRoute]] = findAll()
 
   def clearAll() : Future[Boolean] = removeAll().map(_.ok)
-
 }

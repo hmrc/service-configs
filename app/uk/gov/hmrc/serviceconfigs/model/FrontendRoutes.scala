@@ -22,29 +22,42 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 case class FrontendRoute(frontendPath: String, backendPath :String, ruleConfigurationUrl: String = "", isRegex: Boolean = false)
 
-case class FrontendRoutes(environment: String, routes: Seq[FrontendRoute])
+case class FrontendRoutes(service: String, environment: String, routes: Seq[FrontendRoute])
 
 object FrontendRoute {
 
   implicit val formats = Json.format[FrontendRoute]
 
-  def fromMongo(mfr: MongoFrontendRoute) : FrontendRoute = {
-    FrontendRoute(frontendPath = mfr.frontendPath, backendPath = mfr.backendPath, ruleConfigurationUrl = mfr.ruleConfigurationUrl, isRegex = mfr.isRegex)
-  }
+  def fromMongo(mfr: MongoFrontendRoute) : FrontendRoute =
+    FrontendRoute(
+      frontendPath         = mfr.frontendPath,
+      backendPath          = mfr.backendPath,
+      ruleConfigurationUrl = mfr.ruleConfigurationUrl,
+      isRegex              = mfr.isRegex)
 }
 
 object FrontendRoutes {
 
   implicit val formats = Json.using[Json.WithDefaultValues].format[FrontendRoutes]
 
-  def fromMongo(mfr: MongoFrontendRoute) : FrontendRoutes = {
-    FrontendRoutes(environment = mfr.environment, routes = Seq(FrontendRoute.fromMongo(mfr)))
-  }
+  def fromMongo(mfr: MongoFrontendRoute) : FrontendRoutes =
+    FrontendRoutes(
+      environment = mfr.environment,
+      service     = mfr.service,
+      routes      = Seq(FrontendRoute.fromMongo(mfr)))
 
   def fromMongo(mfrs: Seq[MongoFrontendRoute]): Seq[FrontendRoutes] =
-    mfrs.groupBy(_.environment)
+    mfrs.groupBy(frs => (frs.service, frs.environment))
       .map {
-        case (k, v) => (k, v.map(FrontendRoute.fromMongo).foldLeft(FrontendRoutes(k, Seq[FrontendRoute]()))((frs, fr) => FrontendRoutes(frs.environment, Seq(fr) ++ frs.routes)))
+        case ((s, e), v) => ((s, e), v.map(FrontendRoute.fromMongo)
+                            .foldLeft(FrontendRoutes(
+                              environment = e,
+                              service     = s,
+                              routes      = Seq[FrontendRoute]()
+                            ))((frs, fr) => FrontendRoutes(
+                                              service     = frs.service,
+                                              environment = frs.environment,
+                                              routes      = Seq(fr) ++ frs.routes)))
       }.values.toSeq
 
 }
