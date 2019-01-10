@@ -37,8 +37,14 @@ class NginxController @Inject()(db: FrontendRouteRepo, mcc: MessagesControllerCo
       .map(Ok(_))
   }
 
+  def searchByFrontendPath(frontendPath: String) = Action.async { implicit request =>
+    db.searchByFrontendPath(frontendPath)
+      .map(FrontendRoutes.fromMongo)
+      .map(routes => Json.toJson(routes))
+      .map(Ok(_))
+  }
 
-  def findAll() = Action.async { implicit  request =>
+  def findAll() = Action.async { implicit request =>
     db.findAll().map(FrontendRoutes.fromMongo)
       .map(routes => Json.toJson(routes))
       .map(Ok(_))
