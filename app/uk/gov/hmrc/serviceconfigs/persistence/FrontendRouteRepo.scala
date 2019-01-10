@@ -71,20 +71,34 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   def findByPath(path: String) : Future[Option[MongoFrontendRoute]] =
     collection.find(Json.obj("frontendPath" -> Json.toJson[String](path))).one[MongoFrontendRoute]
 
+  /** Search for frontend routes which match the path as either a prefix, or a regular expression.
+    * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
+    *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
+    */
+  // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
-    val paths = path.stripPrefix("/").split("/")
-    val regex = paths(0) + "(\\/|$)" // TODO build from path -- here assumes path is a single path segment
-    //val regex = paths.mkString("/") + "(\\/|$)" // TODO build from path -- here assumes path is a single path segment
-    logger.info(s">>>>>>>>>>>> searching for '$path' with regex '$regex'")
-    val res = collection
-      .find(Json.obj(
+
+    def search(paths: Seq[String], isRegex: Boolean): Future[Seq[MongoFrontendRoute]] = {
+      val s = Json.obj(
         "frontendPath" -> Json.obj(
-          "$regex" -> regex,
-          "$options" -> "i"))) // case insensitive
-      .cursor[MongoFrontendRoute]()
-      .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
-    logger.info(s">>>>>> found $res")
-    res
+          "$regex"   -> paths.mkString("^(\\^)?(\\/)?", "(\\/)", "(\\/|$)"),
+          "$options" -> "i")/*, // case insensitive
+        "isRegex" -> isRegex*/ // turn on filter once convinced we're not missing results (e.g. '-' is escaped as '\\-' )
+        )
+      collection
+        .find(s)
+        .cursor[MongoFrontendRoute]()
+        .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+        .flatMap { res =>
+          logger.info(s"searched for '$path' with $s - found ${res.size} results")
+          if (res.isEmpty && !paths.dropRight(1).isEmpty)
+            search(paths.dropRight(1), isRegex = true)
+          else Future(res)
+        }
+    }
+
+    val paths = path.stripPrefix("/").split("/")
+    search(paths, isRegex = false)
   }
 
   def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =
