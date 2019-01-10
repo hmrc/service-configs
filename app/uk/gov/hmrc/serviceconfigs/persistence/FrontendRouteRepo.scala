@@ -71,6 +71,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   def findByPath(path: String) : Future[Option[MongoFrontendRoute]] =
     collection.find(Json.obj("frontendPath" -> Json.toJson[String](path))).one[MongoFrontendRoute]
 
+
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
     * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
@@ -78,13 +79,11 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
 
-    def search(paths: Seq[String], isRegex: Boolean): Future[Seq[MongoFrontendRoute]] = {
+    def search(paths: Seq[String]): Future[Seq[MongoFrontendRoute]] = {
       val s = Json.obj(
         "frontendPath" -> Json.obj(
-          "$regex"   -> paths.mkString("^(\\^)?(\\/)?", "(\\/)", "(\\/|$)"),
-          "$options" -> "i")/*, // case insensitive
-        "isRegex" -> isRegex*/ // turn on filter once convinced we're not missing results (e.g. '-' is escaped as '\\-' )
-        )
+          "$regex"   -> FrontendRouteRepo.pathsToRegex(paths),
+          "$options" -> "i")) // case insensitive
       collection
         .find(s)
         .cursor[MongoFrontendRoute]()
@@ -92,13 +91,13 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
         .flatMap { res =>
           logger.info(s"searched for '$path' with $s - found ${res.size} results")
           if (res.isEmpty && !paths.dropRight(1).isEmpty)
-            search(paths.dropRight(1), isRegex = true)
+            search(paths.dropRight(1))
           else Future(res)
         }
     }
 
     val paths = path.stripPrefix("/").split("/")
-    search(paths, isRegex = false)
+    search(paths)
   }
 
   def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =
@@ -107,4 +106,15 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   def findAllRoutes() : Future[Seq[MongoFrontendRoute]] = findAll()
 
   def clearAll() : Future[Boolean] = removeAll().map(_.ok)
+}
+
+object FrontendRouteRepo {
+  // TODO test
+  def pathsToRegex(paths: Seq[String]): String =
+    paths
+      .map(_.replace("-", "\\\\-")) // '-' is escaped in nginx expression
+      .mkString(
+        "^(\\^)?(\\/)?",  // match from beginning, tolerating [^/]. match
+        "\\/",          // path segment separator
+        "(\\/|$)")       // match until end, or '/''
 }
