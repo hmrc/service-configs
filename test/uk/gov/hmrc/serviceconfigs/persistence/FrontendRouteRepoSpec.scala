@@ -17,11 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.scalatest.{FlatSpec, Matchers}
-import uk.gov.hmrc.serviceconfigs.parser.Nginx._
 
 class FrontendRouteRepoSpec extends FlatSpec with Matchers {
 
-  "FrontendRouteRepo" should "create regex from paths" in {
+  "FrontendRouteRepo.pathsToRegex" should "create regex from paths" in {
     FrontendRouteRepo.pathsToRegex(Seq("")) shouldBe "^(\\^)?(\\/)?(\\/|$)"
     FrontendRouteRepo.pathsToRegex(Seq("account")) shouldBe "^(\\^)?(\\/)?account(\\/|$)"
     FrontendRouteRepo.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
@@ -29,5 +28,14 @@ class FrontendRouteRepoSpec extends FlatSpec with Matchers {
 
   it should "escape '-'" in {
     FrontendRouteRepo.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account\\\\-a\\/welcome\\\\-b(\\/|$)"
+  }
+
+
+  "FrontendRouteRepo.queries" should "create queries from path" in {
+    FrontendRouteRepo.queries("a/b/c").toList shouldBe Seq(
+        FrontendRouteRepo.toQuery(Seq("a", "b", "c")),
+        FrontendRouteRepo.toQuery(Seq("a", "b")),
+        FrontendRouteRepo.toQuery(Seq("a")),
+        FrontendRouteRepo.toQuery(Seq("")))
   }
 }

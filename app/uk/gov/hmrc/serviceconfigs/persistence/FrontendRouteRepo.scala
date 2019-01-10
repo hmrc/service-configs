@@ -79,37 +79,26 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
 
-    def search(s: JsObject): Future[Seq[MongoFrontendRoute]] =
+    def search(query: JsObject): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find(s)
+        .find(query)
         .cursor[MongoFrontendRoute]()
         .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
-
-    val queries: Iterable[JsObject] = path
-      .stripPrefix("/")
-      .split("/")
-      .inits
-      .map { paths =>
-        Json.obj(
-          "frontendPath" -> Json.obj(
-          "$regex"   -> FrontendRouteRepo.pathsToRegex(paths),
-          "$options" -> "i")) // case insensitive
-      }
-      .toIterable // inits returned Iterator not Iterable!?
+        .map { res =>
+            logger.info(s"query $query returned ${res.size} results")
+            res
+          }
 
     import cats.instances.all._
     import cats.syntax.all._
     import alleycats.std.iterable._
 
-    // return result from first query with results
-    cats.Foldable[Iterable].foldLeftM[Future, JsObject, Seq[MongoFrontendRoute]](queries, Seq.empty){ (b, query) =>
-      if (b.isEmpty) {
-        search(query).map { res =>
-          logger.info(s"query $query returned ${res.size} results")
-          res
-        }
-      } else Future(b)
-    }
+    FrontendRouteRepo.queries(path)
+      .toIterable
+      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty){ (prevRes, query) =>
+        if (prevRes.isEmpty) search(query)
+        else Future(prevRes)
+      }
   }
 
   def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =
@@ -121,7 +110,6 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 }
 
 object FrontendRouteRepo {
-  // TODO test
   def pathsToRegex(paths: Seq[String]): String =
     paths
       .map(_.replace("-", "\\\\-")) // '-' is escaped in nginx expression
@@ -129,4 +117,19 @@ object FrontendRouteRepo {
         "^(\\^)?(\\/)?",  // match from beginning, tolerating [^/]. match
         "\\/",          // path segment separator
         "(\\/|$)")       // match until end, or '/''
+
+  def toQuery(paths: Seq[String]): JsObject =
+    Json.obj(
+      "frontendPath" -> Json.obj(
+      "$regex"   -> pathsToRegex(paths),
+      "$options" -> "i")) // case insensitive
+
+  def queries(path: String): Iterator[JsObject] =
+    path
+      .stripPrefix("/")
+      .split("/")
+      .toSeq
+      .inits
+      .map(toQuery)
+
 }
