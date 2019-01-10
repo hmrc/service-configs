@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Format, Json, JsObject}
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.indexes.{Index, IndexType}
@@ -79,25 +79,37 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
 
-    def search(paths: Seq[String]): Future[Seq[MongoFrontendRoute]] = {
-      val s = Json.obj(
-        "frontendPath" -> Json.obj(
-          "$regex"   -> FrontendRouteRepo.pathsToRegex(paths),
-          "$options" -> "i")) // case insensitive
+    def search(s: JsObject): Future[Seq[MongoFrontendRoute]] =
       collection
         .find(s)
         .cursor[MongoFrontendRoute]()
         .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
-        .flatMap { res =>
-          logger.info(s"searched for '$path' with $s - found ${res.size} results")
-          if (res.isEmpty && !paths.dropRight(1).isEmpty)
-            search(paths.dropRight(1))
-          else Future(res)
-        }
-    }
 
-    val paths = path.stripPrefix("/").split("/")
-    search(paths)
+    val queries: Iterable[JsObject] = path
+      .stripPrefix("/")
+      .split("/")
+      .inits
+      .map { paths =>
+        Json.obj(
+          "frontendPath" -> Json.obj(
+          "$regex"   -> FrontendRouteRepo.pathsToRegex(paths),
+          "$options" -> "i")) // case insensitive
+      }
+      .toIterable // inits returned Iterator not Iterable!?
+
+    import cats.instances.all._
+    import cats.syntax.all._
+    import alleycats.std.iterable._
+
+    // return result from first query with results
+    cats.Foldable[Iterable].foldLeftM[Future, JsObject, Seq[MongoFrontendRoute]](queries, Seq.empty){ (b, query) =>
+      if (b.isEmpty) {
+        search(query).map { res =>
+          logger.info(s"query $query returned ${res.size} results")
+          res
+        }
+      } else Future(b)
+    }
   }
 
   def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =

@@ -12,7 +12,9 @@ object AppDependencies {
     "uk.gov.hmrc"             %% "github-client"            % "2.5.0",
     "uk.gov.hmrc"             %% "play-config"              % "7.0.0",
     "uk.gov.hmrc"             %% "mongo-lock"               % "6.1.0-play-26",
-    "org.scala-lang.modules"  %% "scala-parser-combinators" % "1.1.1"
+    "org.scala-lang.modules"  %% "scala-parser-combinators" % "1.1.1",
+    "org.typelevel"           %% "cats-core"                % "1.1.0",
+    "org.typelevel"           %% "alleycats-core"           % "1.1.0"
   )
 
   val test = Seq(
@@ -21,7 +23,7 @@ object AppDependencies {
     "org.pegdown"             %  "pegdown"                  % "1.6.0"                 % "test, it",
     "uk.gov.hmrc"             %% "service-integration-test" % "0.2.0"                 % "test, it",
     "org.scalatestplus.play"  %% "scalatestplus-play"       % "2.0.0"                 % "test, it",
-    "org.mockito"             % "mockito-core"              % "2.3.5"                 % "test, it"
+    "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test, it"
   )
 
 }
