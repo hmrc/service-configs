@@ -35,7 +35,6 @@ class FrontendRouteRepoSpec extends FlatSpec with Matchers {
     FrontendRouteRepo.queries("a/b/c").toList shouldBe Seq(
         FrontendRouteRepo.toQuery(Seq("a", "b", "c")),
         FrontendRouteRepo.toQuery(Seq("a", "b")),
-        FrontendRouteRepo.toQuery(Seq("a")),
-        FrontendRouteRepo.toQuery(Seq("")))
+        FrontendRouteRepo.toQuery(Seq("a")))
   }
 }

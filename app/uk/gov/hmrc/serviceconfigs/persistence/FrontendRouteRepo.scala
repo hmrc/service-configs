@@ -16,18 +16,19 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-
-
+import alleycats.std.iterable._
+import cats.instances.all._
+import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json, JsObject}
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.api.{Cursor, DB}
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import reactivemongo.api.{Cursor, DB}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -89,10 +90,6 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
             res
           }
 
-    import cats.instances.all._
-    import cats.syntax.all._
-    import alleycats.std.iterable._
-
     FrontendRouteRepo.queries(path)
       .toIterable
       .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty){ (prevRes, query) =>
@@ -124,12 +121,13 @@ object FrontendRouteRepo {
       "$regex"   -> pathsToRegex(paths),
       "$options" -> "i")) // case insensitive
 
-  def queries(path: String): Iterator[JsObject] =
+  def queries(path: String): Seq[JsObject] =
     path
       .stripPrefix("/")
       .split("/")
       .toSeq
       .inits
+      .toSeq
+      .dropRight(1)
       .map(toQuery)
-
 }
