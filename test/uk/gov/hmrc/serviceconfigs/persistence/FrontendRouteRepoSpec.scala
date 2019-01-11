@@ -27,7 +27,7 @@ class FrontendRouteRepoSpec extends FlatSpec with Matchers {
   }
 
   it should "escape '-'" in {
-    FrontendRouteRepo.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account\\\\-a\\/welcome\\\\-b(\\/|$)"
+    FrontendRouteRepo.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
   }
 
 

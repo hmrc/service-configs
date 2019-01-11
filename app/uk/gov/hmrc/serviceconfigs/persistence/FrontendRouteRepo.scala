@@ -109,7 +109,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 object FrontendRouteRepo {
   def pathsToRegex(paths: Seq[String]): String =
     paths
-      .map(_.replace("-", "\\\\-")) // '-' is escaped in nginx expression
+      .map(_.replace("-", "(-|\\\\-)")) // '-' is escaped in regex expression
       .mkString(
         "^(\\^)?(\\/)?",  // match from beginning, tolerating [^/]. match
         "\\/",          // path segment separator
