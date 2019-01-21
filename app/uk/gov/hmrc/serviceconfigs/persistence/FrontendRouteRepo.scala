@@ -98,12 +98,17 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
       }
   }
 
-  def findByService(service: String) : Future[Seq[MongoFrontendRoute]] =
-    collection.find(Json.obj("service" -> Json.toJson[String](service))).cursor[MongoFrontendRoute]().collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+  def findByService(service: String): Future[Seq[MongoFrontendRoute]] =
+    collection
+      .find(Json.obj("service" -> Json.toJson[String](service)))
+      .cursor[MongoFrontendRoute]()
+      .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
 
-  def findAllRoutes() : Future[Seq[MongoFrontendRoute]] = findAll()
+  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
+    findAll()
 
-  def clearAll() : Future[Boolean] = removeAll().map(_.ok)
+  def clearAll(): Future[Boolean] =
+    removeAll().map(_.ok)
 }
 
 object FrontendRouteRepo {

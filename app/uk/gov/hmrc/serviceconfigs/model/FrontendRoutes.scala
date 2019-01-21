@@ -20,9 +20,16 @@ import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 
-case class FrontendRoute(frontendPath: String, backendPath :String, ruleConfigurationUrl: String = "", isRegex: Boolean = false)
+case class FrontendRoute(
+  frontendPath        : String,
+  backendPath         : String,
+  ruleConfigurationUrl: String = "",
+  isRegex             : Boolean = false)
 
-case class FrontendRoutes(service: String, environment: String, routes: Seq[FrontendRoute])
+case class FrontendRoutes(
+  service    : String,
+  environment: String,
+  routes     : Seq[FrontendRoute])
 
 object FrontendRoute {
 
