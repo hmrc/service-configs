@@ -42,20 +42,12 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
   import MongoFrontendRoute._
 
-  override def ensureIndexes(implicit ec: ExecutionContext): Future[Seq[Boolean]] = localEnsureIndexes
-
-  private def localEnsureIndexes =
-    Future.sequence(
-      Seq(
-        collection
-          .indexesManager
-          .ensure(
-            Index(
-              Seq("frontendPath" -> IndexType.Hashed),
-              name       = Some("frontendPathIdx"),
-              unique     = true,
-              background = true))))
-
+  override def indexes: Seq[Index] =
+    Seq(
+      Index(
+        Seq("frontendPath" -> IndexType.Hashed),
+        name       = Some("frontendPathIdx"),
+        background = true))
 
   def update(frontendRoute: MongoFrontendRoute): Future[MongoFrontendRoute] = {
     logger.debug(s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}")
@@ -70,7 +62,9 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   }
 
   def findByPath(path: String) : Future[Option[MongoFrontendRoute]] =
-    collection.find(Json.obj("frontendPath" -> Json.toJson[String](path))).one[MongoFrontendRoute]
+    collection
+      .find(Json.obj("frontendPath" -> Json.toJson[String](path)))
+      .one[MongoFrontendRoute]
 
 
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
