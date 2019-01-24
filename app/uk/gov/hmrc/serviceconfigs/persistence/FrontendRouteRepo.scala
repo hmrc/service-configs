@@ -103,6 +103,22 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
   def clearAll(): Future[Boolean] =
     removeAll().map(_.ok)
+
+  /** An alternative to super.drop, for tests.
+    * It won't suppresses errors, and will retry if the db is busy.
+    */
+  private[persistence] def dropIfFound(implicit ec: ExecutionContext): Future[Boolean] = {
+    def attempt(retries: Int): Future[Boolean] =
+      collection
+        .drop(failIfNotFound = false)
+        .map(_ => true)
+        .recoverWith { case e if e.getMessage.contains("code=12587") && retries > 0 =>
+          logger.warn(s"Could not drop resource ${e.getMessage} - will try again")
+          Thread.sleep(100)
+          attempt(retries - 1)
+        }
+    attempt(retries = 3)
+  }
 }
 
 object FrontendRouteRepo {

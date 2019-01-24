@@ -20,7 +20,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterEach, LoneElement, OptionValues}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, LoneElement, OptionValues}
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -40,26 +40,22 @@ class FrontendRouteRepoMongoSpec
        with ScalaFutures
        with OptionValues
        with BeforeAndAfterEach
-       with GuiceOneAppPerSuite
        with MockitoSugar {
 
   import ExecutionContext.Implicits.global
 
   val reactiveMongoComponent: ReactiveMongoComponent = new ReactiveMongoComponent {
-    val mockedMongoConnector: MongoConnector = mock[MongoConnector]
-    when(mockedMongoConnector.db).thenReturn(mongo)
-
-    override def mongoConnector = mockedMongoConnector
+    override val mongoConnector = {
+      val mc = mock[MongoConnector]
+      when(mc.db).thenReturn(mongo)
+      mc
+    }
   }
-
-  override def fakeApplication(): Application = GuiceApplicationBuilder()
-    .configure("metrics.jvm" -> false)
-    .build()
 
   val frontendRouteRepo = new FrontendRouteRepo(reactiveMongoComponent)
 
   override def beforeEach() {
-    await(frontendRouteRepo.drop)
+    await(frontendRouteRepo.dropIfFound)
   }
 
   "FrontendRouteRepo.update" should {
