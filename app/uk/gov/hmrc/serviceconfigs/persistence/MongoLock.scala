@@ -18,11 +18,12 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
 import org.joda.time.Duration
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.lock.{LockKeeper, LockMongoRepository, LockRepository}
 
 @Singleton
-class MongoLock @Inject()(mongoConnector: MongoConnector) extends LockKeeper {
-  override def repo: LockRepository = LockMongoRepository(mongoConnector.db)
+class MongoLock @Inject()(mongo: ReactiveMongoComponent) extends LockKeeper {
+  override def repo: LockRepository = LockMongoRepository(mongo.mongoConnector.db)
 
   override def lockId: String = "service-configs-sync-job"
 

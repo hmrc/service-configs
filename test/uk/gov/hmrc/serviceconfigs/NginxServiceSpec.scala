@@ -20,11 +20,13 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
+import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.api.DB
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoConnector, MongoLock}
+import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -64,7 +66,7 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
     val repo = mock[FrontendRouteRepo]
     val parser = new NginxConfigParser
     val connector = mock[NginxConfigConnector]
-    val lock = new MongoLock(mock[MongoConnector]) {
+    val lock = new MongoLock(mock[ReactiveMongoComponent]) {
       override def tryLock[T](body: => Future[T])(implicit ec: ExecutionContext): Future[Option[T]] =
         body.map(t => Some(t))
     }
