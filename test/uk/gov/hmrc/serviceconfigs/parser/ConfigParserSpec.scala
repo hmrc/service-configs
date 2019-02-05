@@ -20,8 +20,8 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 
-  "ConfigParser" should "convert config to map" in {
-    val res = (new ConfigParser).loadConfResponseToMap("""
+  "ConfigParser" should "parse config as map" in {
+    val res = (new ConfigParser).parseConfStringAsMap("""
       |appName=service-configs
       |
       |# An ApplicationLoader that uses Guice to bootstrap the application.
@@ -46,18 +46,18 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false"))
   }
 
-  it should "convert handle invalid config" in {
-    (new ConfigParser).loadConfResponseToMap("") shouldBe None
-    (new ConfigParser).loadConfResponseToMap("""
+  it should "handle invalid config" in {
+    (new ConfigParser).parseConfStringAsMap("") shouldBe None
+    (new ConfigParser).parseConfStringAsMap("""
       |appName=
       |""".stripMargin) shouldBe None
-    (new ConfigParser).loadConfResponseToMap("""
+    (new ConfigParser).parseConfStringAsMap("""
       |appName {
       |""".stripMargin) shouldBe None
   }
 
-  it should "convert yaml to map" in {
-    val res = (new ConfigParser).loadYamlResponseToMap("""
+  it should "parse yaml as map" in {
+    val res = (new ConfigParser).parseYamlStringAsMap("""
       |digital-service: Catalogue
       |
       |leakDetectionExemptions:
@@ -85,7 +85,7 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]"))
   }
 
-  it should "convert handle invalid yaml" in {
-    (new ConfigParser).loadYamlResponseToMap("") shouldBe None
+  it should "handle invalid yaml" in {
+    (new ConfigParser).parseYamlStringAsMap("") shouldBe None
   }
 }
