@@ -95,7 +95,7 @@ object ConfigService {
 
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceApplicationConfigFile(serviceName)
-        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).toMap))
+        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).getOrElse(Map.empty)))
   }
 
   case class BaseConfig() extends ConfigSource {
@@ -104,7 +104,7 @@ object ConfigService {
 
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceConfigConf("base", serviceName)
-        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).toMap))
+        .map(raw => ConfigSourceEntries(name, precedence, parser.loadConfResponseToMap(raw).getOrElse(Map.empty)))
   }
 
   case class AppConfig() extends ConfigSource {
@@ -114,7 +114,7 @@ object ConfigService {
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceConfigYaml(env, serviceName)
         .map { raw =>
-          ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
+          ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw).getOrElse(Map.empty)
             .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
             .toMap)
         }
@@ -128,7 +128,7 @@ object ConfigService {
       for (entries <- serviceType match {
         case Some(st) =>
           connector.serviceCommonConfigYaml(env, st).map { raw =>
-            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
+            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw).getOrElse(Map.empty)
               .filterKeys(key => key.startsWith("hmrc_config.fixed"))
               .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
               .toMap)
@@ -146,7 +146,7 @@ object ConfigService {
       for (entries <- serviceType match {
         case Some(st) =>
           connector.serviceCommonConfigYaml(env, st).map { raw =>
-            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw)
+            ConfigSourceEntries(name, precedence, parser.loadYamlResponseToMap(raw).getOrElse(Map.empty)
               .filterKeys(key => key.startsWith("hmrc_config.overridable"))
               .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
               .toMap)

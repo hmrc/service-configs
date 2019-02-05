@@ -37,13 +37,23 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       |  }
       |}
       |""".stripMargin)
-    res shouldBe Map(
+    res shouldBe Some(Map(
       "controllers.confidenceLevel" -> "300",
       "appName" -> "service-configs",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth" -> "false",
       "play.application.loader" -> "uk.gov.hmrc.play.bootstrap.ApplicationLoader",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuditing" -> "false",
-      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false")
+      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false"))
+  }
+
+  it should "convert handle invalid config" in {
+    (new ConfigParser).loadConfResponseToMap("") shouldBe None
+    (new ConfigParser).loadConfResponseToMap("""
+      |appName=
+      |""".stripMargin) shouldBe None
+    (new ConfigParser).loadConfResponseToMap("""
+      |appName {
+      |""".stripMargin) shouldBe None
   }
 
   it should "convert yaml to map" in {
@@ -64,7 +74,7 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       |    state : MI
       |    postal: 48046
       |""".stripMargin)
-    res shouldBe Map(
+    res shouldBe Some(Map(
       "bill-to.address.lines" -> "458 Walkman Dr.",
       "bill-to.given" -> "Chris",
       "bill-to.address.postal" -> "48046",
@@ -72,6 +82,10 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       "bill-to.address.city" -> "Royal Oak",
       "bill-to.family" -> "Dumars",
       "bill-to.address.state" -> "MI",
-      "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]")
+      "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]"))
+  }
+
+  it should "convert handle invalid yaml" in {
+    (new ConfigParser).loadYamlResponseToMap("") shouldBe None
   }
 }

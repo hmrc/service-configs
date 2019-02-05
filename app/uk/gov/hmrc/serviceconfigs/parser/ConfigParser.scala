@@ -28,7 +28,7 @@ import scala.util.Try
 @Singleton
 class ConfigParser {
 
-  def loadConfResponseToMap(responseString: String): scala.collection.mutable.Map[String, String] = {
+  def loadConfResponseToMap(responseString: String): Option[Map[String, String]] = {
     import scala.collection.mutable.Map
 
     val fallbackIncluder = ConfigParseOptions.defaults().getIncluder()
@@ -44,35 +44,39 @@ class ConfigParser {
       ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF).setAllowMissing(false).setIncluder(doNotInclude)
     responseString match {
       case s: String if s.nonEmpty =>
-        val conf: Config = ConfigFactory.parseString(responseString, options)
-        flattenConfigToDotNotation(Map(), conf)
-      case _ => Map()
+        Try(ConfigFactory.parseString(responseString, options))
+          .map(flattenConfigToDotNotation)
+          .toOption
+      case _ => None
     }
   }
 
-  def loadYamlResponseToMap(responseString: String): scala.collection.mutable.Map[String, String] = {
-    import scala.collection.JavaConversions.mapAsScalaMap
-    import scala.collection.mutable.Map
+  def loadYamlResponseToMap(responseString: String): Option[Map[String, String]] = {
+    import scala.collection.convert.decorateAsScala._
+    //import scala.collection.JavaConversions.mapAsScalaMap
     responseString match {
       case s: String if s.nonEmpty =>
-        val yamlMap: Map[String, Object] =
-         new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]]
-        flattenYamlToDotNotation(Map(), yamlMap)
-      case _ => Map()
+        Try(new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]].asScala.toMap)
+          .map(flattenYamlToDotNotation)
+          .toOption
+      case _ => None
     }
   }
 
 
-  private def flattenConfigToDotNotation(
-      start : mutable.Map[String, String],
-      input : Config,
-      prefix: String = ""): mutable.Map[String, String] = {
-    input.entrySet().toArray().foreach {
-      case e: java.util.AbstractMap.SimpleImmutableEntry[Object, com.typesafe.config.ConfigValue] =>
-        start.put(s"${e.getKey.toString}", removeQuotes(e.getValue.render))
-      case e => println("Can't do that!")
+  private def flattenConfigToDotNotation(input : Config): Map[String, String] = {
+    def flattenConfigToDotNotation2(
+        start : mutable.Map[String, String],
+        input : Config,
+        prefix: String = ""): mutable.Map[String, String] = {
+      input.entrySet().toArray().foreach {
+        case e: java.util.AbstractMap.SimpleImmutableEntry[Object, com.typesafe.config.ConfigValue] =>
+          start.put(s"${e.getKey.toString}", removeQuotes(e.getValue.render))
+        case e => println("Can't do that!")
+      }
+      start
     }
-    start
+    flattenConfigToDotNotation2(start = mutable.Map(), input).toMap
   }
 
   private def removeQuotes(input: String) =
@@ -82,20 +86,23 @@ class ConfigParser {
       input
     }
 
-  private def flattenYamlToDotNotation(
-      start        : mutable.Map[String, String],
-      input        : mutable.Map[String, Object],
-      currentPrefix: String = ""): mutable.Map[String, String] = {
-    import scala.collection.JavaConversions.mapAsScalaMap
-    input foreach {
-      case (k: String, v: mutable.Map[String, Object]) =>
-        flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
-      case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
-        flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
-      case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), v.toString)
-      case _ =>
+  private def flattenYamlToDotNotation(input : Map[String, Object]): Map[String, String] = {
+    def flattenYamlToDotNotation2(
+        start        : mutable.Map[String, String],
+        input        : mutable.Map[String, Object],
+        currentPrefix: String = ""): mutable.Map[String, String] = {
+      import scala.collection.JavaConversions.mapAsScalaMap
+      input foreach {
+        case (k: String, v: mutable.Map[String, Object]) =>
+          flattenYamlToDotNotation2(start, v, buildPrefix(currentPrefix, k))
+        case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
+          flattenYamlToDotNotation2(start, v, buildPrefix(currentPrefix, k))
+        case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), v.toString)
+        case _ =>
+      }
+      start
     }
-    start
+    flattenYamlToDotNotation2(start = mutable.Map(), mutable.Map(input.toSeq: _*)).toMap
   }
 
   private def buildPrefix(currentPrefix: String, key: String) =
