@@ -20,7 +20,7 @@ import alleycats.std.iterable._
 import cats.instances.all._
 import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json, JsObject}
+import play.api.libs.json.{Json, JsObject}
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.{Cursor, DB}
@@ -30,7 +30,6 @@ import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -41,13 +40,19 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     domainFormat   = MongoFrontendRoute.formats) {
 
   import MongoFrontendRoute._
+  import ExecutionContext.Implicits.global
 
   override def indexes: Seq[Index] =
     Seq(
       Index(
         Seq("frontendPath" -> IndexType.Hashed),
         name       = Some("frontendPathIdx"),
+        background = true),
+      Index(
+        Seq("service" -> IndexType.Hashed),
+        name       = Some("serviceIdx"),
         background = true))
+
 
   def update(frontendRoute: MongoFrontendRoute): Future[MongoFrontendRoute] = {
     logger.debug(s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}")
@@ -103,22 +108,6 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
   def clearAll(): Future[Boolean] =
     removeAll().map(_.ok)
-
-  /** An alternative to super.drop, for tests.
-    * It won't suppresses errors, and will retry if the db is busy.
-    */
-  private[persistence] def dropIfFound(implicit ec: ExecutionContext): Future[Boolean] = {
-    def attempt(retries: Int): Future[Boolean] =
-      collection
-        .drop(failIfNotFound = false)
-        .map(_ => true)
-        .recoverWith { case e if e.getMessage.contains("code=12587") && retries > 0 =>
-          logger.warn(s"Could not drop resource ${e.getMessage} - will try again")
-          Thread.sleep(100)
-          attempt(retries - 1)
-        }
-    attempt(retries = 3)
-  }
 }
 
 object FrontendRouteRepo {

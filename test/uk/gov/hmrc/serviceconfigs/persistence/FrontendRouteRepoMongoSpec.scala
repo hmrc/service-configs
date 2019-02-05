@@ -18,29 +18,24 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.Mockito.when
+import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, LoneElement, OptionValues}
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
 import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.{MongoConnector, MongoSpecSupport}
-import uk.gov.hmrc.play.test.UnitSpec
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, FrontendRoutes}
+import uk.gov.hmrc.mongo.{FailOnUnindexedQueries, MongoConnector, MongoSpecSupport, RepositoryPreparation}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.time.DateTimeUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class FrontendRouteRepoMongoSpec
-    extends UnitSpec
-       with LoneElement
+    extends WordSpecLike
+       with Matchers
        with MongoSpecSupport
        with ScalaFutures
-       with OptionValues
        with BeforeAndAfterEach
-       with MockitoSugar {
+       with MockitoSugar
+       //with FailOnUnindexedQueries
+       with RepositoryPreparation {
 
   import ExecutionContext.Implicits.global
 
@@ -55,7 +50,7 @@ class FrontendRouteRepoMongoSpec
   val frontendRouteRepo = new FrontendRouteRepo(reactiveMongoComponent)
 
   override def beforeEach() {
-    await(frontendRouteRepo.dropIfFound)
+    prepare(frontendRouteRepo)
   }
 
   "FrontendRouteRepo.update" should {
