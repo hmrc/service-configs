@@ -43,10 +43,9 @@ class ConfigParser {
     val options: ConfigParseOptions =
       ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF).setAllowMissing(false).setIncluder(doNotInclude)
     responseString match {
-      case s: String if s.nonEmpty => {
+      case s: String if s.nonEmpty =>
         val conf: Config = ConfigFactory.parseString(responseString, options)
         flattenConfigToDotNotation(Map(), conf)
-      }
       case _ => Map()
     }
   }
@@ -55,20 +54,19 @@ class ConfigParser {
     import scala.collection.JavaConversions.mapAsScalaMap
     import scala.collection.mutable.Map
     responseString match {
-      case s: String if s.nonEmpty => {
+      case s: String if s.nonEmpty =>
         val yamlMap: Map[String, Object] =
          new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]]
         flattenYamlToDotNotation(Map(), yamlMap)
-      }
       case _ => Map()
     }
   }
 
 
   private def flattenConfigToDotNotation(
-                                          start: mutable.Map[String, String],
-                                          input: Config,
-                                          prefix: String = ""): mutable.Map[String, String] = {
+      start : mutable.Map[String, String],
+      input : Config,
+      prefix: String = ""): mutable.Map[String, String] = {
     input.entrySet().toArray().foreach {
       case e: java.util.AbstractMap.SimpleImmutableEntry[Object, com.typesafe.config.ConfigValue] =>
         start.put(s"${e.getKey.toString}", removeQuotes(e.getValue.render))
@@ -85,9 +83,9 @@ class ConfigParser {
     }
 
   private def flattenYamlToDotNotation(
-                                        start: mutable.Map[String, String],
-                                        input: mutable.Map[String, Object],
-                                        currentPrefix: String = ""): mutable.Map[String, String] = {
+      start        : mutable.Map[String, String],
+      input        : mutable.Map[String, Object],
+      currentPrefix: String = ""): mutable.Map[String, String] = {
     import scala.collection.JavaConversions.mapAsScalaMap
     input foreach {
       case (k: String, v: mutable.Map[String, Object]) =>
