@@ -21,15 +21,12 @@ import javax.inject.Singleton
 import org.yaml.snakeyaml.Yaml
 
 import scala.collection.convert.decorateAsScala._
-import scala.collection.mutable
 import scala.util.Try
 
 @Singleton
 class ConfigParser {
 
   def parseConfStringAsMap(confString: String): Option[Map[String, String]] = {
-    import scala.collection.mutable.Map
-
     val fallbackIncluder = ConfigParseOptions.defaults.getIncluder
 
     val doNotInclude = new ConfigIncluder() {
@@ -61,7 +58,7 @@ class ConfigParser {
 
   private def flattenConfigToDotNotation(input : Config): Map[String, String] =
     input.entrySet.asScala
-      .map(e => s"${e.getKey.toString}" -> removeQuotes(e.getValue.render))
+      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render))
       .toMap
 
   private def removeQuotes(input: String): String =
