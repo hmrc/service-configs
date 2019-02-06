@@ -16,22 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import java.util
-
 import com.typesafe.config._
 import javax.inject.Singleton
 import org.yaml.snakeyaml.Yaml
 
-import scala.collection.mutable
+import scala.collection.convert.decorateAsScala._
 import scala.util.Try
 
 @Singleton
 class ConfigParser {
 
-  def loadConfResponseToMap(responseString: String): scala.collection.mutable.Map[String, String] = {
-    import scala.collection.mutable.Map
-
-    val fallbackIncluder = ConfigParseOptions.defaults().getIncluder()
+  def parseConfStringAsMap(confString: String): Option[Map[String, String]] = {
+    val fallbackIncluder = ConfigParseOptions.defaults.getIncluder
 
     val doNotInclude = new ConfigIncluder() {
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder             = this
@@ -41,69 +37,52 @@ class ConfigParser {
     }
 
     val options: ConfigParseOptions =
-      ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF).setAllowMissing(false).setIncluder(doNotInclude)
-    responseString match {
-      case s: String if s.nonEmpty => {
-        val conf: Config = ConfigFactory.parseString(responseString, options)
-        flattenConfigToDotNotation(Map(), conf)
-      }
-      case _ => Map()
-    }
+      ConfigParseOptions
+        .defaults
+        .setSyntax(ConfigSyntax.CONF)
+        .setAllowMissing(false)
+        .setIncluder(doNotInclude)
+
+    if (confString.isEmpty) None
+    else Try(ConfigFactory.parseString(confString, options))
+          .map(flattenConfigToDotNotation)
+          .toOption
   }
 
-  def loadYamlResponseToMap(responseString: String): scala.collection.mutable.Map[String, String] = {
-    import scala.collection.JavaConversions.mapAsScalaMap
-    import scala.collection.mutable.Map
-    responseString match {
-      case s: String if s.nonEmpty => {
-        val yamlMap: Map[String, Object] =
-         new Yaml().load(responseString).asInstanceOf[util.LinkedHashMap[String, Object]]
-        flattenYamlToDotNotation(Map(), yamlMap)
-      }
-      case _ => Map()
-    }
+  def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] = {
+    Try(new Yaml().load(yamlString).asInstanceOf[java.util.LinkedHashMap[String, Object]])
+      .map(flattenYamlToDotNotation)
+      .toOption
   }
 
 
-  private def flattenConfigToDotNotation(
-                                          start: mutable.Map[String, String],
-                                          input: Config,
-                                          prefix: String = ""): mutable.Map[String, String] = {
-    input.entrySet().toArray().foreach {
-      case e: java.util.AbstractMap.SimpleImmutableEntry[Object, com.typesafe.config.ConfigValue] =>
-        start.put(s"${e.getKey.toString}", removeQuotes(e.getValue.render))
-      case e => println("Can't do that!")
-    }
-    start
-  }
+  private def flattenConfigToDotNotation(input : Config): Map[String, String] =
+    input.entrySet.asScala
+      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render))
+      .toMap
 
-  private def removeQuotes(input: String) =
+  private def removeQuotes(input: String): String =
     if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"')) {
       input.substring(1, input.length - 1)
     } else {
       input
     }
 
-  private def flattenYamlToDotNotation(
-                                        start: mutable.Map[String, String],
-                                        input: mutable.Map[String, Object],
-                                        currentPrefix: String = ""): mutable.Map[String, String] = {
-    import scala.collection.JavaConversions.mapAsScalaMap
-    input foreach {
-      case (k: String, v: mutable.Map[String, Object]) =>
-        flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
-      case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
-        flattenYamlToDotNotation(start, v, buildPrefix(currentPrefix, k))
-      case (k: String, v: Object) => start.put(buildPrefix(currentPrefix, k), v.toString)
-      case _ =>
-    }
-    start
+  private def flattenYamlToDotNotation(input: java.util.LinkedHashMap[String, Object]): Map[String, String] = {
+    def go(input: Map[String, Object], currentPrefix: String): Map[String, String] =
+      input.flatMap {
+        case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
+          go(v.asScala.toMap, buildPrefix(currentPrefix, k))
+        case (k: String, v: Object) =>
+          Map(buildPrefix(currentPrefix, k) -> v.toString)
+      }
+    go(input.asScala.toMap, "")
   }
 
   private def buildPrefix(currentPrefix: String, key: String) =
     (currentPrefix, key) match {
-      case ("", "0.0.0")         => currentPrefix // filter out the (unused) config version numbering
-      case (cp, _) if cp.isEmpty => key
-      case _                     => s"$currentPrefix.$key"
+      case ("", "0.0.0") => "" // filter out the (unused) config version numbering
+      case ("", k      ) => k
+      case (cp, k      ) => s"$cp.$k"
     }
 }
