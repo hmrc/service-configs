@@ -22,10 +22,8 @@ object AppDependencies {
     "org.pegdown"             %  "pegdown"                  % "1.6.0"                 % "test, it",
     "uk.gov.hmrc"             %% "service-integration-test" % "0.5.0-play-26"                 % "test, it",
     "uk.gov.hmrc"             %% "reactivemongo-test"       % "4.8.0-play-26"         % "test",
-    "org.scalatestplus.play"  %% "scalatestplus-play"       % "3.0.0"                 % "test, it",
-    "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test, it",
-    // force dependencies due to security flaws found in xercesImpl 2.11.0
-    "xerces"                  % "xercesImpl"                % "2.12.0"                % "test, it"
+    "org.scalatestplus.play"  %% "scalatestplus-play"       % "3.1.2"                 % "test, it",
+    "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test, it"
   )
 
 }
