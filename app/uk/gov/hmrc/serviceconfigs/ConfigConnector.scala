@@ -56,7 +56,7 @@ class ConfigConnector @Inject()(
     doCall(requestUrl, newHc)
   }
 
-  def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier) = {
+  def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"${gitConf.githubRawUrl}/hmrc/$serviceName/master/conf/application.conf"
     doCall(requestUrl, newHc)
@@ -65,14 +65,11 @@ class ConfigConnector @Inject()(
   private def doCall(url: String, newHc: HeaderCarrier) = {
     implicit val hc: HeaderCarrier = newHc
     http.GET(url).map {
-      case response: HttpResponse if response.status != 200 => {
+      case response: HttpResponse if response.status != 200 =>
         Logger.warn(s"Failed to download config file from $url")
         ""
-      }
-      case response: HttpResponse => {
+      case response: HttpResponse =>
         response.body
-      }
     }
   }
-
 }
