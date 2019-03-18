@@ -72,11 +72,11 @@ object ConfigService {
   case class ConfigSourceValue(source: String, precedence: Int, value: String)
 
   case class LocalEnvironment(name: String) extends Environment {
-    def configSources = Seq(ApplicationConf())
+    def configSources = Seq(ApplicationConf)
   }
 
   case class DeployedEnvironment(name: String) extends Environment {
-    def configSources = Seq(ApplicationConf(), BaseConfig(), AppConfig(), AppConfigCommonFixed(), AppConfigCommonOverridable())
+    def configSources = Seq(ApplicationConf, BaseConfig, AppConfig, AppConfigCommonFixed, AppConfigCommonOverridable)
   }
 
   sealed trait Environment {
@@ -90,7 +90,7 @@ object ConfigService {
       }
   }
 
-  case class ApplicationConf() extends ConfigSource {
+  case object ApplicationConf extends ConfigSource {
     val name = "applicationConf"
     val precedence = 10
 
@@ -99,7 +99,7 @@ object ConfigService {
         .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
   }
 
-  case class BaseConfig() extends ConfigSource {
+  case object BaseConfig extends ConfigSource {
     val name = "baseConfig"
     val precedence = 20
 
@@ -108,7 +108,7 @@ object ConfigService {
         .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
   }
 
-  case class AppConfig() extends ConfigSource {
+  case object AppConfig extends ConfigSource {
     val name = "appConfigEnvironment"
     val precedence = 40
 
@@ -124,7 +124,7 @@ object ConfigService {
         }
   }
 
-  case class AppConfigCommonFixed() extends ConfigSource {
+  case object AppConfigCommonFixed extends ConfigSource {
     val name = "appConfigCommonFixed"
     val precedence = 50
 
@@ -145,7 +145,7 @@ object ConfigService {
       }
   }
 
-  case class AppConfigCommonOverridable() extends ConfigSource {
+  case object AppConfigCommonOverridable extends ConfigSource {
     val name = "appConfigCommonOverridable"
     val precedence = 30
 
@@ -176,5 +176,5 @@ object ConfigService {
   }
 
   def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
-    configSourceEntries.find(_.source == AppConfig().name).flatMap(_.entries.get("type"))
+    configSourceEntries.find(_.source == AppConfig.name).flatMap(_.entries.get("type"))
 }

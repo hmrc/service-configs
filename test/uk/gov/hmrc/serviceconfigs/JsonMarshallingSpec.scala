@@ -27,9 +27,6 @@ class JsonMarshallingSpec extends WordSpec with ConfigJson {
 
   "ConfigByEnvironment" should {
     "unmarshal" in {
-      val baseSource = BaseConfig()
-      val appConfigSource = AppConfig()
-
       val cbe: ConfigByEnvironment = Map(
         "environmentName" -> Seq(
           ConfigSourceEntries("baseConfig", 20, Map(
