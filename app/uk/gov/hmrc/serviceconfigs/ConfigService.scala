@@ -16,14 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs
 
+import alleycats.std.iterable._
+    import cats.instances.all._
+    import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
 
-import scala.concurrent.Future
+import ExecutionContext.Implicits.global
 
+@Singleton
 class ConfigService @Inject()(configConnector: ConfigConnector, configParser: ConfigParser) {
 
   import ConfigService._
@@ -38,29 +42,24 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
     DeployedEnvironment("production"))
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
-    environments.foldLeft(Future.successful(Map[EnvironmentName, Seq[ConfigSourceEntries]]())) { case (mapF, e) =>
-      mapF.flatMap { map =>
-        e.configSourceEntries(configConnector, configParser)(serviceName).map(cse => map + (e.name -> cse))
-      }
+    environments.toIterable.foldLeftM[Future, Map[EnvironmentName, Seq[ConfigSourceEntries]]](Map.empty){ (map, e) =>
+      e.configSourceEntries(configConnector, configParser)(serviceName).map(cse => map + (e.name -> cse))
     }
 
   def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
-    environments.foldLeft(Future.successful(Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]())) { case (mapF, e) =>
-      mapF.flatMap { map =>
-        e.configSourceEntries(configConnector, configParser)(serviceName).map { configSourceEntries =>
-          configSourceEntries.foldLeft(map) { case (subMap, cse) =>
-            subMap ++ cse.entries.map { case (key, value) =>
-              val envMap = subMap.getOrElse(key, Map[EnvironmentName, Seq[ConfigSourceValue]]())
-              val values = envMap.getOrElse(e.name, Seq())
-              key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.precedence, value))))
-            }
+    environments.toIterable.foldLeftM[Future, Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]](Map.empty) { case (map, e) =>
+      e.configSourceEntries(configConnector, configParser)(serviceName).map { configSourceEntries =>
+        configSourceEntries.foldLeft(map) { case (subMap, cse) =>
+          subMap ++ cse.entries.map { case (key, value) =>
+            val envMap = subMap.getOrElse(key, Map[EnvironmentName, Seq[ConfigSourceValue]]())
+            val values = envMap.getOrElse(e.name, Seq())
+            key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.precedence, value))))
           }
         }
       }
     }
 }
 
-@Singleton
 object ConfigService {
   type EnvironmentName = String
   type KeyName = String
@@ -85,13 +84,10 @@ object ConfigService {
 
     def configSources: Seq[ConfigSource]
 
-    def configSourceEntries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String)(implicit hc: HeaderCarrier) = {
-      configSources.foldLeft(Future.successful(Seq[ConfigSourceEntries]())) { case (seqF, cs) =>
-        seqF.flatMap { seq =>
-          cs.entries(connector, parser)(serviceName, name, getServiceType(seq)).map(entries => seq :+ entries)
-        }
+    def configSourceEntries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String)(implicit hc: HeaderCarrier) =
+      configSources.toIterable.foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) { case (seq, cs) =>
+        cs.entries(connector, parser)(serviceName, name, getServiceType(seq)).map(entries => seq :+ entries)
       }
-    }
   }
 
   case class ApplicationConf() extends ConfigSource {
