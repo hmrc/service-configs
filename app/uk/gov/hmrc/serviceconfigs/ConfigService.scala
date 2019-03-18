@@ -28,8 +28,13 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
 
   import ConfigService._
 
-  val environments = Seq(LocalEnvironment("local"), DeployedEnvironment("development"), DeployedEnvironment("qa"),
-    DeployedEnvironment("staging"), DeployedEnvironment("integration"), DeployedEnvironment("externaltest"),
+  val environments = Seq(
+    LocalEnvironment("local"),
+    DeployedEnvironment("development"),
+    DeployedEnvironment("qa"),
+    DeployedEnvironment("staging"),
+    DeployedEnvironment("integration"),
+    DeployedEnvironment("externaltest"),
     DeployedEnvironment("production"))
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
@@ -114,9 +119,12 @@ object ConfigService {
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
       connector.serviceConfigYaml(env, serviceName)
         .map { raw =>
-          ConfigSourceEntries(name, precedence, parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-            .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
-            .toMap)
+          ConfigSourceEntries(
+            name,
+            precedence,
+            parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+              .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+              .toMap)
         }
   }
 
@@ -125,17 +133,20 @@ object ConfigService {
     val precedence = 50
 
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-      for (entries <- serviceType match {
+      serviceType match {
         case Some(st) =>
           connector.serviceCommonConfigYaml(env, st).map { raw =>
-            ConfigSourceEntries(name, precedence, parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-              .filterKeys(key => key.startsWith("hmrc_config.fixed"))
-              .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
-              .toMap)
+            ConfigSourceEntries(
+              name,
+              precedence,
+              parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                .filterKeys(_.startsWith("hmrc_config.fixed"))
+                .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+                .toMap)
           }
         case None =>
           Future.successful(ConfigSourceEntries(name, precedence))
-      }) yield entries
+      }
   }
 
   case class AppConfigCommonOverridable() extends ConfigSource {
@@ -143,16 +154,19 @@ object ConfigService {
     val precedence = 30
 
     def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-      for (entries <- serviceType match {
+      serviceType match {
         case Some(st) =>
           connector.serviceCommonConfigYaml(env, st).map { raw =>
-            ConfigSourceEntries(name, precedence, parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-              .filterKeys(key => key.startsWith("hmrc_config.overridable"))
-              .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
-              .toMap)
+            ConfigSourceEntries(
+              name,
+              precedence,
+              parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                .filterKeys(_.startsWith("hmrc_config.overridable"))
+                .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
+                .toMap)
           }
         case None => Future.successful(ConfigSourceEntries(name, precedence))
-      }) yield entries
+      }
   }
 
   sealed trait ConfigSource {
@@ -166,5 +180,5 @@ object ConfigService {
   }
 
   def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
-    configSourceEntries.find(cse => cse.source == AppConfig().name).flatMap(cse => cse.entries.get("type"))
+    configSourceEntries.find(_.source == AppConfig().name).flatMap(_.entries.get("type"))
 }

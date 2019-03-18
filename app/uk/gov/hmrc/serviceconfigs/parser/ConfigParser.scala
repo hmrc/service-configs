@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.typesafe.config._
+import com.typesafe.config.{Config, ConfigFactory, ConfigIncludeContext, ConfigIncluder, ConfigObject, ConfigParseOptions, ConfigSyntax}
 import javax.inject.Singleton
 import org.yaml.snakeyaml.Yaml
 
@@ -49,11 +49,10 @@ class ConfigParser {
           .toOption
   }
 
-  def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] = {
+  def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] =
     Try(new Yaml().load(yamlString).asInstanceOf[java.util.LinkedHashMap[String, Object]])
       .map(flattenYamlToDotNotation)
       .toOption
-  }
 
 
   private def flattenConfigToDotNotation(input : Config): Map[String, String] =
