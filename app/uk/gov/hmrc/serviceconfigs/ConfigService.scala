@@ -17,8 +17,8 @@
 package uk.gov.hmrc.serviceconfigs
 
 import alleycats.std.iterable._
-    import cats.instances.all._
-    import cats.syntax.all._
+import cats.instances.all._
+import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
@@ -33,11 +33,13 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
   import ConfigService._
 
   private val localConfigSources = Seq(
-      ConfigSource.ApplicationConf
+      ConfigSource.ReferenceConf
+    , ConfigSource.ApplicationConf
     )
 
   private val deployedConfigSources = Seq(
-      ConfigSource.ApplicationConf
+      ConfigSource.ReferenceConf
+    , ConfigSource.ApplicationConf
     , ConfigSource.BaseConfig
     , ConfigSource.AppConfig
     , ConfigSource.AppConfigCommonFixed
@@ -64,23 +66,28 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
       }
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
-    environments.toIterable.foldLeftM[Future, Map[EnvironmentName, Seq[ConfigSourceEntries]]](Map.empty){ (map, e) =>
+    environments.toIterable.foldLeftM[Future, ConfigByEnvironment](Map.empty){ (map, e) =>
       configSourceEntries(e, serviceName)
         .map(cse => map + (e.name -> cse))
     }
 
-  def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
-    environments.toIterable.foldLeftM[Future, Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]](Map.empty) { case (map, e) =>
+  // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
+  def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] = {
+    environments.toIterable.foldLeftM[Future, ConfigByKey](Map.empty) { case (map, e) =>
       configSourceEntries(e, serviceName).map { cses =>
         cses.foldLeft(map) { case (subMap, cse) =>
           subMap ++ cse.entries.map { case (key, value) =>
-            val envMap = subMap.getOrElse(key, Map[EnvironmentName, Seq[ConfigSourceValue]]())
-            val values = envMap.getOrElse(e.name, Seq())
+            val envMap = subMap.getOrElse(key, Map.empty)
+            val values = envMap.getOrElse(e.name, Seq.empty)
             key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.precedence, value))))
           }
         }
       }
+     // sort by keys
+    }.map { map =>
+      scala.collection.immutable.ListMap(map.toSeq.sortBy(_._1):_*)
     }
+  }
 }
 
 object ConfigService {
@@ -107,6 +114,15 @@ object ConfigService {
   }
 
   object ConfigSource {
+    case object ReferenceConf extends ConfigSource {
+      val name = "referenceConf"
+      val precedence = 9
+
+      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+        connector.serviceRefConfigConf(env, serviceName)
+          .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+    }
+
     case object ApplicationConf extends ConfigSource {
       val name = "applicationConf"
       val precedence = 10
@@ -182,6 +198,4 @@ object ConfigService {
         }
     }
   }
-
-
 }

@@ -18,25 +18,29 @@ package uk.gov.hmrc.cataloguefrontend.connector
 
 import javax.inject.{Inject, Singleton}
 import play.Logger
+import play.api.libs.json.JsObject
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
+import ExecutionContext.Implicits.global
 
 @Singleton
 class ConfigConnector @Inject()(
   http: HttpClient,
+  servicesConfig: ServicesConfig,
   gitConf: GithubConfig
 ) {
-
 
   private implicit val httpReads: HttpReads[HttpResponse] = new HttpReads[HttpResponse] {
     override def read(method: String, url: String, response: HttpResponse): HttpResponse = response
   }
 
   private val configKey = gitConf.githubApiOpenConfig.key
+  private val serviceDependenciesUrl: String = servicesConfig.baseUrl("service-dependencies")
 
   def serviceConfigYaml(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
@@ -48,6 +52,18 @@ class ConfigConnector @Inject()(
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"${gitConf.githubRawUrl}/hmrc/app-config-$env/master/$service.conf"
     doCall(requestUrl, newHc)
+  }
+
+  def serviceRefConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
+    val url = s"$serviceDependenciesUrl/api/configs/$service?flag=latest"
+    http.GET[JsObject](url).map { json =>
+        // slugConfig, referenceConfig, applicationConfig
+        (json \ "referenceConfig").toOption.map(_.as[String]).getOrElse("")
+      }
+      .recover { case NonFatal(ex) =>
+        Logger.warn(s"Failed to download config file from $url: ${ex.getMessage}", ex)
+        ""
+      }
   }
 
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {
