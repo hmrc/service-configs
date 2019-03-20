@@ -57,7 +57,7 @@ class ConfigParser {
 
   private def flattenConfigToDotNotation(input : Config): Map[String, String] =
     input.entrySet.asScala
-      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render))
+      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render(com.typesafe.config.ConfigRenderOptions.concise)))
       .toMap
 
   private def removeQuotes(input: String): String =
