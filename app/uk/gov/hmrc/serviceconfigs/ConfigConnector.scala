@@ -28,11 +28,72 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import ExecutionContext.Implicits.global
 
+
+case class DependencyConfig(
+    group   : String
+  , artefact: String
+  , version : String
+  , configs : Map[String, String]
+  )
+
+object DependencyConfig {
+  import play.api.libs.json.{__, Reads}
+  import play.api.libs.functional.syntax._
+  val reads: Reads[DependencyConfig] =
+    ( (__ \ "group"   ).read[String]
+    ~ (__ \ "artefact").read[String]
+    ~ (__ \ "version" ).read[String]
+    ~ (__ \ "configs" ).read[Map[String, String]]
+    )(DependencyConfig.apply _)
+}
+
+case class Dependency(
+    path    : String
+  , group   : String
+  , artefact: String
+  , version : String
+  )
+
+
+case class SlugInfo(
+    uri              : String
+  , name             : String
+  , version          : String
+  , classpath        : String
+  , dependencies     : List[Dependency]
+  , applicationConfig: String
+  , slugConfig       : String
+  )
+
+object SlugInfo {
+  import play.api.libs.json.{__, Reads}
+  import play.api.libs.functional.syntax._
+
+  val reads: Reads[SlugInfo] = {
+    implicit val dReads: Reads[Dependency] =
+      ( (__ \ "path"    ).read[String]
+      ~ (__ \ "group"   ).read[String]
+      ~ (__ \ "artifact").read[String]
+      ~ (__ \ "version" ).read[String]
+      )(Dependency.apply _)
+
+    ( (__ \ "uri"              ).read[String]
+    ~ (__ \ "name"             ).read[String]
+    ~ (__ \ "version"          ).read[String]
+    ~ (__ \ "classpath"        ).read[String]
+    ~ (__ \ "dependencies"     ).read[List[Dependency]]
+    ~ (__ \ "applicationConfig").read[String]
+    ~ (__ \ "slugConfig"       ).read[String]
+    )(SlugInfo.apply _)
+  }
+}
+
+
 @Singleton
 class ConfigConnector @Inject()(
-  http: HttpClient,
+  http          : HttpClient,
   servicesConfig: ServicesConfig,
-  gitConf: GithubConfig
+  gitConf       : GithubConfig
 ) {
 
   private implicit val httpReads: HttpReads[HttpResponse] = new HttpReads[HttpResponse] {
@@ -53,6 +114,17 @@ class ConfigConnector @Inject()(
     val requestUrl = s"${gitConf.githubRawUrl}/hmrc/app-config-$env/master/$service.conf"
     doCall(requestUrl, newHc)
   }
+
+  def slugDependencyConfigs(service: String)(implicit hc: HeaderCarrier): Future[List[DependencyConfig]] = {
+    implicit val dcr = DependencyConfig.reads
+    http.GET[List[DependencyConfig]](s"$serviceDependenciesUrl/api/slugDependencyConfigs?name=$service&flag=latest")
+  }
+
+  def slugInfo(service: String)(implicit hc: HeaderCarrier): Future[SlugInfo] = {
+    implicit val sir = SlugInfo.reads
+    http.GET[SlugInfo](s"$serviceDependenciesUrl/api/sluginfo?name=$service&flag=latest")
+  }
+
 
   def serviceRefConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
     val url = s"$serviceDependenciesUrl/api/configs/$service?flag=latest"

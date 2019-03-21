@@ -62,7 +62,9 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
   private def configSourceEntries(environment: Environment, serviceName: String)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     environment.configSources.toIterable
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) { case (seq, cs) =>
-        cs.entries(configConnector, configParser)(serviceName, environment.name, getServiceType(seq)).map(entries => seq :+ entries)
+        cs
+          .entries(configConnector, configParser)(serviceName, environment.name, getServiceType(seq))
+          .map(entries => seq :+ entries)
       }
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
@@ -119,8 +121,13 @@ object ConfigService {
       val precedence = 9
 
       def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        connector.serviceRefConfigConf(env, serviceName)
-          .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+        for {
+          slugInfo          <- connector.slugInfo(serviceName)
+          applicationConfig =  slugInfo.applicationConfig
+          slugConfig        =  slugInfo.slugConfig
+          configs           <- connector.slugDependencyConfigs(serviceName)
+          referenceConfig   =  parser.reduceConfigs(configs)
+        } yield ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(referenceConfig).getOrElse(Map.empty))
     }
 
     case object ApplicationConf extends ConfigSource {
@@ -153,7 +160,8 @@ object ConfigService {
               precedence,
               parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                 .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
-                .toMap)
+                .toMap
+            )
           }
     }
 
@@ -171,7 +179,8 @@ object ConfigService {
                 parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                   .filterKeys(_.startsWith("hmrc_config.fixed"))
                   .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
-                  .toMap)
+                  .toMap
+              )
             }
           case None =>
             Future.successful(ConfigSourceEntries(name, precedence))
@@ -192,7 +201,8 @@ object ConfigService {
                 parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                   .filterKeys(_.startsWith("hmrc_config.overridable"))
                   .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
-                  .toMap)
+                  .toMap
+              )
             }
           case None => Future.successful(ConfigSourceEntries(name, precedence))
         }
