@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import ExecutionContext.Implicits.global
 
 @Singleton
-class ConfigService @Inject()(configConnector: ConfigConnector, configParser: ConfigParser) {
+class ConfigService @Inject()(configConnector: ConfigConnector) {
 
   import ConfigService._
 
@@ -63,7 +63,7 @@ class ConfigService @Inject()(configConnector: ConfigConnector, configParser: Co
     environment.configSources.toIterable
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) { case (seq, cs) =>
         cs
-          .entries(configConnector, configParser)(serviceName, environment.name, getServiceType(seq))
+          .entries(configConnector)(serviceName, environment.name, getServiceType(seq))
           .map(entries => seq :+ entries)
       }
 
@@ -110,7 +110,7 @@ object ConfigService {
 
     def precedence: Int
 
-    def entries(connector: ConfigConnector, parser: ConfigParser)
+    def entries(connector: ConfigConnector)
                (serviceName: String, env: String, serviceType: Option[String])
                (implicit hc: HeaderCarrier): Future[ConfigSourceEntries]
   }
@@ -120,45 +120,43 @@ object ConfigService {
       val name = "referenceConf"
       val precedence = 9
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         for {
-          slugInfo          <- connector.slugInfo(serviceName)
-          applicationConfig =  slugInfo.applicationConfig
-          slugConfig        =  slugInfo.slugConfig
           configs           <- connector.slugDependencyConfigs(serviceName)
-          referenceConfig   =  parser.reduceConfigs(configs)
-        } yield ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(referenceConfig).getOrElse(Map.empty))
+          referenceConfig   =  ConfigParser.reduceConfigs(configs)
+          entries           =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object ApplicationConf extends ConfigSource {
       val name = "applicationConf"
       val precedence = 10
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         connector.serviceApplicationConfigFile(serviceName)
-          .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+          .map(raw => ConfigSourceEntries(name, precedence, ConfigParser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
     }
 
     case object BaseConfig extends ConfigSource {
       val name = "baseConfig"
       val precedence = 20
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         connector.serviceConfigConf("base", serviceName)
-          .map(raw => ConfigSourceEntries(name, precedence, parser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+          .map(raw => ConfigSourceEntries(name, precedence, ConfigParser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
     }
 
     case object AppConfig extends ConfigSource {
       val name = "appConfigEnvironment"
       val precedence = 40
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         connector.serviceConfigYaml(env, serviceName)
           .map { raw =>
             ConfigSourceEntries(
               name,
               precedence,
-              parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+              ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                 .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
                 .toMap
             )
@@ -169,14 +167,14 @@ object ConfigService {
       val name = "appConfigCommonFixed"
       val precedence = 50
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         serviceType match {
           case Some(st) =>
             connector.serviceCommonConfigYaml(env, st).map { raw =>
               ConfigSourceEntries(
                 name,
                 precedence,
-                parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                   .filterKeys(_.startsWith("hmrc_config.fixed"))
                   .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
                   .toMap
@@ -191,14 +189,14 @@ object ConfigService {
       val name = "appConfigCommonOverridable"
       val precedence = 30
 
-      def entries(connector: ConfigConnector, parser: ConfigParser)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         serviceType match {
           case Some(st) =>
             connector.serviceCommonConfigYaml(env, st).map { raw =>
               ConfigSourceEntries(
                 name,
                 precedence,
-                parser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
                   .filterKeys(_.startsWith("hmrc_config.overridable"))
                   .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
                   .toMap

@@ -17,11 +17,12 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import com.typesafe.config.ConfigRenderOptions
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 
   "ConfigParser" should "parse config as map" in {
-    val res = (new ConfigParser).parseConfStringAsMap("""
+    val res = ConfigParser.parseConfStringAsMap("""
       |appName=service-configs
       |
       |# An ApplicationLoader that uses Guice to bootstrap the application.
@@ -47,17 +48,17 @@ class ConfigParserSpec extends FlatSpec with Matchers {
   }
 
   it should "handle invalid config" in {
-    (new ConfigParser).parseConfStringAsMap("") shouldBe None
-    (new ConfigParser).parseConfStringAsMap("""
+    ConfigParser.parseConfStringAsMap("") shouldBe None
+    ConfigParser.parseConfStringAsMap("""
       |appName=
       |""".stripMargin) shouldBe None
-    (new ConfigParser).parseConfStringAsMap("""
+    ConfigParser.parseConfStringAsMap("""
       |appName {
       |""".stripMargin) shouldBe None
   }
 
   it should "parse yaml as map" in {
-    val res = (new ConfigParser).parseYamlStringAsMap("""
+    val res = ConfigParser.parseYamlStringAsMap("""
       |digital-service: Catalogue
       |
       |leakDetectionExemptions:
@@ -86,6 +87,84 @@ class ConfigParserSpec extends FlatSpec with Matchers {
   }
 
   it should "handle invalid yaml" in {
-    (new ConfigParser).parseYamlStringAsMap("") shouldBe None
+    ConfigParser.parseYamlStringAsMap("") shouldBe None
+  }
+
+  "applyIncludes2" should "inline the include with first candidate found" in {
+    val config =
+      """include "included1.conf"
+        |key1=val1""".stripMargin
+
+    val includeCandidates =
+      Seq(
+        Config2(
+            filename = "included1.conf"
+          , content  = "key2=val2"
+          )
+      , Config2(
+            filename = "included2.conf"
+          , content  = "key3=val3"
+          )
+      , Config2(
+            filename = "included1.conf"
+          , content  = "key4=val4"
+          )
+      )
+    ConfigParser.applyIncludes2(config, includeCandidates) shouldBe """key2=val2
+                                                                      |key1=val1""".stripMargin
+  }
+
+  it should "inline the include recursively" in {
+    val config =
+      """include "included1.conf"
+        |key1=val1""".stripMargin
+
+    val includeCandidates =
+      Seq(
+        Config2(
+            filename = "included1.conf"
+          , content  = """include "included2.conf"
+                         |key2=val2""".stripMargin
+          )
+      , Config2(
+            filename = "included2.conf"
+          , content  = "key3=val3"
+          )
+      , Config2(
+            filename = "included1.conf"
+          , content  = "key4=val4"
+          )
+      )
+    ConfigParser.applyIncludes2(config, includeCandidates) shouldBe """key3=val3
+                                                                      |key2=val2
+                                                                      |key1=val1""".stripMargin
+  }
+
+  "combineConfigs" should "combine the configs" in {
+    val configs = Seq(
+      Config2(
+          filename = "reference.conf"
+        , content  = """include "included.conf"
+                        |key1=val1""".stripMargin
+        )
+      , Config2(
+          filename = "included.conf"
+        , content  = """key2=val2""".stripMargin
+        )
+      , Config2(
+          filename = "play/reference-overrides.conf"
+        , content  = """key3=val3""".stripMargin
+        )
+      , Config2(
+          filename = "reference.conf"
+        , content  = """key3=val4""".stripMargin
+        )
+      , Config2(
+          filename = "unreferenced.conf"
+        , content  = """key4=val4""".stripMargin
+        )
+      )
+    val combinedConfig = ConfigParser.combineConfigs(configs)
+    combinedConfig.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
   }
 }

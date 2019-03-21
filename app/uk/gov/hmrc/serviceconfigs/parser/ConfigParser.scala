@@ -25,8 +25,7 @@ import uk.gov.hmrc.cataloguefrontend.connector.DependencyConfig
 import scala.collection.convert.decorateAsScala._
 import scala.util.Try
 
-@Singleton
-class ConfigParser {
+trait ConfigParser {
 
   def parseConfStringAsMap(confString: String): Option[Map[String, String]] = {
     val fallbackIncluder = ConfigParseOptions.defaults.getIncluder
@@ -57,9 +56,9 @@ class ConfigParser {
       .toOption
 
 
-  private def flattenConfigToDotNotation(input : Config): Map[String, String] =
-    input.entrySet.asScala
-      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render(com.typesafe.config.ConfigRenderOptions.concise)))
+  def flattenConfigToDotNotation(config: Config): Map[String, String] =
+    config.entrySet.asScala
+      .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise)))
       .toMap
 
   private def removeQuotes(input: String): String =
@@ -87,11 +86,13 @@ class ConfigParser {
       case (cp, k      ) => s"$cp.$k"
     }
 
-  /** Combine the reference.conf and play/reference-overrides.conf configs according to classpath order,
+  /** Combine the reference.conf and play/reference-overrides.conf configs according order,
     * respecting any include directives.
     */
-  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): String = {
-   val config2s =
+  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config =
+    combineConfigs(toConfig2s(dependencyConfigs))
+
+  def toConfig2s(dependencyConfigs: Seq[DependencyConfig]): Seq[Config2] =
      dependencyConfigs.flatMap { dependencyConfigs =>
        dependencyConfigs.configs
          .map { case (filename, content) => Config2(filename, content) }
@@ -100,21 +101,19 @@ class ConfigParser {
          .sortWith((l, r) =>  l.filename == "play/reference-overrides.conf"
                           || (l.filename == "reference.conf" && r.filename != "play/reference-overrides.conf"))
      }
-    config2String(combineConfigs(config2s))
-  }
+
 
   private val includeRegex = "(?m)^include \"(.*)\"$".r
 
-  /** recursively applies includes by inlining
-    */
-  def applyIncludes(config: Config2, includeCandidates: Seq[Config2]): String = {
-    val includes = includeRegex.findAllMatchIn(config.content).map(_.group(1)).toList
-    includes.foldLeft(config.content){ (acc, include) =>
+  /** recursively applies includes by inlining */
+  def applyIncludes2(config: String, includeCandidates: Seq[Config2]): String = {
+    val includes = includeRegex.findAllMatchIn(config).map(_.group(1)).toList
+    includes.foldLeft(config){ (acc, include) =>
       val includeContent = includeCandidates
         .tails
         .flatMap {
           case includeCandidate :: rest if List(include, s"$include.conf").contains(includeCandidate.filename) =>
-              Some(applyIncludes(includeCandidate, rest))
+              Some(applyIncludes2(includeCandidate.content, rest))
           case _ => None
         }
         .toList
@@ -125,44 +124,23 @@ class ConfigParser {
     }
   }
 
-  def config2String(config: Config): String =
-    config.root.render(ConfigRenderOptions.concise)
+  /** recursively applies includes by inlining */
+  def applyIncludes(config: String, includeCandidates: Seq[DependencyConfig]): String =
+    applyIncludes2(config, toConfig2s(includeCandidates))
 
   def combineConfigs(orderedConfigs: Seq[Config2]) =
     orderedConfigs
       .tails
       .map {
         case config :: rest if List("reference.conf", "play/reference-overrides.conf").contains(config.filename) =>
-          val content = applyIncludes(config, rest)
+          val content = applyIncludes2(config.content, rest)
           ConfigFactory.parseString(content)
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
-
-  /** Combine the configs according to classpath order.
-    *
-    * @return (slugConfig, applicationConfig, referenceConfig)
-    * where slugConfig is the <slugname>.conf (and any includes) excluding referenceConfig,
-    *       applicationConfig is the application.conf (and any includes) excluding referenceConfig,
-    *       referenceConfig is the reference.conf (and play/reference-overrides.conf) combined (and any includes).
-    */
-/*  def reduceConfigs(classpath: String, configs: Seq[Config]): (String, String, String) = {
-    // TODO refactor this - relies on knowledge that first two look like... (just confirm it's true and bomb if not?)
-    // <Config path=../conf/ filename=service-dependencies.conf>
-    // <Config path=../conf/ filename=application.conf>
-    // <...>
-    val (slugConf :: appConf :: unorderedReferenceAndIncludes) = configs
-    val referenceAndIncludes = orderConfigs(classpath, unorderedReferenceAndIncludes)
-    val slugConfig        = ConfigFactory.parseString(applyIncludes(slugConf, appConf :: referenceAndIncludes))
-    val applicationConfig = ConfigFactory.parseString(applyIncludes(appConf, referenceAndIncludes))
-    val referenceConfig   = combineConfigs(referenceAndIncludes)
-    ( config2String(slugConfig)
-    , config2String(applicationConfig)
-    , config2String(referenceConfig)
-    )
-  }
-  */
 }
+
+object ConfigParser extends ConfigParser
 
 
 case class Config2(
