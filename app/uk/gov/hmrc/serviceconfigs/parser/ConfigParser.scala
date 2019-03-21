@@ -27,14 +27,29 @@ import scala.util.Try
 
 trait ConfigParser {
 
-  def parseConfStringAsMap(confString: String): Option[Map[String, String]] = {
-    val fallbackIncluder = ConfigParseOptions.defaults.getIncluder
+  def parseConfStringAsMap(confString: String): Option[Map[String, String]] =
+    if (confString.isEmpty) None
+    else Try(parseConfString(confString))
+           .map(flattenConfigToDotNotation)
+           .recover { case err => Logger.warn(s"Failed to parse config: ${err.getMessage}"); throw err }
+           .toOption
 
-    val doNotInclude = new ConfigIncluder() {
-      override def withFallback(fallback: ConfigIncluder): ConfigIncluder             = this
-      override def include(context: ConfigIncludeContext, what: String): ConfigObject =
-        //        ConfigFactory.parseString(what).root()
-        ConfigFactory.empty.root()
+  def parseConfString(confString: String): Config =
+    parseConfString(confString, Map.empty)
+
+  def parseConfString(confString: String, includeCandidates: Map[String, String]): Config = {
+    val includer = new ConfigIncluder() {
+      val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
+      override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
+      override def include(context: ConfigIncludeContext, what: String): ConfigObject = {
+        includeCandidates.find { case (k, v) =>
+          if (exts.exists(ext => what.endsWith(ext))) k == what
+          else exts.exists(ext => k == s"$what$ext")
+        } match {
+          case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
+          case None => Logger.warn(s"Could not find $what to include in $includeCandidates"); ConfigFactory.empty.root
+        }
+      }
     }
 
     val options: ConfigParseOptions =
@@ -42,12 +57,9 @@ trait ConfigParser {
         .defaults
         .setSyntax(ConfigSyntax.CONF)
         .setAllowMissing(false)
-        .setIncluder(doNotInclude)
+        .appendIncluder(includer)
 
-    if (confString.isEmpty) None
-    else Try(ConfigFactory.parseString(confString, options))
-          .map(flattenConfigToDotNotation)
-          .toOption
+    ConfigFactory.parseString(confString, options)
   }
 
   def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] =
@@ -90,62 +102,17 @@ trait ConfigParser {
     * respecting any include directives.
     */
   def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config =
-    combineConfigs(toConfig2s(dependencyConfigs))
-
-  def toConfig2s(dependencyConfigs: Seq[DependencyConfig]): Seq[Config2] =
-     dependencyConfigs.flatMap { dependencyConfigs =>
-       dependencyConfigs.configs
-         .map { case (filename, content) => Config2(filename, content) }
-         .toList
-         // ensure for a given dependency, ordered by play/reference-overrides.conf -> reference.conf -> others (for including)
-         .sortWith((l, r) =>  l.filename == "play/reference-overrides.conf"
-                          || (l.filename == "reference.conf" && r.filename != "play/reference-overrides.conf"))
-     }
-
-
-  private val includeRegex = "(?m)^include \"(.*)\"$".r
-
-  /** recursively applies includes by inlining */
-  def applyIncludes2(config: String, includeCandidates: Seq[Config2]): String = {
-    val includes = includeRegex.findAllMatchIn(config).map(_.group(1)).toList
-    includes.foldLeft(config){ (acc, include) =>
-      val includeContent = includeCandidates
-        .tails
-        .flatMap {
-          case includeCandidate :: rest if List(include, s"$include.conf").contains(includeCandidate.filename) =>
-              Some(applyIncludes2(includeCandidate.content, rest))
-          case _ => None
-        }
-        .toList
-        .headOption
-        .getOrElse { Logger.warn(s"include `$include` not found"); ""}
-      Logger.debug(s"replacing include with $includeContent")
-      acc.replace(s"""include "$include"""", includeContent)
-    }
-  }
-
-  /** recursively applies includes by inlining */
-  def applyIncludes(config: String, includeCandidates: Seq[DependencyConfig]): String =
-    applyIncludes2(config, toConfig2s(includeCandidates))
-
-  def combineConfigs(orderedConfigs: Seq[Config2]) =
-    orderedConfigs
+    dependencyConfigs
       .tails
       .map {
-        case config :: rest if List("reference.conf", "play/reference-overrides.conf").contains(config.filename) =>
-          val content = applyIncludes2(config.content, rest)
-          ConfigFactory.parseString(content)
+        case dc :: rest =>
+          // first include file takes precedence
+          val includeCandidates = (dc :: rest).foldRight(Map.empty[String, String])((c, m) => m ++ c.configs)
+          def configFor(filename: String) = dc.configs.get(filename).map(parseConfString(_, includeCandidates)).getOrElse(ConfigFactory.empty)
+          configFor("play/reference-overrides.conf").withFallback(configFor("reference.conf"))
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
 }
 
 object ConfigParser extends ConfigParser
-
-
-case class Config2(
-    filename: String
-  , content : String
-  ) {
-    override def toString: String = s"<Config filename=$filename>"
-  }

@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
 import com.typesafe.config.ConfigRenderOptions
+import uk.gov.hmrc.cataloguefrontend.connector.DependencyConfig
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 
@@ -90,28 +91,17 @@ class ConfigParserSpec extends FlatSpec with Matchers {
     ConfigParser.parseYamlStringAsMap("") shouldBe None
   }
 
-  "applyIncludes2" should "inline the include with first candidate found" in {
+  "parseConfString" should "inline the include" in {
     val config =
       """include "included1.conf"
         |key1=val1""".stripMargin
 
-    val includeCandidates =
-      Seq(
-        Config2(
-            filename = "included1.conf"
-          , content  = "key2=val2"
-          )
-      , Config2(
-            filename = "included2.conf"
-          , content  = "key3=val3"
-          )
-      , Config2(
-            filename = "included1.conf"
-          , content  = "key4=val4"
-          )
+    val includeCandidates = Map(
+        "included1.conf" -> "key2=val2"
+      , "included2.conf" -> "key3=val3"
       )
-    ConfigParser.applyIncludes2(config, includeCandidates) shouldBe """key2=val2
-                                                                      |key1=val1""".stripMargin
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
   }
 
   it should "inline the include recursively" in {
@@ -119,52 +109,54 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       """include "included1.conf"
         |key1=val1""".stripMargin
 
-    val includeCandidates =
-      Seq(
-        Config2(
-            filename = "included1.conf"
-          , content  = """include "included2.conf"
-                         |key2=val2""".stripMargin
-          )
-      , Config2(
-            filename = "included2.conf"
-          , content  = "key3=val3"
-          )
-      , Config2(
-            filename = "included1.conf"
-          , content  = "key4=val4"
-          )
+    val includeCandidates = Map(
+        "included1.conf" -> """include "included2.conf"
+                              |key2=val2""".stripMargin
+      ,  "included2.conf" -> "key3=val3"
       )
-    ConfigParser.applyIncludes2(config, includeCandidates) shouldBe """key3=val3
-                                                                      |key2=val2
-                                                                      |key1=val1""".stripMargin
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
   }
 
-  "combineConfigs" should "combine the configs" in {
-    val configs = Seq(
-      Config2(
-          filename = "reference.conf"
-        , content  = """include "included.conf"
-                        |key1=val1""".stripMargin
-        )
-      , Config2(
-          filename = "included.conf"
-        , content  = """key2=val2""".stripMargin
-        )
-      , Config2(
-          filename = "play/reference-overrides.conf"
-        , content  = """key3=val3""".stripMargin
-        )
-      , Config2(
-          filename = "reference.conf"
-        , content  = """key3=val4""".stripMargin
-        )
-      , Config2(
-          filename = "unreferenced.conf"
-        , content  = """key4=val4""".stripMargin
-        )
+  it should "handle includes without extension" in {
+    val config =
+      """include "included1"
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> """key2=val2""".stripMargin
       )
-    val combinedConfig = ConfigParser.combineConfigs(configs)
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
+  }
+
+  "reduceConfigs" should "combine the configs" in {
+    val configs = Seq(
+        dependencyConfig(Map(
+          "reference.conf" -> """include "included.conf"
+                                |key1=val1""".stripMargin
+        , "included.conf" -> """key2=val2""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "play/reference-overrides.conf" -> """key3=val3""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "reference.conf" -> """key3=val4""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "unreferenced.conf" -> """key4=val4""".stripMargin
+        ))
+      )
+    val combinedConfig = ConfigParser.reduceConfigs(configs)
     combinedConfig.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
   }
+
+  def dependencyConfig(configs: Map[String, String]) =
+    DependencyConfig(
+      group    = "g"
+    , artefact = "a"
+    , version  = "v"
+    , configs  = configs
+    )
+
 }
