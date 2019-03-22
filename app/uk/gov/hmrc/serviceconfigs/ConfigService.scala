@@ -100,7 +100,7 @@ object ConfigService {
   type ConfigByEnvironment = Map[EnvironmentName, Seq[ConfigSourceEntries]]
   type ConfigByKey = Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]
 
-  case class ConfigSourceEntries(source: String, precedence: Int, entries: Map[KeyName, String] = Map())
+  case class ConfigSourceEntries(source: String, precedence: Int, entries: Map[KeyName, String])
 
   case class ConfigSourceValue(source: String, precedence: Int, value: String)
 
@@ -159,16 +159,12 @@ object ConfigService {
       val precedence = 40
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        connector.serviceConfigYaml(env, serviceName)
-          .map { raw =>
-            ConfigSourceEntries(
-              name,
-              precedence,
-              ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-                .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
-                .toMap
-            )
-          }
+        for {
+          raw     <- connector.serviceConfigYaml(env, serviceName)
+          entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                       .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+                       .toMap
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object AppConfigCommonFixed extends ConfigSource {
@@ -176,21 +172,13 @@ object ConfigService {
       val precedence = 50
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        serviceType match {
-          case Some(st) =>
-            connector.serviceCommonConfigYaml(env, st).map { raw =>
-              ConfigSourceEntries(
-                name,
-                precedence,
-                ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-                  .filterKeys(_.startsWith("hmrc_config.fixed"))
-                  .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
-                  .toMap
-              )
-            }
-          case None =>
-            Future.successful(ConfigSourceEntries(name, precedence))
-        }
+        for {
+          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
+          entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                      .filterKeys(_.startsWith("hmrc_config.fixed"))
+                      .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+                      .toMap
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object AppConfigCommonOverridable extends ConfigSource {
@@ -198,20 +186,13 @@ object ConfigService {
       val precedence = 30
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        serviceType match {
-          case Some(st) =>
-            connector.serviceCommonConfigYaml(env, st).map { raw =>
-              ConfigSourceEntries(
-                name,
-                precedence,
-                ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
-                  .filterKeys(_.startsWith("hmrc_config.overridable"))
-                  .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
-                  .toMap
-              )
-            }
-          case None => Future.successful(ConfigSourceEntries(name, precedence))
-        }
+        for {
+          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
+          entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
+                       .filterKeys(_.startsWith("hmrc_config.overridable"))
+                       .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
+                       .toMap
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
   }
 }
