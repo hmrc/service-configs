@@ -47,13 +47,14 @@ class ConfigService @Inject()(configConnector: ConfigConnector) {
     )
 
   val environments = Seq(
-    Environment("local"       , localConfigSources),
-    Environment("development" , deployedConfigSources),
-    Environment("qa"          , deployedConfigSources),
-    Environment("staging"     , deployedConfigSources),
-    Environment("integration" , deployedConfigSources),
-    Environment("externaltest", deployedConfigSources),
-    Environment("production"  , deployedConfigSources))
+      Environment("local"       , localConfigSources)
+    , Environment("development" , deployedConfigSources)
+    , Environment("qa"          , deployedConfigSources)
+    , Environment("staging"     , deployedConfigSources)
+    , Environment("integration" , deployedConfigSources)
+    , Environment("externaltest", deployedConfigSources)
+    , Environment("production"  , deployedConfigSources)
+    )
 
 
   private def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
@@ -133,8 +134,12 @@ object ConfigService {
       val precedence = 10
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        connector.serviceApplicationConfigFile(serviceName)
-          .map(raw => ConfigSourceEntries(name, precedence, ConfigParser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+        for {
+          slugInfo          <- connector.slugInfo(serviceName)
+          configs           <- connector.slugDependencyConfigs(serviceName)
+          applicationConf   =  ConfigParser.parseConfString(slugInfo.applicationConfig, ConfigParser.toIncludeCandidates(configs))
+          entries           =  ConfigParser.flattenConfigToDotNotation(applicationConf)
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object BaseConfig extends ConfigSource {
@@ -142,8 +147,11 @@ object ConfigService {
       val precedence = 20
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
-        connector.serviceConfigConf("base", serviceName)
-          .map(raw => ConfigSourceEntries(name, precedence, ConfigParser.parseConfStringAsMap(raw).getOrElse(Map.empty)))
+        for {
+          slugInfo          <- connector.slugInfo(serviceName)
+          baseConf          =  ConfigParser.parseConfString(slugInfo.slugConfig) // ignoring includes, since we know this is applicationConf
+          entries           =  ConfigParser.flattenConfigToDotNotation(baseConf)
+        } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object AppConfig extends ConfigSource {

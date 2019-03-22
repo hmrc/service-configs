@@ -27,17 +27,7 @@ import scala.util.Try
 
 trait ConfigParser {
 
-  def parseConfStringAsMap(confString: String): Option[Map[String, String]] =
-    if (confString.isEmpty) None
-    else Try(parseConfString(confString))
-           .map(flattenConfigToDotNotation)
-           .recover { case err => Logger.warn(s"Failed to parse config: ${err.getMessage}"); throw err }
-           .toOption
-
-  def parseConfString(confString: String): Config =
-    parseConfString(confString, Map.empty)
-
-  def parseConfString(confString: String, includeCandidates: Map[String, String]): Config = {
+  def parseConfString(confString: String, includeCandidates: Map[String, String] = Map.empty): Config = {
     val includer = new ConfigIncluder() {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
@@ -74,11 +64,10 @@ trait ConfigParser {
       .toMap
 
   private def removeQuotes(input: String): String =
-    if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"')) {
+    if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"'))
       input.substring(1, input.length - 1)
-    } else {
+    else
       input
-    }
 
   private def flattenYamlToDotNotation(input: java.util.LinkedHashMap[String, Object]): Map[String, String] = {
     def go(input: Map[String, Object], currentPrefix: String): Map[String, String] =
@@ -98,6 +87,10 @@ trait ConfigParser {
       case (cp, k      ) => s"$cp.$k"
     }
 
+  def toIncludeCandidates(dependencyConfigs: Seq[DependencyConfig]): Map[String, String] =
+    // first include file takes precedence
+    dependencyConfigs.foldRight(Map.empty[String, String])((c, m) => m ++ c.configs)
+
   /** Combine the reference.conf and play/reference-overrides.conf configs according order,
     * respecting any include directives.
     */
@@ -106,9 +99,8 @@ trait ConfigParser {
       .tails
       .map {
         case dc :: rest =>
-          // first include file takes precedence
-          val includeCandidates = (dc :: rest).foldRight(Map.empty[String, String])((c, m) => m ++ c.configs)
-          def configFor(filename: String) = dc.configs.get(filename).map(parseConfString(_, includeCandidates)).getOrElse(ConfigFactory.empty)
+          def configFor(filename: String) =
+            dc.configs.get(filename).map(parseConfString(_, toIncludeCandidates(dc :: rest))).getOrElse(ConfigFactory.empty)
           configFor("play/reference-overrides.conf").withFallback(configFor("reference.conf"))
         case _ => ConfigFactory.empty
       }

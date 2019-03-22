@@ -22,8 +22,8 @@ import uk.gov.hmrc.cataloguefrontend.connector.DependencyConfig
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 
-  "ConfigParser" should "parse config as map" in {
-    val res = ConfigParser.parseConfStringAsMap("""
+  "ConfigParser.flattenConfigToDotNotation" should "parse config as map" in {
+    val config = ConfigParser.parseConfString("""
       |appName=service-configs
       |
       |# An ApplicationLoader that uses Guice to bootstrap the application.
@@ -39,26 +39,16 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       |  }
       |}
       |""".stripMargin)
-    res shouldBe Some(Map(
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
       "controllers.confidenceLevel" -> "300",
       "appName" -> "service-configs",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth" -> "false",
       "play.application.loader" -> "uk.gov.hmrc.play.bootstrap.ApplicationLoader",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuditing" -> "false",
-      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false"))
+      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false")
   }
 
-  it should "handle invalid config" in {
-    ConfigParser.parseConfStringAsMap("") shouldBe None
-    ConfigParser.parseConfStringAsMap("""
-      |appName=
-      |""".stripMargin) shouldBe None
-    ConfigParser.parseConfStringAsMap("""
-      |appName {
-      |""".stripMargin) shouldBe None
-  }
-
-  it should "parse yaml as map" in {
+  "ConfigParser.parseYamlStringAsMap" should "parse yaml as map" in {
     val res = ConfigParser.parseYamlStringAsMap("""
       |digital-service: Catalogue
       |
