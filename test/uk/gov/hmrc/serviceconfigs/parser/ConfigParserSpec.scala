@@ -94,6 +94,19 @@ class ConfigParserSpec extends FlatSpec with Matchers {
     config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
   }
 
+  it should "inline the include classpath" in {
+    val config =
+      """include classpath("included1.conf")
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> "key2=val2"
+      , "included2.conf" -> "key3=val3"
+      )
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
+  }
+
   it should "inline the include recursively" in {
     val config =
       """include "included1.conf"

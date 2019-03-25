@@ -125,19 +125,6 @@ class ConfigConnector @Inject()(
     http.GET[SlugInfo](s"$serviceDependenciesUrl/api/sluginfo?name=$service&flag=latest")
   }
 
-
-  def serviceRefConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
-    val url = s"$serviceDependenciesUrl/api/configs/$service?flag=latest"
-    http.GET[JsObject](url).map { json =>
-        // slugConfig, referenceConfig, applicationConfig
-        (json \ "referenceConfig").toOption.map(_.as[String]).getOrElse("")
-      }
-      .recover { case NonFatal(ex) =>
-        Logger.warn(s"Failed to download config file from $url: ${ex.getMessage}", ex)
-        ""
-      }
-  }
-
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"${gitConf.githubRawUrl}/hmrc/app-config-common/master/$env-$serviceType-common.yaml"

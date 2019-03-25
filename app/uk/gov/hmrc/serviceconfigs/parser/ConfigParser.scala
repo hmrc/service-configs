@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigIncludeContext, ConfigIncluder, ConfigObject, ConfigParseOptions, ConfigRenderOptions, ConfigSyntax}
-import javax.inject.Singleton
+import com.typesafe.config.{Config, ConfigFactory, ConfigIncludeContext, ConfigIncluder, ConfigIncluderClasspath,
+  ConfigObject, ConfigParseOptions, ConfigRenderOptions, ConfigSyntax}
 import org.yaml.snakeyaml.Yaml
 import play.api.Logger
 import uk.gov.hmrc.cataloguefrontend.connector.DependencyConfig
@@ -28,10 +28,13 @@ import scala.util.Try
 trait ConfigParser {
 
   def parseConfString(confString: String, includeCandidates: Map[String, String] = Map.empty): Config = {
-    val includer = new ConfigIncluder() {
+    val includer = new ConfigIncluder with ConfigIncluderClasspath {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
-      override def include(context: ConfigIncludeContext, what: String): ConfigObject = {
+      override def include(context: ConfigIncludeContext, what: String): ConfigObject =
+        includeResources(context, what)
+
+      override def includeResources(context: ConfigIncludeContext, what: String): ConfigObject = {
         includeCandidates.find { case (k, v) =>
           if (exts.exists(ext => what.endsWith(ext))) k == what
           else exts.exists(ext => k == s"$what$ext")
@@ -42,14 +45,14 @@ trait ConfigParser {
       }
     }
 
-    val options: ConfigParseOptions =
+    val parseOptions: ConfigParseOptions =
       ConfigParseOptions
         .defaults
         .setSyntax(ConfigSyntax.CONF)
         .setAllowMissing(false)
-        .appendIncluder(includer)
+        .setIncluder(includer)
 
-    ConfigFactory.parseString(confString, options)
+    ConfigFactory.parseString(confString, parseOptions)
   }
 
   def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] =
