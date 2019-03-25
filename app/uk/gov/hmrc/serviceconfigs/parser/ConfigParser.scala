@@ -27,7 +27,7 @@ import scala.util.Try
 
 trait ConfigParser {
 
-  def parseConfString(confString: String, includeCandidates: Map[String, String] = Map.empty): Config = {
+  def parseConfString(confString: String, includeCandidates: Map[String, String] = Map.empty, logMissing: Boolean = true): Config = {
     val includer = new ConfigIncluder with ConfigIncluderClasspath {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
@@ -40,7 +40,8 @@ trait ConfigParser {
           else exts.exists(ext => k == s"$what$ext")
         } match {
           case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
-          case None => Logger.warn(s"Could not find $what to include in $includeCandidates"); ConfigFactory.empty.root
+          case None         => if (logMissing) Logger.warn(s"Could not find $what to include in $includeCandidates")
+                               ConfigFactory.empty.root
         }
       }
     }
@@ -49,7 +50,6 @@ trait ConfigParser {
       ConfigParseOptions
         .defaults
         .setSyntax(ConfigSyntax.CONF)
-        .setAllowMissing(false)
         .setIncluder(includer)
 
     ConfigFactory.parseString(confString, parseOptions)

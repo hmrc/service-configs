@@ -149,7 +149,7 @@ object ConfigService {
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         for {
           slugInfo          <- connector.slugInfo(serviceName)
-          baseConf          =  ConfigParser.parseConfString(slugInfo.slugConfig) // ignoring includes, since we know this is applicationConf
+          baseConf          =  ConfigParser.parseConfString(slugInfo.slugConfig, logMissing = false) // ignoring includes, since we know this is applicationConf
           entries           =  ConfigParser.flattenConfigToDotNotation(baseConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
