@@ -21,8 +21,6 @@ import org.scalatest.WordSpec
 import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.ConfigService._
 
-import scala.collection.SortedMap
-
 class JsonMarshallingSpec extends WordSpec with ConfigJson {
 
   "ConfigByEnvironment" should {
