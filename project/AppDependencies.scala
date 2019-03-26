@@ -19,13 +19,9 @@ object AppDependencies {
     "org.scalatest"           %% "scalatest"                % "3.0.5"                 % "test",
     "uk.gov.hmrc"             %% "hmrctest"                 % "3.3.0"                 % "test",
     "com.typesafe.play"       %% "play-test"                % current                 % "test",
-    "org.pegdown"             %  "pegdown"                  % "1.6.0"                 % "test, it",
-    "uk.gov.hmrc"             %% "service-integration-test" % "0.5.0-play-26"                 % "test, it",
     "uk.gov.hmrc"             %% "reactivemongo-test"       % "4.8.0-play-26"         % "test",
-    "org.scalatestplus.play"  %% "scalatestplus-play"       % "3.1.2"                 % "test, it",
-    "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test, it",
+    "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test",
     // force dependencies due to security flaws found in xercesImpl 2.11.0
-    "xerces"                  % "xercesImpl"                % "2.12.0"                % "test, it"
+    "xerces"                  % "xercesImpl"                % "2.12.0"                % "test"
   )
-
 }
