@@ -17,11 +17,13 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import com.typesafe.config.ConfigRenderOptions
+import uk.gov.hmrc.cataloguefrontend.connector.DependencyConfig
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 
-  "ConfigParser" should "parse config as map" in {
-    val res = (new ConfigParser).parseConfStringAsMap("""
+  "ConfigParser.flattenConfigToDotNotation" should "parse config as map" in {
+    val config = ConfigParser.parseConfString("""
       |appName=service-configs
       |
       |# An ApplicationLoader that uses Guice to bootstrap the application.
@@ -37,27 +39,17 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       |  }
       |}
       |""".stripMargin)
-    res shouldBe Some(Map(
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
       "controllers.confidenceLevel" -> "300",
       "appName" -> "service-configs",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth" -> "false",
       "play.application.loader" -> "uk.gov.hmrc.play.bootstrap.ApplicationLoader",
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuditing" -> "false",
-      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false"))
+      "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false")
   }
 
-  it should "handle invalid config" in {
-    (new ConfigParser).parseConfStringAsMap("") shouldBe None
-    (new ConfigParser).parseConfStringAsMap("""
-      |appName=
-      |""".stripMargin) shouldBe None
-    (new ConfigParser).parseConfStringAsMap("""
-      |appName {
-      |""".stripMargin) shouldBe None
-  }
-
-  it should "parse yaml as map" in {
-    val res = (new ConfigParser).parseYamlStringAsMap("""
+  "ConfigParser.parseYamlStringAsMap" should "parse yaml as map" in {
+    val res = ConfigParser.parseYamlStringAsMap("""
       |digital-service: Catalogue
       |
       |leakDetectionExemptions:
@@ -86,6 +78,88 @@ class ConfigParserSpec extends FlatSpec with Matchers {
   }
 
   it should "handle invalid yaml" in {
-    (new ConfigParser).parseYamlStringAsMap("") shouldBe None
+    ConfigParser.parseYamlStringAsMap("") shouldBe None
   }
+
+  "parseConfString" should "inline the include" in {
+    val config =
+      """include "included1.conf"
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> "key2=val2"
+      , "included2.conf" -> "key3=val3"
+      )
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
+  }
+
+  it should "inline the include classpath" in {
+    val config =
+      """include classpath("included1.conf")
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> "key2=val2"
+      , "included2.conf" -> "key3=val3"
+      )
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
+  }
+
+  it should "inline the include recursively" in {
+    val config =
+      """include "included1.conf"
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> """include "included2.conf"
+                              |key2=val2""".stripMargin
+      ,  "included2.conf" -> "key3=val3"
+      )
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
+  }
+
+  it should "handle includes without extension" in {
+    val config =
+      """include "included1"
+        |key1=val1""".stripMargin
+
+    val includeCandidates = Map(
+        "included1.conf" -> """key2=val2""".stripMargin
+      )
+    val config2 = ConfigParser.parseConfString(config, includeCandidates)
+    config2.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2"}"""
+  }
+
+  "reduceConfigs" should "combine the configs" in {
+    val configs = Seq(
+        dependencyConfig(Map(
+          "reference.conf" -> """include "included.conf"
+                                |key1=val1""".stripMargin
+        , "included.conf" -> """key2=val2""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "play/reference-overrides.conf" -> """key3=val3""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "reference.conf" -> """key3=val4""".stripMargin
+        ))
+      , dependencyConfig(Map(
+          "unreferenced.conf" -> """key4=val4""".stripMargin
+        ))
+      )
+    val combinedConfig = ConfigParser.reduceConfigs(configs)
+    combinedConfig.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
+  }
+
+  def dependencyConfig(configs: Map[String, String]) =
+    DependencyConfig(
+      group    = "g"
+    , artefact = "a"
+    , version  = "v"
+    , configs  = configs
+    )
+
 }
