@@ -67,6 +67,6 @@ class NginxLexerSpec extends FlatSpec with Matchers{
   it should "tokenize return with code and message" in {
     val input = """return 404 "Invalid request route";"""
     val res = NginxLexer.parse(NginxLexer.tokens, input).get
-    res shouldBe Seq(KEYWORD("return"), VALUE("404")  )
+    res shouldBe Seq(KEYWORD("return"), VALUE("404"), VALUE("\"Invalid request route\""), SEMICOLON())
   }
 }

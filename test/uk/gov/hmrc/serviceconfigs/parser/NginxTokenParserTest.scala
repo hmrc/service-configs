@@ -25,7 +25,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers{
 
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe List(FrontendRoute("/test", "http://www.com/123"))
+    NginxTokenParser(tokens) shouldBe Right(List(FrontendRoute("/test", "http://www.com/123")))
   }
 
   it should "parse return blocks with strings" in {
@@ -36,7 +36,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers{
 
   it should "parse location blocks with prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("~"),  VALUE("/test/(test|dogs)"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe List(FrontendRoute("/test/(test|dogs)", "http://www.com/123", isRegex = true))
+    NginxTokenParser(tokens) shouldBe Right(List(FrontendRoute("/test/(test|dogs)", "http://www.com/123", isRegex = true)))
   }
 
   it should "parse proxy_pass parameters" in {
