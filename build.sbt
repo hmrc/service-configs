@@ -13,3 +13,5 @@ lazy val microservice = Project(appName, file("."))
   )
   .settings(publishingSettings: _*)
   .settings(resolvers += Resolver.jcenterRepo)
+
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")

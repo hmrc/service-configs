@@ -24,9 +24,8 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
 class NginxConfigParser extends FrontendRouteParser {
-  override def parseConfig(config: String): Seq[FrontendRoute] = {
+  override def parseConfig(config: String): Either[String, Seq[FrontendRoute]] =
     NginxTokenParser(NginxLexer(config))
-  }
 }
 
 object Nginx {
@@ -98,21 +97,15 @@ object NginxTokenParser extends Parsers {
   }
 
 
-  def apply(tokens: Seq[NginxToken]): List[FrontendRoute] = {
+  def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] = {
     val reader = new NginxTokenReader(tokens.filterNot(_.isInstanceOf[COMMENT]))
     configFile(reader) match {
-      case Success(result, _) => result.flatMap {
-        case l: LOCATION => locToRoute(l)
-        case _           => None
-      }
-      case Failure(msg, _) => {
-        Logger.error(s"Failed to parse nginx config: $msg")
-        List.empty[FrontendRoute]
-      }
-      case Error(msg, _) => {
-        Logger.error(s"Error while to parsing nginx config: $msg")
-        List.empty[FrontendRoute]
-      }
+      case Success(result, _) => Right(result.flatMap {
+                                   case l: LOCATION => locToRoute(l)
+                                   case _           => None
+                                 })
+      case Failure(msg, _)    => Left(s"Failed to parse nginx config: $msg")
+      case Error(msg, _)      => Left(s"Error while to parsing nginx config: $msg")
     }
   }
 
@@ -137,13 +130,11 @@ object NginxTokenParser extends Parsers {
 
   case class COMMENT_LINE() extends NGINX_AST
 
-  def keyword: Parser[KEYWORD] = {
+  def keyword: Parser[KEYWORD] =
     accept("keyword", { case lit@KEYWORD(_) => lit })
-  }
 
-  def value: Parser[VALUE] = {
+  def value: Parser[VALUE] =
     accept("value", { case v@VALUE(_) => v })
-  }
 
   def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
     case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
@@ -168,5 +159,3 @@ object NginxTokenParser extends Parsers {
 
   def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
 }
-
-
