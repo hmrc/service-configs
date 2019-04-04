@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs
 
+import cats.data.EitherT
 import cats.instances.all._
 import cats.syntax.all._
 import java.net.URL
@@ -44,28 +45,31 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
 
   def findByService(repoName: String): Future[Seq[MongoFrontendRoute]] = frontendRouteRepo.findByService(repoName)
 
-  def update(environments: Seq[String]) = {
-
-    Logger.info("Refreshing frontend route data...")
-    val configsF: Future[List[NginxConfigFile]] = environments.toList.traverse(env => nginxConnector.configFor(env)).map(_.flatten)
-    val configs = Await.result(configsF, 10.seconds)
-
-    Logger.info(s"Downloaded ${configs.length} frontend route config files.")
-    val res: Either[String, List[List[MongoFrontendRoute]]] = configs.traverse[Either[String, ?], List[MongoFrontendRoute]](c => NginxService.parseConfig(parser, c).map(_.toList))
-    res match {
-      case Left(msg)            => Logger.error(s"Failed to parse nginx configs: $msg")
-      case Right(parsedConfigs) => Logger.info("Starting updated...")
-                                   mongoLock.tryLock {
-                                     Logger.info(s"About to update ${parsedConfigs.length}")
-                                     for {
-                                       _   <- frontendRouteRepo.clearAll()
-                                       res <- parsedConfigs.flatten.traverse(frontendRouteRepo.update)
-                                     } yield res
-                                  }
-                                  Logger.info("Update complete")
-    }
-  }
-
+  def update(environments: Seq[String]): Future[Unit] =
+    (for {
+      _             <- EitherT.pure[Future, String](Logger.info("Refreshing frontend route data..."))
+      configs       <- EitherT.liftF(
+                         environments.toList.traverse(env => nginxConnector.configFor(env)).map(_.flatten)
+                       )
+      _             =  Logger.info(s"Downloaded ${configs.length} frontend route config files.")
+      parsedConfigs <- EitherT.fromEither[Future](
+                         configs.traverse[Either[String, ?], List[MongoFrontendRoute]](c =>
+                           NginxService.parseConfig(parser, c).map(_.toList)
+                         )
+                       )
+      _             =  Logger.info("Starting updated...")
+      _             <- EitherT.liftF[Future, String, Option[Unit]](mongoLock.tryLock {
+                          for {
+                            _ <- Future(Logger.info(s"About to update ${parsedConfigs.length}"))
+                            _ <- frontendRouteRepo.clearAll()
+                            _ <- parsedConfigs.flatten.traverse(frontendRouteRepo.update)
+                          } yield ()
+                       })
+      _             =  Logger.info("Update complete")
+     } yield ()
+    )
+    .leftMap(msg => Logger.error(s"Failed to update nginx configs: $msg"))
+    .merge
 }
 
 

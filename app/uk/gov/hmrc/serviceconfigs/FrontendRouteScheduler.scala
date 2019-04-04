@@ -23,7 +23,6 @@ import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.language.postfixOps
 
 class FrontendRouteScheduler @Inject()(actorSystem: ActorSystem,
                                        nginxConfig: NginxConfig,
@@ -35,7 +34,7 @@ class FrontendRouteScheduler @Inject()(actorSystem: ActorSystem,
 
   if(nginxConfig.schedulerEnabled) {
     Logger.info("Starting frontend route scheduler")
-    actorSystem.scheduler.schedule(20 seconds, nginxConfig.schedulerDelay minutes, frontendRouteActor, "tick")
+    actorSystem.scheduler.schedule(1.seconds, nginxConfig.schedulerDelay.minutes, frontendRouteActor, "tick")
   }
   else {
     Logger.info("Frontend route scheduler is DISABLED. To enabled set 'nginx.reload.enabled' as true.")
