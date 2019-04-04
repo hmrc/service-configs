@@ -47,16 +47,26 @@ class NginxLexerSpec extends FlatSpec with Matchers{
     NginxLexer.parse(NginxLexer.value, "http://www.url.com").get shouldBe VALUE("http://www.url.com")
   }
 
+  it should "tokenize quoted values" in {
+    NginxLexer.parse(NginxLexer.value, "'test 1234'").get shouldBe VALUE("'test 1234'")
+    NginxLexer.parse(NginxLexer.value, "\"test 1234\"").get shouldBe VALUE("\"test 1234\"")
+  }
+
   it should "tokenize a location" in {
     val loc = "location ~ ^/dog-frontend/(a|b)/)?details)|(reports)) {"
     val res = NginxLexer.parse(NginxLexer.tokens, loc).get
     res shouldBe Seq(KEYWORD("location"), VALUE("~"), VALUE("^/dog-frontend/(a|b)/)?details)|(reports))"), OPEN_BRACKET())
   }
 
-
   it should "tokenize a parameter" in {
     val input = "error_page 503 /shutter/mandate/index.html;"
     val res = NginxLexer.parse(NginxLexer.tokens, input).get
     res shouldBe Seq(KEYWORD("error_page"), VALUE("503"), VALUE("/shutter/mandate/index.html"), SEMICOLON())
+  }
+
+  it should "tokenize return with code and message" in {
+    val input = """return 404 "Invalid request route";"""
+    val res = NginxLexer.parse(NginxLexer.tokens, input).get
+    res shouldBe Seq(KEYWORD("return"), VALUE("404")  )
   }
 }

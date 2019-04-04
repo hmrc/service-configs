@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
@@ -64,8 +63,13 @@ object NginxLexer extends RegexParsers {
 
   def url: Parser[VALUE] = """https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)""".r ^^ (k => VALUE(k.trim))
 
-  def quotedValue: Parser[VALUE] =
+  def doubleQuotedValue: Parser[VALUE] =
+    """\"[^\"]+\"""".r ^^ (k => VALUE(k.trim))
+
+  def singleQuotedValue: Parser[VALUE] =
     """'[^']+'""".r ^^ (k => VALUE(k.trim))
+
+  def quotedValue: Parser[VALUE] = singleQuotedValue | doubleQuotedValue
 
   def value: Parser[VALUE] = url | quotedValue | unquotedValue
 

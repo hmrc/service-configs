@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
-import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{LOCATION, OTHER_PARAM, PROXY_PASS}
+import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS}
 class NginxTokenParserTest extends FlatSpec with Matchers{
 
   import Nginx._
@@ -26,6 +26,12 @@ class NginxTokenParserTest extends FlatSpec with Matchers{
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
     NginxTokenParser(tokens) shouldBe List(FrontendRoute("/test", "http://www.com/123"))
+  }
+
+  it should "parse return blocks with strings" in {
+    val tokens = List(KEYWORD("return"), VALUE("404"), VALUE("\"1"), VALUE("2"), VALUE("3\"") , SEMICOLON())
+    val reader = new NginxTokenReader(tokens)
+    NginxTokenParser.parameter(reader).get shouldBe OTHER_PARAM("return")
   }
 
   it should "parse location blocks with prefixes" in {
