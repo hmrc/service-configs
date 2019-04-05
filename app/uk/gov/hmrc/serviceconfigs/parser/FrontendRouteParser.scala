@@ -19,5 +19,5 @@ package uk.gov.hmrc.serviceconfigs.parser
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 
 trait FrontendRouteParser {
-  def parseConfig(config: String): Seq[FrontendRoute]
+  def parseConfig(config: String): Either[String, Seq[FrontendRoute]]
 }

@@ -16,8 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs
 
+import cats.data.EitherT
+import cats.instances.all._
+import cats.syntax.all._
 import java.net.URL
-
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
@@ -27,7 +29,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationLong
 import scala.concurrent.{Await, Future}
 import scala.util.Try
 
@@ -43,26 +45,31 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
 
   def findByService(repoName: String): Future[Seq[MongoFrontendRoute]] = frontendRouteRepo.findByService(repoName)
 
-  def update(environments: Seq[String]) = {
-
-    Logger.info("Refreshing frontend route data...")
-    val configs: Seq[NginxConfigFile] = Await.result( Future.sequence(environments.map(env => nginxConnector.configFor(env))), Duration(10, "seconds")).flatten
-
-    Logger.info(s"Downloaded ${configs.length} frontend route config files.")
-    val parsedConfigs: Seq[MongoFrontendRoute] = NginxService.joinConfigs( configs.map(c => NginxService.parseConfig(parser, c)) )
-
-    Logger.info("Starting updated...")
-    mongoLock.tryLock {
-      Logger.info(s"About to update ${parsedConfigs.length}")
-      for {
-        _   <- frontendRouteRepo.clearAll()
-        res <- Future.sequence(parsedConfigs.map(frontendRouteRepo.update))
-      } yield res
-    }
-
-    Logger.info("Update complete")
-  }
-
+  def update(environments: Seq[String]): Future[Unit] =
+    (for {
+      _             <- EitherT.pure[Future, String](Logger.info("Refreshing frontend route data..."))
+      configs       <- EitherT.liftF(
+                         environments.toList.traverse(env => nginxConnector.configFor(env)).map(_.flatten)
+                       )
+      _             =  Logger.info(s"Downloaded ${configs.length} frontend route config files.")
+      parsedConfigs <- EitherT.fromEither[Future](
+                         configs.traverse[Either[String, ?], List[MongoFrontendRoute]](c =>
+                           NginxService.parseConfig(parser, c).map(_.toList)
+                         )
+                       )
+      _             =  Logger.info("Starting updated...")
+      _             <- EitherT.liftF[Future, String, Option[Unit]](mongoLock.tryLock {
+                          for {
+                            _ <- Future(Logger.info(s"About to update ${parsedConfigs.length}"))
+                            _ <- frontendRouteRepo.clearAll()
+                            _ <- parsedConfigs.flatten.traverse(frontendRouteRepo.update)
+                          } yield ()
+                       })
+      _             =  Logger.info("Update complete")
+     } yield ()
+    )
+    .leftMap(msg => Logger.error(s"Failed to update nginx configs: $msg"))
+    .merge
 }
 
 
@@ -72,22 +79,21 @@ object NginxService {
     .map(url => url.split("\\.").headOption.getOrElse(url))
     .getOrElse(url)
 
-  def joinConfigs(configs: Seq[Seq[MongoFrontendRoute]]) : Seq[MongoFrontendRoute] =
-    configs.foldLeft(Seq.empty[MongoFrontendRoute])((res, v) => res ++ v )
-
-  def parseConfig(parser: FrontendRouteParser, configFile: NginxConfigFile): Seq[MongoFrontendRoute] = {
+  def parseConfig(parser: FrontendRouteParser, configFile: NginxConfigFile): Either[String, Seq[MongoFrontendRoute]] = {
 
     Logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
 
     val indexes: Map[String, Int] = NginxConfigIndexer.index(configFile.content)
     parser.parseConfig(configFile.content)
-      .map(r => MongoFrontendRoute(
-        service              = NginxService.urlToService(r.backendPath),
-        frontendPath         = r.frontendPath,
-        backendPath          = r.backendPath,
-        environment          = configFile.environment,
-        ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.frontendPath, indexes).getOrElse(""),
-        isRegex              = r.isRegex))
+      .map(
+        _.map(r => MongoFrontendRoute(
+          service              = NginxService.urlToService(r.backendPath),
+          frontendPath         = r.frontendPath,
+          backendPath          = r.backendPath,
+          environment          = configFile.environment,
+          ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.frontendPath, indexes).getOrElse(""),
+          isRegex              = r.isRegex))
+      )
   }
 
 }

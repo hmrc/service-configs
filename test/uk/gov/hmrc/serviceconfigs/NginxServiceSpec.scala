@@ -22,6 +22,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.api.DB
+import uk.gov.hmrc.mongo.Awaiting
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
@@ -32,8 +33,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
-
+class NginxServiceSpec
+  extends FlatSpec
+     with Matchers
+     with MockitoSugar
+     with Awaiting
+{
 
   "urlToService" should "extract the service name from url"  in {
     val url = "https://test-service.public.local"
@@ -50,16 +55,6 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
     NginxService.urlToService(url) shouldBe "test-service"
 
   }
-
-
-  "joinConfigs" should "join multiple parsed routes into a single list" in {
-    val configs = Seq(
-      Seq(MongoFrontendRoute("test1", "/", "http://www.com", "dev")),
-      Seq(MongoFrontendRoute("test1", "/", "http://www.com", "prod"), MongoFrontendRoute("test1", "/test", "http://www.com", "prod")))
-
-    NginxService.joinConfigs(configs).length shouldBe 3
-  }
-
 
   "update" should "parse configs and save result" in {
 
@@ -86,20 +81,21 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar {
     when(repo.update(any())).thenReturn(Future(MongoFrontendRoute("","","","")))
 
     val envs = Seq("production", "development")
-    service.update(envs)
+    await(service.update(envs))
 
     verify(repo, times(2)).update(any())
     verify(connector, times(envs.length)).configFor(any())
   }
-
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {
 
     val parser = new NginxConfigParser()
 
     val configFile = NginxConfigFile(environment = "dev", "", testConfig)
-    val result = NginxService.parseConfig(parser, configFile)
+    val eResult = NginxService.parseConfig(parser, configFile)
 
+    eResult.isRight shouldBe true
+    val Right(result) = eResult
     result.length shouldBe 2
 
     result.head.environment  shouldBe "dev"

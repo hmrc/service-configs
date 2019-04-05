@@ -37,7 +37,9 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://test-gateway.public.local;
         |}""".stripMargin
 
-    val cfg = new NginxConfigParser().parseConfig(configRegex)
+    val eCfg = new NginxConfigParser().parseConfig(configRegex)
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
   }
 
@@ -58,7 +60,9 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val cfg = new NginxConfigParser().parseConfig(configNormal)
+    val eCfg = new NginxConfigParser().parseConfig(configNormal)
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local")
   }
 
@@ -73,7 +77,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
 
     val parsed = new NginxConfigParser().parseConfig(config)
 
-    parsed shouldBe Nil
+    parsed shouldBe Right(Nil)
   }
 
   it should "parse s3 proxy_pass routes" in {
@@ -87,9 +91,11 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
                  |  more_set_headers 'X-Content-Type-Options: nosniff';
                  |  proxy_pass $s3_upstream;
                  |}""".stripMargin
-    val parsed = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser().parseConfig(config)
 
-    parsed.head shouldBe FrontendRoute("/assets","$s3_upstream")
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
+    cfg.head shouldBe FrontendRoute("/assets","$s3_upstream")
   }
 
   it should "parse routes with set header params" in {
@@ -98,9 +104,10 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
                   |  proxy_pass https://lol-frontend.public.local;
                   |}""".stripMargin
 
-    val parsed = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser().parseConfig(config)
 
-    parsed.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
+    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
   }
 }
-
