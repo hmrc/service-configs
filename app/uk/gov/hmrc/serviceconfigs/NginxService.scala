@@ -60,9 +60,10 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
       _             =  Logger.info("Starting updated...")
       _             <- EitherT.liftF[Future, String, Option[Unit]](mongoLock.tryLock {
                           for {
-                            _ <- Future(Logger.info(s"About to update ${parsedConfigs.length}"))
-                            _ <- frontendRouteRepo.clearAll()
-                            _ <- parsedConfigs.flatten.traverse(frontendRouteRepo.update)
+                            configs <- Future.successful(parsedConfigs.flatten)
+                            _       <- Future(Logger.info(s"About to update ${configs.length}"))
+                            _       <- frontendRouteRepo.clearAll()
+                            _       <- configs.traverse(frontendRouteRepo.update)
                           } yield ()
                        })
       _             =  Logger.info("Update complete")
