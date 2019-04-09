@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.service
 
-import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import javax.inject.Inject
+import play.Logger
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.serviceconfigs.connector.BobbyConnector
+import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 
-trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+import scala.concurrent.Future
+
+class BobbyService @Inject()(connector: BobbyConnector) {
+  def findAllRules(): Future[String] = connector.findAllRules()
 }

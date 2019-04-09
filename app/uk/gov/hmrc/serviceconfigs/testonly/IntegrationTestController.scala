@@ -20,9 +20,9 @@ import javax.inject.Inject
 import play.api.libs.json.{JsError, Reads}
 import play.api.mvc.MessagesControllerComponents
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.NginxService
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepo
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

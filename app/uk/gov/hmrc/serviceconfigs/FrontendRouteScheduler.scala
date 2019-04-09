@@ -20,6 +20,7 @@ import akka.actor.{Actor, ActorSystem, Props}
 import javax.inject.Inject
 import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
+import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global

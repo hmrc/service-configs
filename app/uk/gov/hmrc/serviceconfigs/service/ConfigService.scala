@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.service
 
 import alleycats.std.iterable._
 import cats.instances.all._
 import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-import scala.concurrent.{ExecutionContext, Future}
 
-import ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ConfigService @Inject()(configConnector: ConfigConnector) {
