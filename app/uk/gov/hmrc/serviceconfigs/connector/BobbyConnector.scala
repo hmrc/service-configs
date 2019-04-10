@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import com.typesafe.config.Config
 import javax.inject.Inject
 import play.Logger
+import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
@@ -43,6 +43,6 @@ class BobbyConnector @Inject()(http: HttpClient, gitConf: GithubConfig, bobbyCon
   }
 }
 
-class BobbyConfig @Inject()(config: Config) {
-  val url: String = config.getString("bobby.url")
+class BobbyConfig @Inject()(config: Configuration) {
+  val url: String = config.get[String]("bobby.url")
 }
