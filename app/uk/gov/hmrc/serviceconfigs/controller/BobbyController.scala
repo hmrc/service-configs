@@ -16,31 +16,19 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import javax.inject.{Inject, Singleton}
-import play.api.libs.json._
-import play.api.mvc._
+import javax.inject.Inject
+import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.BobbyService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-@Singleton
-class ConfigController @Inject()(
-  configService: ConfigService,
-  mcc: MessagesControllerComponents
-) extends BackendController(mcc) with ConfigJson {
+class BobbyController @Inject()(  bobbyService: BobbyService,
+                                  mcc: MessagesControllerComponents) extends BackendController(mcc) {
 
-
-  def serviceConfig(serviceName: String) = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName).map {e =>
-        Ok(Json.toJson(e))
-    }
-  }
-
-  def configByKey(serviceName: String) = Action.async { implicit request =>
-    configService.configByKey(serviceName).map {k =>
-        Ok(Json.toJson(k))
+  def allRules(): Action[AnyContent] = Action.async { implicit request =>
+    bobbyService.findAllRules().map {e =>
+      Ok(e).as("application/json")
     }
   }
 

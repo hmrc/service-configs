@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.cataloguefrontend.connector
+package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.Logger
-import play.api.libs.json.JsObject
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
-import ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 
 case class DependencyConfig(
@@ -37,8 +35,8 @@ case class DependencyConfig(
   )
 
 object DependencyConfig {
-  import play.api.libs.json.{__, Reads}
   import play.api.libs.functional.syntax._
+  import play.api.libs.json.{Reads, __}
   val reads: Reads[DependencyConfig] =
     ( (__ \ "group"   ).read[String]
     ~ (__ \ "artefact").read[String]
@@ -66,8 +64,8 @@ case class SlugInfo(
   )
 
 object SlugInfo {
-  import play.api.libs.json.{__, Reads}
   import play.api.libs.functional.syntax._
+  import play.api.libs.json.{Reads, __}
 
   val reads: Reads[SlugInfo] = {
     implicit val dReads: Reads[Dependency] =

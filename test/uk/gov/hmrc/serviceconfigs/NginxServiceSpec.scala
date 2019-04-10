@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
+import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}

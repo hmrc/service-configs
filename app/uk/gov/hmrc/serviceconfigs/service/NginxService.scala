@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.service
+
+import java.net.URL
 
 import cats.data.EitherT
 import cats.instances.all._
 import cats.syntax.all._
-import java.net.URL
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
@@ -29,8 +30,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DurationLong
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 

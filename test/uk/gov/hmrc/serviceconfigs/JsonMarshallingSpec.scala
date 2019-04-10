@@ -19,7 +19,8 @@ package uk.gov.hmrc.serviceconfigs
 import org.scalatest.Matchers._
 import org.scalatest.WordSpec
 import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.ConfigService._
+import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 class JsonMarshallingSpec extends WordSpec with ConfigJson {
 

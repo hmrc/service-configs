@@ -19,9 +19,10 @@ package uk.gov.hmrc.serviceconfigs
 import org.scalatest.Matchers._
 import org.scalatest.WordSpec
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.cataloguefrontend.connector.ConfigConnector
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
+import uk.gov.hmrc.serviceconfigs.service.ConfigService
 
 class ConfigServiceSpec extends WordSpec with MockitoSugar {
 
