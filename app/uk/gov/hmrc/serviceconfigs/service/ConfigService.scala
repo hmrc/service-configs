@@ -135,10 +135,14 @@ object ConfigService {
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         for {
-          slugInfo          <- connector.slugInfo(serviceName)
-          configs           <- connector.slugDependencyConfigs(serviceName)
-          applicationConf   =  ConfigParser.parseConfString(slugInfo.applicationConfig, ConfigParser.toIncludeCandidates(configs))
-          entries           =  ConfigParser.flattenConfigToDotNotation(applicationConf)
+          optSlugInfo     <- connector.slugInfo(serviceName)
+          configs         <- connector.slugDependencyConfigs(serviceName)
+          raw             <- optSlugInfo match {
+                               case Some(slugInfo) => Future(slugInfo.applicationConfig)
+                               case None           => connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
+                             }
+          applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
+          entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -148,9 +152,13 @@ object ConfigService {
 
       def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
         for {
-          slugInfo          <- connector.slugInfo(serviceName)
-          baseConf          =  ConfigParser.parseConfString(slugInfo.slugConfig, logMissing = false) // ignoring includes, since we know this is applicationConf
-          entries           =  ConfigParser.flattenConfigToDotNotation(baseConf)
+          optSlugInfo <- connector.slugInfo(serviceName)
+          raw         <- optSlugInfo match {
+                           case Some(slugInfo) => Future(slugInfo.slugConfig)
+                           case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
+                         }
+          baseConf    =  ConfigParser.parseConfString(raw, logMissing = false) // ignoring includes, since we know this is applicationConf
+          entries     =  ConfigParser.flattenConfigToDotNotation(baseConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
