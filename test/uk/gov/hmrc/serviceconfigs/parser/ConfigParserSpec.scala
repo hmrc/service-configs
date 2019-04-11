@@ -48,6 +48,56 @@ class ConfigParserSpec extends FlatSpec with Matchers {
       "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false")
   }
 
+  it should "handle substitutions" in {
+    val config = ConfigParser.parseConfString("""
+      |param1=${?user.dir}
+      |param2=${play.http.parser.maxMemoryBuffer}
+      |""".stripMargin)
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+        "param1" -> "${?user.dir}"
+      , "param2" -> "${play.http.parser.maxMemoryBuffer}"
+      )
+  }
+
+  it should "handle overriding substitutions" in {
+    val config = ConfigParser.parseConfString("""
+    |{"cookie" {
+    |   "encryption": {
+    |     "key":"1",
+    |     "previousKeys":["2"]
+    |   }
+    | }
+    | "queryParameter":
+    |  {
+    |   "encryption":${cookie.encryption},
+    |   "encryption":{
+    |     "key":"P5xsJ9Nt+quxGZzB4DeLfw==",
+    |     "previousKeys":[]
+    |   }
+    |  }
+    |}""".stripMargin)
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+        "cookie.encryption.key" -> "1"
+      , "queryParameter.encryption.key" -> "P5xsJ9Nt+quxGZzB4DeLfw=="
+      , "queryParameter.encryption.previousKeys" -> "[]"
+      , "cookie.encryption.previousKeys" -> "[\"2\"]"
+      )
+  }
+
+  it should "handle overriding unresolveable substitutions" in {
+    val config = ConfigParser.parseConfString("""
+    |{"queryParameter":
+    |  {"encryption":${cookie.encryption},
+    |   "encryption":{
+    |     "key":"P5xsJ9Nt+quxGZzB4DeLfw==",
+    |     "previousKeys":[]
+    |   }
+    |  }
+    |}""".stripMargin)
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map()
+  }
+
+
   "ConfigParser.parseYamlStringAsMap" should "parse yaml as map" in {
     val res = ConfigParser.parseYamlStringAsMap("""
       |digital-service: Catalogue
