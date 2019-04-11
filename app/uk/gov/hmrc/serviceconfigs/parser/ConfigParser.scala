@@ -61,7 +61,12 @@ trait ConfigParser {
 
 
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    config.entrySet.asScala
+    Try(config.entrySet)
+      // Some configs try to replace unresolved subsitutions - resolve them first
+      .orElse(Try(config.resolve.entrySet))
+      // However some configs cannot be resolved since are provided by later overrides
+      .getOrElse(ConfigFactory.empty.entrySet)
+      .asScala
       .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise)))
       .toMap
 
