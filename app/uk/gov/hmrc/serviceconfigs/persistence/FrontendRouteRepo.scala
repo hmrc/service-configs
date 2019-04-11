@@ -66,12 +66,6 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
       .recover { case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError) }
   }
 
-  def findByPath(path: String) : Future[Option[MongoFrontendRoute]] =
-    collection
-      .find(Json.obj("frontendPath" -> Json.toJson[String](path)))
-      .one[MongoFrontendRoute]
-
-
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
     * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
@@ -81,7 +75,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
     def search(query: JsObject): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find(query)
+        .find[JsObject, MongoFrontendRoute](query, None)
         .cursor[MongoFrontendRoute]()
         .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
         .map { res =>
@@ -99,7 +93,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
   def findByService(service: String): Future[Seq[MongoFrontendRoute]] =
     collection
-      .find(Json.obj("service" -> Json.toJson[String](service)))
+      .find[JsObject, MongoFrontendRoute](Json.obj("service" -> Json.toJson[String](service)), None)
       .cursor[MongoFrontendRoute]()
       .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
 
