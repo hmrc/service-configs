@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.Logger
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, NotFoundException}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
@@ -116,11 +116,14 @@ class ConfigConnector @Inject()(
   def slugDependencyConfigs(service: String)(implicit hc: HeaderCarrier): Future[List[DependencyConfig]] = {
     implicit val dcr = DependencyConfig.reads
     http.GET[List[DependencyConfig]](s"$serviceDependenciesUrl/api/slugDependencyConfigs?name=$service&flag=latest")
+      .recover { case ex: NotFoundException => Nil }
   }
 
-  def slugInfo(service: String)(implicit hc: HeaderCarrier): Future[SlugInfo] = {
+  def slugInfo(service: String)(implicit hc: HeaderCarrier): Future[Option[SlugInfo]] = {
     implicit val sir = SlugInfo.reads
     http.GET[SlugInfo](s"$serviceDependenciesUrl/api/sluginfo?name=$service&flag=latest")
+      .map(Some.apply)
+      .recover { case ex: NotFoundException => None }
   }
 
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {
