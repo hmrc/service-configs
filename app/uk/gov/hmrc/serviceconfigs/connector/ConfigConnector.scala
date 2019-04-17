@@ -138,7 +138,7 @@ class ConfigConnector @Inject()(
     doCall(requestUrl, newHc)
   }
 
-  private def doCall(url: String, newHc: HeaderCarrier) = scala.util.Try {
+  private def doCall(url: String, newHc: HeaderCarrier) = /*scala.util.Try*/ {
     implicit val hc: HeaderCarrier = newHc
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 =>
@@ -146,6 +146,8 @@ class ConfigConnector @Inject()(
         ""
       case response: HttpResponse =>
         response.body
+    }.recover {
+      case e => Logger.error(s"1) Failed to download config file from $url: ${e.getMessage}", e); throw e
     }
-  }/*.recover { case e => Logger.error(s"Failed to download config file from $url: ${e.getMessage}", e); Future("") }.*/get
+  }//.recover { case e => Logger.error(s"2) Failed to download config file from $url: ${e.getMessage}", e); throw e }.get
 }
