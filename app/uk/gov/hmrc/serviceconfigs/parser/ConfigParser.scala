@@ -61,11 +61,11 @@ trait ConfigParser {
 
 
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    Try(config.entrySet)
+    Try(config.entrySet).recoverWith { case e => Logger.warn(s"config.entrySet failed with $e"); throw e }
       // Some configs try to replace unresolved subsitutions - resolve them first
-      .orElse(Try(config.resolve.entrySet))
+      .orElse{ Try(config.resolve.entrySet).recoverWith { case e => Logger.warn(s"config.resolve.entrySet failed with $e"); throw e } }
       // However some configs cannot be resolved since are provided by later overrides
-      .getOrElse(ConfigFactory.empty.entrySet)
+      .getOrElse { Logger.warn("Failed extract entrySet from $config"); ConfigFactory.empty.entrySet }
       .asScala
       .map(e => s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise)))
       .toMap
