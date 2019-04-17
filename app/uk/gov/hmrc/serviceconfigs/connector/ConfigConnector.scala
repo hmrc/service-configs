@@ -142,10 +142,10 @@ class ConfigConnector @Inject()(
     implicit val hc: HeaderCarrier = newHc
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 =>
-        Logger.warn(s"Failed to download config file from $url: $response")
+        Logger.warn(s"Failed to download config file from $url: ${response.status}")
         ""
       case response: HttpResponse =>
         response.body
     }
-  }.recover { case e => Logger.error(s"Failed to download config file from $url", e); Future("") }.get
+  }.recover { case e => Logger.error(s"Failed to download config file from $url: ${e.getMessage}", e); Future("") }.get
 }
