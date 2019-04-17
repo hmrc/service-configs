@@ -147,5 +147,5 @@ class ConfigConnector @Inject()(
       case response: HttpResponse =>
         response.body
     }
-  }.recover { case e => Logger.error(s"Failed to download config file from $url: ${e.getMessage}", e); Future("") }.get
+  }/*.recover { case e => Logger.error(s"Failed to download config file from $url: ${e.getMessage}", e); Future("") }.*/get
 }
