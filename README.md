@@ -9,7 +9,7 @@ This service is used to retrieve data to power the [Catalogue](https://github.co
 
 ### Setting up Github tokens locally (required for viewing bobby rules)
 
-You need to have a file in your home directory at `~/.github/.credentials`
+You need to have a file in your home directory at `~/.github/.credentials`.
 
 Where the format is: 
 
@@ -21,6 +21,8 @@ token:	<youraccesstoken>
 
 > See [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line) for how
  to generate a personal access token
+ 
+This is the format used by the hmrc [github-client](https://github.com/hmrc/github-client), which is a dependency.
 
 
 ### License
