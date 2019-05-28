@@ -76,10 +76,11 @@ class ConfigServiceSpec extends WordSpec with MockitoSugar {
 //    }
 
   }
-  private trait Setup {
+
+  /*private trait Setup {
     implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
     val configConnector = mock[ConfigConnector]
     val service = new ConfigService(configConnector)
-  }
+  }*/
 }
