@@ -18,74 +18,12 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.Logger
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, NotFoundException}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-
-case class DependencyConfig(
-    group   : String
-  , artefact: String
-  , version : String
-  , configs : Map[String, String]
-  )
-
-object DependencyConfig {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json.{Reads, __}
-  val reads: Reads[DependencyConfig] =
-    ( (__ \ "group"   ).read[String]
-    ~ (__ \ "artefact").read[String]
-    ~ (__ \ "version" ).read[String]
-    ~ (__ \ "configs" ).read[Map[String, String]]
-    )(DependencyConfig.apply _)
-}
-
-case class Dependency(
-    path    : String
-  , group   : String
-  , artefact: String
-  , version : String
-  )
-
-
-case class SlugInfo(
-    uri              : String
-  , name             : String
-  , version          : String
-  , classpath        : String
-  , dependencies     : List[Dependency]
-  , applicationConfig: String
-  , slugConfig       : String
-  )
-
-object SlugInfo {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json.{Reads, __}
-
-  val reads: Reads[SlugInfo] = {
-    implicit val dReads: Reads[Dependency] =
-      ( (__ \ "path"    ).read[String]
-      ~ (__ \ "group"   ).read[String]
-      ~ (__ \ "artifact").read[String]
-      ~ (__ \ "version" ).read[String]
-      )(Dependency.apply _)
-
-    ( (__ \ "uri"              ).read[String]
-    ~ (__ \ "name"             ).read[String]
-    ~ (__ \ "version"          ).read[String]
-    ~ (__ \ "classpath"        ).read[String]
-    ~ (__ \ "dependencies"     ).read[List[Dependency]]
-    ~ (__ \ "applicationConfig").read[String]
-    ~ (__ \ "slugConfig"       ).read[String]
-    )(SlugInfo.apply _)
-  }
-}
-
 
 @Singleton
 class ConfigConnector @Inject()(
@@ -99,7 +37,6 @@ class ConfigConnector @Inject()(
   }
 
   private val configKey = gitConf.githubApiOpenConfig.key
-  private val serviceDependenciesUrl: String = servicesConfig.baseUrl("service-dependencies")
 
   def serviceConfigYaml(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
@@ -111,19 +48,6 @@ class ConfigConnector @Inject()(
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${configKey}"))
     val requestUrl = s"${gitConf.githubRawUrl}/hmrc/app-config-$env/master/$service.conf"
     doCall(requestUrl, newHc)
-  }
-
-  def slugDependencyConfigs(service: String)(implicit hc: HeaderCarrier): Future[List[DependencyConfig]] = {
-    implicit val dcr = DependencyConfig.reads
-    http.GET[List[DependencyConfig]](s"$serviceDependenciesUrl/api/slugDependencyConfigs?name=$service&flag=latest")
-      .recover { case ex: NotFoundException => Nil }
-  }
-
-  def slugInfo(service: String)(implicit hc: HeaderCarrier): Future[Option[SlugInfo]] = {
-    implicit val sir = SlugInfo.reads
-    http.GET[SlugInfo](s"$serviceDependenciesUrl/api/sluginfo?name=$service&flag=latest")
-      .map(Some.apply)
-      .recover { case ex: NotFoundException => None }
   }
 
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {

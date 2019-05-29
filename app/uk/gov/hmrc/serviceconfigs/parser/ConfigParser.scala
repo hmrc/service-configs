@@ -19,8 +19,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 import com.typesafe.config.{Config, ConfigFactory, ConfigIncludeContext, ConfigIncluder, ConfigIncluderClasspath, ConfigObject, ConfigParseOptions, ConfigRenderOptions, ConfigSyntax}
 import org.yaml.snakeyaml.Yaml
 import play.api.Logger
-import uk.gov.hmrc.serviceconfigs.connector.DependencyConfig
-
+import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import scala.collection.convert.decorateAsScala._
 import scala.util.Try
 

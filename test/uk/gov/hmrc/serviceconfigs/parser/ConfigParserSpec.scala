@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
 import com.typesafe.config.ConfigRenderOptions
-import uk.gov.hmrc.serviceconfigs.connector.DependencyConfig
+import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 
 class ConfigParserSpec extends FlatSpec with Matchers {
 

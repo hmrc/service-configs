@@ -22,13 +22,16 @@ import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
+import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 @Singleton
-class ConfigService @Inject()(configConnector: ConfigConnector) {
+class ConfigService @Inject()(configConnector: ConfigConnector,
+                              slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                              dependencyConfigRepository: DependencyConfigRepository) {
 
   import ConfigService._
 
@@ -64,7 +67,7 @@ class ConfigService @Inject()(configConnector: ConfigConnector) {
     environment.configSources.toIterable
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) { case (seq, cs) =>
         cs
-          .entries(configConnector)(serviceName, environment.name, getServiceType(seq))
+          .entries(configConnector, slugConfigurationInfoRepository, dependencyConfigRepository)(serviceName, environment.name, getServiceType(seq))
           .map(entries => seq :+ entries)
       }
 
@@ -111,7 +114,9 @@ object ConfigService {
 
     def precedence: Int
 
-    def entries(connector: ConfigConnector)
+    def entries(connector: ConfigConnector,
+                slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                dependencyConfigRepository: DependencyConfigRepository)
                (serviceName: String, env: String, serviceType: Option[String])
                (implicit hc: HeaderCarrier): Future[ConfigSourceEntries]
   }
@@ -121,9 +126,20 @@ object ConfigService {
       val name = "referenceConf"
       val precedence = 9
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
-          configs           <- connector.slugDependencyConfigs(serviceName)
+          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
+          configs     <- optSlugInfo match {
+                           case Some(slugInfo) =>
+                             Future.fold(slugInfo.dependencies
+                               .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
+                               ))(Seq.empty[DependencyConfig])(_ ++ _)
+                           case None => Future(Seq.empty[DependencyConfig])
+                        }
           referenceConfig   =  ConfigParser.reduceConfigs(configs)
           entries           =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
         } yield ConfigSourceEntries(name, precedence, entries)
@@ -133,16 +149,26 @@ object ConfigService {
       val name = "applicationConf"
       val precedence = 10
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
-          optSlugInfo     <- connector.slugInfo(serviceName)
-          configs         <- connector.slugDependencyConfigs(serviceName)
-          raw             <- optSlugInfo match {
-                               case Some(slugInfo) => Future(slugInfo.applicationConfig)
-                               case None           => connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
-                             }
-          applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
-          entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
+          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
+          configs     <- optSlugInfo match {
+                           case Some(slugInfo) =>
+                             Future.fold(slugInfo.dependencies
+                               .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
+                               ))(Seq.empty[DependencyConfig])(_ ++ _)
+                           case None => Future(Seq.empty[DependencyConfig])
+                         }
+          raw <- optSlugInfo match {
+            case Some(slugInfo) => Future(slugInfo.applicationConfig)
+            case None => connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
+          }
+          applicationConf = ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
+          entries = ConfigParser.flattenConfigToDotNotation(applicationConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -150,9 +176,13 @@ object ConfigService {
       val name = "baseConfig"
       val precedence = 20
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
-          optSlugInfo <- connector.slugInfo(serviceName)
+          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
           raw         <- optSlugInfo match {
                            case Some(slugInfo) => Future(slugInfo.slugConfig)
                            case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
@@ -166,7 +196,11 @@ object ConfigService {
       val name = "appConfigEnvironment"
       val precedence = 40
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
           raw     <- connector.serviceConfigYaml(env, serviceName)
           entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
@@ -179,7 +213,11 @@ object ConfigService {
       val name = "appConfigCommonFixed"
       val precedence = 50
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
           raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
           entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
@@ -193,7 +231,11 @@ object ConfigService {
       val name = "appConfigCommonOverridable"
       val precedence = 30
 
-      def entries(connector: ConfigConnector)(serviceName: String, env: String, serviceType: Option[String] = None)(implicit hc: HeaderCarrier) =
+      def entries(connector: ConfigConnector,
+                  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+                  dependencyConfigRepository: DependencyConfigRepository)
+                 (serviceName: String, env: String, serviceType: Option[String] = None)
+                 (implicit hc: HeaderCarrier) =
         for {
           raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
           entries =  ConfigParser.parseYamlStringAsMap(raw).getOrElse(Map.empty)
