@@ -35,16 +35,17 @@ case class SlugDependency(
   path       : String,
   version    : String,
   group      : String,
-  artifact   : String)
+  artifact   : String,
+  meta       : String = "")
 
 case class SlugInfo(
   uri               : String,
   name              : String,
   version           : Version,
-  teams            : List[String],
-  runnerVersion    : String,
+  teams             : List[String],
+  runnerVersion     : String,
   classpath         : String,
-  jdkVersion       : String,
+  jdkVersion        : String,
   dependencies      : List[SlugDependency],
   applicationConfig : String,
   slugConfig        : String,
@@ -102,7 +103,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore)
     ~ OFormat(Reads.pure(""), ignore)
-    ~ (__ \ "classPath"        ).format[String]
+    ~ (__ \ "classpath"        ).format[String]
     ~ OFormat(Reads.pure(""), ignore)
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]

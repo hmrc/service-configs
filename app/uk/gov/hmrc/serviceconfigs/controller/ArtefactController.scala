@@ -45,7 +45,7 @@ class ArtefactController @Inject()
 
   }
 
-  def setDependencyConfiguration() = Action.async(parse.json) { implicit request =>
+  def setDependencyConfiguration() = Action.async(parse.json(512 * 1024)) { implicit request =>
     Logger.debug("Starting 'setDependencyConfiguration'")
     implicit val dcFormat: OFormat[DependencyConfig] = ApiSlugInfoFormats.dcFormat
     withJsonBody[Seq[DependencyConfig]] { dependencyConfigs =>
