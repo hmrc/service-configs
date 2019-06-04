@@ -17,15 +17,13 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.json.Json
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.Cursor
-import reactivemongo.api.collections.bson.BSONCollection
 import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.{BSONDocument, BSONDocumentReader, BSONObjectID}
+import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -62,6 +60,9 @@ class SlugConfigurationInfoRepository @Inject()
         update   = slugInfo,
         upsert   = true)
       .map(_.ok)
+
+  def clearAll(): Future[Boolean] =
+    super.removeAll().map(_.ok)
 
   def getSlugInfo(name: String, flag: SlugInfoFlag = SlugInfoFlag.Latest): Future[Option[SlugInfo]] =
     find(
