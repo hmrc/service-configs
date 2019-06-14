@@ -18,10 +18,12 @@ package uk.gov.hmrc.serviceconfigs
 
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
+import uk.gov.hmrc.serviceconfigs.service.SlugConfigUpdateHandler
 
-class FrontendRouteModule  extends AbstractModule {
+class FrontendRouteModule extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[FrontendRouteScheduler]).asEagerSingleton()
-    bind(classOf[FrontendRouteParser]).to(classOf[NginxConfigParser]).asEagerSingleton()
+    bind(classOf[SlugConfigUpdateHandler  ]).asEagerSingleton()
+    bind(classOf[FrontendRouteScheduler   ]).asEagerSingleton()
+    bind(classOf[FrontendRouteParser      ]).to(classOf[NginxConfigParser]).asEagerSingleton()
   }
 }
