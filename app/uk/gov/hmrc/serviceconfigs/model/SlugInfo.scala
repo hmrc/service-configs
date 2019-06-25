@@ -59,6 +59,11 @@ case class DependencyConfig(
   , configs : Map[String, String]
   )
 
+case class SlugMessage(
+    info: SlugInfo,
+    configs: Seq[DependencyConfig]
+  )
+
 trait MongoSlugInfoFormats {
   implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
@@ -118,6 +123,11 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
+
+  val slugFormat: OFormat[SlugMessage] = {
+    implicit val dcf = dcFormat
+    Json.format[SlugMessage]
+  }
 }
 
 object ApiSlugInfoFormats extends ApiSlugInfoFormats

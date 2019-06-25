@@ -12,7 +12,9 @@ object AppDependencies {
     "uk.gov.hmrc"             %% "mongo-lock"               % "6.10.0-play-26",
     "org.scala-lang.modules"  %% "scala-parser-combinators" % "1.1.1",
     "org.typelevel"           %% "cats-core"                % "1.1.0",
-    "org.typelevel"           %% "alleycats-core"           % "1.1.0"
+    "org.typelevel"           %% "alleycats-core"           % "1.1.0",
+    "com.lightbend.akka"      %% "akka-stream-alpakka-sns"  % "1.0.2",
+    "com.lightbend.akka"      %% "akka-stream-alpakka-sqs"  % "1.0.2"
   )
 
   val test = Seq(
