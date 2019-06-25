@@ -117,14 +117,17 @@ trait ApiSlugInfoFormats {
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
 
-  implicit val dcFormat: OFormat[DependencyConfig] =
+  val dcFormat: OFormat[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
 
-  val slugFormat: OFormat[SlugMessage] = Json.format[SlugMessage]
+  val slugFormat: OFormat[SlugMessage] = {
+    implicit val dcf = dcFormat
+    Json.format[SlugMessage]
+  }
 }
 
 object ApiSlugInfoFormats extends ApiSlugInfoFormats
