@@ -39,7 +39,7 @@ class SlugConfigUpdateHandler  @Inject()
  implicit val executionContext: ExecutionContext) {
 
   if(!config.isEnabled) {
-    Logger.debug("SlugInfoUpdatedHandler is disabled.")
+    Logger.debug("SlugConfigUpdateHandler is disabled.")
   }
 
   private lazy val awsSqsClient = {
