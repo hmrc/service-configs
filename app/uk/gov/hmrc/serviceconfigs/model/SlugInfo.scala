@@ -39,8 +39,8 @@ case class SlugDependency(
   meta       : String = "")
 
 case class SlugInfo(
-  created           : LocalDateTime,
   uri               : String,
+  created           : LocalDateTime,
   name              : String,
   version           : Version,
   teams             : List[String],
@@ -71,8 +71,8 @@ trait MongoSlugInfoFormats {
   val ignore = OWrites[Any](_ => Json.obj())
 
   implicit val siFormat: OFormat[SlugInfo] =
-    ( (__ \ "created"          ).format[LocalDateTime]
-    ~ (__ \ "uri"              ).format[String]
+    ( (__ \ "uri"              ).format[String]
+    ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore)
@@ -105,8 +105,8 @@ trait ApiSlugInfoFormats {
 
   implicit val siFormat: OFormat[SlugInfo] = {
     implicit val vf = Version.apiFormat
-    ( (__ \ "created"          ).format[LocalDateTime]
-    ~ (__ \ "uri"              ).format[String]
+    ( (__ \ "uri"              ).format[String]
+    ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore)
