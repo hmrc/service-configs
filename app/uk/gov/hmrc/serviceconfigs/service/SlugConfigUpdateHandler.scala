@@ -82,7 +82,8 @@ class SlugConfigUpdateHandler  @Inject()
     (eitherSlugInfo match {
       case Left(error) => Future(Left(error))
       case Right(slugMessage) =>
-        slugConfigurationService.addSlugInfo(slugMessage.info)
+        for {
+        si <- slugConfigurationService.addSlugInfo(slugMessage.info)
           .map(saveResult => if (saveResult) Right(()) else Left(s"SlugInfo for message (ID '${message.messageId()}') was sent on but not saved."))
           .recover {
             case e =>
@@ -90,8 +91,7 @@ class SlugConfigUpdateHandler  @Inject()
               Logger.error(errorMessage, e)
               Left(s"$errorMessage ${e.getMessage}")
           }
-
-        slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
+        dc <- slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
           .map(saveResult => if (saveResult.forall(_ == true)) Right(()) else Left(s"Configuration for message (ID '${message.messageId()}') was sent on but not saved."))
           .recover {
             case e =>
@@ -99,6 +99,12 @@ class SlugConfigUpdateHandler  @Inject()
               Logger.error(errorMessage, e)
               Left(s"$errorMessage ${e.getMessage}")
           }
+        } yield (si, dc) match {
+          case (Left(siMsg), Left(dcMsg)) => Left(s"Slug Info message: $siMsg${sys.props("line.separator")}Dependency Config message$dcMsg")
+          case (Right(_), Left(dcMsg)) => Left(dcMsg)
+          case (Left(siMsg), Right(_)) => Left(siMsg)
+          case (Right(_), Right(_)) => Right(())
+        }
     }).map((message, _))
   }
 
@@ -113,5 +119,4 @@ class SlugConfigUpdateHandler  @Inject()
         Delete(message)
     }
   }
-
 }
