@@ -6,6 +6,3 @@ GET     /config-by-key/:serviceName             @uk.gov.hmrc.serviceconfigs.cont
 GET     /frontend-route/search                  @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
 GET     /frontend-route/:serviceName            @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
 GET     /bobby/rules                            @uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
-
-POST    /artefact/slug/configuration            @uk.gov.hmrc.serviceconfigs.controller.ArtefactController.setSlugConfigurationInfo()
-POST    /artefact/dependency/configuration      @uk.gov.hmrc.serviceconfigs.controller.ArtefactController.setDependencyConfiguration()
