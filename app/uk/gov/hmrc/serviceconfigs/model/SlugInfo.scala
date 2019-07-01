@@ -16,14 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
+import java.time.LocalDateTime
+
 import play.api.libs.json.{Json, OFormat, OWrites, Reads, __}
 import play.api.libs.functional.syntax._
 
-import scala.util.Try
-
 sealed trait SlugInfoFlag { def s: String }
 object SlugInfoFlag {
-  case object Latest          extends SlugInfoFlag { val s = "latest"         }
+  case object Latest          extends SlugInfoFlag { val s = "latest" }
 
   val values: List[SlugInfoFlag] = List(Latest)
 
@@ -40,6 +40,7 @@ case class SlugDependency(
 
 case class SlugInfo(
   uri               : String,
+  created           : LocalDateTime,
   name              : String,
   version           : Version,
   teams             : List[String],
@@ -71,6 +72,7 @@ trait MongoSlugInfoFormats {
 
   implicit val siFormat: OFormat[SlugInfo] =
     ( (__ \ "uri"              ).format[String]
+    ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore)
@@ -104,6 +106,7 @@ trait ApiSlugInfoFormats {
   implicit val siFormat: OFormat[SlugInfo] = {
     implicit val vf = Version.apiFormat
     ( (__ \ "uri"              ).format[String]
+    ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore)
