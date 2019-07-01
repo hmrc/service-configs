@@ -32,7 +32,7 @@ import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, SlugMessage}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SlugConfigUpdateHandler  @Inject()
+class SlugConfigUpdateHandler @Inject()
 (config: ArtefactReceivingConfig, slugConfigurationService: SlugConfigurationService)
 (implicit val actorSystem: ActorSystem,
  implicit val materializer: Materializer,
@@ -42,6 +42,8 @@ class SlugConfigUpdateHandler  @Inject()
     Logger.debug("SlugConfigUpdateHandler is disabled.")
   }
 
+  private lazy val queueUrl = config.sqsSlugQueue
+  private lazy val settings = SqsSourceSettings()
   private lazy val awsSqsClient = {
     val client = SqsAsyncClient.builder()
       .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
@@ -50,9 +52,6 @@ class SlugConfigUpdateHandler  @Inject()
     actorSystem.registerOnTermination(client.close())
     client
   }
-
-  private lazy val queueUrl = config.sqsSlugQueue
-  private lazy val settings = SqsSourceSettings()
 
   if(config.isEnabled) {
     SqsSource(
