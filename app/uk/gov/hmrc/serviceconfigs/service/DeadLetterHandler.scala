@@ -28,17 +28,17 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.util.control.NonFatal
 
 class DeadLetterHandler @Inject()
-(config: ArtefactReceivingConfig)
+(messageHandling: SqsMessageHandling, config: ArtefactReceivingConfig)
 (implicit val actorSystem: ActorSystem,
  implicit val materializer: Materializer,
  implicit val executionContext: ExecutionContext) {
 
-  val logger = Logger("application.DeadLetterHandler")
+  private val logger = Logger(getClass)
 
   if (!config.isEnabled) {
     logger.debug("DeadLetterHandler is disabled.")
@@ -61,17 +61,25 @@ class DeadLetterHandler @Inject()
     SqsSource(
       queueUrl,
       settings)(awsSqsClient)
-      .map(logMessage)
+      .mapAsync(10)(processMessage)
       .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
       case NonFatal(e) => logger.error(e.getMessage, e); throw e
     }
   }
 
-  private def logMessage(message: Message) = {
-    logger.warn(
-      s"""Dead letter message with
-         |ID: '${message.messageId()}'
-         |Body: '${message.body()}'""".stripMargin)
-    Delete(message)
-  }
+  private def decompress(message: Message): Future[String] = messageHandling.decompress(message.body)
+
+  private def processMessage(message: Message) =
+    for {
+      msg <- decompress(message) recover {
+        case NonFatal(e) =>
+          logger.error(s"Could not decompress message with ID '${message.messageId}'", e)
+          Future.failed(e)
+      }
+      _ = logger.warn(
+        s"""Dead letter message with
+           |ID: '${message.messageId}'
+           |Body: '$msg'""".stripMargin)
+    } yield Delete(message)
+
 }
