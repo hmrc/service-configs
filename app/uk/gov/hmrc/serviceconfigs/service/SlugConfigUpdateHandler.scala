@@ -71,7 +71,9 @@ class SlugConfigUpdateHandler @Inject()
       .map(messageTo)
       .mapAsync(10)(save)
       .map(acknowledge)
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
+      case e: Throwable => logger.error(e.getMessage, e); throw e
+    }
   }
 
   private def logMessage(message: Message): Message = {
