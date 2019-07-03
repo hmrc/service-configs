@@ -30,6 +30,7 @@ import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
+import scala.util.control.NonFatal
 
 class DeadLetterHandler @Inject()
 (config: ArtefactReceivingConfig)
@@ -53,7 +54,7 @@ class DeadLetterHandler @Inject()
     actorSystem.registerOnTermination(client.close())
     client
   }).recover {
-    case e: Throwable => logger.error(e.getMessage, e); throw e
+    case NonFatal(e) => logger.error(e.getMessage, e); throw e
   }.get
 
   if (config.isEnabled) {
@@ -62,7 +63,7 @@ class DeadLetterHandler @Inject()
       settings)(awsSqsClient)
       .map(logMessage)
       .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
-      case e: Throwable => logger.error(e.getMessage, e); throw e
+      case NonFatal(e) => logger.error(e.getMessage, e); throw e
     }
   }
 

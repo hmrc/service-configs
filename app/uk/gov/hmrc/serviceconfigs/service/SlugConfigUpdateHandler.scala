@@ -33,6 +33,7 @@ import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, SlugMessage}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import scala.util.control.NonFatal
 
 class SlugConfigUpdateHandler @Inject()
 (config: ArtefactReceivingConfig, slugConfigurationService: SlugConfigurationService)
@@ -51,7 +52,7 @@ class SlugConfigUpdateHandler @Inject()
 
   private lazy val awsCredentialsProvider: AwsCredentialsProvider =
     Try(DefaultCredentialsProvider.builder().build()).recover {
-      case e: Throwable => logger.error(e.getMessage, e); throw e
+      case NonFatal(e) => logger.error(e.getMessage, e); throw e
     }.get
 
   private lazy val awsSqsClient = Try({
@@ -62,7 +63,7 @@ class SlugConfigUpdateHandler @Inject()
     actorSystem.registerOnTermination(client.close())
     client
   }).recover {
-    case e: Throwable => logger.error(e.getMessage, e); throw e
+    case NonFatal(e) => logger.error(e.getMessage, e); throw e
   }.get
 
   if(config.isEnabled) {
@@ -72,7 +73,7 @@ class SlugConfigUpdateHandler @Inject()
       .mapAsync(10)(save)
       .map(acknowledge)
       .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
-      case e: Throwable => logger.error(e.getMessage, e); throw e
+      case NonFatal(e) => logger.error(e.getMessage, e); throw e
     }
   }
 
