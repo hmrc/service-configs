@@ -40,11 +40,12 @@ class DeadLetterHandler @Inject()
   val logger = Logger("application.DeadLetterHandler")
 
   if (!config.isEnabled) {
-    Logger.debug("DeadLetterHandler is disabled.")
+    logger.debug("DeadLetterHandler is disabled.")
   }
 
   private lazy val queueUrl = config.sqsSlugDeadLetterQueue
   private lazy val settings = SqsSourceSettings()
+
   private lazy val awsSqsClient = Try({
     val client = SqsAsyncClient.builder()
       .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
