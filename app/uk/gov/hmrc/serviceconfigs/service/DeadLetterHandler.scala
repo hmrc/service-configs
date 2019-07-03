@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 class DeadLetterHandler @Inject()
 (config: ArtefactReceivingConfig)
@@ -36,31 +37,36 @@ class DeadLetterHandler @Inject()
  implicit val materializer: Materializer,
  implicit val executionContext: ExecutionContext) {
 
+  val logger = Logger("application.DeadLetterHandler")
+
   if (!config.isEnabled) {
     Logger.debug("DeadLetterHandler is disabled.")
   }
 
   private lazy val queueUrl = config.sqsSlugDeadLetterQueue
   private lazy val settings = SqsSourceSettings()
-  private lazy val awsSqsClient = {
+  private lazy val awsSqsClient = Try({
     val client = SqsAsyncClient.builder()
       .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
       .build()
-
     actorSystem.registerOnTermination(client.close())
     client
-  }
+  }).recover {
+    case e: Throwable => logger.error(e.getMessage, e); throw e
+  }.get
 
   if (config.isEnabled) {
     SqsSource(
       queueUrl,
       settings)(awsSqsClient)
       .map(logMessage)
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
+      case e: Throwable => logger.error(e.getMessage, e); throw e
+    }
   }
 
   private def logMessage(message: Message) = {
-    Logger.warn(
+    logger.warn(
       s"""Dead letter message with
          |ID: '${message.messageId()}'
          |Body: '${message.body()}'""".stripMargin)
