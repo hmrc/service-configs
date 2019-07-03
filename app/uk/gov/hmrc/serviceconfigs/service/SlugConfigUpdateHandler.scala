@@ -25,12 +25,14 @@ import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.google.inject.Inject
 import play.api.Logger
 import play.api.libs.json.Json
+import software.amazon.awssdk.auth.credentials.{AwsCredentialsProvider, DefaultCredentialsProvider}
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, SlugMessage}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 class SlugConfigUpdateHandler @Inject()
 (config: ArtefactReceivingConfig, slugConfigurationService: SlugConfigurationService)
@@ -38,25 +40,33 @@ class SlugConfigUpdateHandler @Inject()
  implicit val materializer: Materializer,
  implicit val executionContext: ExecutionContext) {
 
+  val logger = Logger("application.SlugConfigUpdateHandler")
+
   if(!config.isEnabled) {
-    Logger.debug("SlugConfigUpdateHandler is disabled.")
+    logger.warn("SlugConfigUpdateHandler is disabled.")
   }
 
   private lazy val queueUrl = config.sqsSlugQueue
   private lazy val settings = SqsSourceSettings()
-  private lazy val awsSqsClient = {
-    val client = SqsAsyncClient.builder()
+
+  private lazy val awsCredentialsProvider: AwsCredentialsProvider =
+    Try(DefaultCredentialsProvider.builder().build()).recover {
+      case e: Throwable => logger.error(e.getMessage, e); throw e
+    }.get
+
+  private lazy val awsSqsClient = Try({
+    val client = SqsAsyncClient.builder().credentialsProvider(awsCredentialsProvider)
       .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
       .build()
 
     actorSystem.registerOnTermination(client.close())
     client
-  }
+  }).recover {
+    case e: Throwable => logger.error(e.getMessage, e); throw e
+  }.get
 
   if(config.isEnabled) {
-    SqsSource(
-      queueUrl,
-      settings)(awsSqsClient)
+    SqsSource(queueUrl, settings)(awsSqsClient)
       .map(logMessage)
       .map(messageTo)
       .mapAsync(10)(save)
@@ -65,7 +75,7 @@ class SlugConfigUpdateHandler @Inject()
   }
 
   private def logMessage(message: Message): Message = {
-    Logger.debug(s"Starting processing message with ID '${message.messageId()}'")
+    logger.info(s"Starting processing message with ID '${message.messageId()}'")
     message
   }
 
@@ -73,7 +83,7 @@ class SlugConfigUpdateHandler @Inject()
     (message,
       Json.parse(message.body())
         .validate(ApiSlugInfoFormats.slugFormat)
-        .asEither.left.map(error => s"Could not message with ID '${message.messageId()}'.  Reason: " + error.toString()))
+        .asEither.left.map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString()))
 
   private def save(input: (Message, Either[String, SlugMessage])): Future[(Message, Either[String, Unit])] = {
     val (message, eitherSlugInfo) = input
@@ -87,7 +97,7 @@ class SlugConfigUpdateHandler @Inject()
             .recover {
               case e =>
                 val errorMessage = s"Could not store slug info for message with ID '${message.messageId()}'"
-                Logger.error(errorMessage, e)
+                logger.error(errorMessage, e)
                 Left(s"$errorMessage ${e.getMessage}")
             }
           dc <- slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
@@ -95,7 +105,7 @@ class SlugConfigUpdateHandler @Inject()
             .recover {
               case e =>
                 val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId()}'"
-                Logger.error(errorMessage, e)
+                logger.error(errorMessage, e)
                 Left(s"$errorMessage ${e.getMessage}")
             }
         } yield (si, dc) match {
@@ -111,10 +121,10 @@ class SlugConfigUpdateHandler @Inject()
     val (message, eitherResult) = input
     eitherResult match {
       case Left(error) =>
-        Logger.error(error)
+        logger.error(error)
         Ignore(message)
       case Right(_) =>
-        Logger.debug(s"Message with ID '${message.messageId()}' successfully processed.")
+        logger.info(s"Message with ID '${message.messageId()}' successfully processed.")
         Delete(message)
     }
   }
