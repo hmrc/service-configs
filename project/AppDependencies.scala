@@ -9,7 +9,8 @@ object AppDependencies {
     "org.yaml"                %  "snakeyaml"                % "1.17",
     "uk.gov.hmrc"             %% "github-client"            % "2.8.0",
     "uk.gov.hmrc"             %% "play-config"              % "7.0.0",
-    "uk.gov.hmrc"             %% "mongo-lock"               % "6.10.0-play-26",
+    "uk.gov.hmrc"             %% "simple-reactivemongo"     % "7.20.0-play-26",
+    "uk.gov.hmrc"             %% "mongo-lock"               % "6.15.0-play-26",
     "org.scala-lang.modules"  %% "scala-parser-combinators" % "1.1.1",
     "org.typelevel"           %% "cats-core"                % "1.1.0",
     "org.typelevel"           %% "alleycats-core"           % "1.1.0"
