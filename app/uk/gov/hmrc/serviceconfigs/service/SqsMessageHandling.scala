@@ -20,12 +20,11 @@ import java.util.Base64
 
 import com.google.inject.Inject
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-class SqsMessageHandling @Inject()(compression: GzipCompression) {
+class SqsMessageHandling @Inject()(compression: GzipCompression)(implicit executionContext: ExecutionContext) {
 
   private lazy val decoder = Base64.getDecoder
 
   def decompress(message: String): Future[String] = compression.decompress(decoder.decode(message))
-
 }
