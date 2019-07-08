@@ -36,14 +36,14 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 class SlugConfigUpdateHandler @Inject()
-(config: ArtefactReceivingConfig, slugConfigurationService: SlugConfigurationService)
+(messageHandling: SqsMessageHandling, slugConfigurationService: SlugConfigurationService, config: ArtefactReceivingConfig)
 (implicit val actorSystem: ActorSystem,
  implicit val materializer: Materializer,
  implicit val executionContext: ExecutionContext) {
 
-  val logger = Logger("application.SlugConfigUpdateHandler")
+  private val logger = Logger(getClass)
 
-  if(!config.isEnabled) {
+  if (!config.isEnabled) {
     logger.warn("SlugConfigUpdateHandler is disabled.")
   }
 
@@ -66,11 +66,10 @@ class SlugConfigUpdateHandler @Inject()
     case NonFatal(e) => logger.error(e.getMessage, e); throw e
   }.get
 
-  if(config.isEnabled) {
+  if (config.isEnabled) {
     SqsSource(queueUrl, settings)(awsSqsClient)
       .map(logMessage)
-      .map(messageTo)
-      .mapAsync(10)(save)
+      .mapAsync(10)(processMessage)
       .map(acknowledge)
       .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
       case NonFatal(e) => logger.error(e.getMessage, e); throw e
@@ -82,13 +81,23 @@ class SlugConfigUpdateHandler @Inject()
     message
   }
 
-  private def messageTo(message: Message): (Message, Either[String, SlugMessage]) =
-    (message,
-      Json.parse(message.body())
-        .validate(ApiSlugInfoFormats.slugFormat)
-        .asEither.left.map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString()))
+  private def processMessage(message: Message) = {
+    for {
+      parsed  <- messageHandling.decompress(message.body)
+        .map(decompressed => Json.parse(decompressed)
+          .validate(ApiSlugInfoFormats.slugFormat)
+          .asEither.left.map(error => s"Could not parse message with ID '${message.messageId}'.  Reason: " + error.toString))
+        .recover {
+          case NonFatal(e) =>
+            val errorMessage = s"Could not decompress message with ID '${message.messageId}'"
+            logger.error(errorMessage, e)
+            Left(s"$errorMessage ${e.getMessage}")
+        }
+      saved <- processSlugMessage((message, parsed))
+    } yield saved
+  }
 
-  private def save(input: (Message, Either[String, SlugMessage])): Future[(Message, Either[String, Unit])] = {
+  private def processSlugMessage(input: (Message, Either[String, SlugMessage])): Future[(Message, Either[String, Unit])] = {
     val (message, eitherSlugInfo) = input
 
     (eitherSlugInfo match {
@@ -96,18 +105,18 @@ class SlugConfigUpdateHandler @Inject()
       case Right(slugMessage) =>
         for {
           si <- slugConfigurationService.addSlugInfo(slugMessage.info)
-            .map(saveResult => if (saveResult) Right(()) else Left(s"SlugInfo for message (ID '${message.messageId()}') was sent on but not saved."))
+            .map(saveResult => if (saveResult) Right(()) else Left(s"SlugInfo for message (ID '${message.messageId}') was sent on but not saved."))
             .recover {
               case e =>
-                val errorMessage = s"Could not store slug info for message with ID '${message.messageId()}'"
+                val errorMessage = s"Could not store slug info for message with ID '${message.messageId}'"
                 logger.error(errorMessage, e)
                 Left(s"$errorMessage ${e.getMessage}")
             }
           dc <- slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
-            .map(saveResult => if (saveResult.forall(_ == true)) Right(()) else Left(s"Configuration for message (ID '${message.messageId()}') was sent on but not saved."))
+            .map(saveResult => if (saveResult.forall(_ == true)) Right(()) else Left(s"Configuration for message (ID '${message.messageId}') was sent on but not saved."))
             .recover {
               case e =>
-                val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId()}'"
+                val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId}'"
                 logger.error(errorMessage, e)
                 Left(s"$errorMessage ${e.getMessage}")
             }
@@ -127,7 +136,7 @@ class SlugConfigUpdateHandler @Inject()
         logger.error(error)
         Ignore(message)
       case Right(_) =>
-        logger.info(s"Message with ID '${message.messageId()}' successfully processed.")
+        logger.info(s"Message with ID '${message.messageId}' successfully processed.")
         Delete(message)
     }
   }

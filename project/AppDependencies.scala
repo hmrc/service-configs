@@ -25,6 +25,7 @@ object AppDependencies {
     "uk.gov.hmrc"             %% "reactivemongo-test"       % "4.15.0-play-26"         % "test",
     "org.mockito"             %  "mockito-core"             % "2.3.5"                 % "test",
     // force dependencies due to security flaws found in xercesImpl 2.11.0
-    "xerces"                  % "xercesImpl"                % "2.12.0"                % "test"
+    "xerces"                  % "xercesImpl"                % "2.12.0"                % "test",
+    "com.typesafe.akka"       %% "akka-testkit"             % "2.5.16"                % Test
   )
 }
