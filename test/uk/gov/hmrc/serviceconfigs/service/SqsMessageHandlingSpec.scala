@@ -16,39 +16,36 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import java.io.ByteArrayOutputStream
-import java.util.zip.GZIPOutputStream
+import java.util.Base64
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Compression, Sink, Source}
 import akka.testkit.TestKit
+import akka.util.ByteString
 import org.scalatest.{FlatSpecLike, Matchers}
 import uk.gov.hmrc.mongo.Awaiting
 
-class GzipCompressionSpec extends TestKit(ActorSystem("GzipCompressorSpec")) with FlatSpecLike with Matchers with Awaiting {
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) with FlatSpecLike with Matchers with Awaiting {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   "decompress" should "return a value that can be compressed back to the original input" in {
 
-    val compressor = new GzipCompression()
+    val compressor = new SqsMessageHandling()
 
-    val input = compress("hello world")
+    val input = "test" * 64 * 1024 + "hello"  // Compression.gunzip default flush size
 
-    val result = await(compressor.decompress(input))
+    val compressed = await(Source.single(ByteString.fromString(input))
+      .via(Compression.gzip)
+      .map(c => Base64.getEncoder.encodeToString(c.toArray))
+      .runWith(Sink.head))
 
-    compress(result) should be (input)
+    val decompressed = await(compressor.decompress(compressed))
+
+    decompressed should be (input)
+
   }
-
-  private def compress(input: String) = {
-    val inputBytes = input.getBytes("UTF-8")
-    val bos = new ByteArrayOutputStream(inputBytes.length)
-    val gzip = new GZIPOutputStream(bos)
-    gzip.write(inputBytes)
-    gzip.close()
-    val compressed = bos.toByteArray
-    bos.close()
-    compressed
-  }
-
 }
