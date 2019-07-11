@@ -16,15 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import java.time.LocalDateTime
 import java.util.Base64
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Compression, Sink, Source}
+import akka.stream.scaladsl.{Compression, Flow, Sink, Source}
 import akka.testkit.TestKit
 import akka.util.ByteString
 import org.scalatest.{FlatSpecLike, Matchers}
+import play.api.libs.json.{Json, Writes}
 import uk.gov.hmrc.mongo.Awaiting
+import uk.gov.hmrc.serviceconfigs.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -36,16 +39,55 @@ class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) 
 
     val compressor = new SqsMessageHandling()
 
-    val input = "test" * 64 * 1024 + "hello"  // Compression.gunzip default flush size
+    val aSlugInfo =
+      SlugInfo(
+        created         = LocalDateTime.of(2019, 6, 28, 11, 51,23),
+        uri             = "https://store/slugs/my-slug/my-slug_0.27.0_0.5.2.tgz",
+        name            = "my-slug",
+        version         = Version.apply("0.27.0"),
+        teams           = List.empty,
+        runnerVersion   = "0.5.2",
+        classpath       = "",
+        jdkVersion      = "1.181.0",
+        dependencies    = List(
+          SlugDependency(
+            path     = "lib1",
+            version  = "1.2.0",
+            group    = "com.test.group",
+            artifact = "lib1"
+          ),
+          SlugDependency(
+            path     = "lib2",
+            version  = "0.66",
+            group    = "com.test.group",
+            artifact = "lib2")),
+        applicationConfig = "",
+        slugConfig        = "",
+        latest            = true)
 
-    val compressed = await(Source.single(ByteString.fromString(input))
-      .via(Compression.gzip)
-      .map(c => Base64.getEncoder.encodeToString(c.toArray))
+    val aDependencyConfig = DependencyConfig(
+      group = "uk.gov.hmrc"
+      , artefact = "time"
+      , version = "3.2.0"
+      , configs = Map(
+        "includes.conf" -> "a = 1"
+        , "reference.conf" -> ("test" * 64 * 1024 + "hello")
+        // Compression.gunzip default flush size
+      )
+    )
+
+    implicit val format: Writes[SlugMessage] = ApiSlugInfoFormats.slugFormat
+    val input = Json.stringify(Json.toJson(SlugMessage(aSlugInfo, Seq(aDependencyConfig))))
+
+    val compressed = await(Source.single(input)
+      .via(Flow.fromFunction(ByteString.fromString)
+        .via(Compression.gzip)
+        .fold(ByteString.empty)(_ ++ _)
+        .map(b => Base64.getEncoder.encodeToString(b.toArray)))
       .runWith(Sink.head))
 
-    val decompressed = await(compressor.decompress(compressed))
+    val result = await(compressor.decompress(compressed))
 
-    decompressed should be (input)
-
+    result should be (input)
   }
 }
