@@ -28,7 +28,7 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -68,8 +68,7 @@ class DeadLetterHandler @Inject()
   }
 
   private def processMessage(message: Message) = {
-    val result = messageHandling.decompress(message.body)
-    result onComplete {
+    messageHandling.decompress(message.body) onComplete {
       case Success(m) =>
         logger.warn(
           s"""Dead letter message with
@@ -78,9 +77,7 @@ class DeadLetterHandler @Inject()
       case Failure(e) =>
         // if the decompress failed, log without message body
         logger.error(s"Could not decompress message with ID '${message.messageId}'", e)
-
     }
-    result.map(_ => Delete(message))
+    Future(Delete(message))
   }
-
 }
