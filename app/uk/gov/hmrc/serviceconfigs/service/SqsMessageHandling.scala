@@ -18,13 +18,24 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import java.util.Base64
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.{Compression, Sink, Source}
+import akka.util.ByteString
 import com.google.inject.Inject
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SqsMessageHandling @Inject()(compression: GzipCompression)(implicit executionContext: ExecutionContext) {
+class SqsMessageHandling @Inject()(implicit executionContext: ExecutionContext, materializer: Materializer) {
 
   private lazy val decoder = Base64.getDecoder
 
-  def decompress(message: String): Future[String] = compression.decompress(decoder.decode(message))
+  def decompress(message: String): Future[String] = decompress(decoder.decode(message))
+
+  private def decompress(compressedInput: Array[Byte]): Future[String] =
+    Source.single(ByteString.fromArray(compressedInput))
+      .via(Compression.gunzip())
+      .fold(ByteString.empty)(_ ++ _)
+      .map(_.utf8String)
+      .runWith(Sink.head)
+
 }
