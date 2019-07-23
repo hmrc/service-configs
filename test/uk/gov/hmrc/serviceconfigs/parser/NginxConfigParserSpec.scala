@@ -16,13 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
+import org.mockito.Mockito.when
 import org.scalatest.{FlatSpec, Matchers}
-import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
+import org.scalatestplus.mockito.MockitoSugar
+import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
 
-class NginxConfigParserSpec extends FlatSpec with Matchers {
+class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
 
+  val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", " /etc/nginx/switches/mdtp/")
+  when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
 
   "NginxConfigParser" should "parse regex routes" in {
 
@@ -39,7 +43,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://test-gateway.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(configRegex)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(configRegex)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
@@ -62,7 +66,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(configNormal)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)),
@@ -79,7 +83,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  return 204;
         |}""".stripMargin
 
-    val parsed = new NginxConfigParser(shutterConfig).parseConfig(config)
+    val parsed = new NginxConfigParser(nginxConfig).parseConfig(config)
 
     parsed shouldBe Right(Nil)
   }
@@ -96,7 +100,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  more_set_headers 'X-Content-Type-Options: nosniff';
         |  proxy_pass $s3_upstream;
         |}""".stripMargin
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
@@ -110,7 +114,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
@@ -126,11 +130,11 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
-    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)))
+    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)), shutterServiceSwitch = None)
   }
 
   it should "parse a shutter service switch" in {
@@ -143,12 +147,14 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
+    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
-      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")))
+      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")),
+      shutterKillswitch = None
+    )
   }
 
 }

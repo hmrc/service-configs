@@ -17,15 +17,15 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterKillswitch, MongoShutterServiceSwitch}
 
 
 case class FrontendRoute(
  frontendPath: String,
  backendPath: String,
- ruleConfigurationUrl: String = "",
  shutterKillswitch: Option[ShutterKillswitch] = None,
  shutterServiceSwitch: Option[ShutterServiceSwitch] = None,
+ ruleConfigurationUrl: String = "",
  isRegex: Boolean = false
 )
 
@@ -35,7 +35,15 @@ sealed trait ShutterSwitch {
 
 case class ShutterKillswitch(statusCode: Int) extends ShutterSwitch
 
+object ShutterKillswitch {
+  def fromMongo(m: MongoShutterKillswitch) = ShutterKillswitch(m.statusCode)
+}
+
 case class ShutterServiceSwitch(statusCode: Int, switchFile: String, errorPage: String) extends ShutterSwitch
+
+object ShutterServiceSwitch {
+  def fromMongo(m: MongoShutterServiceSwitch) = ShutterServiceSwitch(m.statusCode, m.switchFile, m.errorPage)
+}
 
 
 case class FrontendRoutes(
@@ -54,6 +62,8 @@ object FrontendRoute {
       frontendPath         = mfr.frontendPath,
       backendPath          = mfr.backendPath,
       ruleConfigurationUrl = mfr.ruleConfigurationUrl,
+      shutterKillswitch    = mfr.shutterKillswitch.map(ShutterKillswitch.fromMongo),
+      shutterServiceSwitch = mfr.shutterServiceSwitch.map(ShutterServiceSwitch.fromMongo),
       isRegex              = mfr.isRegex)
 }
 

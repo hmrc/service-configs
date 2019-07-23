@@ -124,6 +124,8 @@ class FrontendRouteRepoMongoSpec
       backendPath = "backendPath",
       environment = "environment",
       ruleConfigurationUrl = "",
+      shutterKillswitch = None,
+      shutterServiceSwitch = None,
       isRegex = isRegex,
       updateDate = DateTime.now(DateTimeZone.UTC)
     )

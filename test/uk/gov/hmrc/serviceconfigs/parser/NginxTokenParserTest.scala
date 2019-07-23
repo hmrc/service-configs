@@ -16,15 +16,19 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
+import org.mockito.Mockito.when
 import org.scalatest.{FlatSpec, Matchers}
-import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
+import org.scalatestplus.mockito.MockitoSugar
+import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
-class NginxTokenParserTest extends FlatSpec with Matchers{
+class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
 
   import Nginx._
 
-  val shutterConfig = NginxShutterConfig("/killswitch", "/serviceswitch")
-  val parser = new NginxConfigParser(shutterConfig)
+  val nginxConfig = mock[NginxConfig]
+  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
+  val parser = new NginxConfigParser(nginxConfig)
   import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN}
 
   "Parser" should "find location blocks without prefixes" in {

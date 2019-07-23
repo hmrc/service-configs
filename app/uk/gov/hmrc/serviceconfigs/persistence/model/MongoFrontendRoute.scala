@@ -22,17 +22,31 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 
 case class MongoFrontendRoute(
-  service     : String,
-  frontendPath: String,
-  backendPath : String,
-  environment : String,
-  ruleConfigurationUrl: String = "",
-  isRegex     : Boolean = false,
-  updateDate  : DateTime = DateTime.now)
+ service     : String,
+ frontendPath: String,
+ backendPath : String,
+ environment : String,
+ shutterKillswitch: Option[MongoShutterKillswitch] = None,
+ shutterServiceSwitch: Option[MongoShutterServiceSwitch] = None,
+ ruleConfigurationUrl: String = "",
+ isRegex     : Boolean = false,
+ updateDate  : DateTime = DateTime.now
+)
+
+sealed trait MongoShutterSwitch {
+  def statusCode: Int
+}
+
+case class MongoShutterKillswitch(statusCode: Int) extends MongoShutterSwitch
+
+case class MongoShutterServiceSwitch(statusCode: Int, switchFile: String, errorPage: String) extends MongoShutterSwitch
+
 
 object MongoFrontendRoute {
 
   implicit val dateFormat: Format[DateTime]         = ReactiveMongoFormats.dateTimeFormats
+  implicit val killswitchFormat: Format[MongoShutterKillswitch] = Json.format[MongoShutterKillswitch]
+  implicit val serviceSwitchFormat: Format[MongoShutterServiceSwitch] = Json.format[MongoShutterServiceSwitch]
   implicit val formats: OFormat[MongoFrontendRoute] = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
 
 }

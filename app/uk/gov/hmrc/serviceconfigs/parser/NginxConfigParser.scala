@@ -16,14 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
+import javax.inject.Inject
+import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
-class NginxConfigParser (shutterConfig: NginxShutterConfig) extends FrontendRouteParser {
+class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRouteParser {
+  val shutterConfig = nginxConfig.shutterConfig
+
   override def parseConfig(config: String): Either[String, Seq[FrontendRoute]] =
     NginxTokenParser(NginxLexer(config))
 
