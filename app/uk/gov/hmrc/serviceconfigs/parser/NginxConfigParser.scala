@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch, ShutterSwitch}
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -113,9 +113,39 @@ object NginxTokenParser extends Parsers {
     }
   }
 
+  def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterKillswitch] = {
+    val p = """\(-f/etc/nginx/switches/mdtp/offswitch\)"""
+
+    val maybeKillswitches = ifblocks.map(ib =>
+      if (ib.predicate.matches(p)) ib.body match {
+        case List(RETURN(code)) => Some(ShutterKillswitch(code))
+        case _ => None
+      } else None
+    )
+    maybeKillswitches.collectFirst { case Some(s) => s }
+  }
+
+  def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterServiceSwitch] = {
+    val p = """\(-f(/etc/nginx/switches/mdtp/[a-zA-Z0-9_-]+)\)""".r
+
+    val maybeShutterSwitches = ifblocks.map(ib =>
+      p.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
+        case List(ERROR_PAGE(_, errorPage), RETURN(retCode)) => Some(ShutterServiceSwitch(retCode, switch.group(1), errorPage))
+        case _ => None
+      })
+    )
+    maybeShutterSwitches.collectFirst { case Some(s) => s }
+  }
+
   def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
+    val ifs = loc.body.filter(_.isInstanceOf[IFBLOCK]).map(_.asInstanceOf[IFBLOCK])
+
+    val shutterKillswitch = extractKillSwitch(ifs)
+    val shutterServiceSwitch = extractShutterSwitch(ifs)
+
     loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
-      proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex)
+      proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
+        shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
     )
   }
 
@@ -128,7 +158,11 @@ object NginxTokenParser extends Parsers {
 
   trait PARAM extends NGINX_AST
 
+  case class ERROR_PAGE(code: Int, path: String) extends PARAM
+
   case class PROXY_PASS(url: String) extends PARAM
+
+  case class RETURN(code: Int) extends PARAM
 
   case class OTHER_PARAM(key: String, params: String*) extends PARAM
 
@@ -142,6 +176,8 @@ object NginxTokenParser extends Parsers {
 
   def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
     case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
+    case KEYWORD("return") ~ List(v) => RETURN(v.v.toInt)
+    case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.v.toInt, page.v)
     case kw ~ List(v) => OTHER_PARAM(kw.v, v.v)
     case kw ~ _ => OTHER_PARAM(kw.v)
   }

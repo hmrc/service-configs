@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
-import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
 
 class NginxConfigParserSpec extends FlatSpec with Matchers {
 
@@ -63,17 +63,19 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
     val eCfg = new NginxConfigParser().parseConfig(configNormal)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
-    cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local")
+    cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)),
+      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")))
   }
 
 
   it should "drop routes without a proxy_pass" in {
-    val config = """
-                  |location /users/dp-settings.js {
-                  |  more_set_headers 'Cache-Control: public';
-                  |  expires 3600;
-                  |  return 204;
-                  |}""".stripMargin
+    val config =
+      """
+        |location /users/dp-settings.js {
+        |  more_set_headers 'Cache-Control: public';
+        |  expires 3600;
+        |  return 204;
+        |}""".stripMargin
 
     val parsed = new NginxConfigParser().parseConfig(config)
 
@@ -82,27 +84,29 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
 
   it should "parse s3 proxy_pass routes" in {
 
-    val config = """
-                 |location /assets {
-                 |  more_set_headers 'Cache-Control: public';
-                 |  expires 3600;
-                 |  more_set_headers 'X-Frame-Options: DENY';
-                 |  more_set_headers 'X-XSS-Protection: 1; mode=block';
-                 |  more_set_headers 'X-Content-Type-Options: nosniff';
-                 |  proxy_pass $s3_upstream;
-                 |}""".stripMargin
+    val config =
+      """
+        |location /assets {
+        |  more_set_headers 'Cache-Control: public';
+        |  expires 3600;
+        |  more_set_headers 'X-Frame-Options: DENY';
+        |  more_set_headers 'X-XSS-Protection: 1; mode=block';
+        |  more_set_headers 'X-Content-Type-Options: nosniff';
+        |  proxy_pass $s3_upstream;
+        |}""".stripMargin
     val eCfg = new NginxConfigParser().parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
-    cfg.head shouldBe FrontendRoute("/assets","$s3_upstream")
+    cfg.head shouldBe FrontendRoute("/assets", "$s3_upstream")
   }
 
   it should "parse routes with set header params" in {
-    val config = """location /lol {
-                  |  proxy_set_header Host lol-frontend.public.local;
-                  |  proxy_pass https://lol-frontend.public.local;
-                  |}""".stripMargin
+    val config =
+      """location /lol {
+        |  proxy_set_header Host lol-frontend.public.local;
+        |  proxy_pass https://lol-frontend.public.local;
+        |}""".stripMargin
 
     val eCfg = new NginxConfigParser().parseConfig(config)
 
@@ -110,4 +114,39 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
   }
+
+  it should "parse a shutter killswitch" in {
+    val config =
+      """location /lol {
+        |  if ( -f /etc/nginx/switches/mdtp/offswitch )   {
+        |    return 503;
+        |  }
+        |  proxy_pass https://lol-frontend.public.local;
+        |}""".stripMargin
+
+    val eCfg = new NginxConfigParser().parseConfig(config)
+
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
+    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)))
+  }
+
+  it should "parse a shutter service switch" in {
+    val config =
+      """location /lol {
+        |  if ( -f /etc/nginx/switches/mdtp/test-client-mandate-frontend )   {
+        |    error_page 503 /shutter/mandate/index.html;
+        |    return 503;
+        |  }
+        |  proxy_pass https://lol-frontend.public.local;
+        |}""".stripMargin
+
+    val eCfg = new NginxConfigParser().parseConfig(config)
+
+    eCfg.isRight shouldBe true
+    val Right(cfg) = eCfg
+    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
+      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")))
+  }
+
 }

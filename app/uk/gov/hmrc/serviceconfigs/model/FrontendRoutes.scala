@@ -21,10 +21,22 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 
 case class FrontendRoute(
-  frontendPath        : String,
-  backendPath         : String,
-  ruleConfigurationUrl: String = "",
-  isRegex             : Boolean = false)
+ frontendPath: String,
+ backendPath: String,
+ ruleConfigurationUrl: String = "",
+ shutterKillswitch: Option[ShutterKillswitch] = None,
+ shutterServiceSwitch: Option[ShutterServiceSwitch] = None,
+ isRegex: Boolean = false
+)
+
+sealed trait ShutterSwitch {
+  def statusCode: Int
+}
+
+case class ShutterKillswitch(statusCode: Int) extends ShutterSwitch
+
+case class ShutterServiceSwitch(statusCode: Int, switchFile: String, errorPage: String) extends ShutterSwitch
+
 
 case class FrontendRoutes(
   service    : String,
@@ -33,6 +45,8 @@ case class FrontendRoutes(
 
 object FrontendRoute {
 
+  implicit val formatKillSwitch = Json.format[ShutterKillswitch]
+  implicit val formatServiceSwitch = Json.format[ShutterServiceSwitch]
   implicit val formats = Json.format[FrontendRoute]
 
   def fromMongo(mfr: MongoFrontendRoute) : FrontendRoute =
