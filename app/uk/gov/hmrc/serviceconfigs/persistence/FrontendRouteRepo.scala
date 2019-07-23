@@ -34,10 +34,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
-  extends ReactiveRepository[MongoFrontendRoute, BSONObjectID](
-    collectionName = "frontendRoutes",
-    mongo          = mongo.mongoConnector.db,
-    domainFormat   = MongoFrontendRoute.formats) {
+    extends ReactiveRepository[MongoFrontendRoute, BSONObjectID](
+      collectionName = "frontendRoutes",
+      mongo = mongo.mongoConnector.db,
+      domainFormat = MongoFrontendRoute.formats
+    ) {
 
   import MongoFrontendRoute._
   import ExecutionContext.Implicits.global
@@ -46,24 +47,37 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     Seq(
       Index(
         Seq("frontendPath" -> IndexType.Hashed),
-        name       = Some("frontendPathIdx"),
-        background = true),
+        name = Some("frontendPathIdx"),
+        background = true
+      ),
       Index(
         Seq("service" -> IndexType.Hashed),
-        name       = Some("serviceIdx"),
-        background = true))
-
+        name = Some("serviceIdx"),
+        background = true
+      )
+    )
 
   def update(frontendRoute: MongoFrontendRoute): Future[MongoFrontendRoute] = {
-    logger.debug(s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}")
+    logger.debug(
+      s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
+    )
     val s = Json.obj(
       "service" -> Json.toJson[String](frontendRoute.service),
       "environment" -> Json.toJson[String](frontendRoute.environment),
-      "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath))
+      "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath)
+    )
 
-    collection.update(selector = s, update = frontendRoute, upsert = true)
+    collection
+      .update(ordered = false)
+      .one(q = s, u = frontendRoute, upsert = true)
       .map(_ => frontendRoute)
-      .recover { case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError) }
+      .recover {
+        case lastError =>
+          throw new RuntimeException(
+            s"failed to persist frontendRoute $frontendRoute",
+            lastError
+          )
+      }
   }
 
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
@@ -79,21 +93,26 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
         .cursor[MongoFrontendRoute]()
         .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
         .map { res =>
-            logger.info(s"query $query returned ${res.size} results")
-            res
-          }
+          logger.info(s"query $query returned ${res.size} results")
+          res
+        }
 
-    FrontendRouteRepo.queries(path)
+    FrontendRouteRepo
+      .queries(path)
       .toIterable
-      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty){ (prevRes, query) =>
-        if (prevRes.isEmpty) search(query)
-        else Future(prevRes)
+      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) {
+        (prevRes, query) =>
+          if (prevRes.isEmpty) search(query)
+          else Future(prevRes)
       }
   }
 
   def findByService(service: String): Future[Seq[MongoFrontendRoute]] =
     collection
-      .find[JsObject, MongoFrontendRoute](Json.obj("service" -> Json.toJson[String](service)), None)
+      .find[JsObject, MongoFrontendRoute](
+        Json.obj("service" -> Json.toJson[String](service)),
+        None
+      )
       .cursor[MongoFrontendRoute]()
       .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
 
@@ -109,15 +128,16 @@ object FrontendRouteRepo {
     paths
       .map(_.replace("-", "(-|\\\\-)")) // '-' is escaped in regex expression
       .mkString(
-        "^(\\^)?(\\/)?",  // match from beginning, tolerating [^/]. match
-        "\\/",          // path segment separator
-        "(\\/|$)")       // match until end, or '/''
+        "^(\\^)?(\\/)?", // match from beginning, tolerating [^/]. match
+        "\\/", // path segment separator
+        "(\\/|$)"
+      ) // match until end, or '/''
 
   def toQuery(paths: Seq[String]): JsObject =
     Json.obj(
-      "frontendPath" -> Json.obj(
-      "$regex"   -> pathsToRegex(paths),
-      "$options" -> "i")) // case insensitive
+      "frontendPath" -> Json
+        .obj("$regex" -> pathsToRegex(paths), "$options" -> "i")
+    ) // case insensitive
 
   def queries(path: String): Seq[JsObject] =
     path

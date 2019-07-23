@@ -18,34 +18,39 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.joda.time.{DateTime, DateTimeZone}
 import org.mockito.Mockito.when
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
+import org.scalatestplus.mockito.MockitoSugar
 import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.{FailOnUnindexedQueries, MongoConnector, MongoSpecSupport, RepositoryPreparation}
+import uk.gov.hmrc.mongo.{
+  MongoConnector,
+  MongoSpecSupport,
+  RepositoryPreparation
+}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class FrontendRouteRepoMongoSpec
     extends WordSpecLike
-       with Matchers
-       with MongoSpecSupport
-       with ScalaFutures
-       with BeforeAndAfterEach
-       with MockitoSugar
-       //with FailOnUnindexedQueries
-       with RepositoryPreparation {
+    with Matchers
+    with MongoSpecSupport
+    with ScalaFutures
+    with BeforeAndAfterEach
+    with MockitoSugar
+    //with FailOnUnindexedQueries
+    with RepositoryPreparation {
 
   import ExecutionContext.Implicits.global
 
-  val reactiveMongoComponent: ReactiveMongoComponent = new ReactiveMongoComponent {
-    override val mongoConnector = {
-      val mc = mock[MongoConnector]
-      when(mc.db).thenReturn(mongo)
-      mc
+  val reactiveMongoComponent: ReactiveMongoComponent =
+    new ReactiveMongoComponent {
+      override val mongoConnector = {
+        val mc = mock[MongoConnector]
+        when(mc.db).thenReturn(mongo)
+        mc
+      }
     }
-  }
 
   val frontendRouteRepo = new FrontendRouteRepo(reactiveMongoComponent)
 
@@ -83,7 +88,6 @@ class FrontendRouteRepoMongoSpec
     }
   }
 
-
   "FrontendRouteRepo.searchByFrontendPath" should {
     "return only routes with the path" in {
       await(addFrontendRoutes("a", "b"))
@@ -96,7 +100,11 @@ class FrontendRouteRepoMongoSpec
       await(addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb"))
 
       val service1Entries = await(frontendRouteRepo.searchByFrontendPath("a/b"))
-      service1Entries.map(_.frontendPath).toList.sorted shouldBe List("a/b", "a/b/c", "a/b/d")
+      service1Entries.map(_.frontendPath).toList.sorted shouldBe List(
+        "a/b",
+        "a/b/c",
+        "a/b/d"
+      )
     }
 
     "return routes with the parent path if no match" in {
@@ -107,18 +115,25 @@ class FrontendRouteRepoMongoSpec
     }
   }
 
-
-  def newFrontendRoute(service: String = "service", frontendPath: String = "frontendPath", isRegex: Boolean = true) =
+  def newFrontendRoute(service: String = "service",
+                       frontendPath: String = "frontendPath",
+                       isRegex: Boolean = true) =
     MongoFrontendRoute(
-        service      = service,
-        frontendPath = frontendPath,
-        backendPath  = "backendPath",
-        environment  = "environment",
-        ruleConfigurationUrl = "",
-        isRegex      = isRegex,
-        updateDate   = DateTime.now(DateTimeZone.UTC))
+      service = service,
+      frontendPath = frontendPath,
+      backendPath = "backendPath",
+      environment = "environment",
+      ruleConfigurationUrl = "",
+      isRegex = isRegex,
+      updateDate = DateTime.now(DateTimeZone.UTC)
+    )
 
   def addFrontendRoutes(path: String*): Future[Unit] =
-    Future.sequence(path.map(p => frontendRouteRepo.update(newFrontendRoute(frontendPath = p))))
+    Future
+      .sequence(
+        path.map(
+          p => frontendRouteRepo.update(newFrontendRoute(frontendPath = p))
+        )
+      )
       .map(_ => ())
 }

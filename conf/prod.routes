@@ -1,5 +1,6 @@
 # Add all the application routes to the app.routes file
-->         /                          app.Routes
-->         /                          health.Routes
+->         /service-configs/swagger/        swagger.Routes
+->         /                                app.Routes
+->         /                                health.Routes
 
-GET        /admin/metrics             com.kenshoo.play.metrics.MetricsController.metrics
+GET        /admin/metrics                   com.kenshoo.play.metrics.MetricsController.metrics

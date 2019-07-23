@@ -29,10 +29,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DependencyConfigRepository @Inject()(mongo: ReactiveMongoComponent)
-  extends ReactiveRepository[DependencyConfig, BSONObjectID](
-    collectionName = "dependencyConfigs",
-    mongo          = mongo.mongoConnector.db,
-    domainFormat   = MongoSlugInfoFormats.dcFormat){
+    extends ReactiveRepository[DependencyConfig, BSONObjectID](
+      collectionName = "dependencyConfigs",
+      mongo = mongo.mongoConnector.db,
+      domainFormat = MongoSlugInfoFormats.dcFormat
+    ) {
 
   implicit val mf = MongoSlugInfoFormats.dcFormat
   import ExecutionContext.Implicits.global
@@ -40,27 +41,28 @@ class DependencyConfigRepository @Inject()(mongo: ReactiveMongoComponent)
   override def indexes: Seq[Index] =
     Seq(
       Index(
-          Seq(
-              "group"    -> IndexType.Ascending
-            , "artefact" -> IndexType.Ascending
-            , "version"  -> IndexType.Ascending
-            )
-        , name   = Some("dependencyConfigUniqueIdx")
-        , unique = true
-        )
+        Seq(
+          "group" -> IndexType.Ascending,
+          "artefact" -> IndexType.Ascending,
+          "version" -> IndexType.Ascending
+        ),
+        name = Some("dependencyConfigUniqueIdx"),
+        unique = true
+      )
     )
 
   def add(dependencyConfig: DependencyConfig): Future[Boolean] =
     collection
-      .update(
-        selector = Json.obj(
-            "group"    -> Json.toJson(dependencyConfig.group)
-          , "artefact" -> Json.toJson(dependencyConfig.artefact)
-          , "version"  -> Json.toJson(dependencyConfig.version)
-          )
-        , update   = dependencyConfig
-        , upsert   = true
-        )
+      .update(ordered = false)
+      .one(
+        q = Json.obj(
+          "group" -> Json.toJson(dependencyConfig.group),
+          "artefact" -> Json.toJson(dependencyConfig.artefact),
+          "version" -> Json.toJson(dependencyConfig.version)
+        ),
+        u = dependencyConfig,
+        upsert = true
+      )
       .map(_.ok)
 
   def getAllEntries: Future[Seq[DependencyConfig]] =
@@ -69,11 +71,9 @@ class DependencyConfigRepository @Inject()(mongo: ReactiveMongoComponent)
   def clearAllData: Future[Boolean] =
     super.removeAll().map(_.ok)
 
-  def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
-    find(
-        "group"    -> group
-      , "artefact" -> artefact
-      , "version"  -> version
-      )
+  def getDependencyConfig(group: String,
+                          artefact: String,
+                          version: String): Future[Option[DependencyConfig]] =
+    find("group" -> group, "artefact" -> artefact, "version" -> version)
       .map(_.headOption)
 }
