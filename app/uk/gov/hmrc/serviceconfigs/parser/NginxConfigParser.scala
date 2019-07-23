@@ -25,7 +25,123 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 class NginxConfigParser (shutterConfig: NginxShutterConfig) extends FrontendRouteParser {
   override def parseConfig(config: String): Either[String, Seq[FrontendRoute]] =
-    NginxTokenParser(NginxLexer(config), shutterConfig)
+    NginxTokenParser(NginxLexer(config))
+
+  object NginxTokenParser extends Parsers {
+
+    import Nginx._
+
+    override type Elem = NginxToken
+
+    class NginxTokenReader(tokens: Seq[NginxToken]) extends Reader[NginxToken] {
+      override def first: NginxToken = tokens.head
+
+      override def rest: Reader[NginxToken] = new NginxTokenReader(tokens.tail)
+
+      override def pos: Position = NoPosition
+
+      override def atEnd: Boolean = tokens.isEmpty
+    }
+
+
+    def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] = {
+      val reader = new NginxTokenReader(tokens.filterNot(_.isInstanceOf[COMMENT]))
+      configFile(reader) match {
+        case Success(result, _) => Right(result.flatMap {
+          case l: LOCATION => locToRoute(l)
+          case _           => None
+        })
+        case Failure(msg, _)    => Left(s"Failed to parse nginx config: $msg")
+        case Error(msg, _)      => Left(s"Error while to parsing nginx config: $msg")
+      }
+    }
+
+    def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterKillswitch] = {
+      val maybeKillswitches = ifblocks.map(ib =>
+        if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) ib.body match {
+          case List(RETURN(code)) => Some(ShutterKillswitch(code))
+          case _ => None
+        } else None
+      )
+      maybeKillswitches.collectFirst { case Some(s) => s }
+    }
+
+    def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterServiceSwitch] = {
+      val p = """\(-f(""" + shutterConfig.shutterServiceSwitchPathPrefix.trim + """[a-zA-Z0-9_-]+)\)"""
+
+      val maybeShutterSwitches = ifblocks.map(ib =>
+        p.r.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
+          case List(ERROR_PAGE(_, errorPage), RETURN(retCode)) => Some(ShutterServiceSwitch(retCode, switch.group(1), errorPage))
+          case _ => None
+        })
+      )
+      maybeShutterSwitches.collectFirst { case Some(s) => s }
+    }
+
+    def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
+      val ifs = loc.body.filter(_.isInstanceOf[IFBLOCK]).map(_.asInstanceOf[IFBLOCK])
+
+      val shutterKillswitch = extractKillSwitch(ifs)
+      val shutterServiceSwitch = extractShutterSwitch(ifs)
+
+      loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
+        proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
+          shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
+      )
+    }
+
+
+    sealed trait NGINX_AST
+
+    case class LOCATION(path: String, body: List[NGINX_AST], regex: Boolean = false) extends NGINX_AST
+
+    case class IFBLOCK(predicate: String, body: List[NGINX_AST]) extends NGINX_AST
+
+    trait PARAM extends NGINX_AST
+
+    case class ERROR_PAGE(code: Int, path: String) extends PARAM
+
+    case class PROXY_PASS(url: String) extends PARAM
+
+    case class RETURN(code: Int) extends PARAM
+
+    case class OTHER_PARAM(key: String, params: String*) extends PARAM
+
+    case class COMMENT_LINE() extends NGINX_AST
+
+    def keyword: Parser[KEYWORD] =
+      accept("keyword", { case lit@KEYWORD(_) => lit })
+
+    def value: Parser[VALUE] =
+      accept("value", { case v@VALUE(_) => v })
+
+    def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
+      case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
+      case KEYWORD("return") ~ List(v) => RETURN(v.v.toInt)
+      case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.v.toInt, page.v)
+      case kw ~ List(v) => OTHER_PARAM(kw.v, v.v)
+      case kw ~ _ => OTHER_PARAM(kw.v)
+    }
+
+    def parameter2: Parser[PARAM] = (keyword ~ keyword ~ rep(value) <~ SEMICOLON()) ^^ {
+      case kw ~ p1 ~ List(v) => OTHER_PARAM(kw.v, p1.v ++ v.v)
+    }
+
+    def parameter: Parser[PARAM] = parameter1 | parameter2
+
+    def block: Parser[List[NGINX_AST]] = rep1(parameter | context)
+
+    def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
+      case KEYWORD("location") ~  List(v) ~ _ ~ b ~ _ => LOCATION(v.v, b)
+      case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.v, b, regex = true)
+      case KEYWORD("if") ~ cond ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.v).mkString, b)
+    }
+
+
+    def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
+  }
+
+
 }
 
 object Nginx {
@@ -85,116 +201,3 @@ object NginxLexer extends RegexParsers {
   }
 }
 
-object NginxTokenParser extends Parsers {
-
-  import Nginx._
-
-  override type Elem = NginxToken
-
-  class NginxTokenReader(tokens: Seq[NginxToken]) extends Reader[NginxToken] {
-    override def first: NginxToken = tokens.head
-
-    override def rest: Reader[NginxToken] = new NginxTokenReader(tokens.tail)
-
-    override def pos: Position = NoPosition
-
-    override def atEnd: Boolean = tokens.isEmpty
-  }
-
-
-  def apply(tokens: Seq[NginxToken], shutterConfig: NginxShutterConfig): Either[String, List[FrontendRoute]] = {
-    val reader = new NginxTokenReader(tokens.filterNot(_.isInstanceOf[COMMENT]))
-    configFile(reader) match {
-      case Success(result, _) => Right(result.flatMap {
-                                   case l: LOCATION => locToRoute(l)(shutterConfig)
-                                   case _           => None
-                                 })
-      case Failure(msg, _)    => Left(s"Failed to parse nginx config: $msg")
-      case Error(msg, _)      => Left(s"Error while to parsing nginx config: $msg")
-    }
-  }
-
-  def extractKillSwitch(ifblocks: List[IFBLOCK])(shutterConfig: NginxShutterConfig): Option[ShutterKillswitch] = {
-    val maybeKillswitches = ifblocks.map(ib =>
-      if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) ib.body match {
-        case List(RETURN(code)) => Some(ShutterKillswitch(code))
-        case _ => None
-      } else None
-    )
-    maybeKillswitches.collectFirst { case Some(s) => s }
-  }
-
-  def extractShutterSwitch(ifblocks: List[IFBLOCK])(shutterConfig: NginxShutterConfig): Option[ShutterServiceSwitch] = {
-    val p = """\(-f(""" + shutterConfig.shutterServiceSwitchPathPrefix.trim + """[a-zA-Z0-9_-]+)\)"""
-
-    val maybeShutterSwitches = ifblocks.map(ib =>
-      p.r.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
-        case List(ERROR_PAGE(_, errorPage), RETURN(retCode)) => Some(ShutterServiceSwitch(retCode, switch.group(1), errorPage))
-        case _ => None
-      })
-    )
-    maybeShutterSwitches.collectFirst { case Some(s) => s }
-  }
-
-  def locToRoute(loc: LOCATION)(shutterConfig: NginxShutterConfig): Option[FrontendRoute] = {
-    val ifs = loc.body.filter(_.isInstanceOf[IFBLOCK]).map(_.asInstanceOf[IFBLOCK])
-
-    val shutterKillswitch = extractKillSwitch(ifs)(shutterConfig)
-    val shutterServiceSwitch = extractShutterSwitch(ifs)(shutterConfig)
-
-    loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
-      proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
-        shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
-    )
-  }
-
-
-  sealed trait NGINX_AST
-
-  case class LOCATION(path: String, body: List[NGINX_AST], regex: Boolean = false) extends NGINX_AST
-
-  case class IFBLOCK(predicate: String, body: List[NGINX_AST]) extends NGINX_AST
-
-  trait PARAM extends NGINX_AST
-
-  case class ERROR_PAGE(code: Int, path: String) extends PARAM
-
-  case class PROXY_PASS(url: String) extends PARAM
-
-  case class RETURN(code: Int) extends PARAM
-
-  case class OTHER_PARAM(key: String, params: String*) extends PARAM
-
-  case class COMMENT_LINE() extends NGINX_AST
-
-  def keyword: Parser[KEYWORD] =
-    accept("keyword", { case lit@KEYWORD(_) => lit })
-
-  def value: Parser[VALUE] =
-    accept("value", { case v@VALUE(_) => v })
-
-  def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
-    case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
-    case KEYWORD("return") ~ List(v) => RETURN(v.v.toInt)
-    case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.v.toInt, page.v)
-    case kw ~ List(v) => OTHER_PARAM(kw.v, v.v)
-    case kw ~ _ => OTHER_PARAM(kw.v)
-  }
-
-  def parameter2: Parser[PARAM] = (keyword ~ keyword ~ rep(value) <~ SEMICOLON()) ^^ {
-    case kw ~ p1 ~ List(v) => OTHER_PARAM(kw.v, p1.v ++ v.v)
-  }
-
-  def parameter: Parser[PARAM] = parameter1 | parameter2
-
-  def block: Parser[List[NGINX_AST]] = rep1(parameter | context)
-
-  def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
-    case KEYWORD("location") ~  List(v) ~ _ ~ b ~ _ => LOCATION(v.v, b)
-    case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.v, b, regex = true)
-    case KEYWORD("if") ~ cond ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.v).mkString, b)
-  }
-
-
-  def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
-}
