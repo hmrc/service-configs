@@ -17,10 +17,12 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
 import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
 
 class NginxConfigParserSpec extends FlatSpec with Matchers {
 
+  val shutterConfig = NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", " /etc/nginx/switches/mdtp/")
 
   "NginxConfigParser" should "parse regex routes" in {
 
@@ -37,7 +39,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://test-gateway.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser().parseConfig(configRegex)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(configRegex)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
@@ -60,7 +62,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    val eCfg = new NginxConfigParser().parseConfig(configNormal)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(configNormal)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)),
@@ -77,7 +79,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  return 204;
         |}""".stripMargin
 
-    val parsed = new NginxConfigParser().parseConfig(config)
+    val parsed = new NginxConfigParser(shutterConfig).parseConfig(config)
 
     parsed shouldBe Right(Nil)
   }
@@ -94,7 +96,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  more_set_headers 'X-Content-Type-Options: nosniff';
         |  proxy_pass $s3_upstream;
         |}""".stripMargin
-    val eCfg = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
@@ -108,7 +110,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
@@ -124,7 +126,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
@@ -141,7 +143,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers {
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser().parseConfig(config)
+    val eCfg = new NginxConfigParser(shutterConfig).parseConfig(config)
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg

@@ -16,15 +16,16 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch, ShutterSwitch}
+import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
+import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
-class NginxConfigParser extends FrontendRouteParser {
+class NginxConfigParser (shutterConfig: NginxShutterConfig) extends FrontendRouteParser {
   override def parseConfig(config: String): Either[String, Seq[FrontendRoute]] =
-    NginxTokenParser(NginxLexer(config))
+    NginxTokenParser(NginxLexer(config), shutterConfig)
 }
 
 object Nginx {
@@ -101,11 +102,11 @@ object NginxTokenParser extends Parsers {
   }
 
 
-  def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] = {
+  def apply(tokens: Seq[NginxToken], shutterConfig: NginxShutterConfig): Either[String, List[FrontendRoute]] = {
     val reader = new NginxTokenReader(tokens.filterNot(_.isInstanceOf[COMMENT]))
     configFile(reader) match {
       case Success(result, _) => Right(result.flatMap {
-                                   case l: LOCATION => locToRoute(l)
+                                   case l: LOCATION => locToRoute(l)(shutterConfig)
                                    case _           => None
                                  })
       case Failure(msg, _)    => Left(s"Failed to parse nginx config: $msg")
@@ -113,11 +114,9 @@ object NginxTokenParser extends Parsers {
     }
   }
 
-  def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterKillswitch] = {
-    val p = """\(-f/etc/nginx/switches/mdtp/offswitch\)"""
-
+  def extractKillSwitch(ifblocks: List[IFBLOCK])(shutterConfig: NginxShutterConfig): Option[ShutterKillswitch] = {
     val maybeKillswitches = ifblocks.map(ib =>
-      if (ib.predicate.matches(p)) ib.body match {
+      if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) ib.body match {
         case List(RETURN(code)) => Some(ShutterKillswitch(code))
         case _ => None
       } else None
@@ -125,11 +124,11 @@ object NginxTokenParser extends Parsers {
     maybeKillswitches.collectFirst { case Some(s) => s }
   }
 
-  def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterServiceSwitch] = {
-    val p = """\(-f(/etc/nginx/switches/mdtp/[a-zA-Z0-9_-]+)\)""".r
+  def extractShutterSwitch(ifblocks: List[IFBLOCK])(shutterConfig: NginxShutterConfig): Option[ShutterServiceSwitch] = {
+    val p = """\(-f(""" + shutterConfig.shutterServiceSwitchPathPrefix.trim + """[a-zA-Z0-9_-]+)\)"""
 
     val maybeShutterSwitches = ifblocks.map(ib =>
-      p.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
+      p.r.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
         case List(ERROR_PAGE(_, errorPage), RETURN(retCode)) => Some(ShutterServiceSwitch(retCode, switch.group(1), errorPage))
         case _ => None
       })
@@ -137,11 +136,11 @@ object NginxTokenParser extends Parsers {
     maybeShutterSwitches.collectFirst { case Some(s) => s }
   }
 
-  def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
+  def locToRoute(loc: LOCATION)(shutterConfig: NginxShutterConfig): Option[FrontendRoute] = {
     val ifs = loc.body.filter(_.isInstanceOf[IFBLOCK]).map(_.asInstanceOf[IFBLOCK])
 
-    val shutterKillswitch = extractKillSwitch(ifs)
-    val shutterServiceSwitch = extractShutterSwitch(ifs)
+    val shutterKillswitch = extractKillSwitch(ifs)(shutterConfig)
+    val shutterServiceSwitch = extractShutterSwitch(ifs)(shutterConfig)
 
     loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
       proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,

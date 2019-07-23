@@ -17,26 +17,35 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.{FlatSpec, Matchers}
+import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
-import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS}
+import uk.gov.hmrc.serviceconfigs.parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN}
 class NginxTokenParserTest extends FlatSpec with Matchers{
 
   import Nginx._
 
+  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe Right(List(FrontendRoute("/test", "http://www.com/123")))
+    NginxTokenParser(tokens, shutterConfig) shouldBe Right(List(FrontendRoute("/test", "http://www.com/123")))
   }
 
   it should "parse return blocks with strings" in {
-    val tokens = List(KEYWORD("return"), VALUE("404"), VALUE("\"1"), VALUE("2"), VALUE("3\"") , SEMICOLON())
+    val tokens = List(KEYWORD("return"), VALUE("404"), SEMICOLON())
     val reader = new NginxTokenReader(tokens)
-    NginxTokenParser.parameter(reader).get shouldBe OTHER_PARAM("return")
+    NginxTokenParser.parameter(reader).get shouldBe RETURN(404)
   }
 
   it should "parse location blocks with prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("~"),  VALUE("/test/(test|dogs)"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
-    NginxTokenParser(tokens) shouldBe Right(List(FrontendRoute("/test/(test|dogs)", "http://www.com/123", isRegex = true)))
+    NginxTokenParser(tokens, shutterConfig) shouldBe Right(List(FrontendRoute("/test/(test|dogs)", "http://www.com/123", isRegex = true)))
+  }
+
+  it should "parse error_page parameters" in {
+    val tokens : Seq[NginxToken] = Seq(KEYWORD("error_page"), VALUE("503"),  VALUE("/test"), SEMICOLON())
+    val reader = new NginxTokenReader(tokens)
+    NginxTokenParser.parameter(reader).get shouldBe ERROR_PAGE(503, "/test")
   }
 
   it should "parse proxy_pass parameters" in {
@@ -53,12 +62,12 @@ class NginxTokenParserTest extends FlatSpec with Matchers{
 
   "locToRoute" should "set the regex flag is the location contains a regex value" in {
     val location = LOCATION(path = "/test/a.+", body = List(PROXY_PASS("http://www.com")), regex = true)
-    NginxTokenParser.locToRoute(location) shouldBe Some(FrontendRoute("/test/a.+", "http://www.com", isRegex = true))
+    NginxTokenParser.locToRoute(location)(shutterConfig) shouldBe Some(FrontendRoute("/test/a.+", "http://www.com", isRegex = true))
   }
 
   it should "not set the regex flag on non-regex routes" in {
     val location = LOCATION(path = "/test/a",  body = List(PROXY_PASS("http://www.com")))
-    NginxTokenParser.locToRoute(location) shouldBe Some(FrontendRoute("/test/a", "http://www.com", isRegex = false))
+    NginxTokenParser.locToRoute(location)(shutterConfig) shouldBe Some(FrontendRoute("/test/a", "http://www.com", isRegex = false))
   }
 
 }

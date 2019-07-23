@@ -22,10 +22,18 @@ import play.api.Configuration
 @Singleton
 class NginxConfig @Inject()(configuration: Configuration) {
 
-  val configRepo: String         = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
-  val frontendConfigFile: String = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
+  val configRepo: String                      = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
+  val frontendConfigFile: String              = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
 
-  val schedulerEnabled: Boolean  = configuration.getOptional[Boolean](s"nginx.reload.enabled").getOrElse(false)
-  val schedulerDelay: Long       = configuration.getOptional[Long](s"nginx.reload.intervalminutes").getOrElse(20)
+  val shutterConfig = {
+    val ks = configuration.getOptional[String]("nginx.shutter-killswitch-path").getOrElse("/etc/nginx/switches/mdtp/offswitch")
+    val ss = configuration.getOptional[String]("nginx.shutter-serviceswitch-path-prefix").getOrElse("/etc/nginx/switches/mdtp/")
+    NginxShutterConfig(ks, ss)
+  }
+
+  val schedulerEnabled: Boolean               = configuration.getOptional[Boolean](s"nginx.reload.enabled").getOrElse(false)
+  val schedulerDelay: Long                    = configuration.getOptional[Long](s"nginx.reload.intervalminutes").getOrElse(20)
 
 }
+
+case class NginxShutterConfig(shutterKillswitchPath: String, shutterServiceSwitchPathPrefix: String)

@@ -22,6 +22,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.mongo.Awaiting
+import uk.gov.hmrc.serviceconfigs.config.NginxShutterConfig
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
@@ -37,6 +38,9 @@ class NginxServiceSpec
     with Matchers
     with MockitoSugar
     with Awaiting {
+
+
+  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
 
   "urlToService" should "extract the service name from url" in {
     val url = "https://test-service.public.local"
@@ -57,7 +61,8 @@ class NginxServiceSpec
   "update" should "parse configs and save result" in {
 
     val repo = mock[FrontendRouteRepo]
-    val parser = new NginxConfigParser
+
+    val parser = new NginxConfigParser(shutterConfig)
     val connector = mock[NginxConfigConnector]
     val lock = new MongoLock(mock[ReactiveMongoComponent]) {
       override def tryLock[T](
@@ -89,7 +94,7 @@ class NginxServiceSpec
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {
 
-    val parser = new NginxConfigParser()
+    val parser = new NginxConfigParser(shutterConfig)
 
     val configFile = NginxConfigFile(environment = "dev", "", testConfig)
     val eResult = NginxService.parseConfig(parser, configFile)
