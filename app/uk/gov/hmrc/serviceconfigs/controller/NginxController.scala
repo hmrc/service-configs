@@ -49,6 +49,21 @@ class NginxController @Inject()(db: FrontendRouteRepo,
   }
 
   @ApiOperation(
+    value = "Retrieves nginx route config for the given environment",
+    notes =
+      """The nginx rules are extracted from the mdtp-frontend-routes repo"""
+  )
+  def searchByEnvironment(
+                           @ApiParam(value = "The environment to query") environment: String
+                         ) = Action.async { implicit request =>
+    db.findAllRoutes()
+      .map(_.filter(_.environment == environment))
+      .map(FrontendRoutes.fromMongo)
+      .map(routes => Json.toJson(routes))
+      .map(Ok(_))
+  }
+
+  @ApiOperation(
     value =
       "Retrieves nginx route config after doing a search for the given frontEnd path",
     notes =
@@ -62,4 +77,5 @@ class NginxController @Inject()(db: FrontendRouteRepo,
       .map(routes => Json.toJson(routes))
       .map(Ok(_))
   }
+
 }
