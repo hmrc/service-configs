@@ -22,12 +22,18 @@ import play.api.Configuration
 class NginxConfigSpec extends FunSpec with Matchers {
 
   describe("nginx config") {
+    it("should fail-fast if config is missing") {
+      val error = intercept[RuntimeException] {
+        new NginxConfig(Configuration())
+      }
+      error.getMessage.contains("not specified") shouldBe true
+    }
     it("should load the config") {
       val nginxConfig =
         new NginxConfig(
           Configuration(
             "nginx.config-repo" -> "repo",
-            "nginx.config-file"   -> "file",
+            "nginx.config-file" -> "file",
             "nginx.reload.enabled" -> true,
             "nginx.reload.intervalminutes" -> 25,
             "nginx.shutter-killswitch-path" -> "killswitch",
