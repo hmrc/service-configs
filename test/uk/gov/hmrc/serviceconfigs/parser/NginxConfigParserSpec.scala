@@ -69,8 +69,8 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
     val eCfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal)
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
-    cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)),
-      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")))
+    cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(Some(503))),
+      shutterServiceSwitch = Some(ShutterServiceSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None )))
   }
 
 
@@ -134,7 +134,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
 
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
-    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(503)), shutterServiceSwitch = None)
+    cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterKillswitch(Some(503))), shutterServiceSwitch = None)
   }
 
   it should "parse a shutter service switch" in {
@@ -152,7 +152,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
-      shutterServiceSwitch = Some(ShutterServiceSwitch(503, "/etc/nginx/switches/mdtp/test-client-mandate-frontend", "/shutter/mandate/index.html")),
+      shutterServiceSwitch = Some(ShutterServiceSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None)),
       shutterKillswitch = None
     )
   }

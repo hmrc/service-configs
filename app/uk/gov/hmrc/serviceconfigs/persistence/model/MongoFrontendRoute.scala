@@ -22,24 +22,24 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 
 case class MongoFrontendRoute(
- service     : String,
- frontendPath: String,
- backendPath : String,
- environment : String,
- shutterKillswitch: Option[MongoShutterKillswitch] = None,
- shutterServiceSwitch: Option[MongoShutterServiceSwitch] = None,
- ruleConfigurationUrl: String = "",
- isRegex     : Boolean = false,
- updateDate  : DateTime = DateTime.now
+  service     : String,
+  frontendPath: String,
+  backendPath : String,
+  environment : String,
+  shutterKillswitch: Option[MongoShutterKillswitch] = None,
+  shutterServiceSwitch: Option[MongoShutterServiceSwitch] = None,
+  ruleConfigurationUrl: String = "",
+  isRegex     : Boolean = false,
+  updateDate  : DateTime = DateTime.now
 )
 
 sealed trait MongoShutterSwitch {
-  def statusCode: Int
+  def statusCode: Option[Int]
 }
 
-case class MongoShutterKillswitch(statusCode: Int) extends MongoShutterSwitch
+case class MongoShutterKillswitch(statusCode: Option[Int]) extends MongoShutterSwitch
 
-case class MongoShutterServiceSwitch(statusCode: Int, switchFile: String, errorPage: String) extends MongoShutterSwitch
+case class MongoShutterServiceSwitch(switchFile: String, statusCode: Option[Int], errorPage: Option[String], rewriteRule: Option[String]) extends MongoShutterSwitch
 
 
 object MongoFrontendRoute {

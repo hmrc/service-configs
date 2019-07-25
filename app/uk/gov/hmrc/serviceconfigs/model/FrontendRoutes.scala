@@ -30,19 +30,19 @@ case class FrontendRoute(
 )
 
 sealed trait ShutterSwitch {
-  def statusCode: Int
+  def statusCode: Option[Int]
 }
 
-case class ShutterKillswitch(statusCode: Int) extends ShutterSwitch
+case class ShutterKillswitch(statusCode: Option[Int]) extends ShutterSwitch
 
 object ShutterKillswitch {
   def fromMongo(m: MongoShutterKillswitch) = ShutterKillswitch(m.statusCode)
 }
 
-case class ShutterServiceSwitch(statusCode: Int, switchFile: String, errorPage: String) extends ShutterSwitch
+case class ShutterServiceSwitch(switchFile: String, statusCode: Option[Int], errorPage: Option[String], rewriteRule: Option[String]) extends ShutterSwitch
 
 object ShutterServiceSwitch {
-  def fromMongo(m: MongoShutterServiceSwitch) = ShutterServiceSwitch(m.statusCode, m.switchFile, m.errorPage)
+  def fromMongo(m: MongoShutterServiceSwitch) = ShutterServiceSwitch(m.switchFile, m.statusCode, m.errorPage, m.rewriteRule)
 }
 
 

@@ -62,7 +62,7 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterKillswitch] = {
       val maybeKillswitches = ifblocks.map(ib =>
         if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) ib.body match {
-          case List(RETURN(code)) => Some(ShutterKillswitch(code))
+          case List(RETURN(code, _)) => Some(ShutterKillswitch(Some(code)))
           case _ => None
         } else None
       )
@@ -72,10 +72,13 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterServiceSwitch] = {
       val p = """\(-f(""" + shutterConfig.shutterServiceSwitchPathPrefix.trim + """[a-zA-Z0-9_-]+)\)"""
 
-      val maybeShutterSwitches = ifblocks.map(ib =>
+      val maybeShutterSwitches = ifblocks.filterNot(_.predicate.contains(shutterConfig.shutterKillswitchPath)).map(ib =>
         p.r.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
-          case List(ERROR_PAGE(_, errorPage), RETURN(retCode)) => Some(ShutterServiceSwitch(retCode, switch.group(1), errorPage))
-          case _ => None
+          case List(ERROR_PAGE(_, errorPage), RETURN(retCode, url)) => Some(ShutterServiceSwitch(switch.group(1), Some(retCode), Some(errorPage), url))
+          case List(REWRITE(rule), ERROR_PAGE(_, errorPage), RETURN(retCode, _)) => Some(ShutterServiceSwitch(switch.group(1), Some(retCode), Some(errorPage), Some(rule)))
+          case List(REWRITE(rule)) => Some(ShutterServiceSwitch(switch.group(1), None, None, Some(rule)))
+          case List(RETURN(code, url)) => Some(ShutterServiceSwitch(switch.group(1), Some(code), None, url))
+          case _ => Some(ShutterServiceSwitch(switch.group(1), None, None, None))
         })
       )
       maybeShutterSwitches.collectFirst { case Some(s) => s }
@@ -104,9 +107,11 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
 
     case class ERROR_PAGE(code: Int, path: String) extends PARAM
 
+    case class REWRITE(rule: String) extends PARAM
+
     case class PROXY_PASS(url: String) extends PARAM
 
-    case class RETURN(code: Int) extends PARAM
+    case class RETURN(code: Int, url: Option[String]) extends PARAM
 
     case class OTHER_PARAM(key: String, params: String*) extends PARAM
 
@@ -120,8 +125,10 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
 
     def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
       case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
-      case KEYWORD("return") ~ List(v) => RETURN(v.v.toInt)
+      case KEYWORD("return") ~ List(code, url) => RETURN(code.v.toInt, Some(url.v))
+      case KEYWORD("return") ~ List(code) => RETURN(code.v.toInt, None)
       case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.v.toInt, page.v)
+      case KEYWORD("rewrite") ~ v => REWRITE(v.map(_.v).mkString(" "))
       case kw ~ List(v) => OTHER_PARAM(kw.v, v.v)
       case kw ~ _ => OTHER_PARAM(kw.v)
     }

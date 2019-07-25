@@ -39,7 +39,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
   it should "parse return blocks with strings" in {
     val tokens = List(KEYWORD("return"), VALUE("404"), SEMICOLON())
     val reader = new NginxTokenReader(tokens)
-    parser.NginxTokenParser.parameter(reader).get shouldBe RETURN(404)
+    parser.NginxTokenParser.parameter(reader).get shouldBe RETURN(404, None)
   }
 
   it should "parse location blocks with prefixes" in {
