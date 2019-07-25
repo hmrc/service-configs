@@ -1,5 +1,9 @@
 # Add all the application routes to the app.routes file
 ->         /service-configs/swagger/        swagger.Routes
+
+# Below To keep consistency with other services served under the catalogue
+->         /service-configs/                app.Routes
+
 ->         /                                app.Routes
 ->         /                                health.Routes
 
