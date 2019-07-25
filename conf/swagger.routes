@@ -1,0 +1,3 @@
+# swagger endpoints
+
+GET     /swagger.json       controllers.ApiHelpController.getResources

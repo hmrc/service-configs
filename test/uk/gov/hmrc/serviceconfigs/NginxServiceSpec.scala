@@ -18,11 +18,11 @@ package uk.gov.hmrc.serviceconfigs
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.mockito.MockitoSugar
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.DB
 import uk.gov.hmrc.mongo.Awaiting
+import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
@@ -33,15 +33,17 @@ import uk.gov.hmrc.serviceconfigs.service.NginxService
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
-
 class NginxServiceSpec
-  extends FlatSpec
-     with Matchers
-     with MockitoSugar
-     with Awaiting
-{
+    extends FlatSpec
+    with Matchers
+    with MockitoSugar
+    with Awaiting {
 
-  "urlToService" should "extract the service name from url"  in {
+  val nginxConfig = mock[NginxConfig]
+  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
+
+  "urlToService" should "extract the service name from url" in {
     val url = "https://test-service.public.local"
     NginxService.urlToService(url) shouldBe "test-service"
   }
@@ -60,15 +62,17 @@ class NginxServiceSpec
   "update" should "parse configs and save result" in {
 
     val repo = mock[FrontendRouteRepo]
-    val parser = new NginxConfigParser
+
+    val parser = new NginxConfigParser(nginxConfig)
     val connector = mock[NginxConfigConnector]
     val lock = new MongoLock(mock[ReactiveMongoComponent]) {
-      override def tryLock[T](body: => Future[T])(implicit ec: ExecutionContext): Future[Option[T]] =
+      override def tryLock[T](
+        body: => Future[T]
+      )(implicit ec: ExecutionContext): Future[Option[T]] =
         body.map(t => Some(t))
     }
 
     val service = new NginxService(repo, parser, connector, lock)
-
 
     when(connector.configFor("production")).thenReturn(Future {
       Some(NginxConfigFile(environment = "production", "", testConfig))
@@ -79,7 +83,8 @@ class NginxServiceSpec
     })
 
     when(repo.clearAll()).thenReturn(Future(true))
-    when(repo.update(any())).thenReturn(Future(MongoFrontendRoute("","","","")))
+    when(repo.update(any()))
+      .thenReturn(Future(MongoFrontendRoute("", "", "", "")))
 
     val envs = Seq("production", "development")
     await(service.update(envs))
@@ -90,7 +95,7 @@ class NginxServiceSpec
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {
 
-    val parser = new NginxConfigParser()
+    val parser = new NginxConfigParser(nginxConfig)
 
     val configFile = NginxConfigFile(environment = "dev", "", testConfig)
     val eResult = NginxService.parseConfig(parser, configFile)
@@ -99,20 +104,19 @@ class NginxServiceSpec
     val Right(result) = eResult
     result.length shouldBe 2
 
-    result.head.environment  shouldBe "dev"
-    result.head.service      shouldBe "service1"
+    result.head.environment shouldBe "dev"
+    result.head.service shouldBe "service1"
     result.head.frontendPath shouldBe "/test/assets"
-    result.head.backendPath  shouldBe "http://service1"
+    result.head.backendPath shouldBe "http://service1"
     result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
 
-    result(1).environment  shouldBe "dev"
-    result(1).service      shouldBe "testservice"
+    result(1).environment shouldBe "dev"
+    result(1).service shouldBe "testservice"
     result(1).frontendPath shouldBe "/lol"
-    result(1).backendPath  shouldBe "http://testservice"
+    result(1).backendPath shouldBe "http://testservice"
     result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L7"
 
   }
-
 
   val testConfig = """location /test/assets {
                  |  more_set_headers 'X-Frame-Options: DENY';

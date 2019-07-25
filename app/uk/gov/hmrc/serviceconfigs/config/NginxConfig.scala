@@ -17,15 +17,28 @@
 package uk.gov.hmrc.serviceconfigs.config
 
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
+import play.api.{ConfigLoader, Configuration}
 
 @Singleton
 class NginxConfig @Inject()(configuration: Configuration) {
 
-  val configRepo: String         = configuration.getOptional[String](s"nginx.config-repo").getOrElse("mdtp-frontend-routes")
-  val frontendConfigFile: String = configuration.getOptional[String](s"nginx.config-file").getOrElse("frontend-proxy-application-rules.conf")
+  def getKey[T](key: String)(implicit loader: ConfigLoader[T]): T =
+    configuration
+      .getOptional[T](key)
+      .getOrElse(sys.error(s"$key not specified"))
 
-  val schedulerEnabled: Boolean  = configuration.getOptional[Boolean](s"nginx.reload.enabled").getOrElse(false)
-  val schedulerDelay: Long       = configuration.getOptional[Long](s"nginx.reload.intervalminutes").getOrElse(20)
+  val configRepo: String = getKey[String]("nginx.config-repo")
+  val frontendConfigFile: String = getKey[String]("nginx.config-file")
+
+  val shutterConfig: NginxShutterConfig = {
+    val ks = getKey[String]("nginx.shutter-killswitch-path")
+    val ss = getKey[String]("nginx.shutter-serviceswitch-path-prefix")
+    NginxShutterConfig(ks, ss)
+  }
+
+  val schedulerEnabled: Boolean = getKey[Boolean]("nginx.reload.enabled")
+  val schedulerDelay: Long = getKey[Long]("nginx.reload.intervalminutes")
 
 }
+
+case class NginxShutterConfig(shutterKillswitchPath: String, shutterServiceSwitchPathPrefix: String)

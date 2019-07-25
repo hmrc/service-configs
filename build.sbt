@@ -5,13 +5,21 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin.publishingSettings
 val appName = "service-configs"
 
 lazy val microservice = Project(appName, file("."))
-  .enablePlugins(play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory)
+  .enablePlugins(
+    play.sbt.PlayScala,
+    SbtAutoBuildPlugin,
+    SbtGitVersioning,
+    SbtDistributablesPlugin,
+    SbtArtifactory
+  )
   .settings(
-    majorVersion                     := 0,
-    playDefaultPort                  := 8460,
-    libraryDependencies              ++= AppDependencies.compile ++ AppDependencies.test
+    scalaVersion := "2.11.12",
+    majorVersion := 0,
+    playDefaultPort := 8460,
+    libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
+    dependencyOverrides ++= AppDependencies.overrides
   )
   .settings(publishingSettings: _*)
   .settings(resolvers += Resolver.jcenterRepo)
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.10")

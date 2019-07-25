@@ -23,54 +23,66 @@ import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{
+  MongoSlugInfoFormats,
+  SlugInfo,
+  SlugInfoFlag
+}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlugConfigurationInfoRepository @Inject()
-                                             (mongo: ReactiveMongoComponent)
-                                             (implicit executionContext: ExecutionContext)
-  extends ReactiveRepository[SlugInfo, BSONObjectID] (
-    collectionName = "slugConfigurations",
-    mongo          = mongo.mongoConnector.db,
-    domainFormat   = MongoSlugInfoFormats.siFormat) {
+class SlugConfigurationInfoRepository @Inject()(mongo: ReactiveMongoComponent)(
+  implicit executionContext: ExecutionContext
+) extends ReactiveRepository[SlugInfo, BSONObjectID](
+      collectionName = "slugConfigurations",
+      mongo = mongo.mongoConnector.db,
+      domainFormat = MongoSlugInfoFormats.siFormat
+    ) {
 
   override def indexes: Seq[Index] =
     Seq(
       Index(
         Seq("uri" -> IndexType.Ascending),
-        name   = Some("slugInfoUniqueIdx"),
-        unique = true),
+        name = Some("slugInfoUniqueIdx"),
+        unique = true
+      ),
       Index(
         Seq("name" -> IndexType.Hashed),
-        name       = Some("slugInfoIdx"),
-        background = true),
+        name = Some("slugInfoIdx"),
+        background = true
+      ),
       Index(
         Seq("latest" -> IndexType.Hashed),
-        name       = Some("slugInfoLatestIdx"),
-        background = true))
+        name = Some("slugInfoLatestIdx"),
+        background = true
+      )
+    )
 
   import MongoSlugInfoFormats.siFormat
 
   def add(slugInfo: SlugInfo): Future[Boolean] =
     collection
-      .update(
-        selector = Json.obj("uri" -> Json.toJson(slugInfo.uri)),
-        update   = slugInfo,
-        upsert   = true)
+      .update(ordered = false)
+      .one(
+        q = Json.obj("uri" -> Json.toJson(slugInfo.uri)),
+        u = slugInfo,
+        upsert = true
+      )
       .map(_.ok)
 
   def clearAll(): Future[Boolean] =
     super.removeAll().map(_.ok)
 
-  def getSlugInfo(name: String, flag: SlugInfoFlag = SlugInfoFlag.Latest): Future[Option[SlugInfo]] =
-    find(
-      "name" -> name,
-      flag.s -> true)
+  def getSlugInfo(
+    name: String,
+    flag: SlugInfoFlag = SlugInfoFlag.Latest
+  ): Future[Option[SlugInfo]] =
+    find("name" -> name, flag.s -> true)
       .map(_.headOption)
 
-  def getSlugInfos(name: String, optVersion: Option[String]): Future[Seq[SlugInfo]] =
+  def getSlugInfos(name: String,
+                   optVersion: Option[String]): Future[Seq[SlugInfo]] =
     optVersion match {
       case None          => find("name" -> name)
       case Some(version) => find("name" -> name, "version" -> version)

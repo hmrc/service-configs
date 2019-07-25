@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
+import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.mvc._
@@ -26,21 +27,37 @@ import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
-class ConfigController @Inject()(
-  configService: ConfigService,
-  mcc: MessagesControllerComponents
-) extends BackendController(mcc) with ConfigJson {
+@Api("Github Config")
+class ConfigController @Inject()(configService: ConfigService,
+                                 mcc: MessagesControllerComponents)
+    extends BackendController(mcc)
+    with ConfigJson {
 
-
-  def serviceConfig(serviceName: String) = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName).map {e =>
-        Ok(Json.toJson(e))
+  @ApiOperation(
+    value =
+      "Retrieves all of the config for a given service, broken down by environment",
+    notes =
+      """Searches all config sources for all environments and pulls out the the value of each config key"""
+  )
+  def serviceConfig(
+    @ApiParam(value = "The service name to query") serviceName: String
+  ) = Action.async { implicit request =>
+    configService.configByEnvironment(serviceName).map { e =>
+      Ok(Json.toJson(e))
     }
   }
 
-  def configByKey(serviceName: String) = Action.async { implicit request =>
-    configService.configByKey(serviceName).map {k =>
-        Ok(Json.toJson(k))
+  @ApiOperation(
+    value =
+      "Retrieves all of the config for a given service, broken down by config key",
+    notes =
+      """Searches all config sources for all environments and pulls out the the value of each config key"""
+  )
+  def configByKey(
+    @ApiParam(value = "The service name to query") serviceName: String
+  ) = Action.async { implicit request =>
+    configService.configByKey(serviceName).map { k =>
+      Ok(Json.toJson(k))
     }
   }
 

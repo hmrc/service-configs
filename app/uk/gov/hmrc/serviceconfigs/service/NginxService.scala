@@ -26,7 +26,7 @@ import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
-import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -93,6 +93,8 @@ object NginxService {
           backendPath          = r.backendPath,
           environment          = configFile.environment,
           ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.environment, r.frontendPath, indexes).getOrElse(""),
+          shutterKillswitch = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
+          shutterServiceSwitch = r.shutterServiceSwitch.map(s => MongoShutterSwitch(s.switchFile, s.statusCode, s.errorPage, s.rewriteRule)),
           isRegex              = r.isRegex))
       )
   }

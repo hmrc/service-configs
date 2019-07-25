@@ -58,6 +58,12 @@ class NginxLexerSpec extends FlatSpec with Matchers{
     res shouldBe Seq(KEYWORD("location"), VALUE("~"), VALUE("^/dog-frontend/(a|b)/)?details)|(reports))"), OPEN_BRACKET())
   }
 
+  it should "tokenize an if block" in {
+    val ifb =  """if ( -f /etc/nginx/switches/mdtp/test-client-mandate-frontend )   {""".stripMargin
+    val res = NginxLexer.parse(NginxLexer.tokens, ifb).get
+    res shouldBe Seq(KEYWORD("if"), VALUE("("), VALUE("-f"), VALUE("/etc/nginx/switches/mdtp/test-client-mandate-frontend"), VALUE(")"), OPEN_BRACKET())
+  }
+
   it should "tokenize a parameter" in {
     val input = "error_page 503 /shutter/mandate/index.html;"
     val res = NginxLexer.parse(NginxLexer.tokens, input).get
