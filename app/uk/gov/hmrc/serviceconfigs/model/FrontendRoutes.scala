@@ -17,32 +17,21 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterKillswitch, MongoShutterServiceSwitch}
-
+import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 
 case class FrontendRoute(
  frontendPath: String,
  backendPath: String,
- shutterKillswitch: Option[ShutterKillswitch] = None,
- shutterServiceSwitch: Option[ShutterServiceSwitch] = None,
+ shutterKillswitch: Option[ShutterSwitch] = None,
+ shutterServiceSwitch: Option[ShutterSwitch] = None,
  ruleConfigurationUrl: String = "",
  isRegex: Boolean = false
 )
 
-sealed trait ShutterSwitch {
-  def statusCode: Option[Int]
-}
+case class ShutterSwitch(switchFile: String, statusCode: Option[Int] = None, errorPage: Option[String] = None, rewriteRule: Option[String] = None)
 
-case class ShutterKillswitch(statusCode: Option[Int]) extends ShutterSwitch
-
-object ShutterKillswitch {
-  def fromMongo(m: MongoShutterKillswitch) = ShutterKillswitch(m.statusCode)
-}
-
-case class ShutterServiceSwitch(switchFile: String, statusCode: Option[Int], errorPage: Option[String], rewriteRule: Option[String]) extends ShutterSwitch
-
-object ShutterServiceSwitch {
-  def fromMongo(m: MongoShutterServiceSwitch) = ShutterServiceSwitch(m.switchFile, m.statusCode, m.errorPage, m.rewriteRule)
+object ShutterSwitch {
+  def fromMongo(m: MongoShutterSwitch) = ShutterSwitch(m.switchFile, m.statusCode, m.errorPage, m.rewriteRule)
 }
 
 
@@ -53,8 +42,7 @@ case class FrontendRoutes(
 
 object FrontendRoute {
 
-  implicit val formatKillSwitch = Json.format[ShutterKillswitch]
-  implicit val formatServiceSwitch = Json.format[ShutterServiceSwitch]
+  implicit val formatShutterSwitch = Json.format[ShutterSwitch]
   implicit val formats = Json.format[FrontendRoute]
 
   def fromMongo(mfr: MongoFrontendRoute) : FrontendRoute =
@@ -62,8 +50,8 @@ object FrontendRoute {
       frontendPath         = mfr.frontendPath,
       backendPath          = mfr.backendPath,
       ruleConfigurationUrl = mfr.ruleConfigurationUrl,
-      shutterKillswitch    = mfr.shutterKillswitch.map(ShutterKillswitch.fromMongo),
-      shutterServiceSwitch = mfr.shutterServiceSwitch.map(ShutterServiceSwitch.fromMongo),
+      shutterKillswitch    = mfr.shutterKillswitch.map(ShutterSwitch.fromMongo),
+      shutterServiceSwitch = mfr.shutterServiceSwitch.map(ShutterSwitch.fromMongo),
       isRegex              = mfr.isRegex)
 }
 

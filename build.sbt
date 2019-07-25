@@ -13,6 +13,7 @@ lazy val microservice = Project(appName, file("."))
     SbtArtifactory
   )
   .settings(
+    scalaVersion := "2.11.12",
     majorVersion := 0,
     playDefaultPort := 8460,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,

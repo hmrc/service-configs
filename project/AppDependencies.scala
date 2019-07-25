@@ -8,8 +8,8 @@ object AppDependencies {
   val compile = Seq(
     "uk.gov.hmrc" %% "bootstrap-play-26" % "0.42.0",
     "org.yaml" % "snakeyaml" % "1.24",
-    "uk.gov.hmrc" %% "github-client" % "2.8.0",
-    "uk.gov.hmrc" %% "play-config" % "7.0.0",
+    "uk.gov.hmrc" %% "github-client" % "2.10.0",
+    "uk.gov.hmrc" %% "play-config" % "7.5.0",
     "uk.gov.hmrc" %% "simple-reactivemongo" % "7.20.0-play-26",
     "uk.gov.hmrc" %% "mongo-lock" % "6.15.0-play-26",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",

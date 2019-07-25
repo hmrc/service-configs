@@ -29,7 +29,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
   val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
   val parser = new NginxConfigParser(nginxConfig)
-  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN}
+  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN, REWRITE}
 
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
@@ -57,6 +57,24 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
     val tokens: Seq[NginxToken] = Seq(KEYWORD("proxy_pass"), VALUE("http://www.com/test"), SEMICOLON())
     val reader = new NginxTokenReader(tokens)
     parser.NginxTokenParser.parameter(reader).get shouldBe PROXY_PASS("http://www.com/test")
+  }
+
+  it should "parse return parameters" in {
+    val tokens: Seq[NginxToken] = Seq(KEYWORD("return"), VALUE("503"), SEMICOLON())
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe RETURN(503, None)
+  }
+
+  it should "parse return parameters with a url" in {
+    val tokens: Seq[NginxToken] = Seq(KEYWORD("return"), VALUE("503"), VALUE("http://www.com/test"), SEMICOLON())
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe RETURN(503, Some("http://www.com/test"))
+  }
+
+  it should "parse rewrite parameters" in {
+    val tokens: Seq[NginxToken] = Seq(KEYWORD("rewrite"), VALUE("^"), VALUE("/business-account"), VALUE("last"), SEMICOLON())
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe REWRITE("^ /business-account last")
   }
 
   it should "parse non-proxy_pass parameters" in {

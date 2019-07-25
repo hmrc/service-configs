@@ -64,7 +64,7 @@ class FrontendRouteRepoMongoSpec
 
       await(frontendRouteRepo.update(frontendRoute))
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes)
+      val allEntries = await(frontendRouteRepo.findAllRoutes())
       allEntries should have size 1
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
@@ -78,7 +78,7 @@ class FrontendRouteRepoMongoSpec
       await(frontendRouteRepo.update(newFrontendRoute(service = service1Name)))
       await(frontendRouteRepo.update(newFrontendRoute(service = service2Name)))
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes)
+      val allEntries = await(frontendRouteRepo.findAllRoutes())
       allEntries should have size 2
 
       val service1Entries = await(frontendRouteRepo.findByService(service1Name))

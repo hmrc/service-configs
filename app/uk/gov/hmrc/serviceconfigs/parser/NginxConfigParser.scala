@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import javax.inject.Inject
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterKillswitch, ShutterServiceSwitch}
+import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterSwitch}
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -59,27 +59,28 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
       }
     }
 
-    def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterKillswitch] = {
+    def extractShutterSwitch(switchFile: String, ifBlock: IFBLOCK): ShutterSwitch = {
+      ifBlock.body match {
+        case List(ERROR_PAGE(_, errorPage), RETURN(retCode, url)) => ShutterSwitch(switchFile, Some(retCode), Some(errorPage), url)
+        case List(REWRITE(rule), ERROR_PAGE(_, errorPage), RETURN(retCode, _)) => ShutterSwitch(switchFile, Some(retCode), Some(errorPage), Some(rule))
+        case List(REWRITE(rule)) => ShutterSwitch(switchFile, None, None, Some(rule))
+        case List(RETURN(code, url)) => ShutterSwitch(switchFile, Some(code), None, url)
+        case _ => ShutterSwitch(switchFile, None, None, None)
+      }
+    }
+
+    def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterSwitch] = {
       val maybeKillswitches = ifblocks.map(ib =>
-        if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) ib.body match {
-          case List(RETURN(code, _)) => Some(ShutterKillswitch(Some(code)))
-          case _ => None
-        } else None
+        if (ib.predicate.contains(shutterConfig.shutterKillswitchPath)) Some(extractShutterSwitch(shutterConfig.shutterKillswitchPath, ib)) else None
       )
       maybeKillswitches.collectFirst { case Some(s) => s }
     }
 
-    def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterServiceSwitch] = {
+    def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterSwitch] = {
       val p = """\(-f(""" + shutterConfig.shutterServiceSwitchPathPrefix.trim + """[a-zA-Z0-9_-]+)\)"""
 
       val maybeShutterSwitches = ifblocks.filterNot(_.predicate.contains(shutterConfig.shutterKillswitchPath)).map(ib =>
-        p.r.findFirstMatchIn(ib.predicate).flatMap(switch => ib.body match {
-          case List(ERROR_PAGE(_, errorPage), RETURN(retCode, url)) => Some(ShutterServiceSwitch(switch.group(1), Some(retCode), Some(errorPage), url))
-          case List(REWRITE(rule), ERROR_PAGE(_, errorPage), RETURN(retCode, _)) => Some(ShutterServiceSwitch(switch.group(1), Some(retCode), Some(errorPage), Some(rule)))
-          case List(REWRITE(rule)) => Some(ShutterServiceSwitch(switch.group(1), None, None, Some(rule)))
-          case List(RETURN(code, url)) => Some(ShutterServiceSwitch(switch.group(1), Some(code), None, url))
-          case _ => Some(ShutterServiceSwitch(switch.group(1), None, None, None))
-        })
+        p.r.findFirstMatchIn(ib.predicate).flatMap(switch => Some(extractShutterSwitch(switch.group(1), ib)))
       )
       maybeShutterSwitches.collectFirst { case Some(s) => s }
     }

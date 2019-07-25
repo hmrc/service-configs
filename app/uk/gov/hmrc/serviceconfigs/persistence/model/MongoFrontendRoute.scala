@@ -22,31 +22,23 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 
 case class MongoFrontendRoute(
-  service     : String,
-  frontendPath: String,
-  backendPath : String,
-  environment : String,
-  shutterKillswitch: Option[MongoShutterKillswitch] = None,
-  shutterServiceSwitch: Option[MongoShutterServiceSwitch] = None,
-  ruleConfigurationUrl: String = "",
-  isRegex     : Boolean = false,
-  updateDate  : DateTime = DateTime.now
+                               service     : String,
+                               frontendPath: String,
+                               backendPath : String,
+                               environment : String,
+                               shutterKillswitch: Option[MongoShutterSwitch] = None,
+                               shutterServiceSwitch: Option[MongoShutterSwitch] = None,
+                               ruleConfigurationUrl: String = "",
+                               isRegex     : Boolean = false,
+                               updateDate  : DateTime = DateTime.now
 )
 
-sealed trait MongoShutterSwitch {
-  def statusCode: Option[Int]
-}
-
-case class MongoShutterKillswitch(statusCode: Option[Int]) extends MongoShutterSwitch
-
-case class MongoShutterServiceSwitch(switchFile: String, statusCode: Option[Int], errorPage: Option[String], rewriteRule: Option[String]) extends MongoShutterSwitch
-
+case class MongoShutterSwitch(switchFile: String, statusCode: Option[Int] = None, errorPage: Option[String] = None, rewriteRule: Option[String] = None)
 
 object MongoFrontendRoute {
 
   implicit val dateFormat: Format[DateTime]         = ReactiveMongoFormats.dateTimeFormats
-  implicit val killswitchFormat: Format[MongoShutterKillswitch] = Json.format[MongoShutterKillswitch]
-  implicit val serviceSwitchFormat: Format[MongoShutterServiceSwitch] = Json.format[MongoShutterServiceSwitch]
+  implicit val shutterSwitchFormat: Format[MongoShutterSwitch] = Json.format[MongoShutterSwitch]
   implicit val formats: OFormat[MongoFrontendRoute] = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
 
 }
