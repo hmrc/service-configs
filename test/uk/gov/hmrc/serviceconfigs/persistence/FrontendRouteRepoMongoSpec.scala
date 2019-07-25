@@ -88,6 +88,21 @@ class FrontendRouteRepoMongoSpec
     }
   }
 
+  "FrontendRouteRepo.findByEnvironment" should {
+    "return only routes with the environment" in {
+      await(frontendRouteRepo.update(newFrontendRoute(environment = "production")))
+      await(frontendRouteRepo.update(newFrontendRoute(environment = "qa")))
+
+      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      allEntries should have size 2
+
+      val productionEntries = await(frontendRouteRepo.findByEnvironment("production"))
+      productionEntries should have size 1
+      val route = productionEntries.head
+      route.environment shouldBe "production"
+    }
+  }
+
   "FrontendRouteRepo.searchByFrontendPath" should {
     "return only routes with the path" in {
       await(addFrontendRoutes("a", "b"))
@@ -117,12 +132,13 @@ class FrontendRouteRepoMongoSpec
 
   def newFrontendRoute(service: String = "service",
                        frontendPath: String = "frontendPath",
+                       environment: String = "environment",
                        isRegex: Boolean = true) =
     MongoFrontendRoute(
       service = service,
       frontendPath = frontendPath,
       backendPath = "backendPath",
-      environment = "environment",
+      environment = environment,
       ruleConfigurationUrl = "",
       shutterKillswitch = None,
       shutterServiceSwitch = None,

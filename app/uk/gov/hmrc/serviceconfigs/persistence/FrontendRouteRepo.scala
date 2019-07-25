@@ -20,10 +20,10 @@ import alleycats.std.iterable._
 import cats.instances.all._
 import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Json, JsObject}
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
+import play.api.libs.json.{JsObject, Json}
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.{Cursor, DB}
+import reactivemongo.api.Cursor
 import reactivemongo.api.indexes.{Index, IndexType}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers._
@@ -34,13 +34,14 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
-    extends ReactiveRepository[MongoFrontendRoute, BSONObjectID](
-      collectionName = "frontendRoutes",
-      mongo = mongo.mongoConnector.db,
-      domainFormat = MongoFrontendRoute.formats
-    ) {
+  extends ReactiveRepository[MongoFrontendRoute, BSONObjectID](
+    collectionName = "frontendRoutes",
+    mongo = mongo.mongoConnector.db,
+    domainFormat = MongoFrontendRoute.formats
+  ) {
 
   import MongoFrontendRoute._
+
   import ExecutionContext.Implicits.global
 
   override def indexes: Seq[Index] =
@@ -81,6 +82,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
   }
 
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
+    *
     * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
@@ -113,6 +115,14 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
         Json.obj("service" -> Json.toJson[String](service)),
         None
       )
+      .cursor[MongoFrontendRoute]()
+      .collect[Seq](-1, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+
+  def findByEnvironment(environment: String): Future[Seq[MongoFrontendRoute]] =
+    collection.find[JsObject, MongoFrontendRoute](
+      Json.obj("environment" -> Json.toJson[String](environment)),
+      None
+    )
       .cursor[MongoFrontendRoute]()
       .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
 
