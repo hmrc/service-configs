@@ -4,6 +4,6 @@ GET     /config-by-env/:serviceName             @uk.gov.hmrc.serviceconfigs.cont
 GET     /config-by-key/:serviceName             @uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName)
 
 GET     /frontend-route/search                  @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
-GET     /frontend-route/:environment            @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
+GET     /frontend-route-by-env/:environment     @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
 GET     /frontend-route/:serviceName            @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
 GET     /bobby/rules                            @uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
