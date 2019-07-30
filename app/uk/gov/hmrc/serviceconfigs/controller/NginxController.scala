@@ -56,8 +56,7 @@ class NginxController @Inject()(db: FrontendRouteRepo,
   def searchByEnvironment(
                            @ApiParam(value = "The environment to query") environment: String
                          ) = Action.async { implicit request =>
-    db.findAllRoutes()
-      .map(_.filter(_.environment == environment))
+    db.findByEnvironment(environment)
       .map(FrontendRoutes.fromMongo)
       .map(routes => Json.toJson(routes))
       .map(Ok(_))

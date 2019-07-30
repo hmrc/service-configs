@@ -124,7 +124,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
       None
     )
       .cursor[MongoFrontendRoute]()
-      .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+      .collect[Seq](-1, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
 
   def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
     findAll()
