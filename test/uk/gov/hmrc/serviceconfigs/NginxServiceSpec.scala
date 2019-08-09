@@ -74,11 +74,11 @@ class NginxServiceSpec
 
     val service = new NginxService(repo, parser, connector, lock)
 
-    when(connector.configFor("production")).thenReturn(Future.successful {
+    when(connector.getNginxRoutesFilesFor("production")).thenReturn(Future.successful {
       Some(NginxConfigFile(environment = "production", "", testConfig))
     })
 
-    when(connector.configFor("development")).thenReturn(Future.successful {
+    when(connector.getNginxRoutesFilesFor("development")).thenReturn(Future.successful {
       None
     })
 
@@ -90,7 +90,7 @@ class NginxServiceSpec
     await(service.update(envs))
 
     verify(repo, times(2)).update(any())
-    verify(connector, times(envs.length)).configFor(any())
+    verify(connector, times(envs.length)).getNginxRoutesFilesFor(any())
   }
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {

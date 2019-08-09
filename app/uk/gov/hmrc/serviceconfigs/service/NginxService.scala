@@ -43,26 +43,34 @@ class NginxService @Inject()(
   nginxConnector: NginxConfigConnector,
   mongoLock: MongoLock) {
 
-  def update(environments: List[String]): Future[Unit] =
+  def update(environments: List[String]): Future[Unit] = {
+    Logger.info(s"Update started...")
     Future.sequence(
       environments.map(updateNginxRoutesFor(_))
-    ).map(_ => ())
-
-  private def updateNginxRoutesFor(environment: String): Future[Unit] = {
-    Logger.info(s"Refreshing frontend route data for $environment...")
-    nginxConnector.configFor(environment)
-      .flatMap {
-        case None => Future.successful(Logger.error(s"Unable to retrieve routes file"))
-        case Some(file) =>
-          NginxService.parseConfig(parser, file)
-            .fold(
-              msg => Future.successful(Logger.error(s"Failed to update nginx configs: $msg")),
-              routes => insertNginxRoutesInMongo(routes))
-            .map(_ => Logger.info(s"Update complete for $environment"))
-      }
+    ).map(_ => Logger.info(s"Update complete..."))
   }
 
-  private def insertNginxRoutesInMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
+  private def updateNginxRoutesFor(environment: String): Future[Unit] = {
+      Logger.info(s"Refreshing frontend route data for $environment...")
+      nginxConnector
+        .getNginxRoutesFilesFor(environment)
+        .flatMap { nginxRouteFiles =>
+          Future.sequence(
+            nginxRouteFiles.map { nginxRouteFile =>
+              Logger.info(s"Processing ${nginxRouteFile} for $environment")
+              processNginxRouteFile(nginxRouteFile)
+            })}
+        .map(_ => Logger.info(s"Update complete for $environment"))
+    }
+
+  private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): Future[Unit] = {
+    NginxService.parseConfig(parser, nginxConfigFile)
+      .fold(
+        msg => Future.successful(Logger.error(s"Failed to update nginx configs: $msg")),
+        routes => insertNginxRoutesIntoMongo(routes))
+  }
+
+  private def insertNginxRoutesIntoMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
     mongoLock.tryLock {
       Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
       for {

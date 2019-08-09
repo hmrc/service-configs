@@ -35,7 +35,7 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
 
   private val configKey = gitConf.githubApiOpenConfig.key
 
-  def configFor(env: String) : Future[Option[NginxConfigFile]] = {
+  def getNginxRoutesFilesFor(env: String) : Future[List[NginxConfigFile]] = {
 
     val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/master/$env/${nginxConfig.frontendConfigFile}"
     implicit val hc = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
@@ -43,9 +43,9 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 => {
         Logger.warn(s"Failed to download nginx config from ${url}, server returned ${response.status}")
-        None
+        List.empty
       }
-      case response: HttpResponse => Option(NginxConfigFile(env, url, response.body))
+      case response: HttpResponse => List(NginxConfigFile(env, url, response.body))
     }
   }
 
