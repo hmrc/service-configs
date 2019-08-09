@@ -37,19 +37,18 @@ case class SearchRequest(path:String)
 case class SearchResults(env: String, path: String, url: String)
 
 @Singleton
-class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
-                             parser: FrontendRouteParser,
-                             nginxConnector: NginxConfigConnector,
-                             mongoLock: MongoLock) {
-
-  def findByService(repoName: String): Future[Seq[MongoFrontendRoute]] = frontendRouteRepo.findByService(repoName)
+class NginxService @Inject()(
+  frontendRouteRepo: FrontendRouteRepo,
+  parser: FrontendRouteParser,
+  nginxConnector: NginxConfigConnector,
+  mongoLock: MongoLock) {
 
   def update(environments: List[String]): Future[Unit] =
     Future.sequence(
       environments.map(updateNginxRoutesFor(_))
     ).map(_ => ())
 
-  def updateNginxRoutesFor(environment: String): Future[Unit] = {
+  private def updateNginxRoutesFor(environment: String): Future[Unit] = {
     Logger.info(s"Refreshing frontend route data for $environment...")
     nginxConnector.configFor(environment)
       .flatMap {
@@ -63,7 +62,7 @@ class NginxService @Inject()(frontendRouteRepo: FrontendRouteRepo,
       }
   }
 
-  def insertNginxRoutesInMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
+  private def insertNginxRoutesInMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
     mongoLock.tryLock {
       Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
       for {
