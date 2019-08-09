@@ -74,19 +74,19 @@ class NginxServiceSpec
 
     val service = new NginxService(repo, parser, connector, lock)
 
-    when(connector.configFor("production")).thenReturn(Future {
+    when(connector.configFor("production")).thenReturn(Future.successful {
       Some(NginxConfigFile(environment = "production", "", testConfig))
     })
 
-    when(connector.configFor("development")).thenReturn(Future {
+    when(connector.configFor("development")).thenReturn(Future.successful {
       None
     })
 
     when(repo.clearAll()).thenReturn(Future(true))
     when(repo.update(any()))
-      .thenReturn(Future(MongoFrontendRoute("", "", "", "")))
+      .thenReturn(Future.successful(()))
 
-    val envs = Seq("production", "development")
+    val envs = List("production", "development")
     await(service.update(envs))
 
     verify(repo, times(2)).update(any())

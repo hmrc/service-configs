@@ -15,6 +15,7 @@
  */
 
 package uk.gov.hmrc.serviceconfigs.config
+import scala.collection.JavaConverters._
 
 import javax.inject.{Inject, Singleton}
 import play.api.{ConfigLoader, Configuration}

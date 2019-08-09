@@ -58,7 +58,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
       )
     )
 
-  def update(frontendRoute: MongoFrontendRoute): Future[MongoFrontendRoute] = {
+  def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
     logger.debug(
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
@@ -71,7 +71,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     collection
       .update(ordered = false)
       .one(q = s, u = frontendRoute, upsert = true)
-      .map(_ => frontendRoute)
+      .map(_ => ())
       .recover {
         case lastError =>
           throw new RuntimeException(
