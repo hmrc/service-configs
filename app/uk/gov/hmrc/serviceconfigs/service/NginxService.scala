@@ -22,6 +22,7 @@ import cats.instances.all._
 import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
+import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
@@ -41,45 +42,41 @@ class NginxService @Inject()(
   frontendRouteRepo: FrontendRouteRepo,
   parser: FrontendRouteParser,
   nginxConnector: NginxConfigConnector,
+  nginxConfig: NginxConfig,
   mongoLock: MongoLock) {
 
   def update(environments: List[String]): Future[Unit] = {
-    Logger.info(s"Update started...")
-    Future.sequence(
-      environments.map(updateNginxRoutesFor(_))
-    ).map(_ => Logger.info(s"Update complete..."))
+    for {
+      _              <- Future.successful(Logger.info(s"Update started..."))
+      frontendRoutes <- environments.traverse(updateNginxRoutesForEnv).map(_.flatten)
+      _              <- insertNginxRoutesIntoMongo(frontendRoutes)
+      _              = Logger.info(s"Update complete...")
+    } yield ()
   }
 
-  private def updateNginxRoutesFor(environment: String): Future[Unit] = {
-      Logger.info(s"Refreshing frontend route data for $environment...")
-      nginxConnector
-        .getNginxRoutesFilesFor(environment)
-        .flatMap { nginxRouteFiles =>
-          Future.sequence(
-            nginxRouteFiles.map { nginxRouteFile =>
-              Logger.info(s"Processing ${nginxRouteFile} for $environment")
-              processNginxRouteFile(nginxRouteFile)
-            })}
-        .map(_ => Logger.info(s"Update complete for $environment"))
+  private def updateNginxRoutesForEnv(environment: String): Future[List[MongoFrontendRoute]] = {
+    for {
+      _           <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
+      routesFiles <-
+        nginxConfig.frontendConfigFileNames.traverse(nginxConnector.getNginxRoutesFile(_, environment)).map(_.flatten)
+    } yield routesFiles.flatMap(processNginxRouteFile)
+  }
+
+  private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
+    NginxService.parseConfig(parser, nginxConfigFile).getOrElse {
+      Logger.error(s"Failed to update nginx configs: ${nginxConfigFile.url}")
+      List.empty
     }
-
-  private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): Future[Unit] = {
-    NginxService.parseConfig(parser, nginxConfigFile)
-      .fold(
-        msg => Future.successful(Logger.error(s"Failed to update nginx configs: $msg")),
-        routes => insertNginxRoutesIntoMongo(routes))
-  }
 
   private def insertNginxRoutesIntoMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
     mongoLock.tryLock {
-      Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
       for {
         _ <- frontendRouteRepo.clearAll()
+        _ = Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
         _ <- parsedConfigs.traverse(frontendRouteRepo.update)
       } yield ()
     }.map(_ => ())
 }
-
 
 object NginxService {
 

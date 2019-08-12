@@ -23,22 +23,25 @@ import play.api.{ConfigLoader, Configuration}
 @Singleton
 class NginxConfig @Inject()(configuration: Configuration) {
 
-  def getKey[T](key: String)(implicit loader: ConfigLoader[T]): T =
+  def getValue[T](key: String)(implicit loader: ConfigLoader[T]): T =
     configuration
       .getOptional[T](key)
       .getOrElse(sys.error(s"$key not specified"))
 
-  val configRepo: String = getKey[String]("nginx.config-repo")
-  val frontendConfigFile: String = getKey[String]("nginx.config-file")
+  def getStringList(key: String): List[String] =
+    configuration.underlying.getStringList(key).asScala.toList
+
+  val configRepo: String = getValue[String]("nginx.config-repo")
+  val frontendConfigFileNames: List[String] = getStringList("nginx.config-files")
 
   val shutterConfig: NginxShutterConfig = {
-    val ks = getKey[String]("nginx.shutter-killswitch-path")
-    val ss = getKey[String]("nginx.shutter-serviceswitch-path-prefix")
+    val ks = getValue[String]("nginx.shutter-killswitch-path")
+    val ss = getValue[String]("nginx.shutter-serviceswitch-path-prefix")
     NginxShutterConfig(ks, ss)
   }
 
-  val schedulerEnabled: Boolean = getKey[Boolean]("nginx.reload.enabled")
-  val schedulerDelay: Long = getKey[Long]("nginx.reload.intervalminutes")
+  val schedulerEnabled: Boolean = getValue[Boolean]("nginx.reload.enabled")
+  val schedulerDelay: Long = getValue[Long]("nginx.reload.intervalminutes")
 
 }
 

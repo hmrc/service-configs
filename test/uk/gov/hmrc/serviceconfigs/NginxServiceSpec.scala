@@ -41,6 +41,7 @@ class NginxServiceSpec
 
   val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  when(nginxConfig.frontendConfigFileNames).thenReturn(List("some-file"))
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
 
   "urlToService" should "extract the service name from url" in {
@@ -72,13 +73,13 @@ class NginxServiceSpec
         body.map(t => Some(t))
     }
 
-    val service = new NginxService(repo, parser, connector, lock)
+    val service = new NginxService(repo, parser, connector, nginxConfig, lock)
 
-    when(connector.getNginxRoutesFilesFor("production")).thenReturn(Future.successful {
+    when(connector.getNginxRoutesFile("some-file", "production")).thenReturn(Future.successful {
       Some(NginxConfigFile(environment = "production", "", testConfig))
     })
 
-    when(connector.getNginxRoutesFilesFor("development")).thenReturn(Future.successful {
+    when(connector.getNginxRoutesFile("some-file", "development")).thenReturn(Future.successful {
       None
     })
 
@@ -90,7 +91,7 @@ class NginxServiceSpec
     await(service.update(envs))
 
     verify(repo, times(2)).update(any())
-    verify(connector, times(envs.length)).getNginxRoutesFilesFor(any())
+    verify(connector, times(envs.length)).getNginxRoutesFile(any(), any())
   }
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {

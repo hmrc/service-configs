@@ -33,7 +33,7 @@ class NginxConfigSpec extends FunSpec with Matchers {
         new NginxConfig(
           Configuration(
             "nginx.config-repo" -> "repo",
-            "nginx.config-file" -> "file",
+            "nginx.config-files" -> List("file1", "file2"),
             "nginx.reload.enabled" -> true,
             "nginx.reload.intervalminutes" -> 25,
             "nginx.shutter-killswitch-path" -> "killswitch",
@@ -41,7 +41,7 @@ class NginxConfigSpec extends FunSpec with Matchers {
           ))
 
       nginxConfig.configRepo shouldBe "repo"
-      nginxConfig.frontendConfigFile shouldBe "file"
+      nginxConfig.frontendConfigFileNames shouldBe List("file1", "file2")
       nginxConfig.schedulerEnabled shouldBe true
       nginxConfig.schedulerDelay shouldBe 25
       nginxConfig.shutterConfig.shutterKillswitchPath shouldBe "killswitch"
