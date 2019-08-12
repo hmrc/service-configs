@@ -35,17 +35,18 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
 
   private val configKey = gitConf.githubApiOpenConfig.key
 
-  def configFor(env: String) : Future[Option[NginxConfigFile]] = {
+  def getNginxRoutesFile(fileName: String, environment: String) : Future[Option[NginxConfigFile]] = {
 
-    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/master/$env/${nginxConfig.frontendConfigFile}"
+    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/master/$environment/$fileName"
     implicit val hc = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {
-      case response: HttpResponse if response.status != 200 => {
-        Logger.warn(s"Failed to download nginx config from ${url}, server returned ${response.status}")
+      case response: HttpResponse if response.status != 200 =>
+        Logger.warn(s"Failed to download nginx config from $url, server returned ${response.status}")
         None
-      }
-      case response: HttpResponse => Option(NginxConfigFile(env, url, response.body))
+      case response: HttpResponse =>
+        Logger.info(s"Retrieved Nginx routes file at $url")
+        Some(NginxConfigFile(environment, url, response.body))
     }
   }
 

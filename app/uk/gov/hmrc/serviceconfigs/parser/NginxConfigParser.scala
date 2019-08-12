@@ -27,7 +27,7 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRouteParser {
   val shutterConfig = nginxConfig.shutterConfig
 
-  override def parseConfig(config: String): Either[String, Seq[FrontendRoute]] =
+  override def parseConfig(config: String): Either[String, List[FrontendRoute]] =
     NginxTokenParser(NginxLexer(config))
 
   object NginxTokenParser extends Parsers {

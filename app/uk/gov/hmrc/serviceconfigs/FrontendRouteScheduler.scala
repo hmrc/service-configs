@@ -46,7 +46,7 @@ class FrontendRouteScheduler @Inject()(actorSystem: ActorSystem,
 
 class FrontendRouteActor(nginxService: NginxService)  extends Actor {
 
-  private val environments = Seq("production", "qa", "staging", "development")
+  private val environments = List("production", "qa", "staging", "development")
 
   override def receive: Receive = {
     case _ => nginxService.update(environments)
