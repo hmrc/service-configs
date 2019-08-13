@@ -30,9 +30,14 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
     res("/employees") shouldBe 7
   }
 
-  it should "find the line number of the last path" in {
+  it should "find the line number of the /check-tax path" in {
     val res = NginxConfigIndexer.index(config)
     res("/check-tax") shouldBe 24
+  }
+
+  it should "find the line number of an exact path" in {
+    val res = NginxConfigIndexer.index(config)
+    res("/some-path") shouldBe 47
   }
 
   it should "not find a non-existent location" in {
@@ -107,6 +112,17 @@ class NginxConfigIndexerSpec extends FlatSpec with Matchers {
       |    return 503;
       |  }
       |  proxy_pass https://gateway.public.local;
+      |}
+      |
+      |location = /some-path {
+      |  if ( -f /etc/nginx/switches/x/offswitch ) {
+      |    return 503;
+      |  }
+      |  if ( -f /etc/nginx/switches/x/passengers-frontend ) {
+      |    error_page 503 /shutter/passengers-frontend/index.html;
+      |    return 503;
+      |  }
+      |  proxy_pass https://passengers-frontend.local;
       |}
       |"""
     .stripMargin
