@@ -24,7 +24,7 @@ import scala.io.Source
   */
 object NginxConfigIndexer {
 
-  private val locationRegex = """location\s+[\^\~\~*\^~]*\s*(.+)\s*\{""".r
+  private val locationRegex = """location\s+[\^\~\~*\^~=]*\s*(.+)\s*\{""".r
 
   def index(source: String) : Map[String, Int] = {
     Source.fromString(source)
