@@ -46,7 +46,7 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
         None
       case response: HttpResponse =>
         Logger.info(s"Retrieved Nginx routes file at $url")
-        Some(NginxConfigFile(environment, url, response.body))
+        Some(NginxConfigFile(environment, url, response.body, branch = nginxConfig.configRepoBranch))
     }
   }
 
