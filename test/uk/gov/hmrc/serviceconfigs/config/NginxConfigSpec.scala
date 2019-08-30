@@ -33,6 +33,7 @@ class NginxConfigSpec extends FunSpec with Matchers {
         new NginxConfig(
           Configuration(
             "nginx.config-repo" -> "repo",
+            "nginx.config-repo-branch" -> "master",
             "nginx.config-files" -> List("file1", "file2"),
             "nginx.reload.enabled" -> true,
             "nginx.reload.intervalminutes" -> 25,

@@ -32,6 +32,7 @@ class NginxConfig @Inject()(configuration: Configuration) {
     configuration.underlying.getStringList(key).asScala.toList
 
   val configRepo: String = getValue[String]("nginx.config-repo")
+  val configRepoBranch: String = getValue[String]("nginx.config-repo-branch")
   val frontendConfigFileNames: List[String] = getStringList("nginx.config-files")
 
   val shutterConfig: NginxShutterConfig = {
