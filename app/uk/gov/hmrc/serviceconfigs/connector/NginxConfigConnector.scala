@@ -37,7 +37,7 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
 
   def getNginxRoutesFile(fileName: String, environment: String) : Future[Option[NginxConfigFile]] = {
 
-    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/master/$environment/$fileName"
+    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
     implicit val hc = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {
