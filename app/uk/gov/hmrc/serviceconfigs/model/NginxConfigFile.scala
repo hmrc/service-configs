@@ -16,4 +16,4 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-case class NginxConfigFile(environment: String, url: String, content: String)
+case class NginxConfigFile(environment: String, url: String, content: String, branch: String = "master")
