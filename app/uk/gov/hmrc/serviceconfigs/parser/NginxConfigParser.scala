@@ -86,16 +86,16 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     }
 
     def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
-      val ifs = loc.body.filter(_.isInstanceOf[IFBLOCK]).map(_.asInstanceOf[IFBLOCK])
+      val ifs = loc.body.collect { case ib: IFBLOCK => ib}
 
       // If the #NOT_SHUTTERABLE comment is present then the service has been explicitly marked
       // as not shutterable. Otherwise, assume it is shutterable
-      val isShutterable = !loc.body.exists(_.isInstanceOf[NOT_SHUTTERABLE_COMMENT])
+      val isShutterable = loc.body.collect { case nsc: NOT_SHUTTERABLE_COMMENT => nsc}.isEmpty
 
       val shutterKillswitch = extractKillSwitch(ifs)
       val shutterServiceSwitch = extractShutterSwitch(ifs)
 
-      loc.body.find(_.isInstanceOf[PROXY_PASS]).map(_.asInstanceOf[PROXY_PASS].url).map(
+      loc.body.collectFirst { case pp: PROXY_PASS => pp.url}.map(
         proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
           isShutterable = isShutterable, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
       )
