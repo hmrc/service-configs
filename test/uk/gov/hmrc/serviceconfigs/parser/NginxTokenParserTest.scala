@@ -29,7 +29,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
   val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
   val parser = new NginxConfigParser(nginxConfig)
-  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN, REWRITE}
+  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN, REWRITE, NOT_SHUTTERABLE_COMMENT, COMMENT_LINE}
 
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
@@ -81,6 +81,18 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
     val tokens: Seq[NginxToken] = Seq(KEYWORD("setheader"), VALUE("'some quoted values'"), SEMICOLON())
     val reader = new NginxTokenReader(tokens)
     parser.NginxTokenParser.parameter(reader).get shouldBe OTHER_PARAM("setheader", "'some quoted values'")
+  }
+
+  it should "parse arbitrary comments" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("# this is a comment"))
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe COMMENT_LINE()
+  }
+
+  it should "parse the special #NOT_SHUTTERABLE comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#NOT_SHUTTERABLE"))
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe NOT_SHUTTERABLE_COMMENT()
   }
 
   "locToRoute" should "set the regex flag is the location contains a regex value" in {

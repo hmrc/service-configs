@@ -34,7 +34,7 @@ class NginxLexerSpec extends FlatSpec with Matchers{
   }
 
   it should "tokenize comments" in {
-    NginxLexer.parse(NginxLexer.comment, "# this is a comment").get shouldBe COMMENT()
+    NginxLexer.parse(NginxLexer.comment, "# this is a comment").get shouldBe COMMENT("# this is a comment")
   }
 
   it should "tokenize keywords" in {
