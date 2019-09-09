@@ -16,4 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-case class NginxConfigFile(environment: String, url: String, content: String, branch: String = "master")
+case class NginxConfigFile(environment: String, url: String, content: String, branch: String){
+  def fileName: String = url.split("/").last
+}

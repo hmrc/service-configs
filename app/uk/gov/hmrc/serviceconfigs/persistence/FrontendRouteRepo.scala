@@ -65,7 +65,8 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     val s = Json.obj(
       "service" -> Json.toJson[String](frontendRoute.service),
       "environment" -> Json.toJson[String](frontendRoute.environment),
-      "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath)
+      "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath),
+      "routesFile" -> Json.toJson[String](frontendRoute.routesFile)
     )
 
     collection

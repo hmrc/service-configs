@@ -37,10 +37,9 @@ object NginxConfigIndexer {
   }
 
   private val baseURL = "https://github.com/hmrc/mdtp-frontend-routes/blob"
-  private val filename = "frontend-proxy-application-rules.conf"
 
-  def generateUrl(branch: String, env: String, frontendPath: String, indexes: Map[String, Int]) : Option[String] = {
-    indexes.get(frontendPath).map( idx => s"$baseURL/$branch/$env/$filename#L$idx")
+  def generateUrl(fileName: String, branch: String, env: String, frontendPath: String, indexes: Map[String, Int]) : Option[String] = {
+    indexes.get(frontendPath).map( idx => s"$baseURL/$branch/$env/$fileName#L$idx")
   }
 
 

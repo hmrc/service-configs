@@ -24,11 +24,11 @@ class ParserFrontendRoutesSpec extends FlatSpec with Matchers {
 
   "frontendRoutes" should "group routes by environment" in {
     val mongRoutes = Seq(
-      MongoFrontendRoute("testService", "/test1", "http://test.com",  "prod"),
-      MongoFrontendRoute("testService", "/test2", "http://test2.com", "prod"),
-      MongoFrontendRoute("testService", "/test1", "http://test.com",  "dev"),
-      MongoFrontendRoute("testService", "/test2", "http://test2.com", "dev"),
-      MongoFrontendRoute("testService", "/test3", "http://test3.com", "dev"))
+      MongoFrontendRoute("testService", "/test1", "http://test.com",  "prod", routesFile = "file1"),
+      MongoFrontendRoute("testService", "/test2", "http://test2.com", "prod", routesFile = "file1"),
+      MongoFrontendRoute("testService", "/test1", "http://test.com",  "dev", routesFile = "file1"),
+      MongoFrontendRoute("testService", "/test2", "http://test2.com", "dev", routesFile = "file1"),
+      MongoFrontendRoute("testService", "/test3", "http://test3.com", "dev", routesFile = "file1"))
 
     val res = FrontendRoutes.fromMongo(mongRoutes)
     res.size shouldBe 2
@@ -47,7 +47,7 @@ class ParserFrontendRoutesSpec extends FlatSpec with Matchers {
   }
 
   "frontendRoute" should "be creatable from a MongoFrontendRoute" in {
-    val mongoRoute = MongoFrontendRoute("testService", "/test1", "http://test.com", "prod")
+    val mongoRoute = MongoFrontendRoute("testService", "/test1", "http://test.com", "prod", routesFile = "file1")
     val route = FrontendRoute.fromMongo(mongoRoute)
     route shouldBe FrontendRoute(frontendPath = "/test1", backendPath = "http://test.com")
   }

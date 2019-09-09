@@ -69,6 +69,17 @@ class FrontendRouteRepoMongoSpec
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
     }
+    "add a new route (not overwrite) when a route is the same but comes from a different file" in {
+      val frontendRoute = newFrontendRoute(service = "service")
+
+      await(frontendRouteRepo.update(frontendRoute))
+      await(frontendRouteRepo.update(frontendRoute.copy(ruleConfigurationUrl = "rule1", routesFile = "file2")))
+
+      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      allEntries should have size 2
+      val createdRoute = allEntries.head
+      createdRoute shouldBe frontendRoute
+    }
   }
 
   "FrontendRouteRepo.findByService" should {
@@ -139,7 +150,8 @@ class FrontendRouteRepoMongoSpec
       frontendPath = frontendPath,
       backendPath = "backendPath",
       environment = environment,
-      ruleConfigurationUrl = "",
+      routesFile = "file1",
+      ruleConfigurationUrl = "rule1",
       shutterKillswitch = None,
       shutterServiceSwitch = None,
       isRegex = isRegex,
