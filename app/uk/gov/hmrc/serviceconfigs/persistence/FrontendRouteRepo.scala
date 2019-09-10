@@ -62,7 +62,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
     logger.debug(
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
-    val s = Json.obj(
+    val query = Json.obj(
       "service" -> Json.toJson[String](frontendRoute.service),
       "environment" -> Json.toJson[String](frontendRoute.environment),
       "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath),
@@ -71,7 +71,7 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
     collection
       .update(ordered = false)
-      .one(q = s, u = frontendRoute, upsert = true)
+      .one(q = query, u = frontendRoute, upsert = true)
       .map(_ => ())
       .recover {
         case lastError =>
