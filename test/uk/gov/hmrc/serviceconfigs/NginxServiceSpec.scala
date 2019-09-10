@@ -41,6 +41,7 @@ class NginxServiceSpec
 
   val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  val routesFileUrl = "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
   when(nginxConfig.frontendConfigFileNames).thenReturn(List("some-file"))
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
 
@@ -76,7 +77,7 @@ class NginxServiceSpec
     val service = new NginxService(repo, parser, connector, nginxConfig, lock)
 
     when(connector.getNginxRoutesFile("some-file", "production")).thenReturn(Future.successful {
-      Some(NginxConfigFile(environment = "production", "", testConfig))
+      Some(NginxConfigFile(environment = "production", "", testConfig, branch = "master"))
     })
 
     when(connector.getNginxRoutesFile("some-file", "development")).thenReturn(Future.successful {
@@ -99,7 +100,7 @@ class NginxServiceSpec
     when(nginxConfig.shutterConfig).thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
     val parser = new NginxConfigParser(nginxConfig)
 
-    val configFile = NginxConfigFile(environment = "dev", "", testConfig)
+    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "master")
     val eResult = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true
@@ -137,7 +138,7 @@ class NginxServiceSpec
                        |  proxy_pass http://testservice;
                        |}""".stripMargin
 
-    val configFile = NginxConfigFile(environment = "dev", "", config)
+    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "master")
     val eResult = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true

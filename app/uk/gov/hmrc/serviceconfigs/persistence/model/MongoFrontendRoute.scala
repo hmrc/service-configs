@@ -26,6 +26,7 @@ case class MongoFrontendRoute(
                                frontendPath: String,
                                backendPath : String,
                                environment : String,
+                               routesFile  : String,
                                isShutterable     : Boolean = true,
                                shutterKillswitch: Option[MongoShutterSwitch] = None,
                                shutterServiceSwitch: Option[MongoShutterSwitch] = None,

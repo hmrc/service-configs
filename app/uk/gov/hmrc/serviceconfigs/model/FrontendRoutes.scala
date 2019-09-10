@@ -22,6 +22,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoSh
 case class FrontendRoute(
  frontendPath: String,
  backendPath: String,
+ routesFile: String = "",
  isShutterable: Boolean = true, //True unless the route contains the special #NOT_SHUTTERABLE comment
  shutterKillswitch: Option[ShutterSwitch] = None,
  shutterServiceSwitch: Option[ShutterSwitch] = None,
@@ -37,9 +38,10 @@ object ShutterSwitch {
 
 
 case class FrontendRoutes(
-  service    : String,
-  environment: String,
-  routes     : Seq[FrontendRoute])
+  service     : String,
+  environment : String,
+  routesFile  : String,
+  routes      : Seq[FrontendRoute])
 
 object FrontendRoute {
 
@@ -65,19 +67,22 @@ object FrontendRoutes {
     FrontendRoutes(
       environment = mfr.environment,
       service     = mfr.service,
+      routesFile  = mfr.routesFile,
       routes      = Seq(FrontendRoute.fromMongo(mfr)))
 
   def fromMongo(mfrs: Seq[MongoFrontendRoute]): Seq[FrontendRoutes] =
-    mfrs.groupBy(frs => (frs.service, frs.environment))
+    mfrs.groupBy(frs => (frs.service, frs.environment, frs.routesFile))
       .map {
-        case ((s, e), v) => ((s, e), v.map(FrontendRoute.fromMongo)
+        case ((s, e, rf), v) => ((s, e, rf), v.map(FrontendRoute.fromMongo)
                             .foldLeft(FrontendRoutes(
                               environment = e,
                               service     = s,
+                              routesFile  = rf,
                               routes      = Seq[FrontendRoute]()
                             ))((frs, fr) => FrontendRoutes(
                                               service     = frs.service,
                                               environment = frs.environment,
+                                              routesFile  = frs.routesFile,
                                               routes      = Seq(fr) ++ frs.routes)))
       }.values.toSeq
 
