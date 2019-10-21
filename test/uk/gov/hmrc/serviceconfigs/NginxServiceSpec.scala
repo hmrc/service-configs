@@ -112,7 +112,7 @@ class NginxServiceSpec
     result.head.frontendPath shouldBe "/test/assets"
     result.head.backendPath shouldBe "http://service1"
     result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
-    result.head.isShutterable shouldBe true
+    result.head.markerComments shouldBe Set.empty
     result.head.shutterKillswitch shouldBe Some(MongoShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), None, None))
     result.head.shutterServiceSwitch shouldBe Some(MongoShutterSwitch("/etc/nginx/switches/mdtp/service1", Some(503), Some("/shutter/service1/index.html"), None))
 
@@ -121,7 +121,7 @@ class NginxServiceSpec
     result(1).frontendPath shouldBe "/lol"
     result(1).backendPath shouldBe "http://testservice"
     result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L17"
-    result(1).isShutterable shouldBe false
+    result(1).markerComments shouldBe Set("#MARKER_NOT_SHUTTERABLE", "#MARKER_ABC")
     result(1).shutterKillswitch shouldBe None
     result(1).shutterServiceSwitch shouldBe None
 
@@ -150,7 +150,7 @@ class NginxServiceSpec
     result.head.frontendPath shouldBe "/lol"
     result.head.backendPath shouldBe "http://testservice"
     result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
-    result.head.isShutterable shouldBe true
+    result.head.markerComments shouldBe Set.empty
     result.head.shutterKillswitch shouldBe None
     result.head.shutterServiceSwitch shouldBe None
 
@@ -173,7 +173,9 @@ class NginxServiceSpec
                  |  proxy_pass http://service1;
                  |}
                  |location /lol {
-                 |  #NOT_SHUTTERABLE
+                 |  #MARKER_NOT_SHUTTERABLE
+                 |  #MARKER_ABC
+                 |  #NOT_A_VALID_MARKER_COMMENT
                  |  more_set_headers '';
                  |  proxy_pass http://testservice;
                  |}""".stripMargin

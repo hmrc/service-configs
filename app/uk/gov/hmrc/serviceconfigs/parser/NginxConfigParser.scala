@@ -85,19 +85,23 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
       maybeShutterSwitches.collectFirst { case Some(s) => s }
     }
 
+    def extractMarkerComments(loc: LOCATION): Set[String] = {
+      //comments that start with #MARKER_ which are processed by other servies, e.g. #MARKER_NOT_SHUTTERABLE
+      loc.body.collect {
+        case c: MARKER_COMMENT => c.comment
+      }.toSet
+    }
+
     def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
       val ifs = loc.body.collect { case ib: IFBLOCK => ib}
 
-      // If the #NOT_SHUTTERABLE comment is present then the service has been explicitly marked
-      // as not shutterable. Otherwise, assume it is shutterable
-      val isShutterable = loc.body.collect { case nsc: NOT_SHUTTERABLE_COMMENT => nsc}.isEmpty
-
       val shutterKillswitch = extractKillSwitch(ifs)
       val shutterServiceSwitch = extractShutterSwitch(ifs)
+      val markerComments = extractMarkerComments(loc)
 
       loc.body.collectFirst { case pp: PROXY_PASS => pp.url}.map(
         proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
-          isShutterable = isShutterable, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
+          markerComments = markerComments, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
       )
     }
 
@@ -118,7 +122,7 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
 
     case class RETURN(code: Int, url: Option[String]) extends PARAM
 
-    case class NOT_SHUTTERABLE_COMMENT() extends PARAM
+    case class MARKER_COMMENT(comment: String) extends PARAM
 
     case class OTHER_PARAM(key: String, params: String*) extends PARAM
 
@@ -148,7 +152,7 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     }
 
     def paramaterViaComment: Parser[PARAM] = comment ^^ {
-      case c if c.c == "#NOT_SHUTTERABLE" => NOT_SHUTTERABLE_COMMENT()
+      case c if c.c.startsWith("#MARKER_") => MARKER_COMMENT(c.c.takeWhile(_ != ' '))
       case _ => COMMENT_LINE()
     }
 

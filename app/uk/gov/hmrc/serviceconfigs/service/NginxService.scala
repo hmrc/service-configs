@@ -98,7 +98,7 @@ object NginxService {
           environment          = configFile.environment,
           routesFile           = configFile.fileName,
           ruleConfigurationUrl = NginxConfigIndexer.generateUrl(configFile.fileName, configFile.branch, configFile.environment, r.frontendPath, indexes).getOrElse(""),
-          isShutterable        = r.isShutterable,
+          markerComments       = r.markerComments,
           shutterKillswitch    = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
           shutterServiceSwitch = r.shutterServiceSwitch.map(s => MongoShutterSwitch(s.switchFile, s.statusCode, s.errorPage, s.rewriteRule)),
           isRegex              = r.isRegex))

@@ -23,7 +23,7 @@ case class FrontendRoute(
  frontendPath: String,
  backendPath: String,
  routesFile: String = "",
- isShutterable: Boolean = true, //True unless the route contains the special #NOT_SHUTTERABLE comment
+ markerComments: Set[String] = Set.empty, //All known #MARKER_ comments found that have been applied to the routes
  shutterKillswitch: Option[ShutterSwitch] = None,
  shutterServiceSwitch: Option[ShutterSwitch] = None,
  ruleConfigurationUrl: String = "",
@@ -55,7 +55,7 @@ object FrontendRoute {
       ruleConfigurationUrl = mfr.ruleConfigurationUrl,
       shutterKillswitch    = mfr.shutterKillswitch.map(ShutterSwitch.fromMongo),
       shutterServiceSwitch = mfr.shutterServiceSwitch.map(ShutterSwitch.fromMongo),
-      isShutterable        = mfr.isShutterable,
+      markerComments       = mfr.markerComments,
       isRegex              = mfr.isRegex)
 }
 
