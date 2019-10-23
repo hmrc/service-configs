@@ -138,13 +138,13 @@ class NginxConfigParser @Inject()(nginxConfig: NginxConfig) extends FrontendRout
       accept("comment", { case c@COMMENT(_) => c })
 
     def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
-      case KEYWORD("proxy_pass") ~ List(v)              => PROXY_PASS(v.value)
-      case KEYWORD("return") ~ List(code, url)          => RETURN(code.value.toInt, Some(url.value))
-      case KEYWORD("return") ~ List(code)               => RETURN(code.value.toInt, None)
-      case KEYWORD("error_page") ~ List(code, page)     => ERROR_PAGE(code.value.toInt, page.value)
-      case KEYWORD("rewrite") ~ v                       => REWRITE(v.map(_.value).mkString(" "))
-      case kw ~ List(v)                                 => OTHER_PARAM(kw.keyword, v.value)
-      case kw ~ _ => OTHER_PARAM(kw.keyword)
+      case KEYWORD("proxy_pass") ~ List(v)          => PROXY_PASS(v.value)
+      case KEYWORD("return")     ~ List(code, url)  => RETURN(code.value.toInt, Some(url.value))
+      case KEYWORD("return")     ~ List(code)       => RETURN(code.value.toInt, None)
+      case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.value.toInt, page.value)
+      case KEYWORD("rewrite")    ~ v                => REWRITE(v.map(_.value).mkString(" "))
+      case kw                    ~ List(v)          => OTHER_PARAM(kw.keyword, v.value)
+      case kw                    ~ _                => OTHER_PARAM(kw.keyword)
     }
 
     def parameter2: Parser[PARAM] = (keyword ~ keyword ~ rep(value) <~ SEMICOLON()) ^^ {
@@ -161,9 +161,9 @@ class NginxConfigParser @Inject()(nginxConfig: NginxConfig) extends FrontendRout
     def block: Parser[List[NGINX_AST]] = rep1(parameter | context)
 
     def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
-      case KEYWORD("location") ~ List(v) ~ _ ~ b ~ _    => LOCATION(v.value, b)
+      case KEYWORD("location") ~ List(v)    ~ _ ~ b ~ _ => LOCATION(v.value, b)
       case KEYWORD("location") ~ List(_, v) ~ _ ~ b ~ _ => LOCATION(v.value, b, regex = true)
-      case KEYWORD("if") ~ cond ~ _ ~ b ~ _             => IFBLOCK(cond.map(_.value).mkString, b)
+      case KEYWORD("if")       ~ cond       ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.value).mkString, b)
     }
 
     def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
