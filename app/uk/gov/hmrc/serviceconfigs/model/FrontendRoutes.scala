@@ -23,7 +23,7 @@ case class FrontendRoute(
  frontendPath: String,
  backendPath: String,
  routesFile: String = "",
- markerComments: Set[String] = Set.empty, //All known #MARKER_ comments found that have been applied to the routes
+ markerComments: Set[String] = Set.empty, //All known #! comments found that have been applied to the routes
  shutterKillswitch: Option[ShutterSwitch] = None,
  shutterServiceSwitch: Option[ShutterSwitch] = None,
  ruleConfigurationUrl: String = "",
