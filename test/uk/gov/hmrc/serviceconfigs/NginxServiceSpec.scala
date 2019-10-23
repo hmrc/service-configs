@@ -121,7 +121,7 @@ class NginxServiceSpec
     result(1).frontendPath shouldBe "/lol"
     result(1).backendPath shouldBe "http://testservice"
     result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L17"
-    result(1).markerComments shouldBe Set("#MARKER_NOT_SHUTTERABLE", "#MARKER_ABC")
+    result(1).markerComments shouldBe Set("#!NOT_SHUTTERABLE", "#!ABC")
     result(1).shutterKillswitch shouldBe None
     result(1).shutterServiceSwitch shouldBe None
 
@@ -173,8 +173,8 @@ class NginxServiceSpec
                  |  proxy_pass http://service1;
                  |}
                  |location /lol {
-                 |  #MARKER_NOT_SHUTTERABLE
-                 |  #MARKER_ABC
+                 |  #!NOT_SHUTTERABLE
+                 |  #!ABC
                  |  #NOT_A_VALID_MARKER_COMMENT
                  |  more_set_headers '';
                  |  proxy_pass http://testservice;

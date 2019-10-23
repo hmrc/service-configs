@@ -89,22 +89,22 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
     parser.NginxTokenParser.parameter(reader).get shouldBe COMMENT_LINE()
   }
 
-  it should "parse the special #MARKER_NOT_SHUTTERABLE comment" in {
-    val tokens: Seq[NginxToken] = Seq(COMMENT("#MARKER_NOT_SHUTTERABLE"))
+  it should "parse the special #!NOT_SHUTTERABLE comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NOT_SHUTTERABLE"))
     val reader = new NginxTokenReader(tokens)
-    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#MARKER_NOT_SHUTTERABLE")
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#!NOT_SHUTTERABLE")
   }
 
-  it should "parse the special #MARKER_NON_STANDARD_SHUTTERING comment" in {
-    val tokens: Seq[NginxToken] = Seq(COMMENT("#MARKER_NON_STANDARD_SHUTTERING"))
+  it should "parse the special #!NON_STANDARD_SHUTTERING comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NON_STANDARD_SHUTTERING"))
     val reader = new NginxTokenReader(tokens)
-    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#MARKER_NON_STANDARD_SHUTTERING")
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#!NON_STANDARD_SHUTTERING")
   }
 
   it should "disregard anything after a marker comment" in {
-    val tokens: Seq[NginxToken] = Seq(COMMENT("#MARKER_NOT_SHUTTERABLE some other text"))
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NOT_SHUTTERABLE some other text"))
     val reader = new NginxTokenReader(tokens)
-    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#MARKER_NOT_SHUTTERABLE")
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("#!NOT_SHUTTERABLE")
   }
 
   "locToRoute" should "set the regex flag is the location contains a regex value" in {

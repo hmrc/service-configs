@@ -178,7 +178,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
   it should "parse a marker comment" in {
     val config =
       """location /lol {
-        |  #MARKER_NOT_SHUTTERABLE
+        |  #!NOT_SHUTTERABLE
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
@@ -187,7 +187,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
-      markerComments = Set("#MARKER_NOT_SHUTTERABLE")
+      markerComments = Set("#!NOT_SHUTTERABLE")
     )
   }
 
