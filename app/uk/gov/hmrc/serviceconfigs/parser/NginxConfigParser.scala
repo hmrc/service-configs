@@ -24,7 +24,7 @@ import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
-class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRouteParser {
+class NginxConfigParser @Inject()(nginxConfig: NginxConfig) extends FrontendRouteParser {
   val shutterConfig = nginxConfig.shutterConfig
 
   override def parseConfig(config: String): Either[String, List[FrontendRoute]] =
@@ -93,13 +93,13 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     }
 
     def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
-      val ifs = loc.body.collect { case ib: IFBLOCK => ib}
+      val ifs = loc.body.collect { case ib: IFBLOCK => ib }
 
       val shutterKillswitch = extractKillSwitch(ifs)
       val shutterServiceSwitch = extractShutterSwitch(ifs)
       val markerComments = extractMarkerComments(loc)
 
-      loc.body.collectFirst { case pp: PROXY_PASS => pp.url}.map(
+      loc.body.collectFirst { case pp: PROXY_PASS => pp.url }.map(
         proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
           markerComments = markerComments, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
       )
@@ -138,12 +138,12 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
       accept("comment", { case c@COMMENT(_) => c })
 
     def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
-      case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.value)
-      case KEYWORD("return") ~ List(code, url) => RETURN(code.value.toInt, Some(url.value))
-      case KEYWORD("return") ~ List(code) => RETURN(code.value.toInt, None)
-      case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.value.toInt, page.value)
-      case KEYWORD("rewrite") ~ v => REWRITE(v.map(_.value).mkString(" "))
-      case kw ~ List(v) => OTHER_PARAM(kw.keyword, v.value)
+      case KEYWORD("proxy_pass") ~ List(v)              => PROXY_PASS(v.value)
+      case KEYWORD("return") ~ List(code, url)          => RETURN(code.value.toInt, Some(url.value))
+      case KEYWORD("return") ~ List(code)               => RETURN(code.value.toInt, None)
+      case KEYWORD("error_page") ~ List(code, page)     => ERROR_PAGE(code.value.toInt, page.value)
+      case KEYWORD("rewrite") ~ v                       => REWRITE(v.map(_.value).mkString(" "))
+      case kw ~ List(v)                                 => OTHER_PARAM(kw.keyword, v.value)
       case kw ~ _ => OTHER_PARAM(kw.keyword)
     }
 
@@ -152,7 +152,7 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     }
 
     def paramaterViaComment: Parser[PARAM] = comment ^^ {
-      case c if c.comment.startsWith("#!") => MARKER_COMMENT(c.comment.takeWhile(_ != ' '))
+      case c if c.comment.startsWith("#!") => MARKER_COMMENT(c.comment.stripPrefix("#!").takeWhile(_ != ' '))
       case _ => COMMENT_LINE()
     }
 
@@ -161,9 +161,9 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     def block: Parser[List[NGINX_AST]] = rep1(parameter | context)
 
     def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
-      case KEYWORD("location") ~  List(v) ~ _ ~ b ~ _ => LOCATION(v.value, b)
-      case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.value, b, regex = true)
-      case KEYWORD("if") ~ cond ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.value).mkString, b)
+      case KEYWORD("location") ~ List(v) ~ _ ~ b ~ _    => LOCATION(v.value, b)
+      case KEYWORD("location") ~ List(_, v) ~ _ ~ b ~ _ => LOCATION(v.value, b, regex = true)
+      case KEYWORD("if") ~ cond ~ _ ~ b ~ _             => IFBLOCK(cond.map(_.value).mkString, b)
     }
 
     def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
@@ -187,6 +187,7 @@ object Nginx {
   case class KEYWORD(keyword: String) extends NginxToken
 
   case class VALUE(value: String) extends NginxToken
+
 }
 
 
@@ -221,7 +222,7 @@ object NginxLexer extends RegexParsers {
   def keyword: Parser[KEYWORD] = """[a-zA-Z_][a-zA-Z0-9_]* """.r ^^ (k => KEYWORD(k.trim))
 
   def tokens: Parser[List[NginxToken]] = {
-    phrase(rep1(openBracket | closeBracket | semicolon | comment | keyword | value ))
+    phrase(rep1(openBracket | closeBracket | semicolon | comment | keyword | value))
   }
 
   def apply(config: String): Seq[NginxToken] = {

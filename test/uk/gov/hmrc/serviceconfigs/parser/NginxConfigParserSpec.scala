@@ -187,7 +187,7 @@ class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
     eCfg.isRight shouldBe true
     val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
-      markerComments = Set("#!NOT_SHUTTERABLE")
+      markerComments = Set("NOT_SHUTTERABLE")
     )
   }
 
