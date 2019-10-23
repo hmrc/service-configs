@@ -24,7 +24,7 @@ import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 
-class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRouteParser {
+class NginxConfigParser @Inject()(nginxConfig: NginxConfig) extends FrontendRouteParser {
   val shutterConfig = nginxConfig.shutterConfig
 
   override def parseConfig(config: String): Either[String, List[FrontendRoute]] =
@@ -85,19 +85,23 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
       maybeShutterSwitches.collectFirst { case Some(s) => s }
     }
 
-    def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
-      val ifs = loc.body.collect { case ib: IFBLOCK => ib}
+    def extractMarkerComments(loc: LOCATION): Set[String] = {
+      //comments that start with #! which are processed by other services, e.g. #!NOT_SHUTTERABLE
+      loc.body.collect {
+        case c: MARKER_COMMENT => c.comment
+      }.toSet
+    }
 
-      // If the #NOT_SHUTTERABLE comment is present then the service has been explicitly marked
-      // as not shutterable. Otherwise, assume it is shutterable
-      val isShutterable = loc.body.collect { case nsc: NOT_SHUTTERABLE_COMMENT => nsc}.isEmpty
+    def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
+      val ifs = loc.body.collect { case ib: IFBLOCK => ib }
 
       val shutterKillswitch = extractKillSwitch(ifs)
       val shutterServiceSwitch = extractShutterSwitch(ifs)
+      val markerComments = extractMarkerComments(loc)
 
-      loc.body.collectFirst { case pp: PROXY_PASS => pp.url}.map(
+      loc.body.collectFirst { case pp: PROXY_PASS => pp.url }.map(
         proxy => FrontendRoute(frontendPath = loc.path, backendPath = proxy, isRegex = loc.regex,
-          isShutterable = isShutterable, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
+          markerComments = markerComments, shutterKillswitch = shutterKillswitch, shutterServiceSwitch = shutterServiceSwitch)
       )
     }
 
@@ -118,7 +122,7 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
 
     case class RETURN(code: Int, url: Option[String]) extends PARAM
 
-    case class NOT_SHUTTERABLE_COMMENT() extends PARAM
+    case class MARKER_COMMENT(comment: String) extends PARAM
 
     case class OTHER_PARAM(key: String, params: String*) extends PARAM
 
@@ -134,21 +138,21 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
       accept("comment", { case c@COMMENT(_) => c })
 
     def parameter1: Parser[PARAM] = (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
-      case KEYWORD("proxy_pass") ~ List(v) => PROXY_PASS(v.v)
-      case KEYWORD("return") ~ List(code, url) => RETURN(code.v.toInt, Some(url.v))
-      case KEYWORD("return") ~ List(code) => RETURN(code.v.toInt, None)
-      case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.v.toInt, page.v)
-      case KEYWORD("rewrite") ~ v => REWRITE(v.map(_.v).mkString(" "))
-      case kw ~ List(v) => OTHER_PARAM(kw.v, v.v)
-      case kw ~ _ => OTHER_PARAM(kw.v)
+      case KEYWORD("proxy_pass") ~ List(v)          => PROXY_PASS(v.value)
+      case KEYWORD("return")     ~ List(code, url)  => RETURN(code.value.toInt, Some(url.value))
+      case KEYWORD("return")     ~ List(code)       => RETURN(code.value.toInt, None)
+      case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.value.toInt, page.value)
+      case KEYWORD("rewrite")    ~ v                => REWRITE(v.map(_.value).mkString(" "))
+      case kw                    ~ List(v)          => OTHER_PARAM(kw.keyword, v.value)
+      case kw                    ~ _                => OTHER_PARAM(kw.keyword)
     }
 
     def parameter2: Parser[PARAM] = (keyword ~ keyword ~ rep(value) <~ SEMICOLON()) ^^ {
-      case kw ~ p1 ~ List(v) => OTHER_PARAM(kw.v, p1.v ++ v.v)
+      case kw ~ p1 ~ List(v) => OTHER_PARAM(kw.keyword, p1.keyword ++ v.value)
     }
 
     def paramaterViaComment: Parser[PARAM] = comment ^^ {
-      case c if c.c == "#NOT_SHUTTERABLE" => NOT_SHUTTERABLE_COMMENT()
+      case c if c.comment.startsWith("#!") => MARKER_COMMENT(c.comment.stripPrefix("#!").takeWhile(_ != ' '))
       case _ => COMMENT_LINE()
     }
 
@@ -157,9 +161,9 @@ class NginxConfigParser @Inject() (nginxConfig: NginxConfig) extends FrontendRou
     def block: Parser[List[NGINX_AST]] = rep1(parameter | context)
 
     def context: Parser[NGINX_AST] = (keyword ~ rep(value) ~ OPEN_BRACKET() ~ block ~ CLOSE_BRACKET()) ^^ {
-      case KEYWORD("location") ~  List(v) ~ _ ~ b ~ _ => LOCATION(v.v, b)
-      case KEYWORD("location") ~  List(_, v) ~ _ ~ b ~ _ => LOCATION(v.v, b, regex = true)
-      case KEYWORD("if") ~ cond ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.v).mkString, b)
+      case KEYWORD("location") ~ List(v)    ~ _ ~ b ~ _ => LOCATION(v.value, b)
+      case KEYWORD("location") ~ List(_, v) ~ _ ~ b ~ _ => LOCATION(v.value, b, regex = true)
+      case KEYWORD("if")       ~ cond       ~ _ ~ b ~ _ => IFBLOCK(cond.map(_.value).mkString, b)
     }
 
     def configFile: NginxTokenParser.Parser[List[NGINX_AST]] = phrase(rep1(context | parameter))
@@ -178,11 +182,12 @@ object Nginx {
 
   case class SEMICOLON() extends NginxToken
 
-  case class COMMENT(c: String) extends NginxToken
+  case class COMMENT(comment: String) extends NginxToken
 
-  case class KEYWORD(v: String) extends NginxToken
+  case class KEYWORD(keyword: String) extends NginxToken
 
-  case class VALUE(v: String) extends NginxToken
+  case class VALUE(value: String) extends NginxToken
+
 }
 
 
@@ -217,7 +222,7 @@ object NginxLexer extends RegexParsers {
   def keyword: Parser[KEYWORD] = """[a-zA-Z_][a-zA-Z0-9_]* """.r ^^ (k => KEYWORD(k.trim))
 
   def tokens: Parser[List[NginxToken]] = {
-    phrase(rep1(openBracket | closeBracket | semicolon | comment | keyword | value ))
+    phrase(rep1(openBracket | closeBracket | semicolon | comment | keyword | value))
   }
 
   def apply(config: String): Seq[NginxToken] = {

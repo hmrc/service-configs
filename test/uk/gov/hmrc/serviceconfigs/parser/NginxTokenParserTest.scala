@@ -29,7 +29,7 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
   val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
   val parser = new NginxConfigParser(nginxConfig)
-  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN, REWRITE, NOT_SHUTTERABLE_COMMENT, COMMENT_LINE}
+  import parser.NginxTokenParser.{ERROR_PAGE, LOCATION, NginxTokenReader, OTHER_PARAM, PROXY_PASS, RETURN, REWRITE, MARKER_COMMENT, COMMENT_LINE}
 
   "Parser" should "find location blocks without prefixes" in {
     val tokens : Seq[NginxToken] = Seq(KEYWORD("location"), VALUE("/test"), OPEN_BRACKET(), KEYWORD("proxy_pass"), VALUE("http://www.com/123"), SEMICOLON(), CLOSE_BRACKET())
@@ -89,10 +89,22 @@ class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
     parser.NginxTokenParser.parameter(reader).get shouldBe COMMENT_LINE()
   }
 
-  it should "parse the special #NOT_SHUTTERABLE comment" in {
-    val tokens: Seq[NginxToken] = Seq(COMMENT("#NOT_SHUTTERABLE"))
+  it should "parse the special #!NOT_SHUTTERABLE comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NOT_SHUTTERABLE"))
     val reader = new NginxTokenReader(tokens)
-    parser.NginxTokenParser.parameter(reader).get shouldBe NOT_SHUTTERABLE_COMMENT()
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("NOT_SHUTTERABLE")
+  }
+
+  it should "parse the special #!NON_STANDARD_SHUTTERING comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NON_STANDARD_SHUTTERING"))
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("NON_STANDARD_SHUTTERING")
+  }
+
+  it should "disregard anything after a marker comment" in {
+    val tokens: Seq[NginxToken] = Seq(COMMENT("#!NOT_SHUTTERABLE some other text"))
+    val reader = new NginxTokenReader(tokens)
+    parser.NginxTokenParser.parameter(reader).get shouldBe MARKER_COMMENT("NOT_SHUTTERABLE")
   }
 
   "locToRoute" should "set the regex flag is the location contains a regex value" in {
