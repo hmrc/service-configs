@@ -22,29 +22,28 @@ import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
-class FrontendRouteScheduler @Inject()(actorSystem: ActorSystem,
-                                       nginxConfig: NginxConfig,
-                                       nginxService: NginxService,
-                                       configuration: Configuration) {
+class FrontendRouteScheduler @Inject()(
+  actorSystem: ActorSystem,
+  nginxConfig: NginxConfig,
+  nginxService: NginxService,
+  configuration: Configuration)(implicit ec: ExecutionContext) {
 
-  private val props = Props.create(classOf[FrontendRouteActor], nginxService)
+  private val props              = Props.create(classOf[FrontendRouteActor], nginxService)
   private val frontendRouteActor = actorSystem.actorOf(props)
 
-  if(nginxConfig.schedulerEnabled) {
+  if (nginxConfig.schedulerEnabled) {
     Logger.info("Starting frontend route scheduler")
     actorSystem.scheduler.schedule(1.seconds, nginxConfig.schedulerDelay.minutes, frontendRouteActor, "tick")
-  }
-  else {
+  } else {
     Logger.info("Frontend route scheduler is DISABLED. To enabled set 'nginx.reload.enabled' as true.")
   }
 
 }
 
-
-class FrontendRouteActor(nginxService: NginxService)  extends Actor {
+class FrontendRouteActor(nginxService: NginxService) extends Actor {
 
   private val environments = List("production", "externaltest", "qa", "staging", "integration", "development")
 

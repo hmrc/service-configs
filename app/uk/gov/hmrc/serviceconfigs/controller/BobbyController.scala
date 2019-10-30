@@ -22,17 +22,16 @@ import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.service.BobbyService
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 
 @Api("Bobby Rules")
-class BobbyController @Inject()(bobbyService: BobbyService,
-                                mcc: MessagesControllerComponents)
+class BobbyController @Inject()(bobbyService: BobbyService, mcc: MessagesControllerComponents)(
+  implicit ec: ExecutionContext)
     extends BackendController(mcc) {
 
   @ApiOperation(
     value = "Retrieve the current set of bobby rules",
-    notes =
-      """Parses the list of bobby rules from the github bobby-config repo"""
+    notes = """Parses the list of bobby rules from the github bobby-config repo"""
   )
   def allRules(): Action[AnyContent] = Action.async { implicit request =>
     bobbyService.findAllRules().map { e =>

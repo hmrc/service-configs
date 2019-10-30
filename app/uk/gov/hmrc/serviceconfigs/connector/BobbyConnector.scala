@@ -23,15 +23,15 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-class BobbyConnector @Inject()(http: HttpClient, gitConf: GithubConfig, bobbyConf: BobbyConfig) {
+class BobbyConnector @Inject()(http: HttpClient, gitConf: GithubConfig, bobbyConf: BobbyConfig)(
+  implicit ec: ExecutionContext) {
   private val configKey = gitConf.githubApiOpenConfig.key
 
   def findAllRules(): Future[String] = {
 
-    val url = bobbyConf.url
+    val url                        = bobbyConf.url
     implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {

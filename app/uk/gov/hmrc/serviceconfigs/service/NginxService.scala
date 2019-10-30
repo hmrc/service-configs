@@ -29,8 +29,7 @@ import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexe
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepository, MongoLock}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 case class SearchRequest(path: String)
@@ -42,7 +41,7 @@ class NginxService @Inject()(
   parser: FrontendRouteParser,
   nginxConnector: NginxConfigConnector,
   nginxConfig: NginxConfig,
-  mongoLock: MongoLock) {
+  mongoLock: MongoLock)(implicit ec: ExecutionContext) {
 
   def update(environments: List[String]): Future[Unit] =
     for {

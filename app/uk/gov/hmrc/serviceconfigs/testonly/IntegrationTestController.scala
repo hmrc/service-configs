@@ -24,14 +24,13 @@ import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugI
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugConfigurationInfoRepository}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class IntegrationTestController @Inject()(
   routeRepo: FrontendRouteRepository,
   dependencyConfigRepo: DependencyConfigRepository,
   slugRepo: SlugConfigurationInfoRepository,
-  mcc: MessagesControllerComponents)
+  mcc: MessagesControllerComponents)(implicit ec: ExecutionContext)
     extends BackendController(mcc) {
 
   import MongoFrontendRoute.formats
