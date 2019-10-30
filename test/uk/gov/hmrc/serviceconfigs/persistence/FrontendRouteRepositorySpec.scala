@@ -18,23 +18,22 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.scalatest.{FlatSpec, Matchers}
 
-class FrontendRouteRepoSpec extends FlatSpec with Matchers {
+class FrontendRouteRepositorySpec extends FlatSpec with Matchers {
 
   "FrontendRouteRepo.pathsToRegex" should "create regex from paths" in {
-    FrontendRouteRepo.pathsToRegex(Seq("")) shouldBe "^(\\^)?(\\/)?(\\/|$)"
-    FrontendRouteRepo.pathsToRegex(Seq("account")) shouldBe "^(\\^)?(\\/)?account(\\/|$)"
-    FrontendRouteRepo.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
+    FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|$)"
+    FrontendRouteRepository.pathsToRegex(Seq("account"))            shouldBe "^(\\^)?(\\/)?account(\\/|$)"
+    FrontendRouteRepository.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
   }
 
   it should "escape '-'" in {
-    FrontendRouteRepo.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
+    FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
   }
 
-
   "FrontendRouteRepo.queries" should "create queries from path" in {
-    FrontendRouteRepo.queries("a/b/c").toList shouldBe Seq(
-        FrontendRouteRepo.toQuery(Seq("a", "b", "c")),
-        FrontendRouteRepo.toQuery(Seq("a", "b")),
-        FrontendRouteRepo.toQuery(Seq("a")))
+    FrontendRouteRepository.queries("a/b/c").toList shouldBe Seq(
+      FrontendRouteRepository.toQuery(Seq("a", "b", "c")),
+      FrontendRouteRepository.toQuery(Seq("a", "b")),
+      FrontendRouteRepository.toQuery(Seq("a")))
   }
 }

@@ -17,15 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
-import org.joda.time.Duration
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.lock.{LockKeeper, LockMongoRepository, LockRepository}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, MongoLockService}
+
+import scala.concurrent.duration
+import scala.concurrent.duration.DurationInt
 
 @Singleton
-class MongoLock @Inject()(mongo: ReactiveMongoComponent) extends LockKeeper {
-  override def repo: LockRepository = LockMongoRepository(mongo.mongoConnector.db)
-
-  override def lockId: String = "service-configs-sync-job"
-
-  override val forceLockReleaseAfter: Duration = Duration.standardMinutes(20)
+class MongoLock @Inject()(mongoLock: MongoLockRepository) extends MongoLockService {
+  override val mongoLockRepository: MongoLockRepository = mongoLock
+  override val lockId: String                           = "service-configs-sync-job"
+  override val ttl: duration.Duration                   = 20.minutes
 }

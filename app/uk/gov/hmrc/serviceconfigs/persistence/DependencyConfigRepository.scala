@@ -17,63 +17,54 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
-import play.api.libs.json.Json
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.mongo.ReactiveRepository
+import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
+import uk.gov.hmrc.mongo.component.MongoComponent
+import uk.gov.hmrc.mongo.play.PlayMongoCollection
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, MongoSlugInfoFormats}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class DependencyConfigRepository @Inject()(mongo: ReactiveMongoComponent)
-    extends ReactiveRepository[DependencyConfig, BSONObjectID](
-      collectionName = "dependencyConfigs",
-      mongo = mongo.mongoConnector.db,
-      domainFormat = MongoSlugInfoFormats.dcFormat
+class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoCollection(
+      mongoComponent = mongoComponent,
+      "dependencyConfigs",
+      MongoSlugInfoFormats.dcFormat,
+      Seq(
+        IndexModel(
+          Indexes.ascending("group", "artefact", "version"),
+          IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
+      )
     ) {
 
-  implicit val mf = MongoSlugInfoFormats.dcFormat
-  import ExecutionContext.Implicits.global
+  def add(dependencyConfig: DependencyConfig): Future[Boolean] = {
 
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq(
-          "group" -> IndexType.Ascending,
-          "artefact" -> IndexType.Ascending,
-          "version" -> IndexType.Ascending
-        ),
-        name = Some("dependencyConfigUniqueIdx"),
-        unique = true
-      )
-    )
+    val filter: Bson = and(
+      equal("group", dependencyConfig.group),
+      equal("artefact", dependencyConfig.artefact),
+      equal("version", dependencyConfig.version))
 
-  def add(dependencyConfig: DependencyConfig): Future[Boolean] =
+    val options = FindOneAndReplaceOptions().upsert(true)
     collection
-      .update(ordered = false)
-      .one(
-        q = Json.obj(
-          "group" -> Json.toJson(dependencyConfig.group),
-          "artefact" -> Json.toJson(dependencyConfig.artefact),
-          "version" -> Json.toJson(dependencyConfig.version)
-        ),
-        u = dependencyConfig,
-        upsert = true
+      .findOneAndReplace(
+        filter      = filter,
+        replacement = dependencyConfig,
+        options     = options
       )
-      .map(_.ok)
+      .toFutureOption()
+      .map(_.isDefined)
+  }
 
-  def getAllEntries: Future[Seq[DependencyConfig]] =
-    findAll()
+  def getAllEntries: Future[Seq[DependencyConfig]] = collection.find().toFuture()
 
-  def clearAllData: Future[Boolean] =
-    super.removeAll().map(_.ok)
+  def clearAllData: Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
 
-  def getDependencyConfig(group: String,
-                          artefact: String,
-                          version: String): Future[Option[DependencyConfig]] =
-    find("group" -> group, "artefact" -> artefact, "version" -> version)
-      .map(_.headOption)
+  def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
+    collection
+      .find(and(equal("group", group), equal("artefact", artefact), equal("version", version)))
+      .first()
+      .toFutureOption()
+
 }

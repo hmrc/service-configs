@@ -16,31 +16,35 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence.model
 
-import org.joda.time.DateTime
-import play.api.libs.json.{Format, Json, OFormat}
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import java.time.{LocalDateTime, ZoneOffset}
 
+import play.api.libs.json.{Format, Json, OFormat}
+import uk.gov.hmrc.mongo.play.json.MongoJavatimeFormats
 
 case class MongoFrontendRoute(
-                               service     : String,
-                               frontendPath: String,
-                               backendPath : String,
-                               environment : String,
-                               routesFile  : String,
-                               markerComments: Set[String] = Set.empty,
-                               shutterKillswitch: Option[MongoShutterSwitch] = None,
-                               shutterServiceSwitch: Option[MongoShutterSwitch] = None,
-                               ruleConfigurationUrl: String = "",
-                               isRegex     : Boolean = false,
-                               updateDate  : DateTime = DateTime.now
+  service: String,
+  frontendPath: String,
+  backendPath: String,
+  environment: String,
+  routesFile: String,
+  markerComments: Set[String]                      = Set.empty,
+  shutterKillswitch: Option[MongoShutterSwitch]    = None,
+  shutterServiceSwitch: Option[MongoShutterSwitch] = None,
+  ruleConfigurationUrl: String                     = "",
+  isRegex: Boolean                                 = false,
+  updateDate: LocalDateTime                        = LocalDateTime.now(ZoneOffset.UTC)
 )
 
-case class MongoShutterSwitch(switchFile: String, statusCode: Option[Int] = None, errorPage: Option[String] = None, rewriteRule: Option[String] = None)
+case class MongoShutterSwitch(
+  switchFile: String,
+  statusCode: Option[Int]     = None,
+  errorPage: Option[String]   = None,
+  rewriteRule: Option[String] = None)
 
 object MongoFrontendRoute {
 
-  implicit val dateFormat: Format[DateTime]         = ReactiveMongoFormats.dateTimeFormats
+  implicit val dateFormat: Format[LocalDateTime]               = MongoJavatimeFormats.localDateTimeFormats
   implicit val shutterSwitchFormat: Format[MongoShutterSwitch] = Json.format[MongoShutterSwitch]
-  implicit val formats: OFormat[MongoFrontendRoute] = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
+  implicit val formats: OFormat[MongoFrontendRoute]            = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
 
 }

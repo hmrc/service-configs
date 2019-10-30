@@ -16,66 +16,53 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.joda.time.{DateTime, DateTimeZone}
-import org.mockito.Mockito.when
+import org.mongodb.scala.model.IndexModel
+import org.mongodb.scala.{MongoClient, MongoDatabase}
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.{
-  MongoConnector,
-  MongoSpecSupport,
-  RepositoryPreparation
-}
+import uk.gov.hmrc.mongo.component.MongoComponent
+import uk.gov.hmrc.mongo.test.CleanMongoCollectionSupport
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class FrontendRouteRepoMongoSpec
+class FrontendRouteRepositoryMongoSpec
     extends WordSpecLike
     with Matchers
-    with MongoSpecSupport
     with ScalaFutures
     with BeforeAndAfterEach
     with MockitoSugar
-    //with FailOnUnindexedQueries
-    with RepositoryPreparation {
+    with CleanMongoCollectionSupport {
 
   import ExecutionContext.Implicits.global
 
-  val reactiveMongoComponent: ReactiveMongoComponent =
-    new ReactiveMongoComponent {
-      override val mongoConnector = {
-        val mc = mock[MongoConnector]
-        when(mc.db).thenReturn(mongo)
-        mc
-      }
-    }
+  private val mongoComponent: MongoComponent = new MongoComponent {
+    override def client: MongoClient = mongoClient
 
-  val frontendRouteRepo = new FrontendRouteRepo(reactiveMongoComponent)
-
-  override def beforeEach() {
-    prepare(frontendRouteRepo)
+    override def database: MongoDatabase = mongoDatabase()
   }
+
+  private val frontendRouteRepo = new FrontendRouteRepository(mongoComponent)
 
   "FrontendRouteRepo.update" should {
     "add new route" in {
-      val frontendRoute = newFrontendRoute(service = "service")
+      val frontendRoute = newFrontendRoute()
 
-      await(frontendRouteRepo.update(frontendRoute))
+      frontendRouteRepo.update(frontendRoute).futureValue
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      val allEntries = frontendRouteRepo.findAllRoutes().futureValue
       allEntries should have size 1
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
     }
     "add a new route (not overwrite) when a route is the same but comes from a different file" in {
-      val frontendRoute = newFrontendRoute(service = "service")
+      val frontendRoute = newFrontendRoute()
 
-      await(frontendRouteRepo.update(frontendRoute))
-      await(frontendRouteRepo.update(frontendRoute.copy(ruleConfigurationUrl = "rule1", routesFile = "file2")))
+      frontendRouteRepo.update(frontendRoute).futureValue
+      frontendRouteRepo.update(frontendRoute.copy(ruleConfigurationUrl = "rule1", routesFile = "file2")).futureValue
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      val allEntries = frontendRouteRepo.findAllRoutes().futureValue
       allEntries should have size 2
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
@@ -86,13 +73,13 @@ class FrontendRouteRepoMongoSpec
     "return only routes with the service" in {
       val service1Name = "service1"
       val service2Name = "service2"
-      await(frontendRouteRepo.update(newFrontendRoute(service = service1Name)))
-      await(frontendRouteRepo.update(newFrontendRoute(service = service2Name)))
+      frontendRouteRepo.update(newFrontendRoute(service = service1Name)).futureValue
+      frontendRouteRepo.update(newFrontendRoute(service = service2Name)).futureValue
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      val allEntries = frontendRouteRepo.findAllRoutes().futureValue
       allEntries should have size 2
 
-      val service1Entries = await(frontendRouteRepo.findByService(service1Name))
+      val service1Entries = frontendRouteRepo.findByService(service1Name).futureValue
       service1Entries should have size 1
       val service1Route = service1Entries.head
       service1Route.service shouldBe service1Name
@@ -101,13 +88,13 @@ class FrontendRouteRepoMongoSpec
 
   "FrontendRouteRepo.findByEnvironment" should {
     "return only routes with the environment" in {
-      await(frontendRouteRepo.update(newFrontendRoute(environment = "production")))
-      await(frontendRouteRepo.update(newFrontendRoute(environment = "qa")))
+      frontendRouteRepo.update(newFrontendRoute(environment = "production")).futureValue
+      frontendRouteRepo.update(newFrontendRoute(environment = "qa")).futureValue
 
-      val allEntries = await(frontendRouteRepo.findAllRoutes())
+      val allEntries = frontendRouteRepo.findAllRoutes().futureValue
       allEntries should have size 2
 
-      val productionEntries = await(frontendRouteRepo.findByEnvironment("production"))
+      val productionEntries = frontendRouteRepo.findByEnvironment("production").futureValue
       productionEntries should have size 1
       val route = productionEntries.head
       route.environment shouldBe "production"
@@ -116,16 +103,16 @@ class FrontendRouteRepoMongoSpec
 
   "FrontendRouteRepo.searchByFrontendPath" should {
     "return only routes with the path" in {
-      await(addFrontendRoutes("a", "b"))
+      addFrontendRoutes("a", "b").futureValue
 
-      val service1Entries = await(frontendRouteRepo.searchByFrontendPath("a"))
+      val service1Entries = frontendRouteRepo.searchByFrontendPath("a").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a")
     }
 
     "return routes with the subpath" in {
-      await(addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb"))
+      addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb").futureValue
 
-      val service1Entries = await(frontendRouteRepo.searchByFrontendPath("a/b"))
+      val service1Entries = frontendRouteRepo.searchByFrontendPath("a/b").futureValue
       service1Entries.map(_.frontendPath).toList.sorted shouldBe List(
         "a/b",
         "a/b/c",
@@ -134,28 +121,28 @@ class FrontendRouteRepoMongoSpec
     }
 
     "return routes with the parent path if no match" in {
-      await(addFrontendRoutes("a/1", "b/1"))
+      addFrontendRoutes("a/1", "b/1").futureValue
 
-      val service1Entries = await(frontendRouteRepo.searchByFrontendPath("a/2"))
+      val service1Entries = frontendRouteRepo.searchByFrontendPath("a/2").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a/1")
     }
   }
 
-  def newFrontendRoute(service: String = "service",
-                       frontendPath: String = "frontendPath",
-                       environment: String = "environment",
-                       isRegex: Boolean = true) =
+  def newFrontendRoute(
+    service: String      = "service",
+    frontendPath: String = "frontendPath",
+    environment: String  = "environment",
+    isRegex: Boolean     = true) =
     MongoFrontendRoute(
-      service = service,
-      frontendPath = frontendPath,
-      backendPath = "backendPath",
-      environment = environment,
-      routesFile = "file1",
+      service              = service,
+      frontendPath         = frontendPath,
+      backendPath          = "backendPath",
+      environment          = environment,
+      routesFile           = "file1",
       ruleConfigurationUrl = "rule1",
-      shutterKillswitch = None,
+      shutterKillswitch    = None,
       shutterServiceSwitch = None,
-      isRegex = isRegex,
-      updateDate = DateTime.now(DateTimeZone.UTC)
+      isRegex              = isRegex
     )
 
   def addFrontendRoutes(path: String*): Future[Unit] =
@@ -166,4 +153,7 @@ class FrontendRouteRepoMongoSpec
         )
       )
       .map(_ => ())
+
+  override protected val collectionName: String   = frontendRouteRepo.collectionName
+  override protected val indexes: Seq[IndexModel] = frontendRouteRepo.indexes
 }
