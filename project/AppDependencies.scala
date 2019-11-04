@@ -3,7 +3,8 @@ import sbt._
 
 object AppDependencies {
 
-  val akkaVersion = "2.5.23"
+  val akkaVersion      = "2.5.23"
+  val hmrcMongoVersion = "0.7.0"
 
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"            %% "bootstrap-play-26"        % "0.42.0",
@@ -16,7 +17,7 @@ object AppDependencies {
     "com.lightbend.akka"     %% "akka-stream-alpakka-sns"  % "1.1.0",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sqs"  % "1.1.0",
     "io.swagger"             %% "swagger-play2"            % "1.6.1",
-    "uk.gov.hmrc"            %% "hmrc-mongo-play-26"       % "0.5.0"
+    "uk.gov.hmrc"            %% "hmrc-mongo-play-26"       % hmrcMongoVersion
   )
 
   val test: Seq[ModuleID] = Seq(
@@ -26,9 +27,9 @@ object AppDependencies {
     "uk.gov.hmrc"       %% "reactivemongo-test" % "4.15.0-play-26" % Test,
     "org.mockito"       % "mockito-core"        % "3.0.0"          % Test,
     // force dependencies due to security flaws found in xercesImpl 2.11.0
-    "xerces"            % "xercesImpl"       % "2.12.0"    % Test,
-    "com.typesafe.akka" %% "akka-testkit"    % akkaVersion % Test,
-    "uk.gov.hmrc"       %% "hmrc-mongo-test" % "0.5.0"     % Test
+    "xerces"            % "xercesImpl"       % "2.12.0"         % Test,
+    "com.typesafe.akka" %% "akka-testkit"    % akkaVersion      % Test,
+    "uk.gov.hmrc"       %% "hmrc-mongo-test" % hmrcMongoVersion % Test
   )
 
   // Ensure akka versions do not mismatch

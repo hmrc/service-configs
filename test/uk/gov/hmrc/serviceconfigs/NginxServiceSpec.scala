@@ -35,9 +35,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
-  val nginxConfig   = mock[NginxConfig]
-  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
-  val routesFileUrl =
+  private val nginxConfig   = mock[NginxConfig]
+  private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  private val routesFileUrl =
     "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
   when(nginxConfig.frontendConfigFileNames).thenReturn(List("some-file"))
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)

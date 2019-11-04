@@ -17,11 +17,9 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.IndexModel
-import org.mongodb.scala.{MongoClient, MongoDatabase}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import uk.gov.hmrc.mongo.component.MongoComponent
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.test.CleanMongoCollectionSupport
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
@@ -36,12 +34,6 @@ class FrontendRouteRepositoryMongoSpec
     with CleanMongoCollectionSupport {
 
   import ExecutionContext.Implicits.global
-
-  private val mongoComponent: MongoComponent = new MongoComponent {
-    override def client: MongoClient = mongoClient
-
-    override def database: MongoDatabase = mongoDatabase()
-  }
 
   private val frontendRouteRepo = new FrontendRouteRepository(mongoComponent)
 
