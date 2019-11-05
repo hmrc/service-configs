@@ -31,6 +31,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepository, MongoLoc
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
@@ -156,7 +157,7 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with Sca
 
   }
 
-  val testConfig = """location /test/assets {
+  private val testConfig = """location /test/assets {
                  |  more_set_headers 'X-Frame-Options: DENY';
                  |  more_set_headers 'X-XSS-Protection: 1; mode=block';
                  |  more_set_headers 'X-Content-Type-Options: nosniff';
@@ -180,4 +181,5 @@ class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with Sca
                  |  proxy_pass http://testservice;
                  |}""".stripMargin
 
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.seconds)
 }
