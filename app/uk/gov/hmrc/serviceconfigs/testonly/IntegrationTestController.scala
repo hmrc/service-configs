@@ -18,43 +18,46 @@ package uk.gov.hmrc.serviceconfigs.testonly
 
 import javax.inject.Inject
 import play.api.libs.json.{Format, JsError, Json, Reads}
-import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
+import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepo, SlugConfigurationInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugConfigurationInfoRepository}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-
-class IntegrationTestController @Inject()(routeRepo: FrontendRouteRepo,
-                                          dependencyConfigRepo      : DependencyConfigRepository,
-                                          slugRepo: SlugConfigurationInfoRepository,
-                                          mcc: MessagesControllerComponents) extends BackendController(mcc) {
+class IntegrationTestController @Inject()(
+  routeRepo: FrontendRouteRepository,
+  dependencyConfigRepo: DependencyConfigRepository,
+  slugRepo: SlugConfigurationInfoRepository,
+  mcc: MessagesControllerComponents)(implicit ec: ExecutionContext)
+    extends BackendController(mcc) {
 
   import MongoFrontendRoute.formats
-  implicit val dependencyConfigReads: Reads[DependencyConfig] = Json.using[Json.WithDefaultValues].reads[DependencyConfig]
+  implicit val dependencyConfigReads: Reads[DependencyConfig] =
+    Json.using[Json.WithDefaultValues].reads[DependencyConfig]
   implicit val slugReads: Reads[SlugInfo] = {
     implicit val sdr: Reads[SlugDependency] = Json.using[Json.WithDefaultValues].reads[SlugDependency]
-    implicit val vd: Format[Version] = Version.apiFormat
+    implicit val vd: Format[Version]        = Version.apiFormat
     Json.using[Json.WithDefaultValues].reads[SlugInfo]
   }
 
-  def validateJson[A : Reads] = parse.json.validate(
-    _.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e))))
+  def validateJson[A: Reads]: BodyParser[A] =
+    parse.json.validate(_.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e))))
 
-  def addRoutes() = Action.async(validateJson[Seq[MongoFrontendRoute]]) { implicit request =>
-    Future.sequence(request.body.map(routeRepo.update)).map(_ => Ok("Ok"))
+  def addRoutes(): Action[Seq[MongoFrontendRoute]] = Action.async(validateJson[Seq[MongoFrontendRoute]]) {
+    implicit request =>
+      Future.sequence(request.body.map(routeRepo.update)).map(_ => Ok("Ok"))
   }
 
-  def clearRoutes() = Action.async { implicit request =>
+  def clearRoutes(): Action[AnyContent] = Action.async { implicit request =>
     routeRepo.clearAll().map(_ => Ok("done"))
   }
 
   def addSlugDependencyConfigs(): Action[Seq[DependencyConfig]] =
     Action.async(validateJson[Seq[DependencyConfig]]) { implicit request =>
-      Future.sequence(request.body.map(dependencyConfigRepo.add))
+      Future
+        .sequence(request.body.map(dependencyConfigRepo.add))
         .map(_ => Ok("Done"))
     }
 
@@ -65,7 +68,8 @@ class IntegrationTestController @Inject()(routeRepo: FrontendRouteRepo,
 
   def addSlugs(): Action[Seq[SlugInfo]] =
     Action.async(validateJson[Seq[SlugInfo]]) { implicit request =>
-      Future.sequence(request.body.map(slugRepo.add))
+      Future
+        .sequence(request.body.map(slugRepo.add))
         .map(_ => Ok("Done"))
     }
 

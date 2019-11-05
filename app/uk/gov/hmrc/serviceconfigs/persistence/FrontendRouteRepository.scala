@@ -16,69 +16,56 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import alleycats.std.iterable._
 import cats.instances.all._
 import cats.syntax.all._
+import com.mongodb.client.model.Indexes
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.bson.collection.immutable.Document
+import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
+import play.api.Logger
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 import play.api.libs.json.{JsObject, Json}
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.Cursor
-import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.mongo.ReactiveRepository
+import uk.gov.hmrc.mongo.component.MongoComponent
+import uk.gov.hmrc.mongo.play.PlayMongoCollection
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
-  extends ReactiveRepository[MongoFrontendRoute, BSONObjectID](
-    collectionName = "frontendRoutes",
-    mongo = mongo.mongoConnector.db,
-    domainFormat = MongoFrontendRoute.formats
-  ) {
-
-  import MongoFrontendRoute._
-
-  import ExecutionContext.Implicits.global
-
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq("frontendPath" -> IndexType.Hashed),
-        name = Some("frontendPathIdx"),
-        background = true
-      ),
-      Index(
-        Seq("service" -> IndexType.Hashed),
-        name = Some("serviceIdx"),
-        background = true
+class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoCollection(
+      mongoComponent = mongoComponent,
+      collectionName = "frontendRoutes",
+      domainFormat   = MongoFrontendRoute.formats,
+      indexes = Seq(
+        IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
+        IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
       )
-    )
+    ) {
+
+  private val logger = Logger(getClass)
 
   def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
     logger.debug(
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
-    val query = Json.obj(
-      "service" -> Json.toJson[String](frontendRoute.service),
-      "environment" -> Json.toJson[String](frontendRoute.environment),
-      "frontendPath" -> Json.toJson[String](frontendRoute.frontendPath),
-      "routesFile" -> Json.toJson[String](frontendRoute.routesFile)
+
+    val filter: Bson = and(
+      equal("service", frontendRoute.service),
+      equal("environment", frontendRoute.environment),
+      equal("frontendPath", frontendRoute.frontendPath),
+      equal("routesFile", frontendRoute.routesFile)
     )
+    val options = FindOneAndReplaceOptions().upsert(true)
 
     collection
-      .update(ordered = false)
-      .one(q = query, u = frontendRoute, upsert = true)
+      .findOneAndReplace(filter, frontendRoute, options)
+      .toFuture()
       .map(_ => ())
       .recover {
-        case lastError =>
-          throw new RuntimeException(
-            s"failed to persist frontendRoute $frontendRoute",
-            lastError
-          )
+        case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
       }
   }
 
@@ -92,49 +79,39 @@ class FrontendRouteRepo @Inject()(mongo: ReactiveMongoComponent)
 
     def search(query: JsObject): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find[JsObject, MongoFrontendRoute](query, None)
-        .cursor[MongoFrontendRoute]()
-        .collect[Seq](100, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+        .find(Document(query.toString()))
+        .limit(100)
+        .toFuture()
         .map { res =>
           logger.info(s"query $query returned ${res.size} results")
           res
         }
 
-    FrontendRouteRepo
+    FrontendRouteRepository
       .queries(path)
-      .toIterable
-      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) {
-        (prevRes, query) =>
-          if (prevRes.isEmpty) search(query)
-          else Future(prevRes)
+      .toList
+      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) { (prevRes, query) =>
+        if (prevRes.isEmpty) search(query)
+        else Future(prevRes)
       }
   }
 
   def findByService(service: String): Future[Seq[MongoFrontendRoute]] =
     collection
-      .find[JsObject, MongoFrontendRoute](
-        Json.obj("service" -> Json.toJson[String](service)),
-        None
-      )
-      .cursor[MongoFrontendRoute]()
-      .collect[Seq](-1, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+      .find(equal("service", service))
+      .toFuture()
 
   def findByEnvironment(environment: String): Future[Seq[MongoFrontendRoute]] =
-    collection.find[JsObject, MongoFrontendRoute](
-      Json.obj("environment" -> Json.toJson[String](environment)),
-      None
-    )
-      .cursor[MongoFrontendRoute]()
-      .collect[Seq](-1, Cursor.FailOnError[Seq[MongoFrontendRoute]]())
+    collection
+      .find(equal("environment", environment))
+      .toFuture()
 
-  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
-    findAll()
+  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] = collection.find().toFuture()
 
-  def clearAll(): Future[Boolean] =
-    removeAll().map(_.ok)
+  def clearAll(): Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
 }
 
-object FrontendRouteRepo {
+object FrontendRouteRepository {
   def pathsToRegex(paths: Seq[String]): String =
     paths
       .map(_.replace("-", "(-|\\\\-)")) // '-' is escaped in regex expression
@@ -145,10 +122,7 @@ object FrontendRouteRepo {
       ) // match until end, or '/''
 
   def toQuery(paths: Seq[String]): JsObject =
-    Json.obj(
-      "frontendPath" -> Json
-        .obj("$regex" -> pathsToRegex(paths), "$options" -> "i")
-    ) // case insensitive
+    Json.obj("frontendPath" -> Json.obj("$regex" -> pathsToRegex(paths), "$options" -> "i")) // case insensitive
 
   def queries(path: String): Seq[JsObject] =
     path

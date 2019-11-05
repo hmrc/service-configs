@@ -20,14 +20,13 @@ import javax.inject.Inject
 import play.Logger
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
+import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-
-class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, nginxConfig: NginxConfig) {
+class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, nginxConfig: NginxConfig)(
+  implicit ec: ExecutionContext) {
 
   private implicit val httpReads: HttpReads[HttpResponse] = new HttpReads[HttpResponse] {
     override def read(method: String, url: String, response: HttpResponse): HttpResponse = response
@@ -35,10 +34,11 @@ class NginxConfigConnector @Inject()(http: HttpClient, gitConf: GithubConfig, ng
 
   private val configKey = gitConf.githubApiOpenConfig.key
 
-  def getNginxRoutesFile(fileName: String, environment: String) : Future[Option[NginxConfigFile]] = {
+  def getNginxRoutesFile(fileName: String, environment: String): Future[Option[NginxConfigFile]] = {
 
-    val url = s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
-    implicit val hc = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
+    val url =
+      s"${gitConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
+    implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 =>

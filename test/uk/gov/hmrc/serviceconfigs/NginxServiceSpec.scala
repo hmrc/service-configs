@@ -18,30 +18,27 @@ package uk.gov.hmrc.serviceconfigs
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.Awaiting
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
-import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepo, MongoLock}
+import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepository, MongoLock}
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
-class NginxServiceSpec
-    extends FlatSpec
-    with Matchers
-    with MockitoSugar
-    with Awaiting {
+class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
-  val nginxConfig = mock[NginxConfig]
-  val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
-  val routesFileUrl = "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
+  private val nginxConfig   = mock[NginxConfig]
+  private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
+  private val routesFileUrl =
+    "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
   when(nginxConfig.frontendConfigFileNames).thenReturn(List("some-file"))
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
 
@@ -63,12 +60,12 @@ class NginxServiceSpec
 
   "update" should "parse configs and save result" in {
 
-    val repo = mock[FrontendRouteRepo]
+    val repo = mock[FrontendRouteRepository]
 
-    val parser = new NginxConfigParser(nginxConfig)
+    val parser    = new NginxConfigParser(nginxConfig)
     val connector = mock[NginxConfigConnector]
-    val lock = new MongoLock(mock[ReactiveMongoComponent]) {
-      override def tryLock[T](
+    val lock = new MongoLock(mock[MongoLockRepository]) {
+      override def attemptLockWithRelease[T](
         body: => Future[T]
       )(implicit ec: ExecutionContext): Future[Option[T]] =
         body.map(t => Some(t))
@@ -89,7 +86,7 @@ class NginxServiceSpec
       .thenReturn(Future.successful(()))
 
     val envs = List("production", "development")
-    await(service.update(envs))
+    service.update(envs).futureValue
 
     verify(repo, times(2)).update(any())
     verify(connector, times(envs.length)).getNginxRoutesFile(any(), any())
@@ -97,32 +94,35 @@ class NginxServiceSpec
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {
 
-    when(nginxConfig.shutterConfig).thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
+    when(nginxConfig.shutterConfig)
+      .thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
     val parser = new NginxConfigParser(nginxConfig)
 
     val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "master")
-    val eResult = NginxService.parseConfig(parser, configFile)
+    val eResult    = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true
     val Right(result) = eResult
     result.length shouldBe 2
 
-    result.head.environment shouldBe "dev"
-    result.head.service shouldBe "service1"
-    result.head.frontendPath shouldBe "/test/assets"
-    result.head.backendPath shouldBe "http://service1"
+    result.head.environment          shouldBe "dev"
+    result.head.service              shouldBe "service1"
+    result.head.frontendPath         shouldBe "/test/assets"
+    result.head.backendPath          shouldBe "http://service1"
     result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
-    result.head.markerComments shouldBe Set.empty
-    result.head.shutterKillswitch shouldBe Some(MongoShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), None, None))
-    result.head.shutterServiceSwitch shouldBe Some(MongoShutterSwitch("/etc/nginx/switches/mdtp/service1", Some(503), Some("/shutter/service1/index.html"), None))
+    result.head.markerComments       shouldBe Set.empty
+    result.head.shutterKillswitch shouldBe Some(
+      MongoShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), None, None))
+    result.head.shutterServiceSwitch shouldBe Some(
+      MongoShutterSwitch("/etc/nginx/switches/mdtp/service1", Some(503), Some("/shutter/service1/index.html"), None))
 
-    result(1).environment shouldBe "dev"
-    result(1).service shouldBe "testservice"
-    result(1).frontendPath shouldBe "/lol"
-    result(1).backendPath shouldBe "http://testservice"
+    result(1).environment          shouldBe "dev"
+    result(1).service              shouldBe "testservice"
+    result(1).frontendPath         shouldBe "/lol"
+    result(1).backendPath          shouldBe "http://testservice"
     result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L17"
-    result(1).markerComments shouldBe Set("NOT_SHUTTERABLE", "ABC")
-    result(1).shutterKillswitch shouldBe None
+    result(1).markerComments       shouldBe Set("NOT_SHUTTERABLE", "ABC")
+    result(1).shutterKillswitch    shouldBe None
     result(1).shutterServiceSwitch shouldBe None
 
   }
@@ -139,19 +139,19 @@ class NginxServiceSpec
                        |}""".stripMargin
 
     val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "master")
-    val eResult = NginxService.parseConfig(parser, configFile)
+    val eResult    = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true
     val Right(result) = eResult
     result.length shouldBe 1
 
-    result.head.environment shouldBe "dev"
-    result.head.service shouldBe "testservice"
-    result.head.frontendPath shouldBe "/lol"
-    result.head.backendPath shouldBe "http://testservice"
+    result.head.environment          shouldBe "dev"
+    result.head.service              shouldBe "testservice"
+    result.head.frontendPath         shouldBe "/lol"
+    result.head.backendPath          shouldBe "http://testservice"
     result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
-    result.head.markerComments shouldBe Set.empty
-    result.head.shutterKillswitch shouldBe None
+    result.head.markerComments       shouldBe Set.empty
+    result.head.shutterKillswitch    shouldBe None
     result.head.shutterServiceSwitch shouldBe None
 
   }

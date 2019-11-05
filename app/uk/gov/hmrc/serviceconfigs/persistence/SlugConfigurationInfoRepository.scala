@@ -17,74 +17,53 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
-import play.api.libs.json.Json
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.indexes.{Index, IndexType}
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.serviceconfigs.model.{
-  MongoSlugInfoFormats,
-  SlugInfo,
-  SlugInfoFlag
-}
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
+import uk.gov.hmrc.mongo.component.MongoComponent
+import uk.gov.hmrc.mongo.play.PlayMongoCollection
+import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlugConfigurationInfoRepository @Inject()(mongo: ReactiveMongoComponent)(
+class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
   implicit executionContext: ExecutionContext
-) extends ReactiveRepository[SlugInfo, BSONObjectID](
+) extends PlayMongoCollection(
+      mongoComponent = mongoComponent,
       collectionName = "slugConfigurations",
-      mongo = mongo.mongoConnector.db,
-      domainFormat = MongoSlugInfoFormats.siFormat
+      MongoSlugInfoFormats.siFormat,
+      Seq(
+        IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
+        IndexModel(Indexes.ascending("name"), IndexOptions().unique(true).name("slugInfoIdx")),
+        IndexModel(Indexes.ascending("latest"), IndexOptions().unique(true).name("slugInfoLatestIdx"))
+      )
     ) {
 
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq("uri" -> IndexType.Ascending),
-        name = Some("slugInfoUniqueIdx"),
-        unique = true
-      ),
-      Index(
-        Seq("name" -> IndexType.Hashed),
-        name = Some("slugInfoIdx"),
-        background = true
-      ),
-      Index(
-        Seq("latest" -> IndexType.Hashed),
-        name = Some("slugInfoLatestIdx"),
-        background = true
-      )
-    )
+  def add(slugInfo: SlugInfo): Future[Boolean] = {
+    val filter = equal("uri", slugInfo.uri)
 
-  import MongoSlugInfoFormats.siFormat
-
-  def add(slugInfo: SlugInfo): Future[Boolean] =
+    val options = FindOneAndReplaceOptions().upsert(true)
     collection
-      .update(ordered = false)
-      .one(
-        q = Json.obj("uri" -> Json.toJson(slugInfo.uri)),
-        u = slugInfo,
-        upsert = true
-      )
-      .map(_.ok)
+      .findOneAndReplace(filter = filter, replacement = slugInfo, options = options)
+      .toFutureOption()
+      .map(_.isDefined)
 
-  def clearAll(): Future[Boolean] =
-    super.removeAll().map(_.ok)
+  }
+
+  def clearAll(): Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
 
   def getSlugInfo(
     name: String,
     flag: SlugInfoFlag = SlugInfoFlag.Latest
   ): Future[Option[SlugInfo]] =
-    find("name" -> name, flag.s -> true)
-      .map(_.headOption)
+    collection
+      .find(and(equal("name", name), equal(flag.s, true)))
+      .first()
+      .toFutureOption()
 
-  def getSlugInfos(name: String,
-                   optVersion: Option[String]): Future[Seq[SlugInfo]] =
+  def getSlugInfos(name: String, optVersion: Option[String]): Future[Seq[SlugInfo]] =
     optVersion match {
-      case None          => find("name" -> name)
-      case Some(version) => find("name" -> name, "version" -> version)
+      case None          => collection.find(equal("name", name)).toFuture()
+      case Some(version) => collection.find(and(equal("name", name), equal("version", version))).toFuture()
     }
 }
