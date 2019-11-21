@@ -104,9 +104,11 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
       .find(equal("environment", environment))
       .toFuture()
 
-  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] = collection.find().toFuture()
+  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
+    collection.find().toFuture()
 
-  def clearAll(): Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
+  def clearAll(): Future[Boolean] =
+    collection.drop().toFutureOption().map(_.isDefined)
 }
 
 object FrontendRouteRepository {

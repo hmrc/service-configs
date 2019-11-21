@@ -30,36 +30,33 @@ import scala.concurrent.{ExecutionContext, Future}
 class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
     extends PlayMongoCollection(
       mongoComponent = mongoComponent,
-      "dependencyConfigs",
-      MongoSlugInfoFormats.dcFormat,
-      Seq(
-        IndexModel(
-          Indexes.ascending("group", "artefact", "version"),
-          IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
-      )
+      collectionName = "dependencyConfigs",
+      domainFormat   = MongoSlugInfoFormats.dcFormat,
+      indexes        = Seq(
+                         IndexModel(
+                           Indexes.ascending("group", "artefact", "version"),
+                           IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
+                       )
     ) {
 
-  def add(dependencyConfig: DependencyConfig): Future[Boolean] = {
-
-    val filter: Bson = and(
-      equal("group", dependencyConfig.group),
-      equal("artefact", dependencyConfig.artefact),
-      equal("version", dependencyConfig.version))
-
-    val options = FindOneAndReplaceOptions().upsert(true)
+  def add(dependencyConfig: DependencyConfig): Future[Boolean] =
     collection
       .findOneAndReplace(
-        filter      = filter,
+        filter      = and(
+                        equal("group"   , dependencyConfig.group),
+                        equal("artefact", dependencyConfig.artefact),
+                        equal("version" , dependencyConfig.version)),
         replacement = dependencyConfig,
-        options     = options
+        options     = FindOneAndReplaceOptions().upsert(true)
       )
       .toFutureOption()
       .map(_.isDefined)
-  }
 
-  def getAllEntries: Future[Seq[DependencyConfig]] = collection.find().toFuture()
+  def getAllEntries: Future[Seq[DependencyConfig]] =
+    collection.find().toFuture()
 
-  def clearAllData: Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
+  def clearAllData: Future[Boolean] =
+    collection.drop().toFutureOption().map(_.isDefined)
 
   def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     collection

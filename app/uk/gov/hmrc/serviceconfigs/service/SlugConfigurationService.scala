@@ -36,9 +36,7 @@ class SlugConfigurationService @Inject()(slugConfigurationInfoRepository : SlugC
 
   def addSlugInfo(slugInfo: SlugInfo): Future[Boolean] = {
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
-    for {
-      added <- slugConfigurationInfoRepository.add(slug)
-    } yield added
+    slugConfigurationInfoRepository.add(slug)
   }
 
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Boolean]] =
