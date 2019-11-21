@@ -25,8 +25,6 @@ import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
 import play.api.Logger
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.libs.json.{JsObject, Json}
 import uk.gov.hmrc.mongo.component.MongoComponent
 import uk.gov.hmrc.mongo.play.PlayMongoCollection
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
@@ -52,16 +50,16 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
 
-    val filter: Bson = and(
-      equal("service", frontendRoute.service),
-      equal("environment", frontendRoute.environment),
-      equal("frontendPath", frontendRoute.frontendPath),
-      equal("routesFile", frontendRoute.routesFile)
-    )
-    val options = FindOneAndReplaceOptions().upsert(true)
-
     collection
-      .findOneAndReplace(filter, frontendRoute, options)
+      .findOneAndReplace(
+        filter      = and(
+                        equal("service"     , frontendRoute.service),
+                        equal("environment" , frontendRoute.environment),
+                        equal("frontendPath", frontendRoute.frontendPath),
+                        equal("routesFile"  , frontendRoute.routesFile)
+                      ),
+        replacement = frontendRoute,
+        options     = FindOneAndReplaceOptions().upsert(true))
       .toFuture()
       .map(_ => ())
       .recover {
@@ -77,9 +75,9 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
 
-    def search(query: JsObject): Future[Seq[MongoFrontendRoute]] =
+    def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find(Document(query.toString()))
+        .find(query)
         .limit(100)
         .toFuture()
         .map { res =>
@@ -118,13 +116,17 @@ object FrontendRouteRepository {
       .mkString(
         "^(\\^)?(\\/)?", // match from beginning, tolerating [^/]. match
         "\\/", // path segment separator
-        "(\\/|$)"
-      ) // match until end, or '/''
+        "(\\/|$)" // match until end, or '/''
+      )
 
-  def toQuery(paths: Seq[String]): JsObject =
-    Json.obj("frontendPath" -> Json.obj("$regex" -> pathsToRegex(paths), "$options" -> "i")) // case insensitive
+  def toQuery(paths: Seq[String]): Bson =
+    Document("frontendPath" ->
+      Document(
+        "$regex"   -> pathsToRegex(paths),
+        "$options" -> "i"// case insensitive
+        ))
 
-  def queries(path: String): Seq[JsObject] =
+  def queries(path: String): Seq[Bson] =
     path
       .stripPrefix("/")
       .split("/")
