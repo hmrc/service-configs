@@ -38,22 +38,23 @@ case class SearchResults(env: String, path: String, url: String)
 @Singleton
 class NginxService @Inject()(
   frontendRouteRepo: FrontendRouteRepository,
-  parser: FrontendRouteParser,
-  nginxConnector: NginxConfigConnector,
-  nginxConfig: NginxConfig,
-  mongoLock: MongoLock)(implicit ec: ExecutionContext) {
+  parser           : FrontendRouteParser,
+  nginxConnector   : NginxConfigConnector,
+  nginxConfig      : NginxConfig,
+  mongoLock        : MongoLock
+  )(implicit ec: ExecutionContext) {
 
   def update(environments: List[String]): Future[Unit] =
     for {
       _              <- Future.successful(Logger.info(s"Update started..."))
       frontendRoutes <- environments.traverse(updateNginxRoutesForEnv).map(_.flatten)
       _              <- insertNginxRoutesIntoMongo(frontendRoutes)
-      _ = Logger.info(s"Update complete...")
+      _              =  Logger.info(s"Update complete...")
     } yield ()
 
   private def updateNginxRoutesForEnv(environment: String): Future[List[MongoFrontendRoute]] =
     for {
-      _ <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
+      _           <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
       routesFiles <- nginxConfig.frontendConfigFileNames
                       .traverse(nginxConnector.getNginxRoutesFile(_, environment))
                       .map(_.flatten)
@@ -70,7 +71,7 @@ class NginxService @Inject()(
       .attemptLockWithRelease {
         for {
           _ <- frontendRouteRepo.clearAll()
-          _ = Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
+          _ =  Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
           _ <- parsedConfigs.traverse(frontendRouteRepo.update)
         } yield ()
       }
@@ -90,28 +91,29 @@ object NginxService {
 
     Logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
 
-    val indexes: Map[String, Int] = NginxConfigIndexer.index(configFile.content)
+    val indexes: Map[String, Int] =
+      NginxConfigIndexer.index(configFile.content)
+
     parser
       .parseConfig(configFile.content)
       .map(
         _.map(
           r =>
             MongoFrontendRoute(
-              service      = NginxService.urlToService(r.backendPath),
-              frontendPath = r.frontendPath,
-              backendPath  = r.backendPath,
-              environment  = configFile.environment,
-              routesFile   = configFile.fileName,
+              service              = NginxService.urlToService(r.backendPath),
+              frontendPath         = r.frontendPath,
+              backendPath          = r.backendPath,
+              environment          = configFile.environment,
+              routesFile           = configFile.fileName,
               ruleConfigurationUrl = NginxConfigIndexer
-                .generateUrl(configFile.fileName, configFile.branch, configFile.environment, r.frontendPath, indexes)
-                .getOrElse(""),
-              markerComments    = r.markerComments,
-              shutterKillswitch = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
+                                       .generateUrl(configFile.fileName, configFile.branch, configFile.environment, r.frontendPath, indexes)
+                                       .getOrElse(""),
+              markerComments       = r.markerComments,
+              shutterKillswitch    = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
               shutterServiceSwitch = r.shutterServiceSwitch.map(s =>
                 MongoShutterSwitch(s.switchFile, s.statusCode, s.errorPage, s.rewriteRule)),
-              isRegex = r.isRegex
+              isRegex              = r.isRegex
           ))
       )
   }
-
 }

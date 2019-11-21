@@ -31,12 +31,12 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
 ) extends PlayMongoCollection(
       mongoComponent = mongoComponent,
       collectionName = "slugConfigurations",
-      MongoSlugInfoFormats.siFormat,
-      Seq(
-        IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
-        IndexModel(Indexes.ascending("name"), IndexOptions().unique(true).name("slugInfoIdx")),
-        IndexModel(Indexes.ascending("latest"), IndexOptions().unique(true).name("slugInfoLatestIdx"))
-      )
+      domainFormat   = MongoSlugInfoFormats.siFormat,
+      indexes        = Seq(
+                         IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
+                         IndexModel(Indexes.hashed("name")  , IndexOptions().background(true).name("slugInfoIdx")),
+                         IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
+                       )
     ) {
 
   def add(slugInfo: SlugInfo): Future[Boolean] = {

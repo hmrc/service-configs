@@ -40,12 +40,18 @@ class FrontendRouteScheduler @Inject()(
   } else {
     Logger.info("Frontend route scheduler is DISABLED. To enabled set 'nginx.reload.enabled' as true.")
   }
-
 }
 
 class FrontendRouteActor(nginxService: NginxService) extends Actor {
 
-  private val environments = List("production", "externaltest", "qa", "staging", "integration", "development")
+  private val environments =
+    List(
+      "production",
+      "externaltest",
+      "qa",
+      "staging",
+      "integration",
+      "development")
 
   override def receive: Receive = {
     case _ => nginxService.update(environments)

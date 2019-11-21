@@ -105,21 +105,25 @@ class SlugConfigUpdateHandler @Inject()
       case Right(slugMessage) =>
         for {
           si <- slugConfigurationService.addSlugInfo(slugMessage.info)
-            .map(saveResult => if (saveResult) Right(()) else Left(s"SlugInfo for message (ID '${message.messageId}') was sent on but not saved."))
-            .recover {
-              case e =>
-                val errorMessage = s"Could not store slug info for message with ID '${message.messageId}'"
-                logger.error(errorMessage, e)
-                Left(s"$errorMessage ${e.getMessage}")
-            }
+                  .map(saveResult => if (saveResult) Right(())
+                                     else Left(s"SlugInfo for message (ID '${message.messageId}') was sent on but not saved.")
+                      )
+                  .recover {
+                    case e =>
+                      val errorMessage = s"Could not store slug info for message with ID '${message.messageId}'"
+                      logger.error(errorMessage, e)
+                      Left(s"$errorMessage ${e.getMessage}")
+                  }
           dc <- slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
-            .map(saveResult => if (saveResult.forall(_ == true)) Right(()) else Left(s"Configuration for message (ID '${message.messageId}') was sent on but not saved."))
-            .recover {
-              case e =>
-                val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId}'"
-                logger.error(errorMessage, e)
-                Left(s"$errorMessage ${e.getMessage}")
-            }
+                  .map(saveResult => if (saveResult.forall(_ == true)) Right(())
+                                     else Left(s"Configuration for message (ID '${message.messageId}') was sent on but not saved.")
+                      )
+                  .recover {
+                    case e =>
+                      val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId}'"
+                      logger.error(errorMessage, e)
+                      Left(s"$errorMessage ${e.getMessage}")
+                  }
         } yield (si, dc) match {
           case (Left(siMsg), Left(dcMsg)) => Left(s"Slug Info message: $siMsg${sys.props("line.separator")}Dependency Config message$dcMsg")
           case (Right(_), Left(dcMsg)) => Left(dcMsg)
