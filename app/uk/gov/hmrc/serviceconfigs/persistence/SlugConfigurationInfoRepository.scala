@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
+import com.mongodb.BasicDBObject
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.component.MongoComponent
@@ -49,7 +50,7 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
       .map(_ => ())
   }
 
-  def clearAll(): Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
+  def clearAll(): Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 
   def getSlugInfo(
     name: String,

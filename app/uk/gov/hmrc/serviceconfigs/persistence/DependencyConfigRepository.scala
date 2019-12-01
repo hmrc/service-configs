@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
+import com.mongodb.BasicDBObject
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.component.MongoComponent
@@ -54,8 +55,7 @@ class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
   def getAllEntries: Future[Seq[DependencyConfig]] =
     collection.find().toFuture()
 
-  def clearAllData: Future[Boolean] =
-    collection.drop().toFutureOption().map(_.isDefined)
+  def clearAllData: Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 
   def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     collection

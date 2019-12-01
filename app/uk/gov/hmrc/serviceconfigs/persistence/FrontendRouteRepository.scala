@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.instances.all._
 import cats.syntax.all._
+import com.mongodb.BasicDBObject
 import com.mongodb.client.model.Indexes
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.collection.immutable.Document
@@ -108,8 +109,7 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
   def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
     collection.find().toFuture()
 
-  def clearAll(): Future[Boolean] =
-    collection.drop().toFutureOption().map(_.isDefined)
+  def clearAll(): Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 }
 
 object FrontendRouteRepository {
