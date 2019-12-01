@@ -19,8 +19,9 @@ package uk.gov.hmrc.serviceconfigs.service
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.alpakka.sqs.MessageAction.{Delete, Ignore}
-import akka.stream.alpakka.sqs.SqsSourceSettings
+import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
+import cats.data.EitherT
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.google.inject.Inject
 import play.api.Logger
@@ -35,11 +36,13 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.util.control.NonFatal
 
-class SlugConfigUpdateHandler @Inject()
-(messageHandling: SqsMessageHandling, slugConfigurationService: SlugConfigurationService, config: ArtefactReceivingConfig)
-(implicit val actorSystem: ActorSystem,
- implicit val materializer: Materializer,
- implicit val executionContext: ExecutionContext) {
+class SlugConfigUpdateHandler @Inject()(
+  messageHandling: SqsMessageHandling,
+  slugConfigurationService: SlugConfigurationService,
+  config: ArtefactReceivingConfig)(
+  implicit val actorSystem: ActorSystem,
+  implicit val materializer: Materializer,
+  implicit val executionContext: ExecutionContext) {
 
   private val logger = Logger(getClass)
 
@@ -56,7 +59,9 @@ class SlugConfigUpdateHandler @Inject()
     }.get
 
   private lazy val awsSqsClient = Try({
-    val client = SqsAsyncClient.builder().credentialsProvider(awsCredentialsProvider)
+    val client = SqsAsyncClient
+      .builder()
+      .credentialsProvider(awsCredentialsProvider)
       .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
       .build()
 
@@ -70,10 +75,10 @@ class SlugConfigUpdateHandler @Inject()
     SqsSource(queueUrl, settings)(awsSqsClient)
       .map(logMessage)
       .mapAsync(10)(processMessage)
-      .map(acknowledge)
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient)).recover {
-      case NonFatal(e) => logger.error(e.getMessage, e); throw e
-    }
+      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .recover {
+        case NonFatal(e) => logger.error(e.getMessage, e); throw e
+      }
   }
 
   private def logMessage(message: Message): Message = {
@@ -81,67 +86,57 @@ class SlugConfigUpdateHandler @Inject()
     message
   }
 
-  private def processMessage(message: Message) = {
+  private def processMessage(message: Message): Future[MessageAction] =
     for {
-      parsed  <- messageHandling.decompress(message.body)
-        .map(decompressed => Json.parse(decompressed)
-          .validate(ApiSlugInfoFormats.slugFormat)
-          .asEither.left.map(error => s"Could not parse message with ID '${message.messageId}'.  Reason: " + error.toString))
-        .recover {
-          case NonFatal(e) =>
-            val errorMessage = s"Could not decompress message with ID '${message.messageId}'"
-            logger.error(errorMessage, e)
-            Left(s"$errorMessage ${e.getMessage}")
-        }
-      saved <- processSlugMessage((message, parsed))
+      parsed <- messageHandling
+                 .decompress(message.body)
+                 .map(
+                   decompressed =>
+                     Json
+                       .parse(decompressed)
+                       .validate(ApiSlugInfoFormats.slugFormat)
+                       .asEither
+                       .left
+                       .map { error =>
+                         logger.error(
+                           s"Could not parse message with ID '${message.messageId}'.  Reason: " + error.toString)
+                         Ignore(message)
+                     })
+                 .recover {
+                   case NonFatal(e) =>
+                     logger.error(s"Could not decompress message with ID '${message.messageId}'", e)
+                     Left(Ignore(message))
+                 }
+      saved <- processSlugMessage(message, parsed)
     } yield saved
+
+  private def processSlugMessage(message: Message, parsed: Either[Ignore, SlugMessage]): Future[MessageAction] = {
+    import cats.implicits._
+
+    val response: EitherT[Future, Ignore, Delete] = for {
+      slugMessage <- EitherT.fromEither[Future](parsed)
+      si <- EitherT[Future, Ignore, Delete](
+             slugConfigurationService
+               .addSlugInfo(slugMessage.info)
+               .map(_ => Right(Delete(message)))
+               .recover {
+                 case e =>
+                   logger.error(s"Could not store slug info for message with ID '${message.messageId}'", e)
+                   Left[Ignore, Delete](Ignore(message))
+               })
+      dc <- EitherT[Future, Ignore, Delete](
+             slugConfigurationService
+               .addDependencyConfigurations(slugMessage.configs)
+               .map(_ => Right(Delete(message)))
+               .recover {
+                 case e =>
+                   logger.error(s"Could not store slug configuration for message with ID '${message.messageId}'", e)
+                   Left[Ignore, Delete](Ignore(message))
+               })
+      _ = logger.info(s"Message with ID '${message.messageId}' successfully processed.")
+
+    } yield dc
+    response.value.map(_.merge)
   }
 
-  private def processSlugMessage(input: (Message, Either[String, SlugMessage])): Future[(Message, Either[String, Unit])] = {
-    val (message, eitherSlugInfo) = input
-
-    (eitherSlugInfo match {
-      case Left(error) => Future(Left(error))
-      case Right(slugMessage) =>
-        for {
-          si <- slugConfigurationService.addSlugInfo(slugMessage.info)
-                  .map(saveResult => if (saveResult) Right(())
-                                     else Left(s"SlugInfo for message (ID '${message.messageId}') was sent on but not saved.")
-                      )
-                  .recover {
-                    case e =>
-                      val errorMessage = s"Could not store slug info for message with ID '${message.messageId}'"
-                      logger.error(errorMessage, e)
-                      Left(s"$errorMessage ${e.getMessage}")
-                  }
-          dc <- slugConfigurationService.addDependencyConfigurations(slugMessage.configs)
-                  .map(saveResult => if (saveResult.forall(_ == true)) Right(())
-                                     else Left(s"Configuration for message (ID '${message.messageId}') was sent on but not saved.")
-                      )
-                  .recover {
-                    case e =>
-                      val errorMessage = s"Could not store slug configuration for message with ID '${message.messageId}'"
-                      logger.error(errorMessage, e)
-                      Left(s"$errorMessage ${e.getMessage}")
-                  }
-        } yield (si, dc) match {
-          case (Left(siMsg), Left(dcMsg)) => Left(s"Slug Info message: $siMsg${sys.props("line.separator")}Dependency Config message$dcMsg")
-          case (Right(_), Left(dcMsg)) => Left(dcMsg)
-          case (Left(siMsg), Right(_)) => Left(siMsg)
-          case (Right(_), Right(_)) => Right(())
-        }
-    }).map((message, _))
-  }
-
-  private def acknowledge(input: (Message, Either[String, Unit])) = {
-    val (message, eitherResult) = input
-    eitherResult match {
-      case Left(error) =>
-        logger.error(error)
-        Ignore(message)
-      case Right(_) =>
-        logger.info(s"Message with ID '${message.messageId}' successfully processed.")
-        Delete(message)
-    }
-  }
 }

@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.component.MongoComponent
@@ -32,25 +31,25 @@ class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
       mongoComponent = mongoComponent,
       collectionName = "dependencyConfigs",
       domainFormat   = MongoSlugInfoFormats.dcFormat,
-      indexes        = Seq(
-                         IndexModel(
-                           Indexes.ascending("group", "artefact", "version"),
-                           IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
-                       )
+      indexes = Seq(
+        IndexModel(
+          Indexes.ascending("group", "artefact", "version"),
+          IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
+      )
     ) {
 
-  def add(dependencyConfig: DependencyConfig): Future[Boolean] =
+  def add(dependencyConfig: DependencyConfig): Future[Unit] =
     collection
       .findOneAndReplace(
-        filter      = and(
-                        equal("group"   , dependencyConfig.group),
-                        equal("artefact", dependencyConfig.artefact),
-                        equal("version" , dependencyConfig.version)),
+        filter = and(
+          equal("group", dependencyConfig.group),
+          equal("artefact", dependencyConfig.artefact),
+          equal("version", dependencyConfig.version)),
         replacement = dependencyConfig,
         options     = FindOneAndReplaceOptions().upsert(true)
       )
       .toFutureOption()
-      .map(_.isDefined)
+      .map(_ => ())
 
   def getAllEntries: Future[Seq[DependencyConfig]] =
     collection.find().toFuture()

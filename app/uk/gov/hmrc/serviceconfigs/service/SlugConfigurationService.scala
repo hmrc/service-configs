@@ -23,23 +23,24 @@ import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugC
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlugConfigurationService @Inject()(slugConfigurationInfoRepository : SlugConfigurationInfoRepository,
-                                         dependencyConfigRepository: DependencyConfigRepository,
-                                         configService: ConfigService)
-                                        (implicit executionContext: ExecutionContext) {
+class SlugConfigurationService @Inject()(
+  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+  dependencyConfigRepository: DependencyConfigRepository,
+  configService: ConfigService)(implicit executionContext: ExecutionContext) {
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
-    slugInfo.classpath.split(":")
+    slugInfo.classpath
+      .split(":")
       .map(_.replace("$lib_dir/", s"./${slugInfo.name}-${slugInfo.version}/lib/"))
       .toList
       .flatMap(path => slugInfo.dependencies.filter(_.path == path))
 
-  def addSlugInfo(slugInfo: SlugInfo): Future[Boolean] = {
+  def addSlugInfo(slugInfo: SlugInfo): Future[Unit] = {
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
     slugConfigurationInfoRepository.add(slug)
   }
 
-  def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Boolean]] =
+  def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
     Future.sequence(dependencyConfigs.map(dependencyConfigRepository.add))
 
   def getSlugInfos(name: String, version: Option[String]): Future[Seq[SlugInfo]] =

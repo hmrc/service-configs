@@ -52,15 +52,16 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
 
     collection
       .findOneAndReplace(
-        filter      = and(
-                        equal("service"     , frontendRoute.service),
-                        equal("environment" , frontendRoute.environment),
-                        equal("frontendPath", frontendRoute.frontendPath),
-                        equal("routesFile"  , frontendRoute.routesFile)
-                      ),
+        filter = and(
+          equal("service", frontendRoute.service),
+          equal("environment", frontendRoute.environment),
+          equal("frontendPath", frontendRoute.frontendPath),
+          equal("routesFile", frontendRoute.routesFile)
+        ),
         replacement = frontendRoute,
-        options     = FindOneAndReplaceOptions().upsert(true))
-      .toFuture()
+        options     = FindOneAndReplaceOptions().upsert(true)
+      )
+      .toFutureOption()
       .map(_ => ())
       .recover {
         case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
@@ -122,10 +123,11 @@ object FrontendRouteRepository {
       )
 
   def toQuery(paths: Seq[String]): Bson =
-    Document("frontendPath" ->
-      Document(
-        "$regex"   -> pathsToRegex(paths),
-        "$options" -> "i"// case insensitive
+    Document(
+      "frontendPath" ->
+        Document(
+          "$regex"   -> pathsToRegex(paths),
+          "$options" -> "i" // case insensitive
         ))
 
   def queries(path: String): Seq[Bson] =
