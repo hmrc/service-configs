@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
+import com.mongodb.BasicDBObject
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.component.MongoComponent
@@ -32,25 +33,24 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
       mongoComponent = mongoComponent,
       collectionName = "slugConfigurations",
       domainFormat   = MongoSlugInfoFormats.siFormat,
-      indexes        = Seq(
-                         IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
-                         IndexModel(Indexes.hashed("name")  , IndexOptions().background(true).name("slugInfoIdx")),
-                         IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
-                       )
+      indexes = Seq(
+        IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
+        IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
+        IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
+      )
     ) {
 
-  def add(slugInfo: SlugInfo): Future[Boolean] = {
+  def add(slugInfo: SlugInfo): Future[Unit] = {
     val filter = equal("uri", slugInfo.uri)
 
     val options = FindOneAndReplaceOptions().upsert(true)
     collection
       .findOneAndReplace(filter = filter, replacement = slugInfo, options = options)
       .toFutureOption()
-      .map(_.isDefined)
-
+      .map(_ => ())
   }
 
-  def clearAll(): Future[Boolean] = collection.drop().toFutureOption().map(_.isDefined)
+  def clearAll(): Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 
   def getSlugInfo(
     name: String,
