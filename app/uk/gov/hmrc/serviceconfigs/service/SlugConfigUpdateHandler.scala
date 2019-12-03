@@ -41,8 +41,8 @@ class SlugConfigUpdateHandler @Inject()(
   slugConfigurationService: SlugConfigurationService,
   config: ArtefactReceivingConfig)(
   implicit val actorSystem: ActorSystem,
-  implicit val materializer: Materializer,
-  implicit val executionContext: ExecutionContext) {
+  materializer: Materializer,
+  executionContext: ExecutionContext) {
 
   private val logger = Logger(getClass)
 
