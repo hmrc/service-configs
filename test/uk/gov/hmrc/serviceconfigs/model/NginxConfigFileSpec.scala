@@ -16,9 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxConfigFileSpec extends FlatSpec with Matchers {
+class NginxConfigFileSpec extends AnyFlatSpec with Matchers {
 
   "fileName" should "retrieve just the filename from the url" in {
     val configFile = NginxConfigFile(

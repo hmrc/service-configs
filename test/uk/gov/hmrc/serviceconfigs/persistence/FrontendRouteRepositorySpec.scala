@@ -16,9 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FrontendRouteRepositorySpec extends FlatSpec with Matchers {
+class FrontendRouteRepositorySpec extends AnyFlatSpec with Matchers {
 
   "FrontendRouteRepo.pathsToRegex" should "create regex from paths" in {
     FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|$)"

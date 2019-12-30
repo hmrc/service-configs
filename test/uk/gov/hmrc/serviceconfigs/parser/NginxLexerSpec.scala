@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.scalatest.{FlatSpec, Matchers}
 import uk.gov.hmrc.serviceconfigs.parser.Nginx._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxLexerSpec extends FlatSpec with Matchers{
+class NginxLexerSpec extends AnyFlatSpec with Matchers{
 
   "NginxLexer" should "tokenize openBracket" in {
     NginxLexer.parse(NginxLexer.openBracket, "{").get shouldBe OPEN_BRACKET()

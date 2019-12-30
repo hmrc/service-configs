@@ -16,9 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxConfigIndexerSpec extends FlatSpec with Matchers {
+class NginxConfigIndexerSpec extends AnyFlatSpec with Matchers {
 
   "Indexer" should "find the line number of the first path" in {
     val res = NginxConfigIndexer.index(config)

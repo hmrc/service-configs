@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence.model
 import java.time.{LocalDateTime, ZoneOffset}
 
 import play.api.libs.json.{Format, Json, OFormat}
-import uk.gov.hmrc.mongo.play.json.MongoJavatimeFormats
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
 case class MongoFrontendRoute(
   service: String,

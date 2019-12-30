@@ -24,14 +24,15 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Compression, Flow, Sink, Source}
 import akka.testkit.TestKit
 import akka.util.ByteString
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.{Json, Writes}
-import uk.gov.hmrc.mongo.Awaiting
 import uk.gov.hmrc.serviceconfigs.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) with FlatSpecLike with Matchers with Awaiting {
+class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) with AnyFlatSpecLike with Matchers with ScalaFutures {
 
   private implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -79,15 +80,21 @@ class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) 
     implicit val format: Writes[SlugMessage] = ApiSlugInfoFormats.slugFormat
     val input = Json.stringify(Json.toJson(SlugMessage(aSlugInfo, Seq(aDependencyConfig))))
 
-    val compressed = await(Source.single(input)
+    val compressed = (Source.single(input)
       .via(Flow.fromFunction(ByteString.fromString)
         .via(Compression.gzip)
         .fold(ByteString.empty)(_ ++ _)
         .map(b => Base64.getEncoder.encodeToString(b.toArray)))
       .runWith(Sink.head))
 
-    val result = await(compressor.decompress(compressed))
+    val result = for {
+      c <- compressed
+      r <- compressor.decompress(c)
+    }
+    yield r
 
-    result should be (input)
+    whenReady(result){ r =>
+        r should be (input)
+    }
   }
 }

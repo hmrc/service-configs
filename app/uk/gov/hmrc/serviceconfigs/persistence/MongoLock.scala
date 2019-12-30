@@ -24,7 +24,7 @@ import scala.concurrent.duration.DurationInt
 
 @Singleton
 class MongoLock @Inject()(mongoLock: MongoLockRepository) extends MongoLockService {
-  override val mongoLockRepository: MongoLockRepository = mongoLock
+  override val lockRepository: MongoLockRepository      = mongoLock
   override val lockId: String                           = "service-configs-sync-job"
   override val ttl: duration.Duration                   = 20.minutes
 }

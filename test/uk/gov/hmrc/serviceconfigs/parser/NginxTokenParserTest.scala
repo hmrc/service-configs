@@ -17,11 +17,12 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.mockito.Mockito.when
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
-class NginxTokenParserTest extends FlatSpec with Matchers with MockitoSugar{
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+class NginxTokenParserTest extends AnyFlatSpec with Matchers with MockitoSugar{
 
   import Nginx._
 

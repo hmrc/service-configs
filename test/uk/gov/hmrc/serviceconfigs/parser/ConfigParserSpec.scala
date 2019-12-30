@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.scalatest.{FlatSpec, Matchers}
 import com.typesafe.config.ConfigRenderOptions
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ConfigParserSpec extends FlatSpec with Matchers {
+class ConfigParserSpec extends AnyFlatSpec with Matchers {
 
   "ConfigParser.flattenConfigToDotNotation" should "parse config as map" in {
     val config = ConfigParser.parseConfString(
