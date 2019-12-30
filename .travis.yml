@@ -8,3 +8,11 @@ cache:
     - '$HOME/.ivy2/cache'
 notifications:
   email: false
+services:
+  - mongodb
+addons:
+  apt:
+    sources:
+      - mongodb-3.0-precise
+    packages:
+      - mongodb-org-server
