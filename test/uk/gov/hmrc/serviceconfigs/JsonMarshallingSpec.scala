@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import org.scalatest.Matchers._
-import org.scalatest.WordSpec
 import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-class JsonMarshallingSpec extends WordSpec with ConfigJson {
+class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
 
   "ConfigByEnvironment" should {
     "unmarshal" in {

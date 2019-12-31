@@ -18,15 +18,17 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.IndexModel
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.test.CleanMongoCollectionSupport
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class FrontendRouteRepositoryMongoSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with ScalaFutures
     with BeforeAndAfterEach

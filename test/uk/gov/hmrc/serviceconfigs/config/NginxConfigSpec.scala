@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.config
 
-import org.scalatest.{FunSpec, Matchers}
 import play.api.Configuration
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxConfigSpec extends FunSpec with Matchers {
+class NginxConfigSpec extends AnyFunSpec with Matchers {
 
   describe("nginx config") {
     it("should fail-fast if config is missing") {

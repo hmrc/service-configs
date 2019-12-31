@@ -12,6 +12,7 @@ lazy val microservice = Project(appName, file("."))
     SbtDistributablesPlugin,
     SbtArtifactory
   )
+  .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
   .settings(
     scalaVersion := "2.11.12",
     majorVersion := 0,

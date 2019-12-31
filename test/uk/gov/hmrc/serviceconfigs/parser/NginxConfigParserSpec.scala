@@ -17,12 +17,13 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.mockito.Mockito.when
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterSwitch}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxConfigParserSpec extends FlatSpec with Matchers with MockitoSugar {
+class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar {
 
   val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", " /etc/nginx/switches/mdtp/")

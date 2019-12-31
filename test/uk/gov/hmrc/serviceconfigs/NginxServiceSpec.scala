@@ -19,8 +19,7 @@ package uk.gov.hmrc.serviceconfigs
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
@@ -33,8 +32,10 @@ import uk.gov.hmrc.serviceconfigs.service.NginxService
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NginxServiceSpec extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
+class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
   private val nginxConfig   = mock[NginxConfig]
   private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
