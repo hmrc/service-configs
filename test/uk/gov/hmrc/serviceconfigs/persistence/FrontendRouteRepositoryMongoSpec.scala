@@ -16,16 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import cats.implicits._
 import org.mongodb.scala.model.IndexModel
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.test.CleanMongoCollectionSupport
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 
 class FrontendRouteRepositoryMongoSpec
     extends AnyWordSpecLike
@@ -39,7 +40,7 @@ class FrontendRouteRepositoryMongoSpec
 
   private val frontendRouteRepo = new FrontendRouteRepository(mongoComponent)
 
-  "FrontendRouteRepo.update" should {
+  "FrontendRouteRepository.update" should {
     "add new route" in {
       val frontendRoute = newFrontendRoute()
 
@@ -63,7 +64,7 @@ class FrontendRouteRepositoryMongoSpec
     }
   }
 
-  "FrontendRouteRepo.findByService" should {
+  "FrontendRouteRepository.findByService" should {
     "return only routes with the service" in {
       val service1Name = "service1"
       val service2Name = "service2"
@@ -80,7 +81,7 @@ class FrontendRouteRepositoryMongoSpec
     }
   }
 
-  "FrontendRouteRepo.findByEnvironment" should {
+  "FrontendRouteRepository.findByEnvironment" should {
     "return only routes with the environment" in {
       frontendRouteRepo.update(newFrontendRoute(environment = "production")).futureValue
       frontendRouteRepo.update(newFrontendRoute(environment = "qa")).futureValue
@@ -95,7 +96,7 @@ class FrontendRouteRepositoryMongoSpec
     }
   }
 
-  "FrontendRouteRepo.searchByFrontendPath" should {
+  "FrontendRouteRepository.searchByFrontendPath" should {
     "return only routes with the path" in {
       addFrontendRoutes("a", "b").futureValue
 
@@ -140,12 +141,8 @@ class FrontendRouteRepositoryMongoSpec
     )
 
   def addFrontendRoutes(path: String*): Future[Unit] =
-    Future
-      .sequence(
-        path.map(
-          p => frontendRouteRepo.update(newFrontendRoute(frontendPath = p))
-        )
-      )
+    path.toList
+      .traverse(p => frontendRouteRepo.update(newFrontendRoute(frontendPath = p)))
       .map(_ => ())
 
   override protected val collectionName: String   = frontendRouteRepo.collectionName

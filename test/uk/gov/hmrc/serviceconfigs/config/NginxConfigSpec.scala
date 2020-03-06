@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,16 +36,12 @@ class NginxConfigSpec extends AnyFunSpec with Matchers {
             "nginx.config-repo" -> "repo",
             "nginx.config-repo-branch" -> "master",
             "nginx.config-files" -> List("file1", "file2"),
-            "nginx.reload.enabled" -> true,
-            "nginx.reload.intervalminutes" -> 25,
             "nginx.shutter-killswitch-path" -> "killswitch",
             "nginx.shutter-serviceswitch-path-prefix" -> "serviceswitch"
           ))
 
       nginxConfig.configRepo shouldBe "repo"
       nginxConfig.frontendConfigFileNames shouldBe List("file1", "file2")
-      nginxConfig.schedulerEnabled shouldBe true
-      nginxConfig.schedulerDelay shouldBe 25
       nginxConfig.shutterConfig.shutterKillswitchPath shouldBe "killswitch"
       nginxConfig.shutterConfig.shutterServiceSwitchPathPrefix shouldBe "serviceswitch"
     }

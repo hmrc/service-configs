@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
-import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepository, MongoLock}
+import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -40,42 +40,36 @@ class NginxService @Inject()(
   frontendRouteRepo: FrontendRouteRepository,
   parser           : FrontendRouteParser,
   nginxConnector   : NginxConfigConnector,
-  nginxConfig      : NginxConfig,
-  mongoLock        : MongoLock
+  nginxConfig      : NginxConfig
   )(implicit ec: ExecutionContext) {
 
   def update(environments: List[String]): Future[Unit] =
     for {
-      _              <- Future.successful(Logger.info(s"Update started..."))
-      frontendRoutes <- environments.traverse(updateNginxRoutesForEnv).map(_.flatten)
-      _              <- insertNginxRoutesIntoMongo(frontendRoutes)
-      _              =  Logger.info(s"Update complete...")
+      _ <- Future.successful(Logger.info(s"Update started..."))
+      _ <- environments.traverse { environment =>
+             updateNginxRoutesForEnv(environment)
+               .recover { case e => Logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e) }
+           }
+      _ =  Logger.info(s"Update complete...")
     } yield ()
 
   private def updateNginxRoutesForEnv(environment: String): Future[List[MongoFrontendRoute]] =
     for {
-      _           <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
-      routesFiles <- nginxConfig.frontendConfigFileNames
-                      .traverse(nginxConnector.getNginxRoutesFile(_, environment))
-                      .map(_.flatten)
-    } yield routesFiles.flatMap(processNginxRouteFile)
+      _        <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
+      routes   <- nginxConfig.frontendConfigFileNames
+                   .traverse { configFile =>
+                     nginxConnector.getNginxRoutesFile(configFile, environment)
+                      .map(processNginxRouteFile)
+                   }.map(_.flatten)
+      _        <- frontendRouteRepo.deleteByEnvironment(environment)
+      _        =  Logger.info(s"Inserting ${routes.length} routes into mongo for $environment")
+      inserted <- routes.traverse(frontendRouteRepo.update)
+      _        =  Logger.info(s"Inserted ${inserted.length} routes into mongo for $environment")
+    } yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
-    NginxService.parseConfig(parser, nginxConfigFile).getOrElse {
-      Logger.error(s"Failed to update nginx configs: ${nginxConfigFile.url}")
-      List.empty
-    }
-
-  private def insertNginxRoutesIntoMongo(parsedConfigs: List[MongoFrontendRoute]): Future[Unit] =
-    mongoLock
-      .attemptLockWithRelease {
-        for {
-          _ <- frontendRouteRepo.clearAll()
-          _ =  Logger.info(s"Inserting ${parsedConfigs.length} routes into mongo")
-          _ <- parsedConfigs.traverse(frontendRouteRepo.update)
-        } yield ()
-      }
-      .map(_ => ())
+    NginxService.parseConfig(parser, nginxConfigFile)
+      .fold(error => sys.error(s"Failed to parse nginx configs: ${nginxConfigFile.url}: $error"), identity)
 }
 
 object NginxService {
