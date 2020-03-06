@@ -28,14 +28,14 @@ import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptio
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.PlayMongoModule
-import uk.gov.hmrc.mongo.play.json.PlayMongoCollection
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoCollection(
+    extends PlayMongoRepository(
       mongoComponent = mongoComponent,
       collectionName = "frontendRoutes",
       domainFormat   = MongoFrontendRoute.formats,
