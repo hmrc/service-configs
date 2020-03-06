@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,14 @@ import com.mongodb.BasicDBObject
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoCollection
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, MongoSlugInfoFormats}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoCollection(
+    extends PlayMongoRepository(
       mongoComponent = mongoComponent,
       collectionName = "dependencyConfigs",
       domainFormat   = MongoSlugInfoFormats.dcFormat,

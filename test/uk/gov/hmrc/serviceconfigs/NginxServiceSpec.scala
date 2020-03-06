@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,8 +41,10 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
   private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
   private val routesFileUrl =
     "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
-  when(nginxConfig.frontendConfigFileNames).thenReturn(List("some-file"))
-  when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
+  when(nginxConfig.frontendConfigFileNames)
+    .thenReturn(List("some-file"))
+  when(nginxConfig.shutterConfig)
+    .thenReturn(shutterConfig)
 
   "urlToService" should "extract the service name from url" in {
     val url = "https://test-service.public.local"
@@ -66,24 +68,16 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
 
     val parser    = new NginxConfigParser(nginxConfig)
     val connector = mock[NginxConfigConnector]
-    val lock = new MongoLock(mock[MongoLockRepository]) {
-      override def attemptLockWithRelease[T](
-        body: => Future[T]
-      )(implicit ec: ExecutionContext): Future[Option[T]] =
-        body.map(t => Some(t))
-    }
 
-    val service = new NginxService(repo, parser, connector, nginxConfig, lock)
+    val service = new NginxService(repo, parser, connector, nginxConfig)
 
-    when(connector.getNginxRoutesFile("some-file", "production")).thenReturn(Future.successful {
-      Some(NginxConfigFile(environment = "production", "", testConfig, branch = "master"))
-    })
+    when(connector.getNginxRoutesFile("some-file", "production"))
+      .thenReturn(Future.successful(
+        NginxConfigFile(environment = "production", "", testConfig, branch = "master")
+      ))
 
-    when(connector.getNginxRoutesFile("some-file", "development")).thenReturn(Future.successful {
-      None
-    })
-
-    when(repo.clearAll()).thenReturn(Future(true))
+    when(repo.deleteByEnvironment(any()))
+      .thenReturn(Future(true))
     when(repo.update(any()))
       .thenReturn(Future.successful(()))
 
@@ -126,7 +120,6 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result(1).markerComments       shouldBe Set("NOT_SHUTTERABLE", "ABC")
     result(1).shutterKillswitch    shouldBe None
     result(1).shutterServiceSwitch shouldBe None
-
   }
 
   "parseConfig" should "ignore general comments" in {
@@ -155,7 +148,6 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result.head.markerComments       shouldBe Set.empty
     result.head.shutterKillswitch    shouldBe None
     result.head.shutterServiceSwitch shouldBe None
-
   }
 
   private val testConfig = """location /test/assets {

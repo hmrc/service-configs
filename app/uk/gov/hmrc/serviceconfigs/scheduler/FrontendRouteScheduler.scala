@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,35 +14,30 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.{Actor, ActorSystem, Props}
 import javax.inject.Inject
 import play.api.{Configuration, Logger}
+import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.service.NginxService
+import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
+import uk.gov.hmrc.serviceconfigs.persistence.MongoLock
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class FrontendRouteScheduler @Inject()(
-  actorSystem: ActorSystem,
-  nginxConfig: NginxConfig,
-  nginxService: NginxService,
-  configuration: Configuration)(implicit ec: ExecutionContext) {
-
-  private val props              = Props.create(classOf[FrontendRouteActor], nginxService)
-  private val frontendRouteActor = actorSystem.actorOf(props)
-
-  if (nginxConfig.schedulerEnabled) {
-    Logger.info("Starting frontend route scheduler")
-    actorSystem.scheduler.schedule(1.seconds, nginxConfig.schedulerDelay.minutes, frontendRouteActor, "tick")
-  } else {
-    Logger.info("Frontend route scheduler is DISABLED. To enabled set 'nginx.reload.enabled' as true.")
-  }
-}
-
-class FrontendRouteActor(nginxService: NginxService) extends Actor {
+  nginxConfig  : NginxConfig,
+  nginxService : NginxService,
+  configuration: Configuration,
+  schedulerConfigs: SchedulerConfigs,
+  mongoLock        : MongoLock
+  )(implicit actorSystem: ActorSystem,
+    applicationLifecycle: ApplicationLifecycle,
+    ec: ExecutionContext
+  ) extends SchedulerUtils {
 
   private val environments =
     List(
@@ -53,7 +48,12 @@ class FrontendRouteActor(nginxService: NginxService) extends Actor {
       "integration",
       "development")
 
-  override def receive: Receive = {
-    case _ => nginxService.update(environments)
+  scheduleWithLock(
+    label           = "frontendRoutes"
+  , schedulerConfig = schedulerConfigs.frontendRoutesReload
+  , lock            = mongoLock
+  ){
+    nginxService.update(environments)
+      .map(_ => ())
   }
 }

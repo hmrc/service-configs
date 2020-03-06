@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.instances.all._
 import cats.syntax.all._
-import com.mongodb.BasicDBObject
 import com.mongodb.client.model.Indexes
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
@@ -28,14 +28,14 @@ import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptio
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.PlayMongoModule
-import uk.gov.hmrc.mongo.play.json.PlayMongoCollection
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoCollection(
+    extends PlayMongoRepository(
       mongoComponent = mongoComponent,
       collectionName = "frontendRoutes",
       domainFormat   = MongoFrontendRoute.formats,
@@ -110,7 +110,17 @@ class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit
   def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
     collection.find().toFuture()
 
-  def clearAll(): Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
+  def deleteByEnvironment(environment: String): Future[Boolean] =
+    collection
+      .deleteMany(equal("environment", environment))
+      .toFuture
+      .map(_.wasAcknowledged())
+
+  def clearAll(): Future[Boolean] =
+    collection
+      .deleteMany(BsonDocument())
+      .toFuture
+      .map(_.wasAcknowledged())
 }
 
 object FrontendRouteRepository {
