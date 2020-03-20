@@ -21,14 +21,16 @@ import java.time.LocalDateTime
 import play.api.libs.json.{Json, OFormat, OWrites, Reads, __}
 import play.api.libs.functional.syntax._
 
-sealed trait SlugInfoFlag { def s: String }
+sealed trait SlugInfoFlag { def asString: String }
 object SlugInfoFlag {
-  case object Latest          extends SlugInfoFlag { val s = "latest" }
+  case object Latest                           extends SlugInfoFlag { override val asString = "latest"     }
+  case class  ForEnvironment(env: Environment) extends SlugInfoFlag { override val asString = env.asString }
 
-  val values: List[SlugInfoFlag] = List(Latest)
+  val values: List[SlugInfoFlag] =
+    Latest :: Environment.values.map(ForEnvironment.apply)
 
   def parse(s: String): Option[SlugInfoFlag] =
-    values.find(_.s.equalsIgnoreCase(s))
+    values.find(_.asString.equalsIgnoreCase(s))
 }
 
 case class SlugDependency(
@@ -90,9 +92,11 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
-    .inmap[Map[String, String]]( _.map { case (k, v) => (k.replaceAll("_DOT_", "."    ), v) }  // for mongo < 3.6 compatibility - '.' and '$'' not permitted in keys
-    , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
-    ))(DependencyConfig.apply, unlift(DependencyConfig.unapply))
+                       .inmap[Map[String, String]](
+                           _.map { case (k, v) => (k.replaceAll("_DOT_", "."    ), v) }  // for mongo < 3.6 compatibility - '.' and '$'' not permitted in keys
+                         , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
+                         )
+    )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
 }
 
 object MongoSlugInfoFormats extends MongoSlugInfoFormats

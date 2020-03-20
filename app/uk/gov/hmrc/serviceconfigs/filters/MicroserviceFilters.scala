@@ -16,34 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.filters
 
-import com.kenshoo.play.metrics.MetricsFilter
-import javax.inject.{Inject, Singleton}
+import javax.inject.Inject
+
 import play.api.http.DefaultHttpFilters
 import play.filters.cors.CORSFilter
-import uk.gov.hmrc.play.bootstrap.filters.{
-  AuditFilter,
-  CacheControlFilter,
-  LoggingFilter,
-  MDCFilter
-}
+import uk.gov.hmrc.play.bootstrap.filters.MicroserviceFilters
 
-/*
-This class is a copy of the uk.gov.hmrc.play.bootstrap.filters.MicroserviceFilters class, with
-addition of the cors filter to support swagger-ui.
-TODO: extract this
- */
-@Singleton
-class MicroserviceFilters @Inject()(metricsFilter: MetricsFilter,
-                                    auditFilter: AuditFilter,
-                                    loggingFilter: LoggingFilter,
-                                    cacheFilter: CacheControlFilter,
-                                    mdcFilter: MDCFilter,
-                                    corsFilter: CORSFilter)
-    extends DefaultHttpFilters(
-      metricsFilter,
-      auditFilter,
-      loggingFilter,
-      cacheFilter,
-      mdcFilter,
-      corsFilter
-    )
+class Filters @Inject()(defaultFilters: MicroserviceFilters, corsFilter: CORSFilter)
+    extends DefaultHttpFilters(defaultFilters.filters :+ corsFilter: _*)

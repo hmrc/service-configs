@@ -50,14 +50,15 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
       .map(_ => ())
   }
 
-  def clearAll(): Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
+  def clearAll(): Future[Boolean] =
+    collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 
   def getSlugInfo(
     name: String,
     flag: SlugInfoFlag = SlugInfoFlag.Latest
   ): Future[Option[SlugInfo]] =
     collection
-      .find(and(equal("name", name), equal(flag.s, true)))
+      .find(and(equal("name", name), equal(flag.asString, true)))
       .first()
       .toFutureOption()
 
