@@ -4,7 +4,7 @@ import sbt._
 object AppDependencies {
 
   val akkaVersion      = "2.5.27"
-  val hmrcMongoVersion = "0.27.0"
+  val hmrcMongoVersion = "0.28.0"
 
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"            %% "bootstrap-play-26"        % "1.3.0",

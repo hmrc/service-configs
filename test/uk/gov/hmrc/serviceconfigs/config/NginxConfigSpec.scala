@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.config
 
-import play.api.Configuration
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+import play.api.Configuration
 
 class NginxConfigSpec extends AnyFunSpec with Matchers {
 

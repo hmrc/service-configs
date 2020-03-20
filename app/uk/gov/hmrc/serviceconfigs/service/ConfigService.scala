@@ -49,21 +49,21 @@ class ConfigService @Inject()(
     ConfigSource.AppConfigCommonOverridable
   )
 
-  val environments: Seq[Environment2] = Seq(
-    Environment2("local"       , SlugInfoFlag.Latest                                  , localConfigSources   ),
-    Environment2("development" , SlugInfoFlag.ForEnvironment(Environment.Development ), deployedConfigSources),
-    Environment2("qa"          , SlugInfoFlag.ForEnvironment(Environment.QA          ), deployedConfigSources),
-    Environment2("staging"     , SlugInfoFlag.ForEnvironment(Environment.Staging     ), deployedConfigSources),
-    Environment2("integration" , SlugInfoFlag.ForEnvironment(Environment.Integration ), deployedConfigSources),
-    Environment2("externaltest", SlugInfoFlag.ForEnvironment(Environment.ExternalTest), deployedConfigSources),
-    Environment2("production"  , SlugInfoFlag.ForEnvironment(Environment.Production  ), deployedConfigSources)
+  val environments: Seq[EnvironmentMapping] = Seq(
+    EnvironmentMapping("local"       , SlugInfoFlag.Latest                                  , localConfigSources   ),
+    EnvironmentMapping("development" , SlugInfoFlag.ForEnvironment(Environment.Development ), deployedConfigSources),
+    EnvironmentMapping("qa"          , SlugInfoFlag.ForEnvironment(Environment.QA          ), deployedConfigSources),
+    EnvironmentMapping("staging"     , SlugInfoFlag.ForEnvironment(Environment.Staging     ), deployedConfigSources),
+    EnvironmentMapping("integration" , SlugInfoFlag.ForEnvironment(Environment.Integration ), deployedConfigSources),
+    EnvironmentMapping("externaltest", SlugInfoFlag.ForEnvironment(Environment.ExternalTest), deployedConfigSources),
+    EnvironmentMapping("production"  , SlugInfoFlag.ForEnvironment(Environment.Production  ), deployedConfigSources)
   )
 
   private def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
     configSourceEntries.find(_.source == ConfigSource.AppConfig.name)
       .flatMap(_.entries.get("type"))
 
-  private def configSourceEntries(environment: Environment2, serviceName: String)(
+  private def configSourceEntries(environment: EnvironmentMapping, serviceName: String)(
     implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     environment.configSources.toList
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) {
@@ -115,7 +115,7 @@ object ConfigService {
 
   case class ConfigSourceValue(source: String, precedence: Int, value: String)
 
-  case class Environment2(name: String, slugInfoFlag: SlugInfoFlag, configSources: Seq[ConfigSource])
+  case class EnvironmentMapping(name: String, slugInfoFlag: SlugInfoFlag, configSources: Seq[ConfigSource])
 
   sealed trait ConfigSource {
     def name: String

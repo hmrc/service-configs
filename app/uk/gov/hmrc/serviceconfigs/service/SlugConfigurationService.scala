@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import com.google.inject.{Inject, Singleton}
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -43,7 +43,7 @@ class SlugConfigurationService @Inject()(
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
     Future.sequence(dependencyConfigs.map(dependencyConfigRepository.add))
 
-  def getSlugInfos(name: String, version: Option[String]): Future[Seq[SlugInfo]] =
+  def getSlugInfos(name: String, version: Option[Version]): Future[Seq[SlugInfo]] =
     slugConfigurationInfoRepository.getSlugInfos(name, version)
 
   def getSlugInfo(name: String, flag: SlugInfoFlag): Future[Option[SlugInfo]] =

@@ -18,11 +18,13 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.google.inject.{Inject, Singleton}
 import com.mongodb.BasicDBObject
-import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Filters.{equal, and}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
+import play.api.Logger
+import org.mongodb.scala.model.Updates.set
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, Version}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -40,15 +42,17 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
       )
     ) {
 
-  def add(slugInfo: SlugInfo): Future[Unit] = {
-    val filter = equal("uri", slugInfo.uri)
+  private val logger = Logger(this.getClass)
 
-    val options = FindOneAndReplaceOptions().upsert(true)
+  def add(slugInfo: SlugInfo): Future[Unit] =
     collection
-      .findOneAndReplace(filter = filter, replacement = slugInfo, options = options)
+      .findOneAndReplace(
+         filter      = equal("uri", slugInfo.uri),
+         replacement = slugInfo,
+         options     = FindOneAndReplaceOptions().upsert(true)
+       )
       .toFutureOption()
       .map(_ => ())
-  }
 
   def clearAll(): Future[Boolean] =
     collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
@@ -62,9 +66,42 @@ class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
       .first()
       .toFutureOption()
 
-  def getSlugInfos(name: String, optVersion: Option[String]): Future[Seq[SlugInfo]] =
+  def getSlugInfos(name: String, optVersion: Option[Version]): Future[Seq[SlugInfo]] =
     optVersion match {
       case None          => collection.find(equal("name", name)).toFuture()
-      case Some(version) => collection.find(and(equal("name", name), equal("version", version))).toFuture()
+      case Some(version) => collection.find(
+                                and(
+                                  equal("name", name)
+                                , equal("version", version.original)
+                                )
+                              ).toFuture()
     }
+
+  def getUniqueSlugNames: Future[Seq[String]] =
+    collection.distinct[String]("name")
+      .toFuture
+
+  def clearFlag(flag: SlugInfoFlag, name: String): Future[Unit] =
+   for {
+    _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on $name"))
+    _ <- collection
+           .updateMany(
+               filter = equal("name", name)
+             , update = set(flag.asString, false)
+             )
+           .toFuture
+   } yield ()
+
+  def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
+    for {
+      _ <- clearFlag(flag, name)
+      _ =  logger.debug(s"mark slug $name $version with ${flag.asString} flag")
+      _ <- collection
+             .updateOne(
+                 filter = and( equal("name", name)
+                             , equal("version", version.original)
+                             )
+               , update = set(flag.asString, true))
+             .toFuture
+    } yield ()
 }

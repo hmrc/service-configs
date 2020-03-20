@@ -20,18 +20,17 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
-import uk.gov.hmrc.serviceconfigs.persistence.{FrontendRouteRepository, MongoLock}
+import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -59,7 +58,6 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
   it should "handle hostnames without dots" in {
     val url = "https://test-service/test124?query=false"
     NginxService.urlToService(url) shouldBe "test-service"
-
   }
 
   "update" should "parse configs and save result" in {
