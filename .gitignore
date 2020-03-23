@@ -32,3 +32,4 @@ tmp
 .idea_modules
 bin
 conf/local.conf
+.metals

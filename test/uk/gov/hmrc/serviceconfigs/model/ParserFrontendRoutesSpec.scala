@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 class ParserFrontendRoutesSpec extends AnyFlatSpec with Matchers {
 

@@ -16,44 +16,36 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.ActorSystem
 import javax.inject.Inject
-import play.api.{Configuration, Logger}
+import play.api.Logger
 import play.api.inject.ApplicationLifecycle
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.lock.MongoLockRepository
-import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.service.NginxService
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
+import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
-class FrontendRouteScheduler @Inject()(
-  nginxConfig        : NginxConfig,
-  nginxService       : NginxService,
-  configuration      : Configuration,
-  schedulerConfigs   : SchedulerConfigs,
-  mongoLockRepository: MongoLockRepository
-  )(implicit actorSystem: ActorSystem,
+
+class SlugMetadataUpdateScheduler @Inject()(
+    schedulerConfigs    : SchedulerConfigs,
+    slugInfoService     : SlugInfoService,
+    mongoLockRepository: MongoLockRepository
+  )(implicit
+    actorSystem         : ActorSystem,
     applicationLifecycle: ApplicationLifecycle,
-    ec: ExecutionContext
+    ec                  : ExecutionContext
   ) extends SchedulerUtils {
 
-  private val environments =
-    List(
-      "production",
-      "externaltest",
-      "qa",
-      "staging",
-      "integration",
-      "development")
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  scheduleWithLock(
-    label           = "frontendRoutes"
-  , schedulerConfig = schedulerConfigs.frontendRoutesReload
-  , lock            = mongoLockRepository.toService("service-configs-sync-job", 20.minutes)
-  ){
-    nginxService.update(environments)
-      .map(_ => ())
+  scheduleWithLock("Slug Metadata Updater", schedulerConfigs.slugMetadataUpdate, mongoLockRepository.toService("slug-metadata-scheduler", 1.hour)) {
+    Logger.info("Updating slug metadata")
+    for {
+      _ <- slugInfoService.updateMetadata()
+      _ = Logger.info("Finished updating slug metadata")
+    } yield ()
   }
 }

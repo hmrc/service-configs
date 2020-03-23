@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.typesafe.config.ConfigRenderOptions
-import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import com.typesafe.config.ConfigRenderOptions
+import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 
 class ConfigParserSpec extends AnyFlatSpec with Matchers {
 

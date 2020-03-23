@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs
 
 import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
-import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
 

@@ -21,7 +21,7 @@ import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
 
@@ -49,27 +49,28 @@ class ConfigService @Inject()(
     ConfigSource.AppConfigCommonOverridable
   )
 
-  val environments: Seq[Environment] = Seq(
-    Environment("local", localConfigSources),
-    Environment("development", deployedConfigSources),
-    Environment("qa", deployedConfigSources),
-    Environment("staging", deployedConfigSources),
-    Environment("integration", deployedConfigSources),
-    Environment("externaltest", deployedConfigSources),
-    Environment("production", deployedConfigSources)
+  val environments: Seq[EnvironmentMapping] = Seq(
+    EnvironmentMapping("local"       , SlugInfoFlag.Latest                                  , localConfigSources   ),
+    EnvironmentMapping("development" , SlugInfoFlag.ForEnvironment(Environment.Development ), deployedConfigSources),
+    EnvironmentMapping("qa"          , SlugInfoFlag.ForEnvironment(Environment.QA          ), deployedConfigSources),
+    EnvironmentMapping("staging"     , SlugInfoFlag.ForEnvironment(Environment.Staging     ), deployedConfigSources),
+    EnvironmentMapping("integration" , SlugInfoFlag.ForEnvironment(Environment.Integration ), deployedConfigSources),
+    EnvironmentMapping("externaltest", SlugInfoFlag.ForEnvironment(Environment.ExternalTest), deployedConfigSources),
+    EnvironmentMapping("production"  , SlugInfoFlag.ForEnvironment(Environment.Production  ), deployedConfigSources)
   )
 
   private def getServiceType(configSourceEntries: Seq[ConfigSourceEntries]): Option[String] =
-    configSourceEntries.find(_.source == ConfigSource.AppConfig.name).flatMap(_.entries.get("type"))
+    configSourceEntries.find(_.source == ConfigSource.AppConfig.name)
+      .flatMap(_.entries.get("type"))
 
-  private def configSourceEntries(environment: Environment, serviceName: String)(
+  private def configSourceEntries(environment: EnvironmentMapping, serviceName: String)(
     implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     environment.configSources.toList
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) {
         case (seq, cs) =>
           cs.entries(configConnector, slugConfigurationInfoRepository, dependencyConfigRepository)(
               serviceName,
-              environment.name,
+              environment.slugInfoFlag,
               getServiceType(seq))
             .map(entries => seq :+ entries)
       }
@@ -114,7 +115,7 @@ object ConfigService {
 
   case class ConfigSourceValue(source: String, precedence: Int, value: String)
 
-  case class Environment(name: String, configSources: Seq[ConfigSource])
+  case class EnvironmentMapping(name: String, slugInfoFlag: SlugInfoFlag, configSources: Seq[ConfigSource])
 
   sealed trait ConfigSource {
     def name: String
@@ -126,8 +127,9 @@ object ConfigService {
       slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
       dependencyConfigRepository: DependencyConfigRepository)(
       serviceName: String,
-      env: String,
-      serviceType: Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[ConfigSourceEntries]
+      slugInfoFlag: SlugInfoFlag,
+      serviceType: Option[String]
+    )(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[ConfigSourceEntries]
   }
 
   object ConfigSource {
@@ -140,22 +142,22 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
+        slugInfoFlag: SlugInfoFlag,
         serviceType: Option[String] = None)(
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
-          configs <- optSlugInfo match {
-                      case Some(slugInfo) =>
-                        Future.fold(
-                          slugInfo.dependencies
-                            .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
-                          Seq.empty[DependencyConfig])(_ ++ _)
-                      case None => Future(Seq.empty[DependencyConfig])
-                    }
-          referenceConfig = ConfigParser.reduceConfigs(configs)
-          entries         = ConfigParser.flattenConfigToDotNotation(referenceConfig)
+          optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          configs         <- optSlugInfo match {
+                               case Some(slugInfo) =>
+                                 Future.fold(
+                                   slugInfo.dependencies
+                                     .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
+                                   Seq.empty[DependencyConfig])(_ ++ _)
+                               case None => Future(Seq.empty[DependencyConfig])
+                             }
+          referenceConfig =  ConfigParser.reduceConfigs(configs)
+          entries         =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -168,27 +170,27 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
+        slugInfoFlag: SlugInfoFlag,
         serviceType: Option[String] = None)(
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
-          configs <- optSlugInfo match {
-                      case Some(slugInfo) =>
-                        Future.fold(
-                          slugInfo.dependencies
-                            .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
-                          Seq.empty[DependencyConfig])(_ ++ _)
-                      case None => Future(Seq.empty[DependencyConfig])
-                    }
-          raw <- optSlugInfo match {
-                  case Some(slugInfo) => Future(slugInfo.applicationConfig)
-                  case None =>
-                    connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
-                }
-          applicationConf = ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
-          entries         = ConfigParser.flattenConfigToDotNotation(applicationConf)
+          optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          configs         <- optSlugInfo match {
+                               case Some(slugInfo) =>
+                                 Future.fold(
+                                   slugInfo.dependencies
+                                     .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
+                                   Seq.empty[DependencyConfig])(_ ++ _)
+                               case None => Future(Seq.empty[DependencyConfig])
+                             }
+          raw             <- optSlugInfo match {
+                               case Some(slugInfo) => Future(slugInfo.applicationConfig)
+                               case None =>
+                                 connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
+                             }
+          applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
+          entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -201,20 +203,18 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
+        slugInfoFlag: SlugInfoFlag,
         serviceType: Option[String] = None)(
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName)
-          raw <- optSlugInfo match {
-                  case Some(slugInfo) => Future(slugInfo.slugConfig)
-                  case None =>
-                    connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
-                }
-          baseConf = ConfigParser
-            .parseConfString(raw, logMissing = false) // ignoring includes, since we know this is applicationConf
-          entries = ConfigParser.flattenConfigToDotNotation(baseConf)
+          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          raw         <- optSlugInfo match {
+                           case Some(slugInfo) => Future(slugInfo.slugConfig)
+                           case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
+                         }
+          baseConf    = ConfigParser.parseConfString(raw, logMissing = false) // ignoring includes, since we know this is applicationConf
+          entries     = ConfigParser.flattenConfigToDotNotation(baseConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -227,16 +227,16 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
+        slugInfoFlag: SlugInfoFlag,
         serviceType: Option[String] = None)(
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          raw <- connector.serviceConfigYaml(env, serviceName)
-          entries = ConfigParser
-            .parseYamlStringAsMap(raw)
-            .getOrElse(Map.empty)
-            .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+          raw     <- connector.serviceConfigYaml(slugInfoFlag.asString, serviceName)
+          entries =  ConfigParser
+                       .parseYamlStringAsMap(raw)
+                       .getOrElse(Map.empty)
+                       .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -249,17 +249,17 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
+        slugInfoFlag: SlugInfoFlag,
         serviceType: Option[String] = None)(
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          raw <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
-          entries = ConfigParser
-            .parseYamlStringAsMap(raw)
-            .getOrElse(Map.empty)
-            .filterKeys(_.startsWith("hmrc_config.fixed"))
-            .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st)).getOrElse(Future.successful(""))
+          entries =  ConfigParser
+                       .parseYamlStringAsMap(raw)
+                       .getOrElse(Map.empty)
+                       .filterKeys(_.startsWith("hmrc_config.fixed"))
+                       .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -272,17 +272,17 @@ object ConfigService {
         slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
-        env: String,
-        serviceType: Option[String] = None)(
-        implicit hc: HeaderCarrier,
+        slugInfoFlag: SlugInfoFlag,
+        serviceType: Option[String] = None
+      )(implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          raw <- serviceType.map(st => connector.serviceCommonConfigYaml(env, st)).getOrElse(Future.successful(""))
-          entries = ConfigParser
-            .parseYamlStringAsMap(raw)
-            .getOrElse(Map.empty)
-            .filterKeys(_.startsWith("hmrc_config.overridable"))
-            .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
+          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st)).getOrElse(Future.successful(""))
+          entries =  ConfigParser
+                       .parseYamlStringAsMap(raw)
+                       .getOrElse(Map.empty)
+                       .filterKeys(_.startsWith("hmrc_config.overridable"))
+                       .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
         } yield ConfigSourceEntries(name, precedence, entries)
     }
   }

@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import uk.gov.hmrc.serviceconfigs.parser.Nginx._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.serviceconfigs.parser.Nginx._
 
 class NginxLexerSpec extends AnyFlatSpec with Matchers{
 
