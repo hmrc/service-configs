@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import cats.implicits._
 import com.google.inject.{Inject, Singleton}
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
@@ -25,8 +26,9 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SlugConfigurationService @Inject()(
   slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
-  dependencyConfigRepository: DependencyConfigRepository,
-  configService: ConfigService)(implicit executionContext: ExecutionContext) {
+  dependencyConfigRepository     : DependencyConfigRepository,
+  configService                  : ConfigService
+)(implicit ec: ExecutionContext) {
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
     slugInfo.classpath
@@ -41,7 +43,7 @@ class SlugConfigurationService @Inject()(
   }
 
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
-    Future.sequence(dependencyConfigs.map(dependencyConfigRepository.add))
+    dependencyConfigs.toList.traverse(dependencyConfigRepository.add)
 
   def getSlugInfos(name: String, version: Option[Version]): Future[Seq[SlugInfo]] =
     slugConfigurationInfoRepository.getSlugInfos(name, version)
@@ -51,5 +53,4 @@ class SlugConfigurationService @Inject()(
 
   def findDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     dependencyConfigRepository.getDependencyConfig(group, artefact, version)
-
 }

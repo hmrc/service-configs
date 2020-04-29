@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.Inject
-import play.Logger
+import play.api.Logging
 import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
@@ -25,18 +25,21 @@ import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class BobbyConnector @Inject()(http: HttpClient, gitConf: GithubConfig, bobbyConf: BobbyConfig)(
-  implicit ec: ExecutionContext) {
-  private val configKey = gitConf.githubApiOpenConfig.key
+class BobbyConnector @Inject()(
+  http      : HttpClient,
+  githubConf: GithubConfig,
+  bobbyConf : BobbyConfig
+)( implicit ec: ExecutionContext
+) extends Logging {
+  private val configKey = githubConf.githubApiOpenConfig.key
 
   def findAllRules(): Future[String] = {
-
     val url                        = bobbyConf.url
-    implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
+    implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders("Authorization" -> s"token $configKey")
 
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 =>
-        Logger.warn(s"Failed to download Bobby rules $url, server returned ${response.status}")
+        logger.warn(s"Failed to download Bobby rules $url, server returned ${response.status}")
         throw new RuntimeException()
       case response: HttpResponse => response.body
     }

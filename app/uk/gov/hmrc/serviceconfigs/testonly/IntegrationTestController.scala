@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.testonly
 
+import cats.implicits._
 import javax.inject.Inject
 import play.api.libs.json.{Format, JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
@@ -24,18 +25,21 @@ import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugI
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugConfigurationInfoRepository}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class IntegrationTestController @Inject()(
-  routeRepo: FrontendRouteRepository,
+  routeRepo           : FrontendRouteRepository,
   dependencyConfigRepo: DependencyConfigRepository,
-  slugRepo: SlugConfigurationInfoRepository,
-  mcc: MessagesControllerComponents)(implicit ec: ExecutionContext)
-    extends BackendController(mcc) {
+  slugRepo            : SlugConfigurationInfoRepository,
+  mcc                 : MessagesControllerComponents
+)(implicit ec: ExecutionContext
+) extends BackendController(mcc) {
 
   import MongoFrontendRoute.formats
+
   implicit val dependencyConfigReads: Reads[DependencyConfig] =
     Json.using[Json.WithDefaultValues].reads[DependencyConfig]
+
   implicit val slugReads: Reads[SlugInfo] = {
     implicit val sdr: Reads[SlugDependency] = Json.using[Json.WithDefaultValues].reads[SlugDependency]
     implicit val vd: Format[Version]        = Version.apiFormat
@@ -43,39 +47,45 @@ class IntegrationTestController @Inject()(
   }
 
   def validateJson[A: Reads]: BodyParser[A] =
-    parse.json.validate(_.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e))))
+    parse.json.validate(
+      _.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e)))
+    )
 
-  def addRoutes(): Action[Seq[MongoFrontendRoute]] = Action.async(validateJson[Seq[MongoFrontendRoute]]) {
-    implicit request =>
-      Future.sequence(request.body.map(routeRepo.update)).map(_ => Ok("Ok"))
-  }
+  def addRoutes(): Action[List[MongoFrontendRoute]] =
+    Action.async(validateJson[List[MongoFrontendRoute]]) {
+      implicit request =>
+        request.body
+          .traverse(routeRepo.update)
+          .map(_ => Ok("Ok"))
+    }
 
-  def clearRoutes(): Action[AnyContent] = Action.async { implicit request =>
-    routeRepo.clearAll().map(_ => Ok("done"))
-  }
+  def clearRoutes(): Action[AnyContent] =
+    Action.async {
+      routeRepo.clearAll()
+        .map(_ => Ok("done"))
+    }
 
-  def addSlugDependencyConfigs(): Action[Seq[DependencyConfig]] =
-    Action.async(validateJson[Seq[DependencyConfig]]) { implicit request =>
-      Future
-        .sequence(request.body.map(dependencyConfigRepo.add))
+  def addSlugDependencyConfigs(): Action[List[DependencyConfig]] =
+    Action.async(validateJson[List[DependencyConfig]]) { implicit request =>
+      request.body
+        .traverse(dependencyConfigRepo.add)
         .map(_ => Ok("Done"))
     }
 
   def deleteSlugDependencyConfigs(): Action[AnyContent] =
-    Action.async { implicit request =>
+    Action.async {
       dependencyConfigRepo.clearAllData.map(_ => Ok("Done"))
     }
 
-  def addSlugs(): Action[Seq[SlugInfo]] =
-    Action.async(validateJson[Seq[SlugInfo]]) { implicit request =>
-      Future
-        .sequence(request.body.map(slugRepo.add))
+  def addSlugs(): Action[List[SlugInfo]] =
+    Action.async(validateJson[List[SlugInfo]]) { implicit request =>
+      request.body
+        .traverse(slugRepo.add)
         .map(_ => Ok("Done"))
     }
 
   def deleteSlugs(): Action[AnyContent] =
-    Action.async { implicit request =>
+    Action.async {
       slugRepo.clearAll().map(_ => Ok("Done"))
     }
-
 }

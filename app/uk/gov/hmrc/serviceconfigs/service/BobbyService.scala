@@ -17,13 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import javax.inject.Inject
-import play.Logger
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.serviceconfigs.connector.BobbyConnector
-import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 
 import scala.concurrent.Future
 
 class BobbyService @Inject()(connector: BobbyConnector) {
-  def findAllRules(): Future[String] = connector.findAllRules()
+  def findAllRules(): Future[String] =
+    connector.findAllRules()
 }

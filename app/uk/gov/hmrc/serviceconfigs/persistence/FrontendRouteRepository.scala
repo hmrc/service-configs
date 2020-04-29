@@ -25,27 +25,26 @@ import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
-import play.api.Logger
+import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.PlayMongoModule
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class FrontendRouteRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoRepository(
-      mongoComponent = mongoComponent,
-      collectionName = "frontendRoutes",
-      domainFormat   = MongoFrontendRoute.formats,
-      indexes = Seq(
-        IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
-        IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
-      )
-    ) {
-
-  private val logger = Logger(getClass)
+class FrontendRouteRepository @Inject()(
+  mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
+) extends PlayMongoRepository(
+  mongoComponent = mongoComponent,
+  collectionName = "frontendRoutes",
+  domainFormat   = MongoFrontendRoute.formats,
+  indexes        = Seq(
+                     IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
+                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                   )
+) with Logging {
 
   def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
     logger.debug(

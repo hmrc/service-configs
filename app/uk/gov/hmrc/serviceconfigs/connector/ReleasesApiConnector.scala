@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
-import play.api.Logger
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier

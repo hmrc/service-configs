@@ -33,10 +33,10 @@ class BobbyController @Inject()(bobbyService: BobbyService, mcc: MessagesControl
     value = "Retrieve the current set of bobby rules",
     notes = """Parses the list of bobby rules from the github bobby-config repo"""
   )
-  def allRules(): Action[AnyContent] = Action.async { implicit request =>
-    bobbyService.findAllRules().map { e =>
-      Ok(e).as("application/json")
+  def allRules(): Action[AnyContent] =
+    Action.async {
+      bobbyService.findAllRules().map { e =>
+        Ok(e).as("application/json")
+      }
     }
-  }
-
 }

@@ -21,7 +21,7 @@ import java.net.URL
 import cats.instances.all._
 import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
-import play.api.Logger
+import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
@@ -41,30 +41,31 @@ class NginxService @Inject()(
   parser           : FrontendRouteParser,
   nginxConnector   : NginxConfigConnector,
   nginxConfig      : NginxConfig
-  )(implicit ec: ExecutionContext) {
+)(implicit ec: ExecutionContext
+) extends Logging {
 
   def update(environments: List[String]): Future[Unit] =
     for {
-      _ <- Future.successful(Logger.info(s"Update started..."))
+      _ <- Future.successful(logger.info(s"Update started..."))
       _ <- environments.traverse { environment =>
              updateNginxRoutesForEnv(environment)
-               .recover { case e => Logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e) }
+               .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e) }
            }
-      _ =  Logger.info(s"Update complete...")
+      _ =  logger.info(s"Update complete...")
     } yield ()
 
   private def updateNginxRoutesForEnv(environment: String): Future[List[MongoFrontendRoute]] =
     for {
-      _        <- Future.successful(Logger.info(s"Refreshing frontend route data for $environment..."))
+      _        <- Future.successful(logger.info(s"Refreshing frontend route data for $environment..."))
       routes   <- nginxConfig.frontendConfigFileNames
                    .traverse { configFile =>
                      nginxConnector.getNginxRoutesFile(configFile, environment)
                       .map(processNginxRouteFile)
                    }.map(_.flatten)
       _        <- frontendRouteRepo.deleteByEnvironment(environment)
-      _        =  Logger.info(s"Inserting ${routes.length} routes into mongo for $environment")
+      _        =  logger.info(s"Inserting ${routes.length} routes into mongo for $environment")
       inserted <- routes.traverse(frontendRouteRepo.update)
-      _        =  Logger.info(s"Inserted ${inserted.length} routes into mongo for $environment")
+      _        =  logger.info(s"Inserted ${inserted.length} routes into mongo for $environment")
     } yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
@@ -72,7 +73,7 @@ class NginxService @Inject()(
       .fold(error => sys.error(s"Failed to parse nginx configs: ${nginxConfigFile.url}: $error"), identity)
 }
 
-object NginxService {
+object NginxService extends Logging {
 
   def urlToService(url: String): String =
     Try(new URL(url).getHost)
@@ -80,10 +81,11 @@ object NginxService {
       .getOrElse(url)
 
   def parseConfig(
-    parser: FrontendRouteParser,
-    configFile: NginxConfigFile): Either[String, List[MongoFrontendRoute]] = {
+    parser    : FrontendRouteParser,
+    configFile: NginxConfigFile
+  ): Either[String, List[MongoFrontendRoute]] = {
 
-    Logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
+    logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
 
     val indexes: Map[String, Int] =
       NginxConfigIndexer.index(configFile.content)

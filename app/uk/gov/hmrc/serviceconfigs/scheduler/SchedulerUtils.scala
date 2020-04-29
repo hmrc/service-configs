@@ -17,14 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
-import play.api.Logger
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.MongoLockService
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait SchedulerUtils {
+trait SchedulerUtils extends Logging {
   def schedule(
       label          : String
     , schedulerConfig: SchedulerConfig
@@ -33,23 +33,22 @@ trait SchedulerUtils {
       if (schedulerConfig.enabled) {
         val initialDelay = schedulerConfig.initialDelay
         val interval     = schedulerConfig.interval
-        Logger.info(s"Enabling $label scheduler, running every $interval (after initial delay $initialDelay)")
+        logger.info(s"Enabling $label scheduler, running every $interval (after initial delay $initialDelay)")
         val cancellable =
           actorSystem.scheduler.schedule(initialDelay, interval) {
             val start = System.currentTimeMillis
-            Logger.info(s"Scheduler $label started")
+            logger.info(s"Scheduler $label started")
             f.map { res =>
-              Logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
+              logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
               res
             }
             .recover {
-              case e => Logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
+              case e => logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
             }
           }
         applicationLifecycle.addStopHook(() => Future(cancellable.cancel()))
-      } else {
-        Logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
-      }
+      } else
+        logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
 
   def scheduleWithLock(
       label          : String
@@ -59,8 +58,8 @@ trait SchedulerUtils {
     )(implicit actorSystem: ActorSystem, applicationLifecycle: ApplicationLifecycle, ec: ExecutionContext) =
       schedule(label, schedulerConfig) {
         lock.attemptLockWithRelease(f).map {
-          case Some(_) => Logger.debug(s"$label finished - releasing lock")
-          case None    => Logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
+          case Some(_) => logger.debug(s"$label finished - releasing lock")
+          case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
         }
   }
 }
