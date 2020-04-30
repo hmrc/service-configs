@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.{__, Format, Json, JsError, JsString, JsSuccess, JsValue, OFormat, Writes}
+import play.api.libs.json.{__, Format, JsError, JsString, JsSuccess, JsValue, OFormat, Writes}
 import play.api.libs.functional.syntax._
 
 case class Version(

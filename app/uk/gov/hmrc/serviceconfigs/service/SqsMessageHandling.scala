@@ -23,13 +23,14 @@ import akka.stream.scaladsl.{Compression, Sink, Source}
 import akka.util.ByteString
 import com.google.inject.Inject
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
-class SqsMessageHandling @Inject()(implicit executionContext: ExecutionContext, materializer: Materializer) {
+class SqsMessageHandling @Inject()(implicit materializer: Materializer) {
 
   private lazy val decoder = Base64.getDecoder
 
-  def decompress(message: String): Future[String] = decompress(decoder.decode(message))
+  def decompress(message: String): Future[String] =
+    decompress(decoder.decode(message))
 
   private def decompress(compressedInput: Array[Byte]): Future[String] =
     Source.single(ByteString.fromArray(compressedInput))

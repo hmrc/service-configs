@@ -150,11 +150,11 @@ object ConfigService {
           optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           configs         <- optSlugInfo match {
                                case Some(slugInfo) =>
-                                 Future.fold(
-                                   slugInfo.dependencies
-                                     .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
-                                   Seq.empty[DependencyConfig])(_ ++ _)
-                               case None => Future(Seq.empty[DependencyConfig])
+                                 slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
+                                   dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
+                                     .map(acc ++ _)
+                                 }
+                               case None => Future(List.empty[DependencyConfig])
                              }
           referenceConfig =  ConfigParser.reduceConfigs(configs)
           entries         =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
@@ -178,16 +178,16 @@ object ConfigService {
           optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           configs         <- optSlugInfo match {
                                case Some(slugInfo) =>
-                                 Future.fold(
-                                   slugInfo.dependencies
-                                     .map(d => dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)))(
-                                   Seq.empty[DependencyConfig])(_ ++ _)
-                               case None => Future(Seq.empty[DependencyConfig])
+                                 slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
+                                   dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
+                                     .map(acc ++ _)
+                                 }
+                               case None => Future(List.empty[DependencyConfig])
                              }
           raw             <- optSlugInfo match {
                                case Some(slugInfo) => Future(slugInfo.applicationConfig)
-                               case None =>
-                                 connector.serviceApplicationConfigFile(serviceName) // if not slug info (e.g. java apps) get from github
+                               case None           => // if no slug info (e.g. java apps) get from github
+                                                      connector.serviceApplicationConfigFile(serviceName)
                              }
           applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
           entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)

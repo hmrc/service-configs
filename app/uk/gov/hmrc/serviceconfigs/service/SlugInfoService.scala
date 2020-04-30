@@ -33,9 +33,7 @@ class SlugInfoService @Inject()(
 )(implicit ec: ExecutionContext
 ) {
 
-  def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] = {
-
-    import ReleasesApiConnector._
+  def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugConfigurationInfoRepository.getUniqueSlugNames
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere
@@ -59,5 +57,4 @@ class SlugInfoService @Inject()(
                                   }
                                 }
     } yield ()
-  }
 }

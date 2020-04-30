@@ -40,12 +40,13 @@ class NginxController @Inject()(db: FrontendRouteRepository, mcc: MessagesContro
   )
   def searchByServiceName(
     @ApiParam(value = "The service name to query") serviceName: String
-  ): Action[AnyContent] = Action.async { implicit request =>
-    db.findByService(serviceName)
-      .map(FrontendRoutes.fromMongo)
-      .map(routes => Json.toJson(routes))
-      .map(Ok(_))
-  }
+  ): Action[AnyContent] =
+    Action.async {
+      db.findByService(serviceName)
+        .map(FrontendRoutes.fromMongo)
+        .map(routes => Json.toJson(routes))
+        .map(Ok(_))
+    }
 
   @ApiOperation(
     value = "Retrieves nginx route config for the given environment",
@@ -53,12 +54,13 @@ class NginxController @Inject()(db: FrontendRouteRepository, mcc: MessagesContro
   )
   def searchByEnvironment(
     @ApiParam(value = "The environment to query") environment: String
-  ): Action[AnyContent] = Action.async { implicit request =>
-    db.findByEnvironment(environment)
-      .map(FrontendRoutes.fromMongo)
-      .map(routes => Json.toJson(routes))
-      .map(Ok(_))
-  }
+  ): Action[AnyContent] =
+    Action.async {
+      db.findByEnvironment(environment)
+        .map(FrontendRoutes.fromMongo)
+        .map(routes => Json.toJson(routes))
+        .map(Ok(_))
+    }
 
   @ApiOperation(
     value = "Retrieves nginx route config after doing a search for the given frontEnd path",
@@ -66,11 +68,11 @@ class NginxController @Inject()(db: FrontendRouteRepository, mcc: MessagesContro
   )
   def searchByFrontendPath(
     @ApiParam(value = "The front end path to search by") frontendPath: String
-  ): Action[AnyContent] = Action.async { implicit request =>
-    db.searchByFrontendPath(frontendPath)
-      .map(FrontendRoutes.fromMongo)
-      .map(routes => Json.toJson(routes))
-      .map(Ok(_))
-  }
-
+  ): Action[AnyContent] =
+    Action.async {
+      db.searchByFrontendPath(frontendPath)
+        .map(FrontendRoutes.fromMongo)
+        .map(routes => Json.toJson(routes))
+        .map(Ok(_))
+    }
 }

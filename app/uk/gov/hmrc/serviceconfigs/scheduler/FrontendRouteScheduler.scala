@@ -16,9 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.ActorSystem
 import javax.inject.Inject
-import play.api.{Configuration, Logger}
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig

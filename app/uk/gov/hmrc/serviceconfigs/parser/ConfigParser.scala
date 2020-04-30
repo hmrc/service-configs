@@ -28,16 +28,18 @@ import com.typesafe.config.{
   ConfigSyntax
 }
 import org.yaml.snakeyaml.Yaml
-import play.api.Logger
+import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
-import scala.collection.convert.decorateAsScala._
+import scala.collection.JavaConverters._
 import scala.util.Try
 
-trait ConfigParser {
+trait ConfigParser extends Logging {
 
-  def parseConfString(confString: String,
-                      includeCandidates: Map[String, String] = Map.empty,
-                      logMissing: Boolean = true): Config = {
+  def parseConfString(
+    confString       : String,
+    includeCandidates: Map[String, String] = Map.empty,
+    logMissing       : Boolean             = true
+  ): Config = {
     val includer = new ConfigIncluder with ConfigIncluderClasspath {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
@@ -47,19 +49,16 @@ trait ConfigParser {
 
       override def includeResources(context: ConfigIncludeContext,
                                     what: String): ConfigObject = {
-        includeCandidates.find {
-          case (k, v) =>
-            if (exts.exists(ext => what.endsWith(ext))) k == what
-            else exts.exists(ext => k == s"$what$ext")
+        includeCandidates.find { case (k, v) =>
+          if (exts.exists(ext => what.endsWith(ext)))
+            k == what
+          else
+            exts.exists(ext => k == s"$what$ext")
         } match {
-          case Some((_, v)) =>
-            ConfigFactory.parseString(v, context.parseOptions).root
-          case None =>
-            if (logMissing)
-              Logger.warn(
-                s"Could not find $what to include in $includeCandidates"
-              )
-            ConfigFactory.empty.root
+          case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
+          case None         => if (logMissing)
+                                 logger.warn(s"Could not find $what to include in $includeCandidates")
+                               ConfigFactory.empty.root
         }
       }
     }

@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
 import javax.inject.Inject
-import play.api.Logger
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.lock.MongoLockRepository
@@ -37,15 +37,16 @@ class SlugMetadataUpdateScheduler @Inject()(
     actorSystem         : ActorSystem,
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
-  ) extends SchedulerUtils {
+  ) extends SchedulerUtils
+    with Logging {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
   scheduleWithLock("Slug Metadata Updater", schedulerConfigs.slugMetadataUpdate, mongoLockRepository.toService("slug-metadata-scheduler", 1.hour)) {
-    Logger.info("Updating slug metadata")
+    logger.info("Updating slug metadata")
     for {
       _ <- slugInfoService.updateMetadata()
-      _ = Logger.info("Finished updating slug metadata")
+      _ = logger.info("Finished updating slug metadata")
     } yield ()
   }
 }

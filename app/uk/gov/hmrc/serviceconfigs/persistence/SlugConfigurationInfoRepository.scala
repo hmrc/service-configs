@@ -20,7 +20,7 @@ import com.google.inject.{Inject, Singleton}
 import com.mongodb.BasicDBObject
 import org.mongodb.scala.model.Filters.{equal, and}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
-import play.api.Logger
+import play.api.Logging
 import org.mongodb.scala.model.Updates.set
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
@@ -29,20 +29,19 @@ import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInf
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlugConfigurationInfoRepository @Inject()(mongoComponent: MongoComponent)(
-  implicit executionContext: ExecutionContext
+class SlugConfigurationInfoRepository @Inject()(
+  mongoComponent: MongoComponent
+)( implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
-      mongoComponent = mongoComponent,
-      collectionName = "slugConfigurations",
-      domainFormat   = MongoSlugInfoFormats.siFormat,
-      indexes = Seq(
-        IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
-        IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
-        IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
-      )
-    ) {
-
-  private val logger = Logger(this.getClass)
+  mongoComponent = mongoComponent,
+  collectionName = "slugConfigurations",
+  domainFormat   = MongoSlugInfoFormats.siFormat,
+  indexes        = Seq(
+                     IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
+                     IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
+                     IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
+                   )
+) with Logging {
 
   def add(slugInfo: SlugInfo): Future[Unit] =
     collection

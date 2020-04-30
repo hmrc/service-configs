@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
-import org.mongodb.scala.model.IndexModel
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
@@ -125,10 +124,11 @@ class FrontendRouteRepositoryMongoSpec
   }
 
   def newFrontendRoute(
-    service: String      = "service",
-    frontendPath: String = "frontendPath",
-    environment: String  = "environment",
-    isRegex: Boolean     = true) =
+    service     : String  = "service",
+    frontendPath: String  = "frontendPath",
+    environment : String  = "environment",
+    isRegex     : Boolean = true
+  ) =
     MongoFrontendRoute(
       service              = service,
       frontendPath         = frontendPath,
