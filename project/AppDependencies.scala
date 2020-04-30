@@ -1,4 +1,5 @@
 import play.core.PlayVersion
+import play.sbt.PlayImport.ws
 import sbt._
 
 object AppDependencies {
@@ -16,8 +17,10 @@ object AppDependencies {
     "com.lightbend.akka"     %% "akka-stream-alpakka-sqs"   % "1.1.2",
     // akka-stream-alpakka-sns depends on 10.1.10 which isn't compatible with play's akka version 10.1.11
     "com.typesafe.akka"      %% "akka-http"                 % "10.1.11",
-    "io.swagger"             %% "swagger-play2"             % "1.6.1",
-    "uk.gov.hmrc.mongo"      %% "hmrc-mongo-play-27"        % hmrcMongoVersion
+    // using io.swagger:swagger-play2 fork to get around ://github.com/swagger-api/swagger-play/issues/152
+    "com.iterable"           %% "swagger-play"              % "2.0.1",
+    "uk.gov.hmrc.mongo"      %% "hmrc-mongo-play-27"        % hmrcMongoVersion,
+    ws
   )
 
   val test: Seq[ModuleID] = Seq(
@@ -27,5 +30,9 @@ object AppDependencies {
     "org.scalatestplus" %% "scalatestplus-mockito"   % "1.0.0-M2"          % Test,
     "com.typesafe.akka" %% "akka-testkit"            % "2.5.26"            % Test,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-test-play-27" % hmrcMongoVersion    % Test
+  )
+
+  val dependencyOverrides = Seq(
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.8" // swagger requires an older version of jackson than alpakka...
   )
 }
