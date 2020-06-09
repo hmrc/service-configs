@@ -7,7 +7,7 @@ object AppDependencies {
   val hmrcMongoVersion = "0.28.0"
 
   val compile: Seq[ModuleID] = Seq(
-    "uk.gov.hmrc"            %% "bootstrap-backend-play-27" % "2.6.0",
+    "uk.gov.hmrc"            %% "bootstrap-backend-play-27" % "2.16.0",
     "org.yaml"               %  "snakeyaml"                 % "1.25",
     "uk.gov.hmrc"            %% "github-client"             % "2.11.0",
     "org.scala-lang.modules" %% "scala-parser-combinators"  % "1.1.2",
