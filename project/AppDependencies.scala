@@ -27,7 +27,7 @@ object AppDependencies {
     "org.scalatest"     %% "scalatest"               % "3.1.0"             % Test,
     "com.typesafe.play" %% "play-test"               % PlayVersion.current % Test,
     "org.mockito"       %  "mockito-core"            % "3.2.4"             % Test,
-    "org.scalatestplus" %% "scalatestplus-mockito"   % "1.0.0-M2"          % Test,
+    "org.mockito"       %% "mockito-scala-scalatest" % "1.13.10"           % Test,
     "com.typesafe.akka" %% "akka-testkit"            % "2.5.26"            % Test,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-test-play-27" % hmrcMongoVersion    % Test
   )

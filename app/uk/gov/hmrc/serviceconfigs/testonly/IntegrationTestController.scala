@@ -23,14 +23,14 @@ import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponent
 import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugConfigurationInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugInfoRepository}
 
 import scala.concurrent.ExecutionContext
 
 class IntegrationTestController @Inject()(
   routeRepo           : FrontendRouteRepository,
   dependencyConfigRepo: DependencyConfigRepository,
-  slugRepo            : SlugConfigurationInfoRepository,
+  slugRepo            : SlugInfoRepository,
   mcc                 : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {

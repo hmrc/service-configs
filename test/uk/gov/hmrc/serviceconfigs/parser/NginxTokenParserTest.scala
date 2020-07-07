@@ -16,10 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.mockito.Mockito.when
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
 

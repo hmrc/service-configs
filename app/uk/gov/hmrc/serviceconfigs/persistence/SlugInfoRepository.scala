@@ -29,7 +29,7 @@ import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInf
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlugConfigurationInfoRepository @Inject()(
+class SlugInfoRepository @Inject()(
   mongoComponent: MongoComponent
 )( implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
