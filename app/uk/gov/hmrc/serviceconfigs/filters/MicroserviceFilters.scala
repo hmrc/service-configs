@@ -20,7 +20,7 @@ import javax.inject.Inject
 
 import play.api.http.DefaultHttpFilters
 import play.filters.cors.CORSFilter
-import uk.gov.hmrc.play.bootstrap.filters.MicroserviceFilters
+import uk.gov.hmrc.play.bootstrap.backend.filters.BackendFilters
 
-class Filters @Inject()(defaultFilters: MicroserviceFilters, corsFilter: CORSFilter)
+class Filters @Inject()(defaultFilters: BackendFilters, corsFilter: CORSFilter)
     extends DefaultHttpFilters(defaultFilters.filters :+ corsFilter: _*)
