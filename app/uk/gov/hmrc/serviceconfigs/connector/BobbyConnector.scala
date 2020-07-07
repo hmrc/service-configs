@@ -20,7 +20,7 @@ import javax.inject.Inject
 import play.api.Logging
 import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
 import scala.concurrent.{ExecutionContext, Future}

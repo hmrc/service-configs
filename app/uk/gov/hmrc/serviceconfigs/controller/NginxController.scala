@@ -20,7 +20,7 @@ import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Json, OFormat}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.FrontendRoutes
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 

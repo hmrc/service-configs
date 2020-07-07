@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.connector
 import javax.inject.Inject
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 

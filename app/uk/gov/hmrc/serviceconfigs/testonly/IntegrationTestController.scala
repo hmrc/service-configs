@@ -20,7 +20,7 @@ import cats.implicits._
 import javax.inject.Inject
 import play.api.libs.json.{Format, JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugInfoRepository}

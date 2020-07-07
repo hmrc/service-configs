@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import io.swagger.annotations.{Api, ApiOperation}
 import javax.inject.Inject
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.service.BobbyService
 
 import scala.concurrent.ExecutionContext

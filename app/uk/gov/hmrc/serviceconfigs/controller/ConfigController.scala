@@ -20,7 +20,7 @@ import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.mvc._
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 
