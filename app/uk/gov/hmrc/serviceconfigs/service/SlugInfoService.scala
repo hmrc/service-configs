@@ -22,20 +22,20 @@ import com.google.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.SlugConfigurationInfoRepository
+import uk.gov.hmrc.serviceconfigs.persistence.SlugInfoRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugInfoService @Inject()(
-  slugConfigurationInfoRepository: SlugConfigurationInfoRepository
+slugInfoRepository: SlugInfoRepository
 , releasesApiConnector           : ReleasesApiConnector
 )(implicit ec: ExecutionContext
 ) {
 
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
-      serviceNames           <- slugConfigurationInfoRepository.getUniqueSlugNames
+      serviceNames           <- slugInfoRepository.getUniqueSlugNames
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere
       allServiceDeployments  =  serviceNames.map { serviceName =>
                                   val deployments       = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
@@ -52,8 +52,8 @@ class SlugInfoService @Inject()(
                                 }
       _                      <- allServiceDeployments.toList.traverse { case (serviceName, deployments) =>
                                   deployments.traverse {
-                                    case (flag, None         ) => slugConfigurationInfoRepository.clearFlag(flag, serviceName)
-                                    case (flag, Some(version)) => slugConfigurationInfoRepository.setFlag(flag, serviceName, version)
+                                    case (flag, None         ) => slugInfoRepository.clearFlag(flag, serviceName)
+                                    case (flag, Some(version)) => slugInfoRepository.setFlag(flag, serviceName, version)
                                   }
                                 }
     } yield ()

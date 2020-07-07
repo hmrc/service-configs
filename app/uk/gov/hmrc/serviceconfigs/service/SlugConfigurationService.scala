@@ -18,17 +18,18 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.implicits._
 import com.google.inject.{Inject, Singleton}
+import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag, Version}
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugConfigurationService @Inject()(
-  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+  slugInfoRepository: SlugInfoRepository,
   dependencyConfigRepository     : DependencyConfigRepository,
   configService                  : ConfigService
-)(implicit ec: ExecutionContext) {
+)(implicit ec: ExecutionContext) extends Logging {
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
     slugInfo.classpath
@@ -39,17 +40,30 @@ class SlugConfigurationService @Inject()(
 
   def addSlugInfo(slugInfo: SlugInfo): Future[Unit] = {
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
-    slugConfigurationInfoRepository.add(slug)
+
+    for {
+      // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
+      _ <- slugInfoRepository.add(slug.copy(latest = false))
+
+      isLatest <- slugInfoRepository.getSlugInfos(name = slug.name, optVersion = None)
+        .map { case Nil      => true
+        case nonempty => val isLatest = nonempty.map(_.version).max == slug.version
+          logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (out of: ${nonempty.map(_.version).sorted})")
+          isLatest
+        }
+
+      _ <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future(())
+    } yield ()
   }
 
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
     dependencyConfigs.toList.traverse(dependencyConfigRepository.add)
 
   def getSlugInfos(name: String, version: Option[Version]): Future[Seq[SlugInfo]] =
-    slugConfigurationInfoRepository.getSlugInfos(name, version)
+    slugInfoRepository.getSlugInfos(name, version)
 
   def getSlugInfo(name: String, flag: SlugInfoFlag): Future[Option[SlugInfo]] =
-    slugConfigurationInfoRepository.getSlugInfo(name, flag)
+    slugInfoRepository.getSlugInfo(name, flag)
 
   def findDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     dependencyConfigRepository.getDependencyConfig(group, artefact, version)

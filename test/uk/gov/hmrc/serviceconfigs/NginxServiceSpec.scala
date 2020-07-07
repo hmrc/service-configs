@@ -16,23 +16,21 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
 import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
-import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
+import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.Future
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import scala.concurrent.duration.DurationInt
 
 class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
@@ -74,16 +72,16 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
         NginxConfigFile(environment = "production", "", testConfig, branch = "master")
       ))
 
-    when(repo.deleteByEnvironment(any()))
+    when(repo.deleteByEnvironment(any))
       .thenReturn(Future(true))
-    when(repo.update(any()))
+    when(repo.update(any))
       .thenReturn(Future.successful(()))
 
     val envs = List("production", "development")
     service.update(envs).futureValue
 
-    verify(repo, times(2)).update(any())
-    verify(connector, times(envs.length)).getNginxRoutesFile(any(), any())
+    verify(repo, times(2)).update(any)
+    verify(connector, times(envs.length)).getNginxRoutesFile(any, any)
   }
 
   "parseConfig" should "turn an nginx config file into an indexed list of mongofrontendroutes" in {

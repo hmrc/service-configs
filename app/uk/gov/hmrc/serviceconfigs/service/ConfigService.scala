@@ -23,14 +23,14 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugConfigurationInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ConfigService @Inject()(
   configConnector: ConfigConnector,
-  slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+  slugInfoRepository: SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository)(implicit ec: ExecutionContext) {
 
   import ConfigService._
@@ -68,7 +68,7 @@ class ConfigService @Inject()(
     environment.configSources.toList
       .foldLeftM[Future, Seq[ConfigSourceEntries]](Seq.empty) {
         case (seq, cs) =>
-          cs.entries(configConnector, slugConfigurationInfoRepository, dependencyConfigRepository)(
+          cs.entries(configConnector, slugInfoRepository, dependencyConfigRepository)(
               serviceName,
               environment.slugInfoFlag,
               getServiceType(seq))
@@ -124,7 +124,7 @@ object ConfigService {
 
     def entries(
       connector: ConfigConnector,
-      slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+      slugInfoRepository: SlugInfoRepository,
       dependencyConfigRepository: DependencyConfigRepository)(
       serviceName: String,
       slugInfoFlag: SlugInfoFlag,
@@ -139,7 +139,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,
@@ -147,7 +147,7 @@ object ConfigService {
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          optSlugInfo     <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           configs         <- optSlugInfo match {
                                case Some(slugInfo) =>
                                  slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
@@ -167,7 +167,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,
@@ -175,7 +175,7 @@ object ConfigService {
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo     <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          optSlugInfo     <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           configs         <- optSlugInfo match {
                                case Some(slugInfo) =>
                                  slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
@@ -200,7 +200,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,
@@ -208,7 +208,7 @@ object ConfigService {
         implicit hc: HeaderCarrier,
         ec: ExecutionContext): Future[ConfigSourceEntries] =
         for {
-          optSlugInfo <- slugConfigurationInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          optSlugInfo <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           raw         <- optSlugInfo match {
                            case Some(slugInfo) => Future(slugInfo.slugConfig)
                            case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
@@ -224,7 +224,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,
@@ -246,7 +246,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,
@@ -269,7 +269,7 @@ object ConfigService {
 
       def entries(
         connector: ConfigConnector,
-        slugConfigurationInfoRepository: SlugConfigurationInfoRepository,
+        slugInfoRepository: SlugInfoRepository,
         dependencyConfigRepository: DependencyConfigRepository)(
         serviceName: String,
         slugInfoFlag: SlugInfoFlag,

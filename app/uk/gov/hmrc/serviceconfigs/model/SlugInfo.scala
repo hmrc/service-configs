@@ -42,13 +42,13 @@ case class SlugDependency(
 
 case class SlugInfo(
   uri               : String,
-  created           : LocalDateTime,
+  created           : LocalDateTime, //not used
   name              : String,
   version           : Version,
-  teams             : List[String],
-  runnerVersion     : String,
+  teams             : List[String],  //not used
+  runnerVersion     : String,        //not used
   classpath         : String,
-  jdkVersion        : String,
+  jdkVersion        : String,        //not used
   dependencies      : List[SlugDependency],
   applicationConfig : String,
   slugConfig        : String,
