@@ -50,14 +50,14 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
-      val slugv2 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri2")
+      val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugInfoRepository.getSlugInfos(slugv2.name, None)).thenReturn(Future.successful(List(slugv2)))
+      when(boot.mockedSlugInfoRepository.getSlugInfos(slugv1.name, None)).thenReturn(Future.successful(List(slugv1, slugv2)))
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
       when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.successful(()))
 
-      boot.service.addSlugInfo(slugv1).futureValue
-      verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv1.name, Version("1.0.0"))
+      boot.service.addSlugInfo(slugv2).futureValue
+      verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
 
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
