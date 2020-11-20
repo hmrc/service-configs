@@ -7,8 +7,10 @@
 
     <logger name="uk.gov" level="${logger.uk.gov:-WARN}"/>
 
-    <logger name="uk.gov.hmrc.releasesapi.play.filters.MicroserviceFilters"
-            level="${uk.gov.hmrc.releasesapi.play.filters.MicroserviceFilters}:-ERROR}"/>
+    <logger name="uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter"
+            level="${uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter}:-ERROR"/>
+
+
 
     <root level="${logger.application:-WARN}">
         <appender-ref ref="STDOUT"/>
