@@ -34,7 +34,7 @@ class SlugConfigurationService @Inject()(
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
     slugInfo.classpath
       .split(":")
-      .map(_.replace("$lib_dir/", s"./${slugInfo.name}-${slugInfo.version}/lib/"))
+      .map(_.replace("$lib_dir/", s"${slugInfo.name}-${slugInfo.version}/lib/"))
       .toList
       .flatMap(path => slugInfo.dependencies.filter(_.path == path))
 

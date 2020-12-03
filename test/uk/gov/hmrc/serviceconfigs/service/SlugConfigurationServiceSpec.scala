@@ -88,6 +88,25 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
+
+    "add slug with classpath ordered dependencies" in {
+      val boot = Boot.init
+      val sampleSlug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
+      val classPathDependency = SlugDependency(s"${sampleSlug.name}-${sampleSlug.version}/lib/org.scala-lang.scala-library-2.12.11.jar", "", "", "")
+      val nonClassPathDependency = SlugDependency(s"${sampleSlug.name}-${sampleSlug.version}/lib/org.scala-lang.scala-library-2.12.12.jar", "", "", "")
+      val slug = sampleSlug.copy(
+        classpath = "$lib_dir/../conf/:$lib_dir/uk.gov.hmrc.internal-auth-0.26.0-sans-externalized.jar:$lib_dir/org.scala-lang.scala-library-2.12.11.jar",
+        dependencies = List(classPathDependency, nonClassPathDependency)
+      )
+
+      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.getSlugInfos(any, any)).thenReturn(Future.successful(List.empty))
+      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
+
+      boot.service.addSlugInfo(slug).futureValue
+
+      verify(boot.mockedSlugInfoRepository).add(slug.copy(dependencies = List(classPathDependency), latest = false))
+    }
   }
 
   def sampleSlugInfo(version: Version, uri: String, latest: Boolean = true): SlugInfo =
