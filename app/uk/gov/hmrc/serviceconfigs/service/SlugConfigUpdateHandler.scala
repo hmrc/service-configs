@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import akka.actor.ActorSystem
-import akka.stream.Materializer
+import akka.stream.{ActorAttributes, Materializer, Supervision}
 import akka.stream.alpakka.sqs.MessageAction.{Delete, Ignore}
 import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
@@ -41,8 +41,7 @@ class SlugConfigUpdateHandler @Inject()(
   messageHandling         : SqsMessageHandling,
   slugConfigurationService: SlugConfigurationService,
   config                  : ArtefactReceivingConfig
-)(
-  implicit
+)(implicit
   actorSystem : ActorSystem,
   materializer: Materializer,
   ec          : ExecutionContext
@@ -77,10 +76,10 @@ class SlugConfigUpdateHandler @Inject()(
     SqsSource(queueUrl, settings)(awsSqsClient)
       .map(logMessage)
       .mapAsync(10)(processMessage)
+      .withAttributes(ActorAttributes.supervisionStrategy {
+        case NonFatal(e) => logger.error(s"Failed to process sqs messages: ${e.getMessage}", e); Supervision.Restart
+      })
       .runWith(SqsAckSink(queueUrl)(awsSqsClient))
-      .recoverWith {
-        case NonFatal(e) => logger.error(s"Failed to process messages ${e.getMessage}", e); Future.failed(e)
-      }
   }
 
   private def logMessage(message: Message): Message = {
