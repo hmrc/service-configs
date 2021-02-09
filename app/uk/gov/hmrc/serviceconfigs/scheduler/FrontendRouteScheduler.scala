@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import akka.actor.ActorSystem
 import javax.inject.Inject
 import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.MongoLockRepository
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, MongoLockService}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
@@ -51,7 +51,7 @@ class FrontendRouteScheduler @Inject()(
   scheduleWithLock(
     label           = "frontendRoutes"
   , schedulerConfig = schedulerConfigs.frontendRoutesReload
-  , lock            = mongoLockRepository.toService("service-configs-sync-job", 20.minutes)
+  , lock            = MongoLockService(mongoLockRepository, "service-configs-sync-job", 20.minutes)
   ){
     nginxService.update(environments)
       .map(_ => ())
