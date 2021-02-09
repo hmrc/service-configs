@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,17 +70,17 @@ case class SlugMessage(
 trait MongoSlugInfoFormats {
   implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
-  val ignore = OWrites[Any](_ => Json.obj())
+  def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
 
   implicit val siFormat: OFormat[SlugInfo] =
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
-    ~ OFormat(Reads.pure(List.empty[String]), ignore)
-    ~ OFormat(Reads.pure(""), ignore)
-    ~ OFormat(Reads.pure(""), ignore)
-    ~ OFormat(Reads.pure(""), ignore)
+    ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
+    ~ OFormat(Reads.pure(""), ignore[String])
+    ~ OFormat(Reads.pure(""), ignore[String])
+    ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     ~ (__ \ "slugConfig"       ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
@@ -103,7 +103,8 @@ object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
 
 trait ApiSlugInfoFormats {
-  val ignore = OWrites[Any](_ => Json.obj())
+
+  def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
 
   implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
@@ -113,10 +114,10 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
-    ~ OFormat(Reads.pure(List.empty[String]), ignore)
-    ~ OFormat(Reads.pure(""), ignore)
+    ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
+    ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "classpath"        ).format[String]
-    ~ OFormat(Reads.pure(""), ignore)
+    ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
     ~ (__ \ "slugConfig"       ).format[String]

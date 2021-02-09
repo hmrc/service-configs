@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.http.StringContextOps
+import java.net.URL
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -41,29 +43,29 @@ class ConfigConnector @Inject()(
 
   def serviceConfigYaml(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token $configKey"))
-    val requestUrl = s"${githubConf.githubRawUrl}/hmrc/app-config-$env/master/$service.yaml"
+    val requestUrl = url"${githubConf.githubRawUrl}/hmrc/app-config-$env/master/$service.yaml"
     doCall(requestUrl, newHc)
   }
 
   def serviceConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token $configKey"))
-    val requestUrl = s"${githubConf.githubRawUrl}/hmrc/app-config-$env/master/$service.conf"
+    val requestUrl = url"${githubConf.githubRawUrl}/hmrc/app-config-$env/master/$service.conf"
     doCall(requestUrl, newHc)
   }
 
   def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token $configKey"))
-    val requestUrl = s"${githubConf.githubRawUrl}/hmrc/app-config-common/master/$env-$serviceType-common.yaml"
+    val requestUrl = url"${githubConf.githubRawUrl}/hmrc/app-config-common/master/$env-$serviceType-common.yaml"
     doCall(requestUrl, newHc)
   }
 
   def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[String] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token $configKey"))
-    val requestUrl = s"${githubConf.githubRawUrl}/hmrc/$serviceName/master/conf/application.conf"
+    val requestUrl = url"${githubConf.githubRawUrl}/hmrc/$serviceName/master/conf/application.conf"
     doCall(requestUrl, newHc)
   }
 
-  private def doCall(url: String, newHc: HeaderCarrier) = {
+  private def doCall(url: URL, newHc: HeaderCarrier) = {
     implicit val hc: HeaderCarrier = newHc
     http.GET(url).map {
       case response: HttpResponse if response.status != 200 =>

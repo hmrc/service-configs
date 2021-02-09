@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import javax.inject.Inject
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.lock.MongoLockRepository
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, MongoLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
@@ -42,7 +42,7 @@ class SlugMetadataUpdateScheduler @Inject()(
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  scheduleWithLock("Slug Metadata Updater", schedulerConfigs.slugMetadataUpdate, mongoLockRepository.toService("slug-metadata-scheduler", 1.hour)) {
+  scheduleWithLock("Slug Metadata Updater", schedulerConfigs.slugMetadataUpdate, MongoLockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)) {
     logger.info("Updating slug metadata")
     for {
       _ <- slugInfoService.updateMetadata()

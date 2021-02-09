@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,17 +35,21 @@ trait SchedulerUtils extends Logging {
         val interval     = schedulerConfig.interval
         logger.info(s"Enabling $label scheduler, running every $interval (after initial delay $initialDelay)")
         val cancellable =
-          actorSystem.scheduler.schedule(initialDelay, interval) {
-            val start = System.currentTimeMillis
-            logger.info(s"Scheduler $label started")
-            f.map { res =>
-              logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
-              res
+          actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, interval)(
+            new Runnable {
+              override def run = {
+                val start = System.currentTimeMillis
+                logger.info(s"Scheduler $label started")
+                f.map { res =>
+                  logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
+                  res
+                }
+                .recover {
+                  case e => logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
+                }
+              }
             }
-            .recover {
-              case e => logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
-            }
-          }
+          )
         applicationLifecycle.addStopHook(() => Future(cancellable.cancel()))
       } else
         logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,10 +60,10 @@ class DeadLetterHandler @Inject()
 
   if (config.isEnabled) {
     SqsSource(
-      queueUrl,
+      queueUrl.toString(),
       settings)(awsSqsClient)
       .mapAsync(10)(processMessage)
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .runWith(SqsAckSink(queueUrl.toString())(awsSqsClient))
       .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
   }
 

@@ -33,3 +33,6 @@ tmp
 bin
 conf/local.conf
 .metals
+.bloop/
+.vscode/
+metals.sbt
