@@ -22,6 +22,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.http.HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,7 +38,7 @@ class BobbyConnector @Inject()(
     val url                        = bobbyConf.url
     implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders("Authorization" -> s"token $configKey")
 
-    http.GET(url).map {
+    http.GET[HttpResponse](url).map {
       case response: HttpResponse if response.status != 200 =>
         logger.warn(s"Failed to download Bobby rules $url, server returned ${response.status}")
         throw new RuntimeException()

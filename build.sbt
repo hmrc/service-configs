@@ -1,5 +1,4 @@
 import play.sbt.PlayImport.PlayKeys.playDefaultPort
-import uk.gov.hmrc.SbtArtifactory
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin.publishingSettings
 
 val appName = "service-configs"
@@ -11,8 +10,7 @@ lazy val microservice = Project(appName, file("."))
     play.sbt.PlayScala,
     SbtAutoBuildPlugin,
     SbtGitVersioning,
-    SbtDistributablesPlugin,
-    SbtArtifactory
+    SbtDistributablesPlugin
   )
   .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
   .settings(
