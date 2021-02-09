@@ -10,7 +10,7 @@ object AppDependencies {
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"            %% "bootstrap-backend-play-28" % hmrcBootstrapVersion,
     "org.yaml"               %  "snakeyaml"                 % "1.27",
-    "uk.gov.hmrc"            %% "github-client"             % "2.16.0",
+    "uk.gov.hmrc"            %% "github-client"             % "3.0.0",
     "org.scala-lang.modules" %% "scala-parser-combinators"  % "1.1.2",
     "org.typelevel"          %% "cats-core"                 % "2.3.1",
     "org.typelevel"          %% "alleycats-core"            % "2.1.1",
@@ -31,5 +31,3 @@ object AppDependencies {
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-test-play-28" % hmrcMongoVersion    % Test
   )
 }
-// app/uk/gov/hmrc/serviceconfigs/scheduler/FrontendRouteScheduler.scala
-// app/uk/gov/hmrc/serviceconfigs/scheduler/SlugMetadataUpdateScheduler.scala

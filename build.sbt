@@ -4,7 +4,7 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin.publishingSettings
 
 val appName = "service-configs"
 
-val silencerVersion = "1.7.0"
+val silencerVersion = "1.7.1"
 
 lazy val microservice = Project(appName, file("."))
   .enablePlugins(
@@ -16,7 +16,7 @@ lazy val microservice = Project(appName, file("."))
   )
   .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
   .settings(
-    scalaVersion := "2.12.11",
+    scalaVersion := "2.12.12",
     majorVersion := 0,
     playDefaultPort := 8460,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
@@ -31,6 +31,5 @@ lazy val microservice = Project(appName, file("."))
       "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
     )
   )
-
 
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.10")
