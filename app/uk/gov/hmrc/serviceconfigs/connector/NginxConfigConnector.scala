@@ -50,7 +50,7 @@ class NginxConfigConnector @Inject()(
         sys.error(s"Failed to download nginx config from $url, server returned ${response.status}")
       case response: HttpResponse =>
         logger.info(s"Retrieved Nginx routes file at $url")
-        NginxConfigFile(environment, url.toString(), response.body, branch = nginxConfig.configRepoBranch)
+        NginxConfigFile(environment, url.toString, response.body, branch = nginxConfig.configRepoBranch)
     }
   }
 }
