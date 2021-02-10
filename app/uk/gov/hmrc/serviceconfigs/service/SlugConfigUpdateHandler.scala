@@ -73,13 +73,13 @@ class SlugConfigUpdateHandler @Inject()(
      .get
 
   if (config.isEnabled) {
-    SqsSource(queueUrl, settings)(awsSqsClient)
+    SqsSource(queueUrl.toString(), settings)(awsSqsClient)
       .map(logMessage)
       .mapAsync(10)(processMessage)
       .withAttributes(ActorAttributes.supervisionStrategy {
         case NonFatal(e) => logger.error(s"Failed to process sqs messages: ${e.getMessage}", e); Supervision.Restart
       })
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .runWith(SqsAckSink(queueUrl.toString())(awsSqsClient))
   }
 
   private def logMessage(message: Message): Message = {

@@ -24,9 +24,10 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.model.{Environment, Version}
 import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.StringContextOps
+import java.net.URL
 
 import scala.concurrent.{ExecutionContext, Future}
-
 
 @Singleton
 class ReleasesApiConnector @Inject()(
@@ -36,12 +37,12 @@ class ReleasesApiConnector @Inject()(
 
   import ReleasesApiConnector._
 
-  private val serviceUrl: String = serviceConfig.baseUrl("releases-api")
+  private val serviceUrl: URL = url"${serviceConfig.baseUrl("releases-api")}"
 
   implicit val sdir = ServiceDeploymentInformation.reads
 
   def getWhatIsRunningWhere(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
-    httpClient.GET[Seq[ServiceDeploymentInformation]](s"$serviceUrl/releases-api/whats-running-where")
+    httpClient.GET[Seq[ServiceDeploymentInformation]](url"$serviceUrl/releases-api/whats-running-where")
 }
 
 object ReleasesApiConnector {

@@ -60,10 +60,10 @@ class DeadLetterHandler @Inject()
 
   if (config.isEnabled) {
     SqsSource(
-      queueUrl,
+      queueUrl.toString(),
       settings)(awsSqsClient)
       .mapAsync(10)(processMessage)
-      .runWith(SqsAckSink(queueUrl)(awsSqsClient))
+      .runWith(SqsAckSink(queueUrl.toString())(awsSqsClient))
       .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
   }
 
