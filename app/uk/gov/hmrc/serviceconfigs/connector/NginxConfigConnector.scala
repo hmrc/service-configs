@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse}
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
+import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -41,7 +42,7 @@ class NginxConfigConnector @Inject()(
   def getNginxRoutesFile(fileName: String, environment: String): Future[NginxConfigFile] = {
 
     val url =
-      s"${githubConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
+      url"${githubConf.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
     implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders(("Authorization", s"token $configKey"))
 
     http.GET(url).map {
@@ -49,7 +50,7 @@ class NginxConfigConnector @Inject()(
         sys.error(s"Failed to download nginx config from $url, server returned ${response.status}")
       case response: HttpResponse =>
         logger.info(s"Retrieved Nginx routes file at $url")
-        NginxConfigFile(environment, url, response.body, branch = nginxConfig.configRepoBranch)
+        NginxConfigFile(environment, url.toString, response.body, branch = nginxConfig.configRepoBranch)
     }
   }
 }

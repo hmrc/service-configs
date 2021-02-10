@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,10 +36,10 @@ class BobbyConnector @Inject()(
   private val configKey = githubConf.githubApiOpenConfig.key
 
   def findAllRules(): Future[String] = {
-    val url                        = bobbyConf.url
+    val url                        = url"${bobbyConf.url}"
     implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders("Authorization" -> s"token $configKey")
 
-    http.GET(url).map {
+    http.GET[HttpResponse](url).map {
       case response: HttpResponse if response.status != 200 =>
         logger.warn(s"Failed to download Bobby rules $url, server returned ${response.status}")
         throw new RuntimeException()
