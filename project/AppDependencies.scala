@@ -16,6 +16,8 @@ object AppDependencies {
     "org.typelevel"          %% "alleycats-core"            % "2.1.1",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sns"   % "2.0.2",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sqs"   % "2.0.2",
+    // akka-stream-alpakka-sns depends on 10.1.11 which isn't compatible with play's akka version 10.1.13
+    "com.typesafe.akka"      %% "akka-http"                 % "10.1.13",
     // using io.swagger:swagger-play2 fork to get around ://github.com/swagger-api/swagger-play/issues/152
     "com.iterable"           %% "swagger-play"              % "2.0.1",
     "uk.gov.hmrc.mongo"      %% "hmrc-mongo-play-28"        % hmrcMongoVersion,
