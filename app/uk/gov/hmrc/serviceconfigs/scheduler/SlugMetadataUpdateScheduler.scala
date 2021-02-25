@@ -21,7 +21,7 @@ import javax.inject.Inject
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, MongoLockService}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, LockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
@@ -32,7 +32,7 @@ import scala.concurrent.duration.DurationInt
 class SlugMetadataUpdateScheduler @Inject()(
     schedulerConfigs    : SchedulerConfigs,
     slugInfoService     : SlugInfoService,
-    mongoLockRepository: MongoLockRepository
+    mongoLockRepository : MongoLockRepository
   )(implicit
     actorSystem         : ActorSystem,
     applicationLifecycle: ApplicationLifecycle,
@@ -42,7 +42,11 @@ class SlugMetadataUpdateScheduler @Inject()(
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  scheduleWithLock("Slug Metadata Updater", schedulerConfigs.slugMetadataUpdate, MongoLockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)) {
+  scheduleWithLock(
+    "Slug Metadata Updater",
+    schedulerConfigs.slugMetadataUpdate,
+    LockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)
+  ) {
     logger.info("Updating slug metadata")
     for {
       _ <- slugInfoService.updateMetadata()

@@ -20,7 +20,6 @@ import java.time.LocalDateTime
 import java.util.Base64
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Compression, Flow, Sink, Source}
 import akka.testkit.TestKit
 import akka.util.ByteString
@@ -32,9 +31,11 @@ import uk.gov.hmrc.serviceconfigs.model._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class SqsMessageHandlingSpec extends TestKit(ActorSystem("GzipCompressorSpec")) with AnyFlatSpecLike with Matchers with ScalaFutures {
-
-  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+class SqsMessageHandlingSpec
+  extends TestKit(ActorSystem("GzipCompressorSpec"))
+     with AnyFlatSpecLike
+     with Matchers
+     with ScalaFutures {
 
   "decompress" should "return a value that can be compressed back to the original input" in {
 
