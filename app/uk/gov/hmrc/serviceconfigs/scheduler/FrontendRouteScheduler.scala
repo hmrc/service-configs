@@ -20,7 +20,7 @@ import akka.actor.ActorSystem
 import javax.inject.Inject
 import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, MongoLockService}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, LockService}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.service.NginxService
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
@@ -34,10 +34,11 @@ class FrontendRouteScheduler @Inject()(
   configuration      : Configuration,
   schedulerConfigs   : SchedulerConfigs,
   mongoLockRepository: MongoLockRepository
-  )(implicit actorSystem: ActorSystem,
-    applicationLifecycle: ApplicationLifecycle,
-    ec: ExecutionContext
-  ) extends SchedulerUtils {
+)(implicit
+  actorSystem         : ActorSystem,
+  applicationLifecycle: ApplicationLifecycle,
+  ec                  : ExecutionContext
+) extends SchedulerUtils {
 
   private val environments =
     List(
@@ -46,12 +47,13 @@ class FrontendRouteScheduler @Inject()(
       "qa",
       "staging",
       "integration",
-      "development")
+      "development"
+    )
 
   scheduleWithLock(
     label           = "frontendRoutes"
   , schedulerConfig = schedulerConfigs.frontendRoutesReload
-  , lock            = MongoLockService(mongoLockRepository, "service-configs-sync-job", 20.minutes)
+  , lock            = LockService(mongoLockRepository, "service-configs-sync-job", 20.minutes)
   ){
     nginxService.update(environments)
       .map(_ => ())

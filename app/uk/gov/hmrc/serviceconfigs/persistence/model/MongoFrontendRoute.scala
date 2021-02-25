@@ -22,29 +22,32 @@ import play.api.libs.json.{Format, Json, OFormat}
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
 case class MongoFrontendRoute(
-  service: String,
-  frontendPath: String,
-  backendPath: String,
-  environment: String,
-  routesFile: String,
-  markerComments: Set[String]                      = Set.empty,
-  shutterKillswitch: Option[MongoShutterSwitch]    = None,
+  service             : String,
+  frontendPath        : String,
+  backendPath         : String,
+  environment         : String,
+  routesFile          : String,
+  markerComments      : Set[String]                = Set.empty,
+  shutterKillswitch   : Option[MongoShutterSwitch] = None,
   shutterServiceSwitch: Option[MongoShutterSwitch] = None,
   ruleConfigurationUrl: String                     = "",
-  isRegex: Boolean                                 = false,
-  updateDate: LocalDateTime                        = LocalDateTime.now(ZoneOffset.UTC)
+  isRegex             : Boolean                    = false,
+  updateDate          : LocalDateTime              = LocalDateTime.now(ZoneOffset.UTC)
 )
 
 case class MongoShutterSwitch(
-  switchFile: String,
-  statusCode: Option[Int]     = None,
-  errorPage: Option[String]   = None,
-  rewriteRule: Option[String] = None)
+  switchFile : String,
+  statusCode : Option[Int]    = None,
+  errorPage  : Option[String] = None,
+  rewriteRule: Option[String] = None
+)
 
 object MongoFrontendRoute {
+  implicit val shutterSwitchFormat: Format[MongoShutterSwitch] =
+    Json.format[MongoShutterSwitch]
 
-  implicit val dateFormat: Format[LocalDateTime]               = MongoJavatimeFormats.localDateTimeFormats
-  implicit val shutterSwitchFormat: Format[MongoShutterSwitch] = Json.format[MongoShutterSwitch]
-  implicit val formats: OFormat[MongoFrontendRoute]            = Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
-
+  implicit val formats: OFormat[MongoFrontendRoute] = {
+    implicit val dateFormat: Format[LocalDateTime] = MongoJavatimeFormats.localDateTimeFormat
+    Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
+  }
 }
