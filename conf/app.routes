@@ -7,3 +7,5 @@ GET     /frontend-route/search                  @uk.gov.hmrc.serviceconfigs.cont
 GET     /frontend-route-by-env/:environment     @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
 GET     /frontend-route/:serviceName            @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
 GET     /bobby/rules                            @uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
+GET     /alert-configs                          @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
+GET     /alert-configs/:serviceName             @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: String)

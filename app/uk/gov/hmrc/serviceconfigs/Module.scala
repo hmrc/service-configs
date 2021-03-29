@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.service.{DeadLetterHandler, SlugConfigUpdateHandler}
-import uk.gov.hmrc.serviceconfigs.scheduler.{FrontendRouteScheduler, SlugMetadataUpdateScheduler}
+import uk.gov.hmrc.serviceconfigs.scheduler.{AlertConfigScheduler, FrontendRouteScheduler, SlugMetadataUpdateScheduler}
 
 
 class Module extends AbstractModule {
@@ -28,6 +28,7 @@ class Module extends AbstractModule {
     bind(classOf[DeadLetterHandler          ]).asEagerSingleton()
     bind(classOf[SlugMetadataUpdateScheduler]).asEagerSingleton()
     bind(classOf[FrontendRouteScheduler     ]).asEagerSingleton()
+    bind(classOf[AlertConfigScheduler       ]).asEagerSingleton()
     bind(classOf[FrontendRouteParser        ]).to(classOf[NginxConfigParser]).asEagerSingleton()
   }
 }
