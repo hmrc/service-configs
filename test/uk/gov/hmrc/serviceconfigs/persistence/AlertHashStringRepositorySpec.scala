@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.MockitoSugar
+import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -45,8 +46,8 @@ class AlertHashStringRepositorySpec
 
       val lastHashString = "TestA"
       val latestHashString = "TestB"
-
-      Range(0, 100).foreach { i =>
+      repository.collection.deleteMany(BsonDocument())
+      Range(0, 100).foreach { _ =>
         repository.update(lastHashString).futureValue
         repository.findOne().futureValue.map(_.hash) must contain(lastHashString)
         repository.update(latestHashString).futureValue
