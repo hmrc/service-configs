@@ -15,12 +15,8 @@
  */
 
 package uk.gov.hmrc.serviceconfigs.service
-import akka.actor.ActorSystem
-import akka.stream.Materializer
 import play.api.Logger
 import play.api.libs.json.{Json, OFormat}
-import play.api.libs.ws.ahc.AhcWSClient
-import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
 import uk.gov.hmrc.serviceconfigs.connector.ArtifactoryConnector
 import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, AlertHashStringRepository}
@@ -44,9 +40,9 @@ class AlertConfigSchedulerService @Inject()(alertEnvironmentHandlerRepository: A
     logger.info("Starting")
 
     (for {
-      latestHashString  <- artifactoryConnector.getLatestHash().map(x => x.getOrElse("")) //123
-      previousHashString     <- alertHashStringRepository.findOne().map(x => x.getOrElse(LastHash("")).hash) // ""
-      maybeHashString    =  if (latestHashString != previousHashString) Option(latestHashString) else None
+      latestHashString       <- artifactoryConnector.getLatestHash().map(x => x.getOrElse(""))
+      previousHashString     <- alertHashStringRepository.findOne().map(x => x.getOrElse(LastHash("")).hash)
+      maybeHashString        =  if (!latestHashString.equals(previousHashString)) Option(latestHashString) else None
     } yield maybeHashString).flatMap {
       case Some(hashString) =>
         for {

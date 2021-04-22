@@ -35,7 +35,6 @@ class AlertConfigIntegrationSpec
   extends AnyWordSpec
     with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler]
     with GuiceOneServerPerSuite
-    //with WireMockEndpoints
     with Matchers
     with ScalaFutures
     with Eventually {

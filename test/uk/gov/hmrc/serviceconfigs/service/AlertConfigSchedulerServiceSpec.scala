@@ -41,9 +41,9 @@ class AlertConfigSchedulerServiceSpec extends AnyWordSpec with Matchers
       when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test1")))
       when(mockAlertHashRepository.findOne()).thenReturn(Future.successful(None))
       when(mockArtifactoryConnector.getSensuZip()).thenReturn(Future.successful(res.openStream()))
-      when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful())
-      when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful())
-      when(mockAlertHashRepository.update(eqTo("Test1"))).thenReturn(Future.successful())
+      when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful(()))
+      when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful(()))
+      when(mockAlertHashRepository.update(eqTo("Test1"))).thenReturn(Future.successful(()))
 
 
       val result: Future[Unit] = Await.ready(alertConfigSchedulerService.updateConfigs(), Duration(20, "seconds"))
@@ -65,9 +65,9 @@ class AlertConfigSchedulerServiceSpec extends AnyWordSpec with Matchers
       when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test2")))
       when(mockAlertHashRepository.findOne()).thenReturn(Future.successful(Some(LastHash("Test1"))))
       when(mockArtifactoryConnector.getSensuZip()).thenReturn(Future.successful(res.openStream()))
-      when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful())
-      when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful())
-      when(mockAlertHashRepository.update(eqTo("Test2"))).thenReturn(Future.successful())
+      when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful(()))
+      when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful(()))
+      when(mockAlertHashRepository.update(eqTo("Test2"))).thenReturn(Future.successful(()))
 
 
       val result: Future[Unit] = Await.ready(alertConfigSchedulerService.updateConfigs(), Duration(20, "seconds"))
