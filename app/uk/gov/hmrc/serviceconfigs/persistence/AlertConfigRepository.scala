@@ -75,7 +75,7 @@ class AlertHashStringRepository @Inject()(
   collectionName = "lastHashString",
   domainFormat   = LastHash.formats,
   indexes        = Seq(
-    IndexModel(hashed("hash"), IndexOptions().background(true).name("hashStringIdx"))
+    IndexModel(ascending("hash"), IndexOptions().unique(true).background(true).name("hashUniqIdx"))
   )) {
 
   def update(hash: String): Future[Unit] =
