@@ -51,8 +51,7 @@ case class SlugInfo(
   jdkVersion        : String,        //not used
   dependencies      : List[SlugDependency],
   applicationConfig : String,
-  slugConfig        : String,
-  latest            : Boolean
+  slugConfig        : String
   )
 
 case class DependencyConfig(
@@ -84,7 +83,6 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     ~ (__ \ "slugConfig"       ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
-    ~ (__ \ "latest"           ).format[Boolean]
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
 
   val dcFormat: OFormat[DependencyConfig] =
@@ -121,7 +119,6 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
     ~ (__ \ "slugConfig"       ).format[String]
-    ~ (__ \ "latest"           ).format[Boolean]
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
 

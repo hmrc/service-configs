@@ -64,8 +64,7 @@ class SqsMessageHandlingSpec
             group    = "com.test.group",
             artifact = "lib2")),
         applicationConfig = "",
-        slugConfig        = "",
-        latest            = true)
+        slugConfig        = "")
 
     val aDependencyConfig = DependencyConfig(
       group = "uk.gov.hmrc"

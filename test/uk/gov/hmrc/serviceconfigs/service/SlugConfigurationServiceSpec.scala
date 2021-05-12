@@ -71,7 +71,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       boot.service.addSlugInfo(slugv1).futureValue
 
-      verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1.copy(latest = false))
+      verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1)
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
     "not mark the slug as latest if there is a later one already in the collection" in {
@@ -104,7 +104,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       boot.service.addSlugInfo(slug).futureValue
 
-      verify(boot.mockedSlugInfoRepository).add(slug.copy(dependencies = List(classPathDependency), latest = false))
+      verify(boot.mockedSlugInfoRepository).add(slug.copy(dependencies = List(classPathDependency)))
     }
   }
 
@@ -120,8 +120,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       jdkVersion = "1.181.0",
       dependencies = List.empty,
       applicationConfig = "",
-      slugConfig = "",
-      latest = latest)
+      slugConfig = "")
 
   case class Boot(
                    mockedSlugInfoRepository : SlugInfoRepository

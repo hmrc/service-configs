@@ -40,8 +40,8 @@ class SlugVersionRepository @Inject()(mongoComponent: MongoComponent)(implicit e
       .find(equal("name", name))
       .projection(include("version"))
       .foldLeft(Option.empty[Version]){
-        case (None, version) => Some(version)
-        case (Some(prev), version) => if (prev.compare(version) > 0) Some(prev) else Some(version)
+        case (optMax, version) if optMax.exists(_ > version) => optMax
+        case (_, version) => Some(version)
       }.toFuture()
   }
 }

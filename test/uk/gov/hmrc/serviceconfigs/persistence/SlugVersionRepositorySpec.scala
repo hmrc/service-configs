@@ -37,7 +37,6 @@ class SlugVersionRepositorySpec  extends AnyWordSpecLike
 
 
   "SlugVersionRepository"  should {
-
     "return the max version" in {
       slugInfoRepository.add(sampleSlugInfo(Version(1, 1, 0), "/my-slug/1.1.0")).futureValue
       slugInfoRepository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
@@ -49,21 +48,19 @@ class SlugVersionRepositorySpec  extends AnyWordSpecLike
     "return no max version when no previous slugs exist" in {
       repository.getMaxVersion("non-existing-slug").futureValue shouldBe None
     }
-
   }
 
   def sampleSlugInfo(version: Version, uri: String): SlugInfo =
     SlugInfo(
-      created = LocalDateTime.of(2019, 6, 28, 11, 51, 23),
-      uri = uri,
-      name = "my-slug",
-      version = version,
-      teams = List.empty,
-      runnerVersion = "0.5.2",
-      classpath = "",
-      jdkVersion = "1.181.0",
-      dependencies = List.empty,
+      created           = LocalDateTime.of(2019, 6, 28, 11, 51, 23),
+      uri               = uri,
+      name              = "my-slug",
+      version           = version,
+      teams             = List.empty,
+      runnerVersion     = "0.5.2",
+      classpath         = "",
+      jdkVersion        = "1.181.0",
+      dependencies      = List.empty,
       applicationConfig = "",
-      slugConfig = "",
-      latest = false)
+      slugConfig        = "")
 }

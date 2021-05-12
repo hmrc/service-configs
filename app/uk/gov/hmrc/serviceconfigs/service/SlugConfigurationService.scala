@@ -43,7 +43,7 @@ class SlugConfigurationService @Inject()(
 
     for {
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
-      _        <- slugInfoRepository.add(slug.copy(latest = false))
+      _        <- slugInfoRepository.add(slug)
 
       isLatest <- slugVersionRepository.getMaxVersion(name = slug.name)
         .map {
