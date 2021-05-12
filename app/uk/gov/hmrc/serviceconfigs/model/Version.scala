@@ -86,6 +86,8 @@ object Version {
   val apiFormat: Format[Version] =
     versionAsStringFormat
 
+  val mongoVersionRepositoryFormat:OFormat[Version] = (__ \ "version" ).format[Version](mongoFormat)
+
   // for backward compatibility - non-catalogue apis require broken down version
   val legacyApiWrites: Writes[Version] =
     ( (__ \ "major"   ).write[Int]

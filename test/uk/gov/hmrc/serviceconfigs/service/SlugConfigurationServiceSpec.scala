@@ -17,13 +17,12 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import java.time.LocalDateTime
-
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,7 +36,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       val slug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
 
-      when(boot.mockedSlugInfoRepository.getSlugInfos(any, any)).thenReturn(Future.successful(List.empty))
+      when(boot.mockedSlugVersionRepository.getMaxVersion(any)).thenReturn(Future.successful(None))
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
       when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.successful(()))
 
@@ -52,7 +51,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugInfoRepository.getSlugInfos(slugv1.name, None)).thenReturn(Future.successful(List(slugv1, slugv2)))
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv1.name)).thenReturn(Future.successful(Some(slugv2.version)))
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
       when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.successful(()))
 
@@ -67,7 +66,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugInfoRepository.getSlugInfos(slugv2.name, None)).thenReturn(Future.successful(List(slugv2)))
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
 
       boot.service.addSlugInfo(slugv1).futureValue
@@ -81,7 +80,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugInfoRepository.getSlugInfos(slugv2.name, None)).thenReturn(Future.successful(List(slugv2)))
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
 
       boot.service.addSlugInfo(slugv1).futureValue
@@ -100,7 +99,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       )
 
       when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.getSlugInfos(any, any)).thenReturn(Future.successful(List.empty))
+      when(boot.mockedSlugVersionRepository.getMaxVersion(any)).thenReturn(Future.successful(None))
       when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
@@ -126,23 +125,25 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
   case class Boot(
                    mockedSlugInfoRepository : SlugInfoRepository
+                 , mockedSlugVersionRepository: SlugVersionRepository
                    , service                             : SlugConfigurationService
                  )
 
   object Boot {
     def init: Boot = {
       val mockedSlugInfoRepository              = mock[SlugInfoRepository]
+      val mockedSlugVersionRepository           = mock[SlugVersionRepository]
       val mockedDependencyConfigRepository      = mock[DependencyConfigRepository]
-      val mockedConfigService                   = mock[ConfigService]
 
       val service = new SlugConfigurationService(
         mockedSlugInfoRepository
+        , mockedSlugVersionRepository
         , mockedDependencyConfigRepository
-        , mockedConfigService
       )
 
       Boot(
         mockedSlugInfoRepository
+        , mockedSlugVersionRepository
         , service
       )
     }
