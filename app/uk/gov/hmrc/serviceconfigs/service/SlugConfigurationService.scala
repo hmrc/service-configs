@@ -19,16 +19,16 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.implicits._
 import com.google.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag, Version}
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugConfigurationService @Inject()(
-  slugInfoRepository: SlugInfoRepository,
-  dependencyConfigRepository     : DependencyConfigRepository,
-  configService                  : ConfigService
+  slugInfoRepository         : SlugInfoRepository,
+  slugVersionRepository      : SlugVersionRepository,
+  dependencyConfigRepository : DependencyConfigRepository
 )(implicit ec: ExecutionContext) extends Logging {
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
@@ -43,24 +43,22 @@ class SlugConfigurationService @Inject()(
 
     for {
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
-      _ <- slugInfoRepository.add(slug.copy(latest = false))
+      _        <- slugInfoRepository.add(slug)
 
-      isLatest <- slugInfoRepository.getSlugInfos(name = slug.name, optVersion = None)
-        .map { case Nil      => true
-        case nonempty => val isLatest = nonempty.map(_.version).max == slug.version
-          logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (out of: ${nonempty.map(_.version).sorted})")
-          isLatest
+      isLatest <- slugVersionRepository.getMaxVersion(name = slug.name)
+        .map {
+          case None             => true
+          case Some(maxVersion) => val isLatest = maxVersion == slug.version
+            logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (latest is: $maxVersion)")
+            isLatest
         }
 
-      _ <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future(())
+      _        <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future(())
     } yield ()
   }
 
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
     dependencyConfigs.toList.traverse(dependencyConfigRepository.add)
-
-  def getSlugInfos(name: String, version: Option[Version]): Future[Seq[SlugInfo]] =
-    slugInfoRepository.getSlugInfos(name, version)
 
   def getSlugInfo(name: String, flag: SlugInfoFlag): Future[Option[SlugInfo]] =
     slugInfoRepository.getSlugInfo(name, flag)
