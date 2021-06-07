@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.instances.all._
 import cats.syntax.all._
-import com.google.inject.{Inject, Singleton}
+import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model._

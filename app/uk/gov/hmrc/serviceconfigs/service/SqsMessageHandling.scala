@@ -21,10 +21,11 @@ import java.util.Base64
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Compression, Sink, Source}
 import akka.util.ByteString
-import com.google.inject.Inject
+import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.Future
 
+@Singleton
 class SqsMessageHandling @Inject()(implicit materializer: Materializer) {
 
   private lazy val decoder = Base64.getDecoder

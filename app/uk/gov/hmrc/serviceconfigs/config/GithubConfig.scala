@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.config
 
 import java.io.File
 
-import com.google.inject.{Inject, Singleton}
+import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.githubclient.GitApiConfig
 
