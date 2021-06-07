@@ -24,7 +24,7 @@ import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import cats.implicits._
 import cats.data.EitherT
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import com.google.inject.Inject
+import javax.inject.Inject
 import play.api.Logging
 import play.api.libs.json.Json
 import software.amazon.awssdk.auth.credentials.{AwsCredentialsProvider, DefaultCredentialsProvider}

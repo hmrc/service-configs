@@ -12,7 +12,7 @@ object AppDependencies {
     "org.yaml"               %  "snakeyaml"                 % "1.27",
     "uk.gov.hmrc"            %% "github-client"             % "3.0.0",
     "org.scala-lang.modules" %% "scala-parser-combinators"  % "1.1.2",
-    "org.typelevel"          %% "cats-core"                 % "2.3.1",
+    "org.typelevel"          %% "cats-core"                 % "2.4.2",
     "org.typelevel"          %% "alleycats-core"            % "2.1.1",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sns"   % "2.0.2",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sqs"   % "2.0.2",

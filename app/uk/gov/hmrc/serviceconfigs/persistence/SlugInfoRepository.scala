@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.google.inject.{Inject, Singleton}
 import com.mongodb.BasicDBObject
+import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.model.Filters.{equal, and}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logging

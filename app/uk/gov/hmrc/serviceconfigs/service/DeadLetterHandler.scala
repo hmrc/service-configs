@@ -22,7 +22,7 @@ import akka.stream.alpakka.sqs.MessageAction.Delete
 import akka.stream.alpakka.sqs.SqsSourceSettings
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import com.google.inject.Inject
+import javax.inject.Inject
 import play.api.Logging
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
@@ -59,9 +59,7 @@ class DeadLetterHandler @Inject()
      .get
 
   if (config.isEnabled) {
-    SqsSource(
-      queueUrl.toString,
-      settings)(awsSqsClient)
+    SqsSource(queueUrl.toString, settings)(awsSqsClient)
       .mapAsync(10)(processMessage)
       .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
       .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
