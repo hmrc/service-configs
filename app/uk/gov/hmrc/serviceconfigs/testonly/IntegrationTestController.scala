@@ -18,19 +18,19 @@ package uk.gov.hmrc.serviceconfigs.testonly
 
 import cats.implicits._
 import javax.inject.Inject
-import play.api.libs.json.{Format, JsError, Json, Reads}
+import play.api.libs.json.{JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugInfoRepository}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class IntegrationTestController @Inject()(
   routeRepo           : FrontendRouteRepository,
   dependencyConfigRepo: DependencyConfigRepository,
-  slugRepo            : SlugInfoRepository,
+  slugInfoRepo        : SlugInfoRepository,
   mcc                 : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
@@ -40,11 +40,7 @@ class IntegrationTestController @Inject()(
   implicit val dependencyConfigReads: Reads[DependencyConfig] =
     Json.using[Json.WithDefaultValues].reads[DependencyConfig]
 
-  implicit val slugReads: Reads[SlugInfo] = {
-    implicit val sdr: Reads[SlugDependency] = Json.using[Json.WithDefaultValues].reads[SlugDependency]
-    implicit val vd: Format[Version]        = Version.apiFormat
-    Json.using[Json.WithDefaultValues].reads[SlugInfo]
-  }
+  implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
 
   def validateJson[A: Reads]: BodyParser[A] =
     parse.json.validate(
@@ -77,15 +73,58 @@ class IntegrationTestController @Inject()(
       dependencyConfigRepo.clearAllData.map(_ => Ok("Done"))
     }
 
-  def addSlugs(): Action[List[SlugInfo]] =
-    Action.async(validateJson[List[SlugInfo]]) { implicit request =>
-      request.body
-        .traverse(slugRepo.add)
-        .map(_ => Ok("Done"))
+  def addSlugs(): Action[List[SlugInfoWithFlags]] =
+    Action.async(validateJson[List[SlugInfoWithFlags]]) { implicit request =>
+      request.body.traverse { slugInfoWithFlag =>
+        def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
+          if (toSet(slugInfoWithFlag))
+            slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
+          else
+            Future(())
+        for {
+          _ <- slugInfoRepo.add(slugInfoWithFlag.slugInfo)
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Production  ), _.production  )
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.QA          ), _.qa          )
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Staging     ), _.staging     )
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Development ), _.development )
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.ExternalTest), _.externalTest)
+          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Integration ), _.integration )
+        } yield ()
+      }.map(_ => Ok("Done"))
     }
 
   def deleteSlugs(): Action[AnyContent] =
     Action.async {
-      slugRepo.clearAll().map(_ => Ok("Done"))
+      slugInfoRepo.clearAll().map(_ => Ok("Done"))
     }
+
+  case class SlugInfoWithFlags(
+    slugInfo    : SlugInfo,
+    latest      : Boolean,
+    production  : Boolean,
+    qa          : Boolean,
+    staging     : Boolean,
+    development : Boolean,
+    externalTest: Boolean,
+    integration : Boolean
+  )
+
+  object SlugInfoWithFlags {
+    import play.api.libs.functional.syntax._
+    import play.api.libs.json.__
+
+    val reads: Reads[SlugInfoWithFlags] = {
+        implicit val sif = ApiSlugInfoFormats.siFormat
+        ( (__                 ).read[SlugInfo]
+        ~ (__ \ "latest"      ).read[Boolean]
+        ~ (__ \ "production"  ).read[Boolean]
+        ~ (__ \ "qa"          ).read[Boolean]
+        ~ (__ \ "staging"     ).read[Boolean]
+        ~ (__ \ "development" ).read[Boolean]
+        ~ (__ \ "externalTest").read[Boolean]
+        ~ (__ \ "integration" ).read[Boolean]
+        )(SlugInfoWithFlags.apply _)
+    }
+  }
 }
