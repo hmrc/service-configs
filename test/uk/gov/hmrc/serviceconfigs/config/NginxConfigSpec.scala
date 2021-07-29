@@ -34,7 +34,7 @@ class NginxConfigSpec extends AnyFunSpec with Matchers {
         new NginxConfig(
           Configuration(
             "nginx.config-repo" -> "repo",
-            "nginx.config-repo-branch" -> "master",
+            "nginx.config-repo-branch" -> "HEAD",
             "nginx.config-files" -> List("file1", "file2"),
             "nginx.shutter-killswitch-path" -> "killswitch",
             "nginx.shutter-serviceswitch-path-prefix" -> "serviceswitch"
