@@ -24,9 +24,9 @@ class NginxConfigFileSpec extends AnyFlatSpec with Matchers {
   "fileName" should "retrieve just the filename from the url" in {
     val configFile = NginxConfigFile(
       "production",
-      "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf",
+      "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf",
       "",
-      "master"
+      "HEAD"
     )
     configFile.fileName shouldBe "frontend-proxy-application-rules.conf"
   }
@@ -36,7 +36,7 @@ class NginxConfigFileSpec extends AnyFlatSpec with Matchers {
       "production",
       "",
       "",
-      "master"
+      "HEAD"
     )
     configFile.fileName shouldBe ""
   }

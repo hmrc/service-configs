@@ -37,7 +37,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
   private val nginxConfig   = mock[NginxConfig]
   private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
   private val routesFileUrl =
-    "https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf"
+    "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf"
   when(nginxConfig.frontendConfigFileNames)
     .thenReturn(List("some-file"))
   when(nginxConfig.shutterConfig)
@@ -69,7 +69,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
 
     when(connector.getNginxRoutesFile("some-file", "production"))
       .thenReturn(Future.successful(
-        NginxConfigFile(environment = "production", "", testConfig, branch = "master")
+        NginxConfigFile(environment = "production", "", testConfig, branch = "HEAD")
       ))
 
     when(repo.deleteByEnvironment(any))
@@ -90,7 +90,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
       .thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
     val parser = new NginxConfigParser(nginxConfig)
 
-    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "master")
+    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "HEAD")
     val eResult    = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true
@@ -101,7 +101,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result.head.service              shouldBe "service1"
     result.head.frontendPath         shouldBe "/test/assets"
     result.head.backendPath          shouldBe "http://service1"
-    result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
+    result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/dev/frontend-proxy-application-rules.conf#L1"
     result.head.markerComments       shouldBe Set.empty
     result.head.shutterKillswitch shouldBe Some(
       MongoShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), None, None))
@@ -112,7 +112,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result(1).service              shouldBe "testservice"
     result(1).frontendPath         shouldBe "/lol"
     result(1).backendPath          shouldBe "http://testservice"
-    result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L17"
+    result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/dev/frontend-proxy-application-rules.conf#L17"
     result(1).markerComments       shouldBe Set("NOT_SHUTTERABLE", "ABC")
     result(1).shutterKillswitch    shouldBe None
     result(1).shutterServiceSwitch shouldBe None
@@ -129,7 +129,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
                        |  proxy_pass http://testservice;
                        |}""".stripMargin
 
-    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "master")
+    val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "HEAD")
     val eResult    = NginxService.parseConfig(parser, configFile)
 
     eResult.isRight shouldBe true
@@ -140,7 +140,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result.head.service              shouldBe "testservice"
     result.head.frontendPath         shouldBe "/lol"
     result.head.backendPath          shouldBe "http://testservice"
-    result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/master/dev/frontend-proxy-application-rules.conf#L1"
+    result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/dev/frontend-proxy-application-rules.conf#L1"
     result.head.markerComments       shouldBe Set.empty
     result.head.shutterKillswitch    shouldBe None
     result.head.shutterServiceSwitch shouldBe None

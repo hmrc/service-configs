@@ -53,23 +53,23 @@ class NginxConfigIndexerSpec extends AnyFlatSpec with Matchers {
 
   "URL Generator" should "return none if path is not indexed" in {
     val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-    NginxConfigIndexer.generateUrl(fileName, "master", "prod", "/nothing", indexes) shouldBe None
+    NginxConfigIndexer.generateUrl(fileName, "HEAD", "prod", "/nothing", indexes) shouldBe None
   }
 
   it should "return a url to the correct file and line in github" in {
     val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-    NginxConfigIndexer.generateUrl(fileName, "master", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/production/frontend-proxy-application-rules.conf#L55")
-    NginxConfigIndexer.generateUrl(fileName, "master", "development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/development/frontend-proxy-application-rules.conf#L4")
+    NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L55")
+    NginxConfigIndexer.generateUrl(fileName, "HEAD", "development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L4")
   }
 
   it should "return a url for a regex path" in {
     val res = NginxConfigIndexer.index(config)
-    NginxConfigIndexer.generateUrl(fileName, "master", "production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/production/frontend-proxy-application-rules.conf#L35")
+    NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L35")
   }
 
   it should "use the fileName passed in the URL" in {
     val indexes = Map("/test123" -> 55)
-    NginxConfigIndexer.generateUrl("anotherfile.conf", "master", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/master/production/anotherfile.conf#L55")
+    NginxConfigIndexer.generateUrl("anotherfile.conf", "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/anotherfile.conf#L55")
   }
 
   val fileName = "frontend-proxy-application-rules.conf"
