@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
+import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsValue}
+
 sealed trait Environment { def asString: String }
 
 object Environment {
@@ -37,4 +39,10 @@ object Environment {
 
   def parse(s: String): Option[Environment] =
     values.find(_.asString == s)
+
+  val format: Format[Environment] = new Format[Environment] {
+    override def writes(o: Environment): JsValue = JsString(o.asString)
+    override def reads(json: JsValue): JsResult[Environment] =
+      json.validate[String].flatMap(s => Environment.parse(s).map(e => JsSuccess(e)).getOrElse(JsError("invalid environment")))
+  }
 }

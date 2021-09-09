@@ -25,21 +25,27 @@ import uk.gov.hmrc.githubclient.GitApiConfig
 @Singleton
 class GithubConfig @Inject()(configuration: Configuration) {
 
-  val githubOpenConfigKey = "github.open.api"
+  private val defaultMainBranch = "master"
+  val githubOpenConfigKey: String = "github.open.api"
 
-  val githubRawUrl = configuration.getOptional[String](s"$githubOpenConfigKey.rawurl").getOrElse("https://raw.githubusercontent.com")
-  val host = configuration.getOptional[String](s"$githubOpenConfigKey.host")
-  val user = configuration.getOptional[String](s"$githubOpenConfigKey.user")
-  val key = configuration.getOptional[String](s"$githubOpenConfigKey.key")
+  val githubCodeLoadUrl: String = configuration.getOptional[String](s"$githubOpenConfigKey.codeloadurl").getOrElse("https://codeload.github.com") // used for downloading zip archives
+  val githubRawUrl: String      = configuration.getOptional[String](s"$githubOpenConfigKey.rawurl").getOrElse("https://raw.githubusercontent.com")
+  val host: Option[String]      = configuration.getOptional[String](s"$githubOpenConfigKey.host")
+  val user: Option[String]      = configuration.getOptional[String](s"$githubOpenConfigKey.user")
+  val key: Option[String]       = configuration.getOptional[String](s"$githubOpenConfigKey.key")
 
   val githubApiOpenConfig: GitApiConfig =
     (user, key, host) match {
       case (Some(u), Some(k), Some(h)) => GitApiConfig(u, k, h)
       case (None, None, None) if new File(gitPath(".credentials")).exists() => GitApiConfig.fromFile(gitPath(".credentials"))
-      case _ => GitApiConfig("user_not_set", "key_not_set", "https://hostnotset.com")
+      case _ => GitApiConfig("user_not_set", "key_not_set", "http://127.0.0.1")
     }
 
   private def gitPath(gitFolder: String): String = s"${System.getProperty("user.home")}/.github/$gitFolder"
 
+
+  // allows for overriding the default branch name as we migrate repos to use 'main'
+  def mainBranchName(repo: String) =
+    configuration.getOptional[String](s"github.main-branch.$repo").getOrElse(defaultMainBranch)
 
 }
