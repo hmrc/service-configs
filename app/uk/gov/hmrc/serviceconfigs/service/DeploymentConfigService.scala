@@ -40,7 +40,7 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
 
   def updateAll(): Future[Unit] = {
     logger.info("Updating all environments...")
-    Future.sequence(Environment.values.map(env => update(env))).map(_ => ())
+    Future.traverse(Environment.values)(update).map(_ => ())
   }
 
 
@@ -63,7 +63,6 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
             case _ => None
           }
         }.toSeq
-      _ = logger.info(s"prepared ${toAdd.length} elements to save")
       _        <- repo.updateAll(toAdd.toSeq)
       // remove records that dont have an app-config-$env file
       allNames <- repo.findAllNames(environment).map(_.toSet)
@@ -112,7 +111,7 @@ object DeploymentConfigService {
       .flatMap(m => if(m.keySet.intersect(requiredKeys) == requiredKeys) Some(m) else None)
       .map(m => {
         m.remove("hmrc_config") // discard the app config, outside the scope of service
-        m.remove("connector_config")
+        m.remove("connector_config") // present in kafka-amqp-sink as an additional config block
         m.put("name", name)
         m.put("environment", environment.asString)
         m

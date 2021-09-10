@@ -28,11 +28,11 @@ class GithubConfig @Inject()(configuration: Configuration) {
   private val defaultMainBranch = "master"
   val githubOpenConfigKey: String = "github.open.api"
 
-  val githubCodeLoadUrl: String = configuration.getOptional[String](s"$githubOpenConfigKey.codeloadurl").getOrElse("https://codeload.github.com") // used for downloading zip archives
-  val githubRawUrl: String      = configuration.getOptional[String](s"$githubOpenConfigKey.rawurl").getOrElse("https://raw.githubusercontent.com")
-  val host: Option[String]      = configuration.getOptional[String](s"$githubOpenConfigKey.host")
-  val user: Option[String]      = configuration.getOptional[String](s"$githubOpenConfigKey.user")
-  val key: Option[String]       = configuration.getOptional[String](s"$githubOpenConfigKey.key")
+  val githubCodeLoadUrl: String = configuration.get[String](s"$githubOpenConfigKey.codeloadurl") // used for downloading zip archives
+  val githubRawUrl: String = configuration.get[String](s"$githubOpenConfigKey.rawurl")
+  val host: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.host")
+  val user: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.user")
+  val key: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.key")
 
   val githubApiOpenConfig: GitApiConfig =
     (user, key, host) match {
@@ -42,10 +42,5 @@ class GithubConfig @Inject()(configuration: Configuration) {
     }
 
   private def gitPath(gitFolder: String): String = s"${System.getProperty("user.home")}/.github/$gitFolder"
-
-
-  // allows for overriding the default branch name as we migrate repos to use 'main'
-  def mainBranchName(repo: String) =
-    configuration.getOptional[String](s"github.main-branch.$repo").getOrElse(defaultMainBranch)
 
 }

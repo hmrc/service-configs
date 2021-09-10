@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.{BsonArray, BsonDocument, BsonNumber, BsonString, BsonValue}
+import org.mongodb.scala.bson.{BsonArray, BsonDocument, BsonString, BsonValue}
 
 import java.util
 import scala.collection.mutable
@@ -37,7 +37,6 @@ object YamlToBson {
     v match {
       case v: util.LinkedHashMap[String, Object] => BsonDocument(v.asScala.map(kv => kv._1 -> toBson(kv._2)))
       case v: util.ArrayList[Object]             => BsonArray.fromIterable(v.asScala.map(toBson))
-      case v: Integer                            => BsonNumber(v)
       case v                                     => BsonString(v.toString)
     }
 }

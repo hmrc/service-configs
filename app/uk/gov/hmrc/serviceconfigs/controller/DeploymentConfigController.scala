@@ -31,9 +31,9 @@ class DeploymentConfigController @Inject()(deploymentConfigService: DeploymentCo
   implicit ec: ExecutionContext)
   extends BackendController(cc) {
 
-  implicit val dcf = DeploymentConfig.apiFormat
+  implicit val dcw = DeploymentConfig.apiWrites
 
-  def deploymentConfigForEnv(environment: String): Action[AnyContent] = Action.async { implicit request =>
+  def deploymentConfigForEnv(environment: String): Action[AnyContent] = Action.async {
     Environment
       .parse(environment)
       .fold(
@@ -41,7 +41,7 @@ class DeploymentConfigController @Inject()(deploymentConfigService: DeploymentCo
         env => deploymentConfigService.findAll(env).map(res => Ok(Json.toJson(res))))
   }
 
-  def deploymentConfigForService(environment: String, service: String): Action[AnyContent] = Action.async { implicit request =>
+  def deploymentConfigForService(environment: String, service: String): Action[AnyContent] = Action.async {
     Environment
       .parse(environment)
       .fold(

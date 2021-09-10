@@ -42,8 +42,8 @@ class YamlToBsonSpec extends AnyWordSpecLike with Matchers {
   val bson = BsonDocument(
     "root" -> BsonDocument(
       "list"      -> BsonArray.fromIterable(Seq(BsonString("a"), BsonString("b"))),
-      "instances" -> BsonNumber(2),
-      "slots"     -> BsonNumber(4),
+      "instances" -> BsonString("2"),  // numbers are saved as strings, conversions should be handled in the read model
+      "slots"     -> BsonString("4"),
       "map"       -> BsonDocument("bar" -> BsonString("hello"))
     )
   )
@@ -59,10 +59,10 @@ class YamlToBsonSpec extends AnyWordSpecLike with Matchers {
     }
 
     "escapes dots in keynames" in {
-      val data = new Yaml().load("dot.dot: 1").asInstanceOf[util.LinkedHashMap[String, Object]].asScala
+      val data = new Yaml().load("dot.dot: dash").asInstanceOf[util.LinkedHashMap[String, Object]].asScala
       val result = YamlToBson(data)
       result.isSuccess mustBe true
-      result.get mustBe BsonDocument("dot\\.dot" -> BsonNumber(1))
+      result.get mustBe BsonDocument("dot\\.dot" -> BsonString("dash"))
     }
   }
 }

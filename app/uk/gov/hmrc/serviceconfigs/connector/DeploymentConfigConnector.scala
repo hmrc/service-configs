@@ -34,7 +34,7 @@ class DeploymentConfigConnector @Inject()(config: GithubConfig, ws: WSClient)(im
 
   def getAppConfigZip(environment: Environment): Future[InputStream] = {
     val repoName = s"app-config-${environment.asString}"
-    val url      = url"${config.githubCodeLoadUrl}/hmrc/$repoName/zip/refs/heads/${config.mainBranchName(repoName)}"
+    val url      = url"https://api.github.com/repos/hmrc/$repoName/zipball/HEAD"
     val key      = config.githubApiOpenConfig.key
 
     ws.url(url.toString)
@@ -45,7 +45,6 @@ class DeploymentConfigConnector @Inject()(config: GithubConfig, ws: WSClient)(im
       .stream
       .map(resp => {
         logger.info(s"Download of ${url} responded with ${resp.status} ${resp.statusText}")
-
         resp.bodyAsSource.async.runWith(StreamConverters.asInputStream(readTimeout = 60.seconds))
       })
   }

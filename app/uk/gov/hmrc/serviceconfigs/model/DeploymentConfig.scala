@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, __}
+import play.api.libs.json.{Format, Reads, Writes, __}
 
 /*
  * Deployment config represents the non-application config from the app-config-env files.
@@ -38,10 +38,19 @@ object DeploymentConfig {
       ~ (__ \ "environment" ).format[Environment](Environment.format)
       ~ (__ \ "zone"        ).format[String]
       ~ (__ \ "type"        ).format[String]
-      ~ (__ \ "slots"       ).format[Int]
-      ~ (__ \ "instances"   ).format[Int]
+      ~ (__ \ "slots"       ).format[String].inmap[Int](_.toInt, _.toString)
+      ~ (__ \ "instances"   ).format[String].inmap[Int](_.toInt, _.toString)
       ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
   }
 
-  val apiFormat: Format[DeploymentConfig] = mongoFormat // reusing it for now. going forward these will likely diverge
+  val apiWrites: Writes[DeploymentConfig] = {
+    (   (__ \ "name"        ).write[String]
+      ~ (__ \ "artifactName").writeNullable[String]
+      ~ (__ \ "environment" ).write[Environment](Environment.format)
+      ~ (__ \ "zone"        ).write[String]
+      ~ (__ \ "type"        ).write[String]
+      ~ (__ \ "slots"       ).write[Int]
+      ~ (__ \ "instances"   ).write[Int]
+      )(unlift(DeploymentConfig.unapply))
+  }
 }
