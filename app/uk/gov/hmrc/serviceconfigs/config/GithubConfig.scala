@@ -28,7 +28,7 @@ class GithubConfig @Inject()(configuration: Configuration) {
   private val defaultMainBranch = "master"
   val githubOpenConfigKey: String = "github.open.api"
 
-  val githubCodeLoadUrl: String = configuration.get[String](s"$githubOpenConfigKey.codeloadurl") // used for downloading zip archives
+  val githubApiUrl: String = configuration.get[String](s"$githubOpenConfigKey.apiurl")
   val githubRawUrl: String = configuration.get[String](s"$githubOpenConfigKey.rawurl")
   val host: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.host")
   val user: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.user")
