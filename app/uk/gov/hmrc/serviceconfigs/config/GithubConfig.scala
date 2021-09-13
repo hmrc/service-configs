@@ -25,7 +25,6 @@ import uk.gov.hmrc.githubclient.GitApiConfig
 @Singleton
 class GithubConfig @Inject()(configuration: Configuration) {
 
-  private val defaultMainBranch = "master"
   val githubOpenConfigKey: String = "github.open.api"
 
   val githubApiUrl: String = configuration.get[String](s"$githubOpenConfigKey.apiurl")
