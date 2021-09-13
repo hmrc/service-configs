@@ -25,21 +25,21 @@ import uk.gov.hmrc.githubclient.GitApiConfig
 @Singleton
 class GithubConfig @Inject()(configuration: Configuration) {
 
-  val githubOpenConfigKey = "github.open.api"
+  val githubOpenConfigKey: String = "github.open.api"
 
-  val githubRawUrl = configuration.getOptional[String](s"$githubOpenConfigKey.rawurl").getOrElse("https://raw.githubusercontent.com")
-  val host = configuration.getOptional[String](s"$githubOpenConfigKey.host")
-  val user = configuration.getOptional[String](s"$githubOpenConfigKey.user")
-  val key = configuration.getOptional[String](s"$githubOpenConfigKey.key")
+  val githubApiUrl: String = configuration.get[String](s"$githubOpenConfigKey.apiurl")
+  val githubRawUrl: String = configuration.get[String](s"$githubOpenConfigKey.rawurl")
+  val host: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.host")
+  val user: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.user")
+  val key: Option[String] = configuration.getOptional[String](s"$githubOpenConfigKey.key")
 
   val githubApiOpenConfig: GitApiConfig =
     (user, key, host) match {
       case (Some(u), Some(k), Some(h)) => GitApiConfig(u, k, h)
       case (None, None, None) if new File(gitPath(".credentials")).exists() => GitApiConfig.fromFile(gitPath(".credentials"))
-      case _ => GitApiConfig("user_not_set", "key_not_set", "https://hostnotset.com")
+      case _ => GitApiConfig("user_not_set", "key_not_set", "http://127.0.0.1")
     }
 
   private def gitPath(gitFolder: String): String = s"${System.getProperty("user.home")}/.github/$gitFolder"
-
 
 }
