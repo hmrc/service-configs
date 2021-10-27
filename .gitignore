@@ -36,3 +36,4 @@ conf/local.conf
 .bloop/
 .vscode/
 metals.sbt
+/.bsp
