@@ -54,11 +54,11 @@ class ConfigParserSpec extends AnyFlatSpec with Matchers {
 
   it should "handle substitutions" in {
     val config = ConfigParser.parseConfString(s"""
-      |param1=$${?user.dir}
+      |param1=$${akka.http.version}
       |param2=$${play.http.parser.maxMemoryBuffer}
       |""".stripMargin)
     ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-      "param1" -> s"$${?user.dir}",
+      "param1" -> s"$${akka.http.version}",
       "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
     )
   }
@@ -88,18 +88,15 @@ class ConfigParserSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "handle overriding unresolveable substitutions" in {
-    val config =
-      ConfigParser.parseConfString(s"""
-    |{"queryParameter":
-    |  {"encryption":$${cookie.encryption},
-    |   "encryption":{
-    |     "key":"P5xsJ9Nt+quxGZzB4DeLfw==",
-    |     "previousKeys":[]
-    |   }
-    |  }
-    |}""".stripMargin)
-    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map()
+  it should "ignore unresolvable environment substitutions" in {
+    val config = ConfigParser.parseConfString(s"""
+      |param1=$${?user.dir}
+      |param2=$${play.http.parser.maxMemoryBuffer}
+      |""".stripMargin)
+
+    ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+      "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
+    )
   }
 
   "ConfigParser.parseYamlStringAsMap" should "parse yaml as map" in {

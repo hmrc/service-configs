@@ -16,17 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.typesafe.config.{
-  Config,
-  ConfigFactory,
-  ConfigIncludeContext,
-  ConfigIncluder,
-  ConfigIncluderClasspath,
-  ConfigObject,
-  ConfigParseOptions,
-  ConfigRenderOptions,
-  ConfigSyntax
-}
+import com.typesafe.config._
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
@@ -80,11 +70,9 @@ trait ConfigParser extends Logging {
       .toOption
 
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    Try(config.entrySet)
-    // Some configs try to replace unresolved subsitutions - resolve them first
-      .orElse(Try(config.resolve.entrySet))
-      // However some configs cannot be resolved since are provided by later overrides
-      .getOrElse(ConfigFactory.empty.entrySet)
+    config
+      .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
+      .entrySet
       .asScala
       .map(
         e =>
