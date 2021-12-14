@@ -16,13 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import com.mongodb.BasicDBObject
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal, in}
 import org.mongodb.scala.model.Projections.include
-import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOneModel, ReplaceOptions}
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, Indexes, ReplaceOneModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, DeploymentConfig, Environment}
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,6 +35,18 @@ class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
     domainFormat   = DeploymentConfig.mongoFormat,
     indexes        = Seq(IndexModel(Indexes.ascending("name", "environment")))) {
 
+
+  def add(deploymentConfig: DeploymentConfig): Future[Unit] =
+    collection
+      .findOneAndReplace(
+        filter = and(
+          equal("name", deploymentConfig.name),
+          equal("environment", deploymentConfig.environment.asString)),
+        replacement = deploymentConfig,
+        options     = FindOneAndReplaceOptions().upsert(true)
+      )
+      .toFutureOption()
+      .map(_ => ())
 
   def updateAll(configs: Seq[BsonDocument]): Future[Unit] =
     if(configs.isEmpty)
@@ -82,4 +95,7 @@ class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
           equal("environment", environment.asString),
           in("name", names)
         )).toFuture().map(_ => ())
+
+  def deleteAll(): Future[Boolean] =
+    collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
 }
