@@ -53,4 +53,15 @@ object DeploymentConfig {
       ~ (__ \ "instances"   ).write[Int]
       )(unlift(DeploymentConfig.unapply))
   }
+
+  val apiReads: Reads[DeploymentConfig] = {
+    (   (__ \ "name"        ).read[String]
+      ~ (__ \ "artifactName").readNullable[String]
+      ~ (__ \ "environment" ).read[Environment](Environment.format)
+      ~ (__ \ "zone"        ).read[String]
+      ~ (__ \ "type"        ).read[String]
+      ~ (__ \ "slots"       ).read[Int]
+      ~ (__ \ "instances"   ).read[Int]
+      )(DeploymentConfig.apply _)
+  }
 }

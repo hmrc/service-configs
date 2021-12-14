@@ -17,21 +17,23 @@
 package uk.gov.hmrc.serviceconfigs.testonly
 
 import cats.implicits._
+
 import javax.inject.Inject
 import play.api.libs.json.{JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, Environment, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, DeploymentConfig, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, FrontendRouteRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, DeploymentConfigRepository, FrontendRouteRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class IntegrationTestController @Inject()(
-  routeRepo           : FrontendRouteRepository,
-  dependencyConfigRepo: DependencyConfigRepository,
-  slugInfoRepo        : SlugInfoRepository,
-  mcc                 : MessagesControllerComponents
+  routeRepo            : FrontendRouteRepository,
+  dependencyConfigRepo : DependencyConfigRepository,
+  slugInfoRepo         : SlugInfoRepository,
+  deploymentConfigRepo : DeploymentConfigRepository,
+  mcc                  : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
 
@@ -41,6 +43,9 @@ class IntegrationTestController @Inject()(
     Json.using[Json.WithDefaultValues].reads[DependencyConfig]
 
   implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
+
+  implicit val deploymentConfigReads: Reads[DeploymentConfig] =
+    DeploymentConfig.apiReads
 
   def validateJson[A: Reads]: BodyParser[A] =
     parse.json.validate(
@@ -97,6 +102,18 @@ class IntegrationTestController @Inject()(
   def deleteSlugs(): Action[AnyContent] =
     Action.async {
       slugInfoRepo.clearAll().map(_ => Ok("Done"))
+    }
+
+  def addDeploymentConfigs(): Action[List[DeploymentConfig]] =
+    Action.async(validateJson[List[DeploymentConfig]]) { implicit request =>
+      request.body
+        .traverse(deploymentConfigRepo.add)
+        .map(_ => Ok("Done"))
+    }
+
+  def deleteDeploymentConfigs(): Action[AnyContent] =
+    Action.async {
+      deploymentConfigRepo.deleteAll().map(_ => Ok("Done"))
     }
 
   case class SlugInfoWithFlags(

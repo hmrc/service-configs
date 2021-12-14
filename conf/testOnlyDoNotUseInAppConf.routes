@@ -16,4 +16,6 @@ POST       /test-only/slugDependencyConfigs  uk.gov.hmrc.serviceconfigs.testonly
 DELETE     /test-only/slugDependencyConfigs  uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugDependencyConfigs()
 POST       /test-only/sluginfos              uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addSlugs()
 DELETE     /test-only/sluginfos              uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugs()
+POST       /test-only/deploymentConfigs      uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addDeploymentConfigs()
+DELETE     /test-only/deploymentConfigs      uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteDeploymentConfigs()
 ->         /                                 prod.Routes
