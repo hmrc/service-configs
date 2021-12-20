@@ -10,12 +10,14 @@
 # Failing to follow this rule may result in test routes deployed in production.
 
 # Add all the application routes to the prod.routes file
-POST       /test-only/routes                 uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addRoutes
-DELETE     /test-only/routes                 uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.clearRoutes
-POST       /test-only/slugDependencyConfigs  uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addSlugDependencyConfigs()
-DELETE     /test-only/slugDependencyConfigs  uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugDependencyConfigs()
-POST       /test-only/sluginfos              uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addSlugs()
-DELETE     /test-only/sluginfos              uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugs()
-POST       /test-only/deploymentConfigs      uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addDeploymentConfigs()
-DELETE     /test-only/deploymentConfigs      uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteDeploymentConfigs()
-->         /                                 prod.Routes
+POST       /test-only/routes                    uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addRoutes
+DELETE     /test-only/routes                    uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.clearRoutes
+POST       /test-only/slugDependencyConfigs     uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addSlugDependencyConfigs()
+DELETE     /test-only/slugDependencyConfigs     uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugDependencyConfigs()
+POST       /test-only/sluginfos                 uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addSlugs()
+DELETE     /test-only/sluginfos                 uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteSlugs()
+POST       /test-only/deploymentConfigs         uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addDeploymentConfigs()
+DELETE     /test-only/deploymentConfigs         uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteDeploymentConfigs()
+POST       /test-only/deploymentConfigHistories uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.addDeploymentConfigHistories()
+DELETE     /test-only/deploymentConfigHistories uk.gov.hmrc.serviceconfigs.testonly.IntegrationTestController.deleteDeploymentConfigHistories()
+->         /                                    prod.Routes
