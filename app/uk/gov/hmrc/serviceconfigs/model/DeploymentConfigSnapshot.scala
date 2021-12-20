@@ -38,4 +38,15 @@ object DeploymentConfigSnapshot {
       ~ (__ \ "deploymentConfig" ).format[List[DeploymentConfig]]
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
   }
+
+  val apiFormat: Format[DeploymentConfigSnapshot] = {
+
+    implicit val deploymentConfigMongoFormat: Format[DeploymentConfig] =
+      DeploymentConfig.apiFormat
+
+    (   (__ \ "name"             ).format[String]
+      ~ (__ \ "date"             ).format[LocalDate]
+      ~ (__ \ "deploymentConfig" ).format[List[DeploymentConfig]]
+      ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
+  }
 }

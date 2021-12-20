@@ -20,18 +20,22 @@ import io.swagger.annotations.Api
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
 @Api("Deployment Config")
-class DeploymentConfigController @Inject()(deploymentConfigService: DeploymentConfigService, cc: ControllerComponents)(
-  implicit ec: ExecutionContext)
-  extends BackendController(cc) {
+class DeploymentConfigController @Inject()(
+  deploymentConfigService: DeploymentConfigService,
+  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
+  cc: ControllerComponents
+  )(implicit ec: ExecutionContext) extends BackendController(cc) {
 
   implicit val dcw = DeploymentConfig.apiFormat
+  implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
   def deploymentConfigForEnv(environment: String): Action[AnyContent] = Action.async {
     Environment
@@ -52,5 +56,12 @@ class DeploymentConfigController @Inject()(deploymentConfigService: DeploymentCo
           .map(_.fold(NotFound(s"Service: $service not found"))(cfg => Ok(Json.toJson(cfg))))
       )
   }
+
+  def deploymentConfigHistoryForService(service: String): Action[AnyContent] =
+    Action.async {
+      deploymentConfigSnapshotRepository
+        .snapshotsForService(service)
+        .map(dch => Ok(Json.toJson(dch)))
+    }
 
 }
