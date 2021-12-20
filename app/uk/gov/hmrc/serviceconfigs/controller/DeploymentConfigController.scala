@@ -31,7 +31,7 @@ class DeploymentConfigController @Inject()(deploymentConfigService: DeploymentCo
   implicit ec: ExecutionContext)
   extends BackendController(cc) {
 
-  implicit val dcw = DeploymentConfig.apiWrites
+  implicit val dcw = DeploymentConfig.apiFormat
 
   def deploymentConfigForEnv(environment: String): Action[AnyContent] = Action.async {
     Environment

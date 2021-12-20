@@ -45,7 +45,7 @@ class IntegrationTestController @Inject()(
   implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
 
   implicit val deploymentConfigReads: Reads[DeploymentConfig] =
-    DeploymentConfig.apiReads
+    DeploymentConfig.apiFormat
 
   def validateJson[A: Reads]: BodyParser[A] =
     parse.json.validate(
