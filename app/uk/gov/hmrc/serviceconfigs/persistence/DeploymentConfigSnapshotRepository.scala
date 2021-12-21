@@ -43,7 +43,7 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
       )
 
     collection
-      .find(equal("name", name))
+      .find(equal("deploymentConfig.name", name))
       .sort(sortParams)
       .toFuture()
   }
@@ -52,7 +52,8 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     collection
       .findOneAndReplace(
         filter = and(
-          equal("name", snapshot.name),
+          equal("deploymentConfig.name", snapshot.deploymentConfig.name),
+          equal("deploymentConfig.environment", snapshot.deploymentConfig.environment.asString),
           equal("date", snapshot.date)),
         replacement = snapshot,
         options = FindOneAndReplaceOptions().upsert(true))

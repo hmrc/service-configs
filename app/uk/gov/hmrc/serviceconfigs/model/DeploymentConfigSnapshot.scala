@@ -21,32 +21,19 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
 final case class DeploymentConfigSnapshot(
-  name: String,
   date: LocalDate,
-  deploymentConfig: List[DeploymentConfig]
+  deploymentConfig: DeploymentConfig
 )
 
 object DeploymentConfigSnapshot {
 
-  val mongoFormat: Format[DeploymentConfigSnapshot] = {
-
-    implicit val deploymentConfigMongoFormat: Format[DeploymentConfig] =
-      DeploymentConfig.mongoFormat
-
-    (   (__ \ "name"             ).format[String]
-      ~ (__ \ "date"             ).format[LocalDate]
-      ~ (__ \ "deploymentConfig" ).format[List[DeploymentConfig]]
+  val mongoFormat: Format[DeploymentConfigSnapshot] =
+    (   (__ \ "date"             ).format[LocalDate]
+      ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.mongoFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
-  }
 
-  val apiFormat: Format[DeploymentConfigSnapshot] = {
-
-    implicit val deploymentConfigMongoFormat: Format[DeploymentConfig] =
-      DeploymentConfig.apiFormat
-
-    (   (__ \ "name"             ).format[String]
-      ~ (__ \ "date"             ).format[LocalDate]
-      ~ (__ \ "deploymentConfig" ).format[List[DeploymentConfig]]
+  val apiFormat: Format[DeploymentConfigSnapshot] =
+    (   (__ \ "date"             ).format[LocalDate]
+      ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.apiFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
-  }
 }

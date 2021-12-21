@@ -103,45 +103,25 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotA: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      "A",
       LocalDate.of(2021, 1, 1),
-      List(
-        DeploymentConfig("A", None, Environment.QA, "public", "service", 5, 1),
-        DeploymentConfig("A", None, Environment.Staging, "public", "service", 5, 1),
-        DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
-      )
+      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      "B",
       LocalDate.of(2021, 1, 1),
-      List(
-        DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
-      )
+      DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      "B",
       LocalDate.of(2021, 1, 2),
-      List(
-        DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
-      )
+      DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      "B",
       LocalDate.of(2021, 1, 3),
-      List(
-        DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
-        DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
-      )
+      DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
     )
 }
