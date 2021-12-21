@@ -23,6 +23,8 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.DeploymentConfigSnapshot
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.FindOneAndReplaceOptions
+import org.mongodb.scala.model.Indexes._
+import org.mongodb.scala.model.{IndexModel, IndexOptions}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,7 +35,9 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfigSnapshots",
     domainFormat = DeploymentConfigSnapshot.mongoFormat,
-    indexes = Seq(),
+    indexes = Seq(
+      IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
+      IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true)))
   ) {
 
   def snapshotsForService(name: String): Future[Seq[DeploymentConfigSnapshot]] = {
