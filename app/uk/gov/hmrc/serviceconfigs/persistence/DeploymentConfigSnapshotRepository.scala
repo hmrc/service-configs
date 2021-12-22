@@ -36,8 +36,8 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     collectionName = "deploymentConfigSnapshots",
     domainFormat = DeploymentConfigSnapshot.mongoFormat,
     indexes = Seq(
-      IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
-      IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true)))
+      IndexModel(hashed("name"), IndexOptions().background(true)),
+      IndexModel(hashed("environment"), IndexOptions().background(true)))
   ) {
 
   def snapshotsForService(name: String): Future[Seq[DeploymentConfigSnapshot]] = {
@@ -47,7 +47,7 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
       )
 
     collection
-      .find(equal("deploymentConfig.name", name))
+      .find(equal("name", name))
       .sort(sortParams)
       .toFuture()
   }
@@ -56,8 +56,8 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     collection
       .findOneAndReplace(
         filter = and(
-          equal("deploymentConfig.name", snapshot.deploymentConfig.name),
-          equal("deploymentConfig.environment", snapshot.deploymentConfig.environment.asString),
+          equal("name", snapshot.name),
+          equal("environment", snapshot.environment.asString),
           equal("date", snapshot.date)),
         replacement = snapshot,
         options = FindOneAndReplaceOptions().upsert(true))

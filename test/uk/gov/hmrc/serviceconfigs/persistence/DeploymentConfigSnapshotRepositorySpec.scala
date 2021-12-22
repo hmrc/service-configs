@@ -104,24 +104,32 @@ object DeploymentConfigSnapshotRepositorySpec {
   val deploymentConfigSnapshotA: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
       LocalDate.of(2021, 1, 1),
-      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
+      "A",
+      Environment.Production,
+      Some(DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1)),
     )
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
       LocalDate.of(2021, 1, 1),
-      DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
+      "B",
+      Environment.Production,
+      Some(DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1)),
     )
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
       LocalDate.of(2021, 1, 2),
-      DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
+      "B",
+      Environment.QA,
+      Some(DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1)),
     )
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
       LocalDate.of(2021, 1, 3),
-      DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
+      "B",
+      Environment.Staging,
+      Some(DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1)),
     )
 }
