@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import java.time.LocalDate
+import java.time.LocalDateTime
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
@@ -29,7 +29,7 @@ import play.api.libs.json.{Format, __}
   * @param deploymentConfig If present, the snapshot of the `DeploymentConfig`, or else indicates the removal of a service from an environment
   */
 final case class DeploymentConfigSnapshot(
-  date: LocalDate,
+  date: LocalDateTime,
   name: String,
   environment: Environment,
   deploymentConfig: Option[DeploymentConfig]
@@ -38,14 +38,14 @@ final case class DeploymentConfigSnapshot(
 object DeploymentConfigSnapshot {
 
   val mongoFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format[LocalDate]
+    (   (__ \ "date"             ).format[LocalDateTime]
       ~ (__ \ "name"             ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.mongoFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format[LocalDate]
+    (   (__ \ "date"             ).format[LocalDateTime]
       ~ (__ \ "name"             ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.apiFormat)
