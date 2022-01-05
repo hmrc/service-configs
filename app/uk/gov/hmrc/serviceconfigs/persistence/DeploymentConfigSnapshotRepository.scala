@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.BasicDBObject
-import org.mongodb.scala.bson.{BsonDocument, BsonInt32}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.DeploymentConfigSnapshot
