@@ -13,3 +13,5 @@ GET     /alert-configs/:serviceName             @uk.gov.hmrc.serviceconfigs.cont
 GET     /deployment-config/:environment         @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForEnv(environment)
 GET     /deployment-config/:environment/:name   @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment, name)
 GET     /deployment-config-history/:name        @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigHistoryForService(name)
+
+GET     /resource-usage/historic/:serviceName   @uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.historicResourceUsageForService(serviceName)
