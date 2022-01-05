@@ -52,7 +52,7 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
       val resourceUsageService =
         new ResourceUsageService(stubDeploymentConfigSnapshotRepository("name", snapshots))
 
-      val expectedResourceUsages =
+      val expectedHistoricResourceUsages =
         Seq(
           ResourceUsage(
             LocalDateTime.of(2021, 1, 1, 0, 0, 0),
@@ -70,7 +70,8 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
           )
         )
 
-      resourceUsageService.resourceUsageForService("name").futureValue shouldBe expectedResourceUsages
+      resourceUsageService.historicResourceUsageForService("name").futureValue shouldBe
+        expectedHistoricResourceUsages
     }
   }
 

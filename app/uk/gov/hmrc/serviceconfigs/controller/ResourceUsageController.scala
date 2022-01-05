@@ -35,7 +35,7 @@ class ResourceUsageController @Inject()(
   def historicResourceUsageForService(serviceName: String): Action[AnyContent] =
     Action.async {
       resourceUsageService
-        .resourceUsageForService(serviceName)
+        .historicResourceUsageForService(serviceName)
         .map(r => Ok(Json.toJson(r)))
     }
 }
