@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
@@ -36,7 +37,7 @@ class ResourceUsageService @Inject() (
 }
 
 final case class ResourceUsage(
-  timestamp: Instant,
+  date: Instant,
   serviceName: String,
   environment: Environment,
   slots: Int,
@@ -53,7 +54,7 @@ object ResourceUsage {
       deploymentConfigSnapshot.deploymentConfig.map(_.instances).getOrElse(0)
 
     ResourceUsage(
-      deploymentConfigSnapshot.timestamp,
+      deploymentConfigSnapshot.date,
       deploymentConfigSnapshot.serviceName,
       deploymentConfigSnapshot.environment,
       slots = slots,
@@ -62,10 +63,10 @@ object ResourceUsage {
   }
 
   val apiFormat: Format[ResourceUsage] =
-    (   (__ \ "timestamp"        ).format[Instant]
-      ~ (__ \ "serviceName"      ).format[String]
-      ~ (__ \ "environment"      ).format[Environment](Environment.format)
-      ~ (__ \ "slots"            ).format[Int]
-      ~ (__ \ "instances"        ).format[Int]
+    (   (__ \ "date"        ).format(MongoJavatimeFormats.instantFormat)
+      ~ (__ \ "serviceName" ).format[String]
+      ~ (__ \ "environment" ).format[Environment](Environment.format)
+      ~ (__ \ "slots"       ).format[Int]
+      ~ (__ \ "instances"   ).format[Int]
       ) (ResourceUsage.apply, unlift(ResourceUsage.unapply))
 }
