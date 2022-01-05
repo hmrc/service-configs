@@ -32,10 +32,10 @@ class ResourceUsageController @Inject()(
   private implicit val resourceUsageFormat: Format[ResourceUsage] =
     ResourceUsage.apiFormat
 
-  def historicResourceUsageForService(serviceName: String): Action[AnyContent] =
+  def resourceUsageSnapshotsForService(serviceName: String): Action[AnyContent] =
     Action.async {
       resourceUsageService
-        .historicResourceUsageForService(serviceName)
+        .resourceUsageSnapshotsForService(serviceName)
         .map(r => Ok(Json.toJson(r)))
     }
 }

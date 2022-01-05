@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class ResourceUsageService @Inject() (
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository)(implicit ec: ExecutionContext) {
 
-  def historicResourceUsageForService(serviceName: String): Future[Seq[ResourceUsage]] =
+  def resourceUsageSnapshotsForService(serviceName: String): Future[Seq[ResourceUsage]] =
     deploymentConfigSnapshotRepository
       .snapshotsForService(serviceName)
       .map(_.map(ResourceUsage.fromDeploymentConfigSnapshot))

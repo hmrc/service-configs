@@ -70,7 +70,7 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
           )
         )
 
-      resourceUsageService.historicResourceUsageForService("name").futureValue shouldBe
+      resourceUsageService.resourceUsageSnapshotsForService("name").futureValue shouldBe
         expectedHistoricResourceUsages
     }
   }
