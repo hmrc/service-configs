@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, Reads, Writes, __}
+import play.api.libs.json.{Format, __}
 
 /*
  * Deployment config represents the non-application config from the app-config-env files.
@@ -43,25 +43,14 @@ object DeploymentConfig {
       ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
   }
 
-  val apiWrites: Writes[DeploymentConfig] = {
-    (   (__ \ "name"        ).write[String]
-      ~ (__ \ "artifactName").writeNullable[String]
-      ~ (__ \ "environment" ).write[Environment](Environment.format)
-      ~ (__ \ "zone"        ).write[String]
-      ~ (__ \ "type"        ).write[String]
-      ~ (__ \ "slots"       ).write[Int]
-      ~ (__ \ "instances"   ).write[Int]
-      )(unlift(DeploymentConfig.unapply))
-  }
-
-  val apiReads: Reads[DeploymentConfig] = {
-    (   (__ \ "name"        ).read[String]
-      ~ (__ \ "artifactName").readNullable[String]
-      ~ (__ \ "environment" ).read[Environment](Environment.format)
-      ~ (__ \ "zone"        ).read[String]
-      ~ (__ \ "type"        ).read[String]
-      ~ (__ \ "slots"       ).read[Int]
-      ~ (__ \ "instances"   ).read[Int]
-      )(DeploymentConfig.apply _)
+  val apiFormat: Format[DeploymentConfig] = {
+    (   (__ \ "name"        ).format[String]
+      ~ (__ \ "artifactName").formatNullable[String]
+      ~ (__ \ "environment" ).format[Environment](Environment.format)
+      ~ (__ \ "zone"        ).format[String]
+      ~ (__ \ "type"        ).format[String]
+      ~ (__ \ "slots"       ).format[Int]
+      ~ (__ \ "instances"   ).format[Int]
+      ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
   }
 }

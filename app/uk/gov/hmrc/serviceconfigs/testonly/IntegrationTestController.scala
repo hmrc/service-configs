@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,18 +22,19 @@ import javax.inject.Inject
 import play.api.libs.json.{JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, DeploymentConfig, Environment, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, DeploymentConfigRepository, FrontendRouteRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class IntegrationTestController @Inject()(
-  routeRepo            : FrontendRouteRepository,
-  dependencyConfigRepo : DependencyConfigRepository,
-  slugInfoRepo         : SlugInfoRepository,
-  deploymentConfigRepo : DeploymentConfigRepository,
-  mcc                  : MessagesControllerComponents
+  routeRepo                    : FrontendRouteRepository,
+  dependencyConfigRepo         : DependencyConfigRepository,
+  slugInfoRepo                 : SlugInfoRepository,
+  deploymentConfigRepo         : DeploymentConfigRepository,
+  deploymentConfigSnapshotRepo : DeploymentConfigSnapshotRepository,
+  mcc                          : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
 
@@ -45,7 +46,10 @@ class IntegrationTestController @Inject()(
   implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
 
   implicit val deploymentConfigReads: Reads[DeploymentConfig] =
-    DeploymentConfig.apiReads
+    DeploymentConfig.apiFormat
+
+  implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] =
+    DeploymentConfigSnapshot.apiFormat
 
   def validateJson[A: Reads]: BodyParser[A] =
     parse.json.validate(
@@ -114,6 +118,18 @@ class IntegrationTestController @Inject()(
   def deleteDeploymentConfigs(): Action[AnyContent] =
     Action.async {
       deploymentConfigRepo.deleteAll().map(_ => Ok("Done"))
+    }
+
+  def addDeploymentConfigHistories(): Action[List[DeploymentConfigSnapshot]] =
+    Action.async(validateJson[List[DeploymentConfigSnapshot]]) { implicit request =>
+      request.body
+        .traverse(deploymentConfigSnapshotRepo.add)
+        .map(_ => Ok("Done"))
+    }
+
+  def deleteDeploymentConfigHistories(): Action[AnyContent] =
+    Action.async {
+      deploymentConfigSnapshotRepo.deleteAll().map(_ => Ok("Done"))
     }
 
   case class SlugInfoWithFlags(

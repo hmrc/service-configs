@@ -16,27 +16,26 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation}
-import javax.inject.Inject
-import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
+import play.api.libs.json.{Format, Json}
+import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.service.BobbyService
+import uk.gov.hmrc.serviceconfigs.service.{ResourceUsage, ResourceUsageService}
 
+import javax.inject.Inject
 import scala.concurrent.ExecutionContext
 
-@Api("Bobby Rules")
-class BobbyController @Inject()(bobbyService: BobbyService, mcc: MessagesControllerComponents)(
-  implicit ec: ExecutionContext)
-    extends BackendController(mcc) {
+class ResourceUsageController @Inject()(
+  resourceUsageService: ResourceUsageService,
+  cc: ControllerComponents
+  )(implicit ec: ExecutionContext) extends BackendController(cc) {
 
-  @ApiOperation(
-    value = "Retrieve the current set of bobby rules",
-    notes = """Parses the list of bobby rules from the github bobby-config repo"""
-  )
-  def allRules(): Action[AnyContent] =
+  private implicit val resourceUsageFormat: Format[ResourceUsage] =
+    ResourceUsage.apiFormat
+
+  def resourceUsageSnapshotsForService(serviceName: String): Action[AnyContent] =
     Action.async {
-      bobbyService.findAllRules().map { e =>
-        Ok(e).as("application/json")
-      }
+      resourceUsageService
+        .resourceUsageSnapshotsForService(serviceName)
+        .map(r => Ok(Json.toJson(r)))
     }
 }
