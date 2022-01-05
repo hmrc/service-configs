@@ -56,40 +56,6 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
 
       resourceUsageService.resourceUsageForService("name").futureValue shouldBe expectedResourceUsages
     }
-
-    "Provide a cost estimation based on resource usage" in {
-      ResourceUsage(
-        LocalDateTime.of(2021, 1, 1, 0, 0, 0),
-        "name",
-        Environment.Staging,
-        slots = 0,
-        instances = 1
-      ).estimatedYearlyCostUsd shouldBe 120.0
-
-      ResourceUsage(
-        LocalDateTime.of(2021, 1, 1, 0, 0, 0),
-        "name",
-        Environment.Staging,
-        slots = 1,
-        instances = 1
-      ).estimatedYearlyCostUsd shouldBe 120.0
-
-      ResourceUsage(
-        LocalDateTime.of(2021, 1, 1, 0, 0, 0),
-        "name",
-        Environment.Staging,
-        slots = 1,
-        instances = 0
-      ).estimatedYearlyCostUsd shouldBe 0
-
-      ResourceUsage(
-        LocalDateTime.of(2021, 1, 1, 0, 0, 0),
-        "name",
-        Environment.Staging,
-        slots = 50,
-        instances = 10
-      ).estimatedYearlyCostUsd shouldBe 1200.0
-    }
   }
 
   private def stubDeploymentConfigSnapshotRepository(

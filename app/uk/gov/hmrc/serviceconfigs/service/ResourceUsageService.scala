@@ -41,11 +41,7 @@ final case class ResourceUsage(
   environment: Environment,
   slots: Int,
   instances: Int
-) {
-
-  val estimatedYearlyCostUsd: Double =
-    instances * 120
-}
+)
 
 object ResourceUsage {
 
