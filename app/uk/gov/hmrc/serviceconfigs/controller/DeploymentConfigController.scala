@@ -56,12 +56,4 @@ class DeploymentConfigController @Inject()(
           .map(_.fold(NotFound(s"Service: $service not found"))(cfg => Ok(Json.toJson(cfg))))
       )
   }
-
-  def deploymentConfigHistoryForService(service: String): Action[AnyContent] =
-    Action.async {
-      deploymentConfigSnapshotRepository
-        .snapshotsForService(service)
-        .map(dch => Ok(Json.toJson(dch)))
-    }
-
 }
