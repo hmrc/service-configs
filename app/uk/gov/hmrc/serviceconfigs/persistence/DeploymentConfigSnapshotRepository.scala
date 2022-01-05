@@ -22,9 +22,8 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.DeploymentConfigSnapshot
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.FindOneAndReplaceOptions
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,17 +39,11 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
       IndexModel(hashed("environment"), IndexOptions().background(true)))
   ) {
 
-  def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] = {
-    val sortParams =
-      BsonDocument(
-        ("date", BsonInt32(1))
-      )
-
+  def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] =
     collection
       .find(equal("serviceName", serviceName))
-      .sort(sortParams)
+      .sort(Sorts.ascending("date"))
       .toFuture()
-  }
 
   def add(snapshot: DeploymentConfigSnapshot): Future[Unit] =
     collection
