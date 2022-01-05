@@ -16,20 +16,21 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import java.time.LocalDateTime
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
+
+import java.time.Instant
 
 /**
   * A `DeploymentConfigSnapshot` represents a point-in-time snapshot of a `DeploymentConfig`
   *
-  * @param date The date the snapshot was taken
+  * @param timestamp The timestamp when the snapshot was taken
   * @param serviceName The name of the service
   * @param environment The environment the service is deployed in
   * @param deploymentConfig If present, the snapshot of the `DeploymentConfig`, or else indicates the removal of a service from an environment
   */
 final case class DeploymentConfigSnapshot(
-  date: LocalDateTime,
+  timestamp: Instant,
   serviceName: String,
   environment: Environment,
   deploymentConfig: Option[DeploymentConfig]
@@ -38,14 +39,14 @@ final case class DeploymentConfigSnapshot(
 object DeploymentConfigSnapshot {
 
   val mongoFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format[LocalDateTime]
+    (   (__ \ "timestamp"        ).format[Instant]
       ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.mongoFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format[LocalDateTime]
+    (   (__ \ "timestamp"        ).format[Instant]
       ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.apiFormat)

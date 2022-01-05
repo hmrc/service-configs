@@ -43,7 +43,7 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
   def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] = {
     val sortParams =
       BsonDocument(
-        ("date", BsonInt32(1))
+        ("timestamp", BsonInt32(1))
       )
 
     collection
@@ -58,7 +58,7 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
         filter = and(
           equal("serviceName", snapshot.serviceName),
           equal("environment", snapshot.environment.asString),
-          equal("date", snapshot.date)),
+          equal("timestamp", snapshot.timestamp)),
         replacement = snapshot,
         options = FindOneAndReplaceOptions().upsert(true))
       .toFutureOption()

@@ -21,7 +21,7 @@ import play.api.libs.json.{Format, __}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
-import java.time.LocalDateTime
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,7 +36,7 @@ class ResourceUsageService @Inject() (
 }
 
 final case class ResourceUsage(
-  date: LocalDateTime,
+  timestamp: Instant,
   serviceName: String,
   environment: Environment,
   slots: Int,
@@ -53,7 +53,7 @@ object ResourceUsage {
       deploymentConfigSnapshot.deploymentConfig.map(_.instances).getOrElse(0)
 
     ResourceUsage(
-      deploymentConfigSnapshot.date,
+      deploymentConfigSnapshot.timestamp,
       deploymentConfigSnapshot.serviceName,
       deploymentConfigSnapshot.environment,
       slots,
@@ -62,7 +62,7 @@ object ResourceUsage {
   }
 
   val apiFormat: Format[ResourceUsage] =
-    (   (__ \ "date"             ).format[LocalDateTime]
+    (   (__ \ "timestamp"        ).format[Instant]
       ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "slots"            ).format[Int]

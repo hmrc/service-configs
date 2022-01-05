@@ -22,7 +22,7 @@ import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositoryS
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneOffset}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
@@ -103,7 +103,7 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotA: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0),
+      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
       "A",
       Environment.Production,
       Some(DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1)),
@@ -111,7 +111,7 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0),
+      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
       "B",
       Environment.Production,
       Some(DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1)),
@@ -119,7 +119,7 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0),
+      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
       "B",
       Environment.QA,
       Some(DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1)),
@@ -127,7 +127,7 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 3, 0, 0, 0),
+      LocalDateTime.of(2021, 1, 3, 0, 0, 0).toInstant(ZoneOffset.UTC),
       "B",
       Environment.Staging,
       Some(DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1)),

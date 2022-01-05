@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneOffset}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -36,13 +36,13 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
       val snapshots =
         Seq(
           DeploymentConfigSnapshot(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 0),
+            LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
             "name",
             Environment.Staging,
             Some(DeploymentConfig("name", None, Environment.Staging, "public", "service", 5, 1)),
           ),
           DeploymentConfigSnapshot(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 1),
+            LocalDateTime.of(2021, 1, 1, 0, 0, 1).toInstant(ZoneOffset.UTC),
             "name",
             Environment.Production,
             None
@@ -55,14 +55,14 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
       val expectedHistoricResourceUsages =
         Seq(
           ResourceUsage(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 0),
+            LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
             "name",
             Environment.Staging,
             5,
             1
           ),
           ResourceUsage(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 1),
+            LocalDateTime.of(2021, 1, 1, 0, 0, 1).toInstant(ZoneOffset.UTC),
             "name",
             Environment.Production,
             0,
