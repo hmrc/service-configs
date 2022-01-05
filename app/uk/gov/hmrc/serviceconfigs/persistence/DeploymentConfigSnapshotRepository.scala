@@ -36,18 +36,18 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     collectionName = "deploymentConfigSnapshots",
     domainFormat = DeploymentConfigSnapshot.mongoFormat,
     indexes = Seq(
-      IndexModel(hashed("name"), IndexOptions().background(true)),
+      IndexModel(hashed("serviceName"), IndexOptions().background(true)),
       IndexModel(hashed("environment"), IndexOptions().background(true)))
   ) {
 
-  def snapshotsForService(name: String): Future[Seq[DeploymentConfigSnapshot]] = {
+  def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] = {
     val sortParams =
       BsonDocument(
         ("date", BsonInt32(1))
       )
 
     collection
-      .find(equal("name", name))
+      .find(equal("serviceName", serviceName))
       .sort(sortParams)
       .toFuture()
   }
@@ -56,7 +56,7 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
     collection
       .findOneAndReplace(
         filter = and(
-          equal("name", snapshot.name),
+          equal("serviceName", snapshot.serviceName),
           equal("environment", snapshot.environment.asString),
           equal("date", snapshot.date)),
         replacement = snapshot,

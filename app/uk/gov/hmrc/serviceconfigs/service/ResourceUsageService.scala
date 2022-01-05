@@ -54,7 +54,7 @@ object ResourceUsage {
 
     ResourceUsage(
       deploymentConfigSnapshot.date,
-      deploymentConfigSnapshot.name,
+      deploymentConfigSnapshot.serviceName,
       deploymentConfigSnapshot.environment,
       slots,
       instances

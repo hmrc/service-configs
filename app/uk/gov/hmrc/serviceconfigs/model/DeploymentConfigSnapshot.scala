@@ -24,13 +24,13 @@ import play.api.libs.json.{Format, __}
   * A `DeploymentConfigSnapshot` represents a point-in-time snapshot of a `DeploymentConfig`
   *
   * @param date The date the snapshot was taken
-  * @param name The name of the service
+  * @param serviceName The name of the service
   * @param environment The environment the service is deployed in
   * @param deploymentConfig If present, the snapshot of the `DeploymentConfig`, or else indicates the removal of a service from an environment
   */
 final case class DeploymentConfigSnapshot(
   date: LocalDateTime,
-  name: String,
+  serviceName: String,
   environment: Environment,
   deploymentConfig: Option[DeploymentConfig]
 )
@@ -39,14 +39,14 @@ object DeploymentConfigSnapshot {
 
   val mongoFormat: Format[DeploymentConfigSnapshot] =
     (   (__ \ "date"             ).format[LocalDateTime]
-      ~ (__ \ "name"             ).format[String]
+      ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.mongoFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
     (   (__ \ "date"             ).format[LocalDateTime]
-      ~ (__ \ "name"             ).format[String]
+      ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.apiFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
