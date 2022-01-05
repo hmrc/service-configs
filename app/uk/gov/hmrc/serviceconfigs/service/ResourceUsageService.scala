@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
-import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
@@ -63,7 +62,7 @@ object ResourceUsage {
   }
 
   val apiFormat: Format[ResourceUsage] =
-    (   (__ \ "date"        ).format(MongoJavatimeFormats.instantFormat)
+    (   (__ \ "date"        ).format[Instant]
       ~ (__ \ "serviceName" ).format[String]
       ~ (__ \ "environment" ).format[Environment](Environment.format)
       ~ (__ \ "slots"       ).format[Int]

@@ -47,7 +47,7 @@ object DeploymentConfigSnapshot {
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format(MongoJavatimeFormats.instantFormat)
+    (   (__ \ "date"             ).format[Instant]
       ~ (__ \ "serviceName"      ).format[String]
       ~ (__ \ "environment"      ).format[Environment](Environment.format)
       ~ (__ \ "deploymentConfig" ).formatNullable[DeploymentConfig](DeploymentConfig.apiFormat)
