@@ -28,8 +28,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugInfoService @Inject()(
-slugInfoRepository: SlugInfoRepository
-, releasesApiConnector           : ReleasesApiConnector
+  slugInfoRepository   : SlugInfoRepository
+, releasesApiConnector : ReleasesApiConnector
 )(implicit ec: ExecutionContext
 ) {
 

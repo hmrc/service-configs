@@ -63,9 +63,9 @@ class AlertConfigSchedulerService @Inject()(alertEnvironmentHandlerRepository: A
 }
 
 case class AlertConfig(
-                        app: String,
-                        handlers: Seq[String]
-                      )
+  app: String,
+  handlers: Seq[String]
+)
 
 object AlertConfig {
   implicit val formats: OFormat[AlertConfig] =
@@ -73,8 +73,8 @@ object AlertConfig {
 }
 
 case class Handler(
-                    command: String
-                  )
+  command: String
+)
 
 object Handler {
   implicit val formats: OFormat[Handler] =
@@ -82,9 +82,9 @@ object Handler {
 }
 
 case class SensuConfig(
-                      alertConfigs: Seq[AlertConfig] = Seq.empty,
-                      productionHandler: Map[String, Handler] = Map.empty
-                      )
+  alertConfigs: Seq[AlertConfig] = Seq.empty,
+  productionHandler: Map[String, Handler] = Map.empty
+)
 
 object AlertConfigSchedulerService {
 

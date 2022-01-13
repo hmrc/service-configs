@@ -62,10 +62,7 @@ class NginxService @Inject()(
                      nginxConnector.getNginxRoutesFile(configFile, environment)
                       .map(processNginxRouteFile)
                    }.map(_.flatten)
-      _        <- frontendRouteRepo.deleteByEnvironment(environment)
-      _        =  logger.info(s"Inserting ${routes.length} routes into mongo for $environment")
-      inserted <- routes.traverse(frontendRouteRepo.update)
-      _        =  logger.info(s"Inserted ${inserted.length} routes into mongo for $environment")
+      _        <- frontendRouteRepo.replaceAll(environment, routes.toSet)
     } yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =

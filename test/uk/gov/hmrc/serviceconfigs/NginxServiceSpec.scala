@@ -72,15 +72,13 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
         NginxConfigFile(environment = "production", "", testConfig, branch = "HEAD")
       ))
 
-    when(repo.deleteByEnvironment(any))
-      .thenReturn(Future(true))
-    when(repo.update(any))
-      .thenReturn(Future.successful(()))
+    when(repo.replaceAll(any, any))
+      .thenReturn(Future(()))
 
     val envs = List("production", "development")
     service.update(envs).futureValue
 
-    verify(repo, times(2)).update(any)
+    verify(repo, times(1)).replaceAll(any, any)
     verify(connector, times(envs.length)).getNginxRoutesFile(any, any)
   }
 

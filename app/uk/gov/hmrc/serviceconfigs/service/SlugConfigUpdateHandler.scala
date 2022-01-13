@@ -17,25 +17,24 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import akka.actor.ActorSystem
-import akka.stream.{ActorAttributes, Materializer, Supervision}
 import akka.stream.alpakka.sqs.MessageAction.{Delete, Ignore}
-import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
-import cats.implicits._
+import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
+import akka.stream.{ActorAttributes, Materializer, Supervision}
 import cats.data.EitherT
+import cats.implicits._
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import javax.inject.Inject
 import play.api.Logging
 import play.api.libs.json.Json
-import software.amazon.awssdk.auth.credentials.{AwsCredentialsProvider, DefaultCredentialsProvider}
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, SlugMessage}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Try}
 
 class SlugConfigUpdateHandler @Inject()(
   messageHandling         : SqsMessageHandling,
@@ -54,16 +53,10 @@ class SlugConfigUpdateHandler @Inject()(
   private lazy val queueUrl = config.sqsSlugQueue
   private lazy val settings = SqsSourceSettings()
 
-  private lazy val awsCredentialsProvider: AwsCredentialsProvider =
-    Try(DefaultCredentialsProvider.builder().build())
-      .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Failure(e) }
-      .get
-
   private lazy val awsSqsClient =
     Try {
       val client = SqsAsyncClient
         .builder()
-        .credentialsProvider(awsCredentialsProvider)
         .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
         .build()
 

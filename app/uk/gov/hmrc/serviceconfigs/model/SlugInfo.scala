@@ -18,8 +18,8 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import java.time.LocalDateTime
 
-import play.api.libs.json.{Json, OFormat, OWrites, Reads, __}
 import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
 sealed trait SlugInfoFlag { def asString: String }
 object SlugInfoFlag {
@@ -110,7 +110,7 @@ trait ApiSlugInfoFormats {
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
-    ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
+    ~ (__ \ "version"          ).format[Version](Version.apiFormat)
     ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "classpath"        ).format[String]
@@ -129,7 +129,7 @@ trait ApiSlugInfoFormats {
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
 
   val slugFormat: OFormat[SlugMessage] = {
-    implicit val dcf = dcFormat
+    implicit val dcf: OFormat[DependencyConfig] = dcFormat
     Json.format[SlugMessage]
   }
 }

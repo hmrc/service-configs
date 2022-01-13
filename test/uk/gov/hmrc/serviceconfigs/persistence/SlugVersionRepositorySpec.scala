@@ -20,10 +20,7 @@ import java.time.LocalDateTime
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import uk.gov.hmrc.mongo.test.{
-  CleanMongoCollectionSupport,
-  PlayMongoRepositorySupport
-}
+import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext

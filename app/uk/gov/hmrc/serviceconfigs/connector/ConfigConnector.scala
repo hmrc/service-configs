@@ -20,7 +20,8 @@ import java.net.URL
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpReads, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
+import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse, StringContextOps}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,8 +32,6 @@ class ConfigConnector @Inject()(
   githubConf    : GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
-
-  private implicit val httpReads: HttpReads[HttpResponse] = (_: String, _: String, response: HttpResponse) => response
 
   private val configKey = githubConf.githubApiOpenConfig.key
 
