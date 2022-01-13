@@ -20,17 +20,17 @@ import play.api.libs.json.{__, Format, JsError, JsString, JsSuccess, JsValue, OF
 import play.api.libs.functional.syntax._
 
 case class Version(
-                    major   : Int,
-                    minor   : Int,
-                    patch   : Int,
-                    original: String)
-  extends Ordered[Version] {
+  major   : Int,
+  minor   : Int,
+  patch   : Int,
+  original: String
+) extends Ordered[Version] {
 
   override def compare(other: Version): Int =
     if (major == other.major)
       if (minor == other.minor)
         if (patch == other.patch)
-          other.original.length - original.length  // prefer pure semantic version (e.g. 1.0.0 > 1.0.0-SNAPSHOT)
+          other.original.length - original.length // prefer pure semantic version (e.g. 1.0.0 > 1.0.0-SNAPSHOT)
         else
           patch - other.patch
       else
@@ -83,8 +83,7 @@ object Version {
         versionAsStringFormat.writes(v)
     }
 
-  val apiFormat: Format[Version] =
-    versionAsStringFormat
+  val apiFormat: Format[Version] = versionAsStringFormat
 
   val mongoVersionRepositoryFormat:OFormat[Version] = (__ \ "version" ).format[Version](mongoFormat)
 

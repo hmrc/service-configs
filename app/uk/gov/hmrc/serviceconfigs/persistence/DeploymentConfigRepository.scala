@@ -17,15 +17,15 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.BasicDBObject
+import javax.inject.Inject
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal, in}
 import org.mongodb.scala.model.Projections.include
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, Indexes, ReplaceOneModel, ReplaceOptions}
+import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
 
-import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
 class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
@@ -49,10 +49,10 @@ class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
       .map(_ => ())
 
   def updateAll(configs: Seq[BsonDocument]): Future[Unit] =
-    if(configs.isEmpty)
+    if (configs.isEmpty)
       Future.successful(()) // bulkwrite with empty payload will fail
     else {
-      val col = mongoComponent.database.getCollection[BsonDocument](collectionName)
+      val col     = mongoComponent.database.getCollection[BsonDocument](collectionName)
       val updates = configs.map(cfg => ReplaceOneModel(
         and(
           equal("name", cfg.get("name")),
@@ -63,7 +63,6 @@ class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
       )
       col.bulkWrite(updates).toFuture().map(_ => ())
     }
-
 
   def findAll(environment: Environment): Future[Seq[DeploymentConfig]] =
     collection.find(equal("environment", environment.asString)).toFuture()
@@ -79,22 +78,23 @@ class DeploymentConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
       )
       .headOption()
 
-
   def findAllNames(environment: Environment): Future[Seq[String]] =
-    mongoComponent.database.getCollection[BsonDocument](collectionName)
+    mongoComponent.database
+      .getCollection[BsonDocument](collectionName)
       .find(equal("environment", environment.asString))
       .projection(include("name"))
       .map(_.getString("name").getValue)
       .toFuture()
 
-
-  def delete(names:Seq[String], environment: Environment): Future[Unit] =
+  def delete(names: Seq[String], environment: Environment): Future[Unit] =
     collection
       .deleteMany(
         and(
           equal("environment", environment.asString),
           in("name", names)
-        )).toFuture().map(_ => ())
+        ))
+      .toFuture()
+      .map(_ => ())
 
   def deleteAll(): Future[Boolean] =
     collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
