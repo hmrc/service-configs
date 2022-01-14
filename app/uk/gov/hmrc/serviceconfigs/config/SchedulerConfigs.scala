@@ -46,8 +46,9 @@ object SchedulerConfig {
 
 @Singleton
 class SchedulerConfigs @Inject()(configuration: Configuration) {
-  val frontendRoutesReload    = SchedulerConfig(configuration, "nginx.reload")
-  val slugMetadataUpdate      = SchedulerConfig(configuration, "slug-metadata-scheduler")
-  val alertConfigUpdate       = SchedulerConfig(configuration, "alert-config-scheduler")
-  val deploymentConfigUpdate  = SchedulerConfig(configuration, "deployment-config-scheduler")
+  val frontendRoutesReload             = SchedulerConfig(configuration, "nginx.reload")
+  val slugMetadataUpdate               = SchedulerConfig(configuration, "slug-metadata-scheduler")
+  val alertConfigUpdate                = SchedulerConfig(configuration, "alert-config-scheduler")
+  val deploymentConfigUpdate           = SchedulerConfig(configuration, "deployment-config-scheduler")
+  val deploymentConfigSnapshotPopulate = SchedulerConfig(configuration, "deployment-config-snapshot-scheduler")
 }
