@@ -47,15 +47,15 @@ object ResourceUsage {
 
   def fromDeploymentConfigSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot): ResourceUsage = {
     val slots =
-      deploymentConfigSnapshot.deploymentConfig.map(_.slots).getOrElse(0)
+      deploymentConfigSnapshot.deploymentConfig.slots
 
     val instances =
-      deploymentConfigSnapshot.deploymentConfig.map(_.instances).getOrElse(0)
+      deploymentConfigSnapshot.deploymentConfig.instances
 
     ResourceUsage(
       deploymentConfigSnapshot.date,
-      deploymentConfigSnapshot.serviceName,
-      deploymentConfigSnapshot.environment,
+      deploymentConfigSnapshot.deploymentConfig.name,
+      deploymentConfigSnapshot.deploymentConfig.environment,
       slots = slots,
       instances = instances
     )
