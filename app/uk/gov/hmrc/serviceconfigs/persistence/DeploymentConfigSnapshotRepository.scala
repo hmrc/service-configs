@@ -27,6 +27,7 @@ import org.mongodb.scala.model.Indexes._
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import cats.implicits._
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
@@ -75,7 +76,6 @@ class DeploymentConfigSnapshotRepository @Inject()(
       } yield ()
     }
 
-    Environment.values
-      .foldLeft(Future.successful(()))((fUnit, env) => fUnit.flatMap(_ => forEnvironment(env)))
+    Environment.values.foldLeftM(())((_, env) => forEnvironment(env))
   }
 }
