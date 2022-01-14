@@ -39,6 +39,14 @@ final case class DeploymentConfigSnapshot(
 
 object DeploymentConfigSnapshot {
 
+  def fromDeploymentConfig(deploymentConfig: DeploymentConfig, date: Instant): DeploymentConfigSnapshot =
+    DeploymentConfigSnapshot(
+      date,
+      deploymentConfig.name,
+      deploymentConfig.environment,
+      Some(deploymentConfig)
+    )
+
   val mongoFormat: Format[DeploymentConfigSnapshot] =
     (   (__ \ "date"             ).format(MongoJavatimeFormats.instantFormat)
       ~ (__ \ "serviceName"      ).format[String]

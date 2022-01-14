@@ -19,16 +19,19 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.BasicDBObject
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.DeploymentConfigSnapshot
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Indexes._
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+class DeploymentConfigSnapshotRepository @Inject()(
+  deploymentConfigRepository: DeploymentConfigRepository,
+  mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
   extends PlayMongoRepository(
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfigSnapshots",
@@ -61,4 +64,18 @@ class DeploymentConfigSnapshotRepository @Inject()(mongoComponent: MongoComponen
       .deleteMany(new BasicDBObject())
       .toFuture
       .map(_ => ())
+
+  def populate(date: Instant): Future[Unit] = {
+
+    def forEnvironment(environment: Environment): Future[Unit] = {
+      for {
+        deploymentConfigs <- deploymentConfigRepository.findAll(environment)
+        snapshots         =  deploymentConfigs.map(DeploymentConfigSnapshot.fromDeploymentConfig(_, date))
+        _                 <- collection.insertMany(snapshots).toFuture()
+      } yield ()
+    }
+
+    Environment.values
+      .foldLeft(Future.successful(()))((fUnit, env) => fUnit.flatMap(_ => forEnvironment(env)))
+  }
 }
