@@ -19,17 +19,18 @@ package uk.gov.hmrc.serviceconfigs
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.service.{DeadLetterHandler, SlugConfigUpdateHandler}
-import uk.gov.hmrc.serviceconfigs.scheduler.{AlertConfigScheduler, DeploymentConfigScheduler, FrontendRouteScheduler, SlugMetadataUpdateScheduler}
+import uk.gov.hmrc.serviceconfigs.scheduler.{AlertConfigScheduler, DeploymentConfigScheduler, DeploymentConfigSnapshotScheduler, FrontendRouteScheduler, SlugMetadataUpdateScheduler}
 
 
 class Module extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[SlugConfigUpdateHandler    ]).asEagerSingleton()
-    bind(classOf[DeadLetterHandler          ]).asEagerSingleton()
-    bind(classOf[SlugMetadataUpdateScheduler]).asEagerSingleton()
-    bind(classOf[FrontendRouteScheduler     ]).asEagerSingleton()
-    bind(classOf[AlertConfigScheduler       ]).asEagerSingleton()
-    bind(classOf[DeploymentConfigScheduler  ]).asEagerSingleton()
-    bind(classOf[FrontendRouteParser        ]).to(classOf[NginxConfigParser]).asEagerSingleton()
+    bind(classOf[SlugConfigUpdateHandler           ]).asEagerSingleton()
+    bind(classOf[DeadLetterHandler                 ]).asEagerSingleton()
+    bind(classOf[SlugMetadataUpdateScheduler       ]).asEagerSingleton()
+    bind(classOf[FrontendRouteScheduler            ]).asEagerSingleton()
+    bind(classOf[AlertConfigScheduler              ]).asEagerSingleton()
+    bind(classOf[DeploymentConfigScheduler         ]).asEagerSingleton()
+    bind(classOf[DeploymentConfigSnapshotScheduler ]).asEagerSingleton()
+    bind(classOf[FrontendRouteParser               ]).to(classOf[NginxConfigParser]).asEagerSingleton()
   }
 }
