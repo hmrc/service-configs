@@ -16,18 +16,20 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import java.time.LocalDateTime
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 
-import java.time.LocalDateTime
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
-class SlugVersionRepositorySpec  extends AnyWordSpecLike
-  with Matchers
-  with PlayMongoRepositorySupport[Version]
-  with CleanMongoCollectionSupport {
+class SlugVersionRepositorySpec
+    extends AnyWordSpecLike
+    with Matchers
+    with PlayMongoRepositorySupport[Version]
+    with CleanMongoCollectionSupport {
 
   import ExecutionContext.Implicits.global
 
@@ -35,8 +37,7 @@ class SlugVersionRepositorySpec  extends AnyWordSpecLike
 
   val slugInfoRepository = new SlugInfoRepository(mongoComponent)
 
-
-  "SlugVersionRepository"  should {
+  "SlugVersionRepository" should {
     "return the max version" in {
       slugInfoRepository.add(sampleSlugInfo(Version(1, 1, 0), "/my-slug/1.1.0")).futureValue
       slugInfoRepository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
@@ -62,5 +63,6 @@ class SlugVersionRepositorySpec  extends AnyWordSpecLike
       jdkVersion        = "1.181.0",
       dependencies      = List.empty,
       applicationConfig = "",
-      slugConfig        = "")
+      slugConfig = ""
+    )
 }

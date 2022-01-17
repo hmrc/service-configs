@@ -63,7 +63,7 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
             case _ => None
           }
         }.toSeq
-      _        <- repo.updateAll(toAdd.toSeq)
+      _        <- repo.updateAll(toAdd)
       // remove records that dont have an app-config-$env file
       allNames <- repo.findAllNames(environment).map(_.toSet)
       toRemove  = toAdd.filterNot(c => allNames(c.getString("name").getValue)).map(_.getString("name").getValue).toSeq
@@ -102,19 +102,19 @@ object DeploymentConfigService {
   }
 
 
-  def modifyConfigKeys(data : mutable.Map[String, Object], name: String, environment: Environment): Option[mutable.Map[String, Object]] = {
+  def modifyConfigKeys(data: mutable.Map[String, Object], name: String, environment: Environment): Option[mutable.Map[String, Object]] = {
     import scala.collection.JavaConverters._
     val requiredKeys = Set("zone", "type", "slots", "instances")
     data
       .get("0.0.0")
       .map(_.asInstanceOf[util.LinkedHashMap[String, Object]].asScala)
-      .flatMap(m => if(m.keySet.intersect(requiredKeys) == requiredKeys) Some(m) else None)
-      .map(m => {
+      .flatMap(m => if (m.keySet.intersect(requiredKeys) == requiredKeys) Some(m) else None)
+      .map { m =>
         m.remove("hmrc_config") // discard the app config, outside the scope of service
         m.remove("connector_config") // present in kafka-amqp-sink as an additional config block
         m.put("name", name)
         m.put("environment", environment.asString)
         m
-      })
+      }
   }
 }

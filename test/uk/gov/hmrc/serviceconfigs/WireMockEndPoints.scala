@@ -64,14 +64,14 @@ trait WireMockEndpoints extends Suite with BeforeAndAfterAll with BeforeAndAfter
   }
 
   def serviceEndpoint(
-                       method: RequestMethod,
-                       url: String,
-                       extraHeaders: Map[String, String] = Map.empty,
-                       requestHeaders: Map[String, String] = Map.empty,
-                       queryParameters: Seq[(String, String)] = Nil,
-                       willRespondWith: (Int, Option[String]),
-                       givenJsonBody: Option[String] = None
-                     ): Unit = {
+    method: RequestMethod,
+    url: String,
+    extraHeaders: Map[String, String] = Map.empty,
+    requestHeaders: Map[String, String] = Map.empty,
+    queryParameters: Seq[(String, String)] = Nil,
+    willRespondWith: (Int, Option[String]),
+    givenJsonBody: Option[String] = None
+  ): Unit = {
     val queryParamsAsString = queryParameters match {
       case Nil    => ""
       case params => params.map { case (k, v) => s"$k=$v" }.mkString("?", "&", "")

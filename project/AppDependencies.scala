@@ -4,8 +4,8 @@ import sbt._
 
 object AppDependencies {
 
-  val hmrcMongoVersion     = "0.53.0"
-  val bootstrapPlayVersion = "5.12.0"
+  val hmrcMongoVersion     = "0.59.0"
+  val bootstrapPlayVersion = "5.18.0"
 
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"            %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
@@ -17,7 +17,6 @@ object AppDependencies {
     "com.lightbend.akka"     %% "akka-stream-alpakka-sns"   % "2.0.2",
     "com.lightbend.akka"     %% "akka-stream-alpakka-sqs"   % "2.0.2",
     "com.typesafe.akka"      %% "akka-http"                 % PlayVersion.akkaHttpVersion,
-
     // using the fork of io.swagger:swagger-play2 from 'com.iterable' to get around ://github.com/swagger-api/swagger-play/issues/152
     "com.iterable"           %% "swagger-play"              % "2.0.1",
     "uk.gov.hmrc.mongo"      %% "hmrc-mongo-play-28"        % hmrcMongoVersion,
@@ -25,13 +24,11 @@ object AppDependencies {
   )
 
   val test: Seq[ModuleID] = Seq(
-    "uk.gov.hmrc"                 %% "bootstrap-test-play-28"  % bootstrapPlayVersion    % Test ,
-    "org.scalatest"               %% "scalatest"               % "3.2.3"                 % Test,
-    "org.scalatestplus.play"      %% "scalatestplus-play"      % "4.0.0"                 % Test,
-    "com.github.tomakehurst"      %  "wiremock"                % "1.58"                  % Test,
-    "org.mockito"                 %  "mockito-core"            % "3.7.7"                 % Test,
-    "org.mockito"                 %% "mockito-scala-scalatest" % "1.16.23"               % Test,
-    "com.typesafe.akka"           %% "akka-testkit"            % PlayVersion.akkaVersion % Test,
-    "uk.gov.hmrc.mongo"           %% "hmrc-mongo-test-play-28" % hmrcMongoVersion        % Test
+    "uk.gov.hmrc"            %% "bootstrap-test-play-28"  % bootstrapPlayVersion    % Test,
+    "com.github.tomakehurst" %  "wiremock"                % "1.58"                  % Test,
+    "org.mockito"            %  "mockito-core"            % "3.7.7"                 % Test,
+    "org.mockito"            %% "mockito-scala-scalatest" % "1.16.23"               % Test,
+    "com.typesafe.akka"      %% "akka-testkit"            % PlayVersion.akkaVersion % Test,
+    "uk.gov.hmrc.mongo"      %% "hmrc-mongo-test-play-28" % hmrcMongoVersion        % Test
   )
 }

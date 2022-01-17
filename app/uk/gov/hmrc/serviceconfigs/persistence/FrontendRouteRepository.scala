@@ -25,16 +25,17 @@ import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
-import play.api.Logging
+import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepository @Inject()(
-  mongoComponent: MongoComponent
+  final val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
@@ -44,7 +45,11 @@ class FrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    )
-) with Logging {
+) with Transactions {
+
+  private val logger = Logger(this.getClass)
+
+  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
     logger.debug(
@@ -109,17 +114,22 @@ class FrontendRouteRepository @Inject()(
   def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
     collection.find().toFuture()
 
-  def deleteByEnvironment(environment: String): Future[Boolean] =
-    collection
-      .deleteMany(equal("environment", environment))
-      .toFuture
-      .map(_.wasAcknowledged())
-
   def clearAll(): Future[Boolean] =
     collection
       .deleteMany(BsonDocument())
       .toFuture
       .map(_.wasAcknowledged())
+
+  def replaceAll(environment: String, routes: Set[MongoFrontendRoute]): Future[Unit] = {
+    withSessionAndTransaction { session =>
+      for {
+        _        <- collection.deleteMany(session, equal("environment", environment)).toFuture.map(_.wasAcknowledged())
+        _         = logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
+        inserted <- collection.insertMany(session, routes.toList).toFuture().map(_.getInsertedIds)
+        _         = logger.info(s"Inserted ${inserted.size()} routes into mongo for $environment")
+      } yield ()
+    }
+  }
 }
 
 object FrontendRouteRepository {

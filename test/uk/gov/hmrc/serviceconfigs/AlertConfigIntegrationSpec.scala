@@ -17,22 +17,19 @@
 package uk.gov.hmrc.serviceconfigs
 
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.play.guice.GuiceOneServerPerSuite
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
 import uk.gov.hmrc.serviceconfigs.persistence.AlertEnvironmentHandlerRepository
-import org.scalatestplus.play.guice.GuiceOneServerPerSuite
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
-
-import scala.concurrent.Future
 
 class AlertConfigIntegrationSpec
-  extends AnyWordSpec
+    extends AnyWordSpec
     with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler]
     with GuiceOneServerPerSuite
     with Matchers
@@ -45,14 +42,13 @@ class AlertConfigIntegrationSpec
   protected val repository: AlertEnvironmentHandlerRepository = app.injector.instanceOf[AlertEnvironmentHandlerRepository]
   private[this] lazy val ws                                   = app.injector.instanceOf[WSClient]
 
-
   override def fakeApplication: Application =
     new GuiceApplicationBuilder()
       .disable(classOf[com.kenshoo.play.metrics.PlayModule])
       .configure(
         Map(
-          "mongodb.uri"                                       -> mongoUri,
-          "metrics.jvm"                                       -> false
+          "mongodb.uri" -> mongoUri,
+          "metrics.jvm" -> false
         )
       )
       .build()
@@ -67,7 +63,7 @@ class AlertConfigIntegrationSpec
     "return correct json when getAlertConfigs receives a get request" in {
 
       val testData = Seq(AlertEnvironmentHandler("testNameTwo", true),
-        AlertEnvironmentHandler("testNameOne", true))
+                         AlertEnvironmentHandler("testNameOne", true))
 
       repository.insert(testData)
 
@@ -87,7 +83,7 @@ class AlertConfigIntegrationSpec
     "return correct json when getAlertConfigForService receives a get request" in {
 
       val testData = Seq(AlertEnvironmentHandler("testNameOne", true),
-        AlertEnvironmentHandler("testNameTwo", true))
+                         AlertEnvironmentHandler("testNameTwo", true))
 
       repository.insert(testData)
 
@@ -105,7 +101,7 @@ class AlertConfigIntegrationSpec
     "return NotFound when getAlertConfigForService receives a get request for a non-existing service" in {
 
       val testData = Seq(AlertEnvironmentHandler("testNameOne", true),
-        AlertEnvironmentHandler("testNameTwo", true))
+                         AlertEnvironmentHandler("testNameTwo", true))
 
       repository.insert(testData)
 

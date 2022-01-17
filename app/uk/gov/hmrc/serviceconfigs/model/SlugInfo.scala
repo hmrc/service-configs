@@ -18,8 +18,8 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import java.time.LocalDateTime
 
-import play.api.libs.json.{Json, OFormat, OWrites, Reads, __}
 import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
 sealed trait SlugInfoFlag { def asString: String }
 object SlugInfoFlag {
@@ -38,7 +38,8 @@ case class SlugDependency(
   version    : String,
   group      : String,
   artifact   : String,
-  meta       : String = "")
+  meta       : String = ""
+)
 
 case class SlugInfo(
   uri               : String,
@@ -52,19 +53,19 @@ case class SlugInfo(
   dependencies      : List[SlugDependency],
   applicationConfig : String,
   slugConfig        : String
-  )
+)
 
 case class DependencyConfig(
-    group   : String
-  , artefact: String
-  , version : String
-  , configs : Map[String, String]
-  )
+    group   : String,
+    artefact: String,
+    version : String,
+    configs : Map[String, String]
+)
 
 case class SlugMessage(
     info: SlugInfo,
     configs: Seq[DependencyConfig]
-  )
+)
 
 trait MongoSlugInfoFormats {
   implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
@@ -99,7 +100,6 @@ trait MongoSlugInfoFormats {
 
 object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
-
 trait ApiSlugInfoFormats {
 
   def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
@@ -107,11 +107,10 @@ trait ApiSlugInfoFormats {
   implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
   implicit val siFormat: OFormat[SlugInfo] = {
-    implicit val vf = Version.apiFormat
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
-    ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
+    ~ (__ \ "version"          ).format[Version](Version.apiFormat)
     ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "classpath"        ).format[String]
@@ -130,7 +129,7 @@ trait ApiSlugInfoFormats {
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
 
   val slugFormat: OFormat[SlugMessage] = {
-    implicit val dcf = dcFormat
+    implicit val dcf: OFormat[DependencyConfig] = dcFormat
     Json.format[SlugMessage]
   }
 }
