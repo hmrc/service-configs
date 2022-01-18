@@ -20,6 +20,7 @@ import java.time.LocalDateTime
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
 sealed trait SlugInfoFlag { def asString: String }
 object SlugInfoFlag {
@@ -68,13 +69,14 @@ case class SlugMessage(
 )
 
 trait MongoSlugInfoFormats {
-  implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
+  val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
   def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
 
-  implicit val siFormat: OFormat[SlugInfo] =
+  val siFormat: OFormat[SlugInfo] = {
+    implicit val sdf = sdFormat
     ( (__ \ "uri"              ).format[String]
-    ~ (__ \ "created"          ).format[LocalDateTime]
+    ~ (__ \ "created"          ).format[LocalDateTime](MongoJavatimeFormats.localDateTimeFormat)
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
@@ -85,6 +87,7 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     ~ (__ \ "slugConfig"       ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
+  }
 
   val dcFormat: OFormat[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
@@ -104,9 +107,10 @@ trait ApiSlugInfoFormats {
 
   def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
 
-  implicit val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
+  val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
 
-  implicit val siFormat: OFormat[SlugInfo] = {
+  val siFormat: OFormat[SlugInfo] = {
+    implicit val sdf = sdFormat
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
@@ -130,6 +134,7 @@ trait ApiSlugInfoFormats {
 
   val slugFormat: OFormat[SlugMessage] = {
     implicit val dcf: OFormat[DependencyConfig] = dcFormat
+    implicit val sif: OFormat[SlugInfo]         = siFormat
     Json.format[SlugMessage]
   }
 }
