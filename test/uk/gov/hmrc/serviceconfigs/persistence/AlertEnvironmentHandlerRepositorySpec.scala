@@ -60,12 +60,11 @@ class AlertEnvironmentHandlerRepositorySpec
         (for {
           _ <- repository.insert(Seq(alertEnvironmentHandler))
           preDelete <- repository.findAll()
+          _ = preDelete must contain(alertEnvironmentHandler)
           _ <- repository.deleteAll()
           postDelete <- repository.findAll()
-        } yield {
-          preDelete must contain(alertEnvironmentHandler)
-          postDelete mustBe empty
-        }).futureValue
+          _ = postDelete mustBe empty
+        } yield ()).futureValue
     }
   }
 }
