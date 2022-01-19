@@ -20,7 +20,7 @@ import java.net.ServerSocket
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.client.{MappingBuilder, ResponseDefinitionBuilder, WireMock}
+import com.github.tomakehurst.wiremock.client.{ResponseDefinitionBuilder, WireMock}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import com.github.tomakehurst.wiremock.http.RequestMethod
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
@@ -77,7 +77,7 @@ trait WireMockEndpoints extends Suite with BeforeAndAfterAll with BeforeAndAfter
       case params => params.map { case (k, v) => s"$k=$v" }.mkString("?", "&", "")
     }
 
-    val builder = new MappingBuilder(method, urlEqualTo(s"$url$queryParamsAsString"))
+    val builder = WireMock.request(method.getName, urlEqualTo(s"$url$queryParamsAsString"))
     requestHeaders.map { case (k, v) => builder.withHeader(k, equalTo(v)) }
 
     givenJsonBody.foreach { b =>
