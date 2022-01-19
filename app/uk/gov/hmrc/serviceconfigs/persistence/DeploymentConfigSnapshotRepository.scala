@@ -71,7 +71,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
     def forEnvironment(environment: Environment): Future[Unit] = {
       for {
         deploymentConfigs <- deploymentConfigRepository.findAll(environment)
-        snapshots         =  deploymentConfigs.map(DeploymentConfigSnapshot(date, _))
+        snapshots         =  deploymentConfigs.map(DeploymentConfigSnapshot(date, latest = false, deleted = false, _))
         _                 <- collection.insertMany(snapshots).toFuture()
       } yield ()
     }

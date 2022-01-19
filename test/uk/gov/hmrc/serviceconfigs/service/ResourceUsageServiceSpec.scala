@@ -37,10 +37,14 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
         Seq(
           DeploymentConfigSnapshot(
             LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
+            latest = false,
+            deleted = false,
             DeploymentConfig("A", None, Environment.Staging, "public", "service", 5, 1),
           ),
           DeploymentConfigSnapshot(
             LocalDateTime.of(2021, 1, 1, 0, 0, 1).toInstant(ZoneOffset.UTC),
+            latest = false,
+            deleted = false,
             DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
           )
         )

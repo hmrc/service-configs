@@ -26,10 +26,14 @@ import java.time.Instant
   * A `DeploymentConfigSnapshot` represents a point-in-time snapshot of a `DeploymentConfig`
   *
   * @param date The timestamp when the snapshot was taken
+  * @param latest A flag indicating whether this snapshot is the most recent
+  * @param deleted A flag indicating whether the upstream `DeploymentConfig` was deleted when this snapshot was taken
   * @param deploymentConfig The snapshot of the `DeploymentConfig`
   */
 final case class DeploymentConfigSnapshot(
   date: Instant,
+  latest: Boolean,
+  deleted: Boolean,
   deploymentConfig: DeploymentConfig
 )
 
@@ -37,11 +41,15 @@ object DeploymentConfigSnapshot {
 
   val mongoFormat: Format[DeploymentConfigSnapshot] =
     (   (__ \ "date"             ).format(MongoJavatimeFormats.instantFormat)
+      ~ (__ \ "latest"           ).format[Boolean]
+      ~ (__ \ "deleted"          ).format[Boolean]
       ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.mongoFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
     (   (__ \ "date"             ).format[Instant]
+      ~ (__ \ "latest"           ).format[Boolean]
+      ~ (__ \ "deleted"          ).format[Boolean]
       ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.apiFormat)
       ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 }
