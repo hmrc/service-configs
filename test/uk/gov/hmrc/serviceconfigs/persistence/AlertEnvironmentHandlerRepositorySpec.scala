@@ -72,7 +72,7 @@ class AlertEnvironmentHandlerRepositorySpec
       eventually {
         repository.insert(Seq(alertEnvironmentHandler))
         repository.findAll().futureValue must contain(alertEnvironmentHandler)
-        repository.deleteAll
+        repository.deleteAll.futureValue
         repository.findAll().futureValue.isEmpty mustBe true
       }
 
