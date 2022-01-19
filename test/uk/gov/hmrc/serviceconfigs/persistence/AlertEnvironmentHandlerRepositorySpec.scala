@@ -17,9 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.MockitoSugar
-import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.must.Matchers
-import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
@@ -30,26 +28,18 @@ class AlertEnvironmentHandlerRepositorySpec
   extends AnyWordSpec
     with Matchers
     with MockitoSugar
-    with Eventually
     with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler] {
-
-
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = scaled(Span(1000, Millis)))
 
   override protected val repository = new AlertEnvironmentHandlerRepository(mongoComponent)
 
   "AlertEnvironmentHandlerRepository" should {
 
-
     "insert correctly" in {
 
       val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true)
 
-      eventually {
-        repository.insert(Seq(alertEnvironmentHandler))
-        repository.findAll().futureValue must contain(alertEnvironmentHandler)
-      }
+      repository.insert(Seq(alertEnvironmentHandler)).futureValue
+      repository.findAll().futureValue must contain(alertEnvironmentHandler)
     }
 
     "find one by matching service name" in {
@@ -59,25 +49,24 @@ class AlertEnvironmentHandlerRepositorySpec
 
       val expectedResult = Option(AlertEnvironmentHandler("testNameOne", production = true))
 
-      eventually {
-        repository.insert(alertEnvironmentHandlers)
-        repository.findOne("testNameOne").futureValue mustBe expectedResult
-      }
+      repository.insert(alertEnvironmentHandlers).futureValue
+      repository.findOne("testNameOne").futureValue mustBe expectedResult
     }
 
     "delete all correctly" in {
 
       val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true)
 
-      eventually {
-        repository.insert(Seq(alertEnvironmentHandler))
-        repository.findAll().futureValue must contain(alertEnvironmentHandler)
-        repository.deleteAll.futureValue
-        repository.findAll().futureValue.isEmpty mustBe true
-      }
-
+        (for {
+          _ <- repository.insert(Seq(alertEnvironmentHandler))
+          preDelete <- repository.findAll()
+          _ <- repository.deleteAll()
+          postDelete <- repository.findAll()
+        } yield {
+          preDelete must contain(alertEnvironmentHandler)
+          postDelete mustBe empty
+        }).futureValue
     }
-
   }
 }
 
