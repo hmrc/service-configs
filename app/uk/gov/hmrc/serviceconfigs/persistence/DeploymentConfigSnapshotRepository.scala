@@ -16,26 +16,28 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import cats.implicits._
 import com.mongodb.BasicDBObject
-import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import org.mongodb.scala.ClientSession
 import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.Updates.set
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
-import org.mongodb.scala.model.Indexes._
+import play.api.Logging
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import cats.implicits._
-import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
   deploymentConfigRepository: DeploymentConfigRepository,
-  mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+  final val mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
   extends PlayMongoRepository(
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfigSnapshots",
@@ -44,7 +46,10 @@ class DeploymentConfigSnapshotRepository @Inject()(
       IndexModel(hashed("latest"), IndexOptions().background(true)),
       IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
       IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true)))
-  ) with Logging {
+  ) with Transactions with Logging {
+
+  private implicit val tc: TransactionConfiguration =
+    TransactionConfiguration.strict
 
   def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] =
     collection
@@ -79,27 +84,46 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .toFuture
       .map(_ => ())
 
-  private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment: Environment): Future[Unit] =
-    collection
-      .updateMany(
-        filter = and(
-          equal("deploymentConfig.environment", environment.asString),
-          equal("latest", true),
-          equal("deleted", false),
-        ),
-        update = set("latest", false)
-      ).toFuture().map(_ => ())
+  private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(
+    environment: Environment,
+    session: Option[ClientSession] = None
+  ): Future[Unit] = {
+    val filter =
+      and(
+        equal("deploymentConfig.environment", environment.asString),
+        equal("latest", true),
+        equal("deleted", false),
+      )
 
-  private [persistence] def removeLatestFlagForServiceInEnvironment(serviceName: String, environment: Environment): Future[Unit] =
-    collection
-      .updateMany(
-        filter = and(
-          equal("deploymentConfig.name", serviceName),
-          equal("deploymentConfig.environment", environment.asString),
-        ),
-        update = set("latest", false)
-      ).toFuture().map(_ => ())
+    val update =
+      set("latest", false)
 
+    session
+      .fold(collection.updateMany(filter, update))(collection.updateMany(_, filter, update))
+      .toFuture()
+      .map(_ =>())
+  }
+
+  private [persistence] def removeLatestFlagForServiceInEnvironment(
+    serviceName: String,
+    environment: Environment,
+    session: Option[ClientSession] = None
+  ): Future[Unit] = {
+    val filter =
+      and(
+        equal("latest", true),
+        equal("deploymentConfig.name", serviceName),
+        equal("deploymentConfig.environment", environment.asString),
+      )
+
+    val update =
+      set("latest", false)
+
+    session
+      .fold(collection.updateMany(filter, update))(collection.updateMany(_, filter, update))
+      .toFuture()
+      .map(_ =>())
+  }
 
   def populate(date: Instant): Future[Unit] = {
 
@@ -118,20 +142,32 @@ class DeploymentConfigSnapshotRepository @Inject()(
   def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
     logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
 
+    def bulkInsertSnapshots(snapshots: List[DeploymentConfigSnapshot]) =
+      withSessionAndTransaction { session =>
+        for {
+          _ <- if (snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, Some(session)) else Future.unit
+          _ <- collection.insertMany(session, snapshots).toFuture()
+        } yield ()
+      }
+
     def reintroduceServiceSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot) = {
       logger.debug(s"Creating a snapshot for reintroduced service: $deploymentConfigSnapshot")
-      for {
-        _ <- removeLatestFlagForServiceInEnvironment(
-          deploymentConfigSnapshot.deploymentConfig.name,
-          deploymentConfigSnapshot.deploymentConfig.environment
-        )
-        _ <- collection.insertOne(deploymentConfigSnapshot).toFuture()
-      } yield ()
+      withSessionAndTransaction { session =>
+        for {
+          _ <- removeLatestFlagForServiceInEnvironment(
+            deploymentConfigSnapshot.deploymentConfig.name,
+            deploymentConfigSnapshot.deploymentConfig.environment,
+            Some(session)
+          )
+          _ <- collection.insertOne(session, deploymentConfigSnapshot).toFuture()
+        } yield ()
+      }
     }
 
     for {
-      _ <- if (planOfWork.snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment) else Future.unit
-      _ <- collection.insertMany(planOfWork.snapshots).toFuture()
+      _ <- bulkInsertSnapshots(planOfWork.snapshots)
+      // reintroductions are treated separately to ensure latest flag is removed from previously deleted entries -
+      // not covered by above bulk flag removal
       _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
     } yield ()
   }
