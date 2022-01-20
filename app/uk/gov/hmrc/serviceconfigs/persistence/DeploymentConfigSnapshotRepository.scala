@@ -21,6 +21,7 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
 import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.Updates.set
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Indexes._
 
@@ -48,6 +49,15 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .sort(Sorts.ascending("date"))
       .toFuture()
 
+  def latestSnapshotsInEnvironment(environment: Environment): Future[Seq[DeploymentConfigSnapshot]] =
+    collection
+      .find(
+        and(
+          equal("deploymentConfig.environment", environment.asString),
+          equal("latest", true)
+        )
+      ).toFuture()
+
   def add(snapshot: DeploymentConfigSnapshot): Future[Unit] =
     collection
       .findOneAndReplace(
@@ -65,6 +75,28 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .deleteMany(new BasicDBObject())
       .toFuture
       .map(_ => ())
+
+  def removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment: Environment): Future[Unit] =
+    collection
+      .updateMany(
+        filter = and(
+          equal("deploymentConfig.environment", environment.asString),
+          equal("latest", true),
+          equal("deleted", false),
+        ),
+        update = set("latest", false)
+      ).toFuture().map(_ => ())
+
+  def removeLatestFlagForServiceInEnvironment(serviceName: String, environment: Environment): Future[Unit] =
+    collection
+      .updateMany(
+        filter = and(
+          equal("deploymentConfig.name", serviceName),
+          equal("deploymentConfig.environment", environment.asString),
+        ),
+        update = set("latest", false)
+      ).toFuture().map(_ => ())
+
 
   def populate(date: Instant): Future[Unit] = {
 

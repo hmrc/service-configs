@@ -33,7 +33,7 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
   with CleanMongoCollectionSupport
   with MockitoSugar {
 
-  private var stubDeploymentConfigRepository: DeploymentConfigRepository =
+  private val stubDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]
 
   override lazy val repository =
@@ -46,24 +46,24 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
       val before =
         repository.snapshotsForService("A").futureValue
 
-      repository.add(deploymentConfigSnapshotA).futureValue
+      repository.add(deploymentConfigSnapshotA1).futureValue
 
       val after =
         repository.snapshotsForService("A").futureValue
 
       before shouldBe empty
-      after shouldBe List(deploymentConfigSnapshotA)
+      after shouldBe List(deploymentConfigSnapshotA1)
     }
 
     "Retrieve snapshots by service name" in {
 
-      repository.add(deploymentConfigSnapshotA).futureValue
+      repository.add(deploymentConfigSnapshotA1).futureValue
       repository.add(deploymentConfigSnapshotB1).futureValue
 
       val snapshots =
         repository.snapshotsForService("A").futureValue
 
-      snapshots shouldBe List(deploymentConfigSnapshotA)
+      snapshots shouldBe List(deploymentConfigSnapshotA1)
     }
 
     "Retrieve snapshots sorted by date, ascending" in {
@@ -84,7 +84,7 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
 
     "Delete all documents in the collection" in  {
 
-      repository.add(deploymentConfigSnapshotA).futureValue
+      repository.add(deploymentConfigSnapshotA1).futureValue
       repository.add(deploymentConfigSnapshotB1).futureValue
       repository.add(deploymentConfigSnapshotB2).futureValue
       repository.add(deploymentConfigSnapshotB3).futureValue
@@ -100,6 +100,51 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
 
       before.size shouldBe 4
       after shouldBe empty
+    }
+
+    "Retrieve only the latest snapshots in an environment" in {
+      repository.add(deploymentConfigSnapshotA1).futureValue
+      repository.add(deploymentConfigSnapshotA2).futureValue
+      repository.add(deploymentConfigSnapshotC1).futureValue
+      repository.add(deploymentConfigSnapshotC2).futureValue
+
+      val snapshots =
+        repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
+
+      snapshots shouldBe List(
+        deploymentConfigSnapshotA2,
+        deploymentConfigSnapshotC2
+      )
+    }
+
+    "Remove the `latest` flag for all non-deleted snapshots in an environment" in {
+      repository.add(deploymentConfigSnapshotA1).futureValue
+      repository.add(deploymentConfigSnapshotA2).futureValue
+      repository.add(deploymentConfigSnapshotC1).futureValue
+      repository.add(deploymentConfigSnapshotC2).futureValue
+
+      repository
+        .removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production)
+        .futureValue
+
+      val snapshots =
+        repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
+
+      snapshots shouldBe List(deploymentConfigSnapshotC2)
+    }
+
+    "Remove the `latest` flag for all snapshots of a service in an environment" in {
+      repository.add(deploymentConfigSnapshotC1).futureValue
+      repository.add(deploymentConfigSnapshotC2).futureValue
+
+      repository
+        .removeLatestFlagForServiceInEnvironment("C", Environment.Production)
+        .futureValue
+
+      val snapshots =
+        repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
+
+      snapshots shouldBe empty
     }
 
     "Snapshot all entries in `DeploymentConfigRepository`" in {
@@ -169,10 +214,18 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
 
 object DeploymentConfigSnapshotRepositorySpec {
 
-  val deploymentConfigSnapshotA: DeploymentConfigSnapshot =
+  val deploymentConfigSnapshotA1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
       LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
       latest = false,
+      deleted = false,
+      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
+    )
+
+  val deploymentConfigSnapshotA2: DeploymentConfigSnapshot =
+    DeploymentConfigSnapshot(
+      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
+      latest = true,
       deleted = false,
       DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
     )
@@ -199,5 +252,21 @@ object DeploymentConfigSnapshotRepositorySpec {
       latest = false,
       deleted = false,
       DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
+    )
+
+  val deploymentConfigSnapshotC1: DeploymentConfigSnapshot =
+    DeploymentConfigSnapshot(
+      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
+      latest = false,
+      deleted = false,
+      DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
+    )
+
+  val deploymentConfigSnapshotC2: DeploymentConfigSnapshot =
+    DeploymentConfigSnapshot(
+      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
+      latest = true,
+      deleted = true,
+      DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
     )
 }
