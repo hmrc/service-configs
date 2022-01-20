@@ -38,8 +38,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
       val expectedPlanOfWork =
         PlanOfWork(
           snapshots = List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
-          snapshotServiceReintroductions = List.empty,
-          snapshotSynthesisedDeletions = List.empty
+          snapshotServiceReintroductions = List.empty
         )
 
       val actualPlanOfWork =
@@ -63,8 +62,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
         PlanOfWork(
           snapshots = List.empty,
           snapshotServiceReintroductions =
-            List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
-          snapshotSynthesisedDeletions = List.empty
+            List(someDeploymentConfigSnapshot.copy(date = now, latest = true))
         )
 
       val actualPlanOfWork =
@@ -89,8 +87,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
       val expectedPlanOfWork =
         PlanOfWork(
           snapshots = List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
-          snapshotServiceReintroductions = List.empty,
-          snapshotSynthesisedDeletions = List.empty
+          snapshotServiceReintroductions = List.empty
         )
 
       val actualPlanOfWork =
@@ -114,9 +111,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
       val expectedPlanOfWork =
         PlanOfWork(
-          snapshots = List.empty,
-          snapshotServiceReintroductions = List.empty,
-          snapshotSynthesisedDeletions =
+          snapshots =
             List(
               someDeploymentConfigSnapshot
                 .copy(
@@ -125,7 +120,8 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
                   deleted = true,
                   deploymentConfig = someDeploymentConfig.copy(slots = 0, instances = 0)
                 )
-            )
+            ),
+            snapshotServiceReintroductions = List.empty,
         )
 
       val actualPlanOfWork =
@@ -150,7 +146,6 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
         PlanOfWork(
           snapshots = List.empty,
           snapshotServiceReintroductions = List.empty,
-          snapshotSynthesisedDeletions = List.empty
         )
 
       val actualPlanOfWork =

@@ -117,9 +117,6 @@ class DeploymentConfigSnapshotRepository @Inject()(
 
   def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
     logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
-    val batchInsertions =
-      planOfWork.snapshots ++
-      planOfWork.snapshotSynthesisedDeletions
 
     def reintroduceServiceSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot) = {
       logger.debug(s"Creating a snapshot for reintroduced service: $deploymentConfigSnapshot")
@@ -133,8 +130,8 @@ class DeploymentConfigSnapshotRepository @Inject()(
     }
 
     for {
-      _ <- if (batchInsertions.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment) else Future.unit
-      _ <- collection.insertMany(batchInsertions).toFuture()
+      _ <- if (planOfWork.snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment) else Future.unit
+      _ <- collection.insertMany(planOfWork.snapshots).toFuture()
       _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
     } yield ()
   }
@@ -144,8 +141,7 @@ object DeploymentConfigSnapshotRepository {
 
   final case class PlanOfWork(
     snapshots: List[DeploymentConfigSnapshot],
-    snapshotServiceReintroductions: List[DeploymentConfigSnapshot],
-    snapshotSynthesisedDeletions: List[DeploymentConfigSnapshot]
+    snapshotServiceReintroductions: List[DeploymentConfigSnapshot]
   )
 
   object PlanOfWork {
@@ -183,7 +179,7 @@ object DeploymentConfigSnapshotRepository {
           .map(synthesiseDeletedDeploymentConfigSnapshot(_, date))
       }
 
-      PlanOfWork(snapshots, snapshotServiceReintroductions, snapshotSynthesisedDeletions)
+      PlanOfWork(snapshots ++ snapshotSynthesisedDeletions, snapshotServiceReintroductions)
     }
 
     private def synthesiseDeletedDeploymentConfigSnapshot(

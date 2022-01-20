@@ -155,9 +155,8 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
 
       val planOfWork =
         PlanOfWork(
-          snapshots = List(deploymentConfigSnapshotA3),
-          snapshotServiceReintroductions = List(deploymentConfigSnapshotD2),
-          snapshotSynthesisedDeletions = List(deploymentConfigSnapshotE2)
+          snapshots = List(deploymentConfigSnapshotA3, deploymentConfigSnapshotE2),
+          snapshotServiceReintroductions = List(deploymentConfigSnapshotD2)
         )
 
       repository.add(deploymentConfigSnapshotA2).futureValue
