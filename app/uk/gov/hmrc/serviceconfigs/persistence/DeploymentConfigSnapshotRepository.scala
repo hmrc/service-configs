@@ -86,44 +86,37 @@ class DeploymentConfigSnapshotRepository @Inject()(
 
   private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(
     environment: Environment,
-    session: Option[ClientSession] = None
-  ): Future[Unit] = {
-    val filter =
-      and(
-        equal("deploymentConfig.environment", environment.asString),
-        equal("latest", true),
-        equal("deleted", false),
+    session: ClientSession
+  ): Future[Unit] =
+    collection
+      .updateMany(
+        session,
+        filter = and(
+          equal("deploymentConfig.environment", environment.asString),
+          equal("latest", true),
+          equal("deleted", false),
+        ),
+        update = set("latest", false)
       )
-
-    val update =
-      set("latest", false)
-
-    session
-      .fold(collection.updateMany(filter, update))(collection.updateMany(_, filter, update))
       .toFuture()
       .map(_ =>())
-  }
 
   private [persistence] def removeLatestFlagForServiceInEnvironment(
     serviceName: String,
     environment: Environment,
-    session: Option[ClientSession] = None
-  ): Future[Unit] = {
-    val filter =
-      and(
-        equal("latest", true),
-        equal("deploymentConfig.name", serviceName),
-        equal("deploymentConfig.environment", environment.asString),
+    session: ClientSession
+  ): Future[Unit] =
+    collection
+      .updateMany(
+        session,
+        filter = and(
+          equal("latest", true),
+          equal("deploymentConfig.name", serviceName),
+          equal("deploymentConfig.environment", environment.asString)),
+        update = set("latest", false)
       )
-
-    val update =
-      set("latest", false)
-
-    session
-      .fold(collection.updateMany(filter, update))(collection.updateMany(_, filter, update))
       .toFuture()
       .map(_ =>())
-  }
 
   def populate(date: Instant): Future[Unit] = {
 
@@ -145,7 +138,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
     def bulkInsertSnapshots(snapshots: List[DeploymentConfigSnapshot]) =
       withSessionAndTransaction { session =>
         for {
-          _ <- if (snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, Some(session)) else Future.unit
+          _ <- if (snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session) else Future.unit
           _ <- collection.insertMany(session, snapshots).toFuture()
         } yield ()
       }
@@ -157,7 +150,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
           _ <- removeLatestFlagForServiceInEnvironment(
             deploymentConfigSnapshot.deploymentConfig.name,
             deploymentConfigSnapshot.deploymentConfig.environment,
-            Some(session)
+            session
           )
           _ <- collection.insertOne(session, deploymentConfigSnapshot).toFuture()
         } yield ()

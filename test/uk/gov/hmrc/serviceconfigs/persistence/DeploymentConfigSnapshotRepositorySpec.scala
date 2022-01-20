@@ -127,9 +127,11 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
       repository.add(deploymentConfigSnapshotC1).futureValue
       repository.add(deploymentConfigSnapshotC2).futureValue
 
-      repository
-        .removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production)
-        .futureValue
+      (for {
+        session <- mongoComponent.client.startSession().toFuture()
+        _       <-repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, session)
+      } yield ()).futureValue
+
 
       val snapshots =
         repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
@@ -141,9 +143,11 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
       repository.add(deploymentConfigSnapshotC1).futureValue
       repository.add(deploymentConfigSnapshotC2).futureValue
 
-      repository
-        .removeLatestFlagForServiceInEnvironment("C", Environment.Production)
-        .futureValue
+      (for {
+        session <- mongoComponent.client.startSession().toFuture()
+        _       <- repository.removeLatestFlagForServiceInEnvironment("C", Environment.Production, session)
+      } yield ()).futureValue
+
 
       val snapshots =
         repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
