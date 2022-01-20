@@ -20,7 +20,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork._
 
 import java.time.Instant
 
@@ -38,7 +37,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
       val expectedPlanOfWork =
         PlanOfWork(
-          snapshots = List(Snapshot(someDeploymentConfigSnapshot.copy(date = now, latest = true))),
+          snapshots = List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
           snapshotServiceReintroductions = List.empty,
           snapshotSynthesisedDeletions = List.empty
         )
@@ -64,7 +63,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
         PlanOfWork(
           snapshots = List.empty,
           snapshotServiceReintroductions =
-            List(SnapshotServiceReintroduction(someDeploymentConfigSnapshot.copy(date = now, latest = true))),
+            List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
           snapshotSynthesisedDeletions = List.empty
         )
 
@@ -89,7 +88,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
       val expectedPlanOfWork =
         PlanOfWork(
-          snapshots = List(Snapshot(someDeploymentConfigSnapshot.copy(date = now, latest = true))),
+          snapshots = List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
           snapshotServiceReintroductions = List.empty,
           snapshotSynthesisedDeletions = List.empty
         )
@@ -119,15 +118,13 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
           snapshotServiceReintroductions = List.empty,
           snapshotSynthesisedDeletions =
             List(
-              SnapshotSynthesisedDeletion(
-                someDeploymentConfigSnapshot
-                  .copy(
-                    date = now,
-                    latest = true,
-                    deleted = true,
-                    deploymentConfig = someDeploymentConfig.copy(slots = 0, instances = 0)
-                  )
-              )
+              someDeploymentConfigSnapshot
+                .copy(
+                  date = now,
+                  latest = true,
+                  deleted = true,
+                  deploymentConfig = someDeploymentConfig.copy(slots = 0, instances = 0)
+                )
             )
         )
 

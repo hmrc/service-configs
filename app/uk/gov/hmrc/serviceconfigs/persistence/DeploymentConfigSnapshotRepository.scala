@@ -31,7 +31,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import cats.implicits._
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork.SnapshotServiceReintroduction
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
@@ -119,17 +118,17 @@ class DeploymentConfigSnapshotRepository @Inject()(
   def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
     logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
     val batchInsertions =
-      planOfWork.snapshots.map(_.deploymentConfigSnapshot) ++
-      planOfWork.snapshotSynthesisedDeletions.map(_.deploymentConfigSnapshot)
+      planOfWork.snapshots ++
+      planOfWork.snapshotSynthesisedDeletions
 
-    def reintroduceServiceSnapshot(snapshotServiceReintroduction: SnapshotServiceReintroduction) = {
-      logger.debug(s"Creating a snapshot for reintroduced service: ${snapshotServiceReintroduction.deploymentConfigSnapshot}")
+    def reintroduceServiceSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot) = {
+      logger.debug(s"Creating a snapshot for reintroduced service: $deploymentConfigSnapshot")
       for {
         _ <- removeLatestFlagForServiceInEnvironment(
-          snapshotServiceReintroduction.deploymentConfigSnapshot.deploymentConfig.name,
-          snapshotServiceReintroduction.deploymentConfigSnapshot.deploymentConfig.environment
+          deploymentConfigSnapshot.deploymentConfig.name,
+          deploymentConfigSnapshot.deploymentConfig.environment
         )
-        _ <- collection.insertOne(snapshotServiceReintroduction.deploymentConfigSnapshot).toFuture()
+        _ <- collection.insertOne(deploymentConfigSnapshot).toFuture()
       } yield ()
     }
 
@@ -143,37 +142,13 @@ class DeploymentConfigSnapshotRepository @Inject()(
 
 object DeploymentConfigSnapshotRepository {
 
-  import PlanOfWork._
-
   final case class PlanOfWork(
-    snapshots: List[Snapshot],
-    snapshotServiceReintroductions: List[SnapshotServiceReintroduction],
-    snapshotSynthesisedDeletions: List[SnapshotSynthesisedDeletion]
+    snapshots: List[DeploymentConfigSnapshot],
+    snapshotServiceReintroductions: List[DeploymentConfigSnapshot],
+    snapshotSynthesisedDeletions: List[DeploymentConfigSnapshot]
   )
 
   object PlanOfWork {
-
-    final case class Snapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot)
-
-    final case class SnapshotSynthesisedDeletion(deploymentConfigSnapshot: DeploymentConfigSnapshot)
-
-    object SnapshotSynthesisedDeletion {
-
-      def fromDeploymentConfigSnapshot(
-        deploymentConfigSnapshot: DeploymentConfigSnapshot,
-        date: Instant
-      ): SnapshotSynthesisedDeletion =
-        SnapshotSynthesisedDeletion(
-          deploymentConfigSnapshot.copy(
-            date = date,
-            latest = true,
-            deleted = true,
-            deploymentConfig = deploymentConfigSnapshot.deploymentConfig.copy(slots = 0, instances = 0)
-          )
-        )
-    }
-
-    final case class SnapshotServiceReintroduction(deploymentConfigSnapshot: DeploymentConfigSnapshot)
 
     def fromLatestSnapshotsAndCurrentDeploymentConfigs(
       latestSnapshots: List[DeploymentConfigSnapshot],
@@ -187,15 +162,14 @@ object DeploymentConfigSnapshotRepository {
 
       val (snapshots, snapshotServiceReintroductions) =
         currentDeploymentConfigs
-          .foldLeft((List.empty[Snapshot], List.empty[SnapshotServiceReintroduction])) {
-            case ((snapshots, snapshotServiceReintroductions), deploymentConfig) => {
+          .foldLeft((List.empty[DeploymentConfigSnapshot], List.empty[DeploymentConfigSnapshot])) {
+            case ((snapshots, snapshotServiceReintroductions), deploymentConfig) =>
               val deploymentConfigSnapshot =
                 DeploymentConfigSnapshot(date, latest = true, deleted = false, deploymentConfig)
               if (latestSnapshotsByNameAndEnv.get((deploymentConfig.name, deploymentConfig.environment)).exists(_.deleted))
-                (snapshots, SnapshotServiceReintroduction(deploymentConfigSnapshot) +: snapshotServiceReintroductions)
+                (snapshots, deploymentConfigSnapshot +: snapshotServiceReintroductions)
               else
-                (Snapshot(deploymentConfigSnapshot) +: snapshots, snapshotServiceReintroductions)
-            }
+                (deploymentConfigSnapshot +: snapshots, snapshotServiceReintroductions)
           }
 
       val snapshotSynthesisedDeletions = {
@@ -206,10 +180,21 @@ object DeploymentConfigSnapshotRepository {
           .values
           .toList
           .filterNot(_.deleted)
-          .map(SnapshotSynthesisedDeletion.fromDeploymentConfigSnapshot(_, date))
+          .map(synthesiseDeletedDeploymentConfigSnapshot(_, date))
       }
 
       PlanOfWork(snapshots, snapshotServiceReintroductions, snapshotSynthesisedDeletions)
     }
+
+    private def synthesiseDeletedDeploymentConfigSnapshot(
+      deploymentConfigSnapshot: DeploymentConfigSnapshot,
+      date: Instant
+    ): DeploymentConfigSnapshot =
+      deploymentConfigSnapshot.copy(
+        date = date,
+        latest = true,
+        deleted = true,
+        deploymentConfig = deploymentConfigSnapshot.deploymentConfig.copy(slots = 0, instances = 0)
+      )
   }
 }
