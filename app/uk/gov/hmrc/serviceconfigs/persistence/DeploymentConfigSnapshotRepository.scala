@@ -29,6 +29,9 @@ import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import cats.implicits._
+import play.api.Logging
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork.SnapshotServiceReintroduction
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
@@ -39,9 +42,10 @@ class DeploymentConfigSnapshotRepository @Inject()(
     collectionName = "deploymentConfigSnapshots",
     domainFormat = DeploymentConfigSnapshot.mongoFormat,
     indexes = Seq(
+      IndexModel(hashed("latest"), IndexOptions().background(true)),
       IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
       IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true)))
-  ) {
+  ) with Logging {
 
   def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] =
     collection
@@ -103,12 +107,37 @@ class DeploymentConfigSnapshotRepository @Inject()(
     def forEnvironment(environment: Environment): Future[Unit] = {
       for {
         deploymentConfigs <- deploymentConfigRepository.findAll(environment)
-        snapshots         =  deploymentConfigs.map(DeploymentConfigSnapshot(date, latest = false, deleted = false, _))
-        _                 <- collection.insertMany(snapshots).toFuture()
+        latestSnapshots   <- latestSnapshotsInEnvironment(environment)
+        planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
+        _                 <- executePlanOfWork(planOfWork, environment)
       } yield ()
     }
 
     Environment.values.foldLeftM(())((_, env) => forEnvironment(env))
+  }
+
+  def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
+    logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
+    val batchInsertions =
+      planOfWork.snapshots.map(_.deploymentConfigSnapshot) ++
+      planOfWork.snapshotSynthesisedDeletions.map(_.deploymentConfigSnapshot)
+
+    def reintroduceServiceSnapshot(snapshotServiceReintroduction: SnapshotServiceReintroduction) = {
+      logger.debug(s"Creating a snapshot for reintroduced service: ${snapshotServiceReintroduction.deploymentConfigSnapshot}")
+      for {
+        _ <- removeLatestFlagForServiceInEnvironment(
+          snapshotServiceReintroduction.deploymentConfigSnapshot.deploymentConfig.name,
+          snapshotServiceReintroduction.deploymentConfigSnapshot.deploymentConfig.environment
+        )
+        _ <- collection.insertOne(snapshotServiceReintroduction.deploymentConfigSnapshot).toFuture()
+      } yield ()
+    }
+
+    for {
+      _ <- if (batchInsertions.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment) else Future.unit
+      _ <- collection.insertMany(batchInsertions).toFuture()
+      _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
+    } yield ()
   }
 }
 
