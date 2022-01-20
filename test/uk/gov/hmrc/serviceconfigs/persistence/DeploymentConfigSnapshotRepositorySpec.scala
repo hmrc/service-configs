@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.scalatest.MockitoSugar
+import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -27,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import java.time.{LocalDateTime, ZoneOffset}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
   with Matchers
@@ -127,10 +129,8 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
       repository.add(deploymentConfigSnapshotC1).futureValue
       repository.add(deploymentConfigSnapshotC2).futureValue
 
-      (for {
-        session <- mongoComponent.client.startSession().toFuture()
-        _       <-repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, session)
-      } yield ()).futureValue
+      withClientSession(repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, _))
+        .futureValue
 
 
       val snapshots =
@@ -143,11 +143,8 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
       repository.add(deploymentConfigSnapshotC1).futureValue
       repository.add(deploymentConfigSnapshotC2).futureValue
 
-      (for {
-        session <- mongoComponent.client.startSession().toFuture()
-        _       <- repository.removeLatestFlagForServiceInEnvironment("C", Environment.Production, session)
-      } yield ()).futureValue
-
+      withClientSession(repository.removeLatestFlagForServiceInEnvironment("C", Environment.Production, _))
+        .futureValue
 
       val snapshots =
         repository.latestSnapshotsInEnvironment(Environment.Production).futureValue
@@ -186,8 +183,15 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
 
       actualSnapshots should contain theSameElementsAs(expectedSnapshots)
     }
-
   }
+
+  private def withClientSession[A](f: ClientSession => Future[A]): Future[A] =
+    for {
+      session <- mongoComponent.client.startSession().toFuture()
+      f2      =  f(session)
+      _       =  f2.onComplete(_ => session.close())
+      res     <- f2
+    } yield res
 }
 
 object DeploymentConfigSnapshotRepositorySpec {
