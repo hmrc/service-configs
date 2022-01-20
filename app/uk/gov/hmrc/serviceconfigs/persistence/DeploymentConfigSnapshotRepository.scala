@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.BasicDBObject
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
@@ -109,5 +109,78 @@ class DeploymentConfigSnapshotRepository @Inject()(
     }
 
     Environment.values.foldLeftM(())((_, env) => forEnvironment(env))
+  }
+}
+
+object DeploymentConfigSnapshotRepository {
+
+  import PlanOfWork._
+
+  final case class PlanOfWork(
+    snapshots: List[Snapshot],
+    snapshotServiceReintroductions: List[SnapshotServiceReintroduction],
+    snapshotSynthesisedDeletions: List[SnapshotSynthesisedDeletion]
+  )
+
+  object PlanOfWork {
+
+    final case class Snapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot)
+
+    final case class SnapshotSynthesisedDeletion(deploymentConfigSnapshot: DeploymentConfigSnapshot)
+
+    object SnapshotSynthesisedDeletion {
+
+      def fromDeploymentConfigSnapshot(
+        deploymentConfigSnapshot: DeploymentConfigSnapshot,
+        date: Instant
+      ): SnapshotSynthesisedDeletion =
+        SnapshotSynthesisedDeletion(
+          deploymentConfigSnapshot.copy(
+            date = date,
+            latest = true,
+            deleted = true,
+            deploymentConfig = deploymentConfigSnapshot.deploymentConfig.copy(slots = 0, instances = 0)
+          )
+        )
+    }
+
+    final case class SnapshotServiceReintroduction(deploymentConfigSnapshot: DeploymentConfigSnapshot)
+
+    def fromLatestSnapshotsAndCurrentDeploymentConfigs(
+      latestSnapshots: List[DeploymentConfigSnapshot],
+      currentDeploymentConfigs: List[DeploymentConfig],
+      date: Instant
+    ): PlanOfWork = {
+      val latestSnapshotsByNameAndEnv =
+        latestSnapshots
+          .map(s => (s.deploymentConfig.name, s.deploymentConfig.environment) -> s)
+          .toMap
+
+      val (snapshots, snapshotServiceReintroductions) =
+        currentDeploymentConfigs
+          .foldLeft((List.empty[Snapshot], List.empty[SnapshotServiceReintroduction])) {
+            case ((snapshots, snapshotServiceReintroductions), deploymentConfig) => {
+              val deploymentConfigSnapshot =
+                DeploymentConfigSnapshot(date, latest = true, deleted = false, deploymentConfig)
+              if (latestSnapshotsByNameAndEnv.get((deploymentConfig.name, deploymentConfig.environment)).exists(_.deleted))
+                (snapshots, SnapshotServiceReintroduction(deploymentConfigSnapshot) +: snapshotServiceReintroductions)
+              else
+                (Snapshot(deploymentConfigSnapshot) +: snapshots, snapshotServiceReintroductions)
+            }
+          }
+
+      val snapshotSynthesisedDeletions = {
+        val currentDeploymentConfigsByNameAndEnv =
+          currentDeploymentConfigs.map(c => (c.name, c.environment))
+
+        (latestSnapshotsByNameAndEnv -- currentDeploymentConfigsByNameAndEnv)
+          .values
+          .toList
+          .filterNot(_.deleted)
+          .map(SnapshotSynthesisedDeletion.fromDeploymentConfigSnapshot(_, date))
+      }
+
+      PlanOfWork(snapshots, snapshotServiceReintroductions, snapshotSynthesisedDeletions)
+    }
   }
 }
