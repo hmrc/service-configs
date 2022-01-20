@@ -21,7 +21,7 @@ import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
-import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
+import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, DefaultPlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
@@ -32,7 +32,7 @@ import scala.concurrent.Future
 
 class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
   with Matchers
-  with PlayMongoRepositorySupport[DeploymentConfigSnapshot]
+  with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
   with CleanMongoCollectionSupport
   with MockitoSugar {
 
@@ -42,6 +42,7 @@ class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
   override lazy val repository =
     new DeploymentConfigSnapshotRepository(stubDeploymentConfigRepository, mongoComponent)
 
+  // Test suite elapsed time is significantly reduced with this overridden `PatienceConfig`
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(Span(500, Millis)), interval = scaled(Span(20, Millis)))
 
