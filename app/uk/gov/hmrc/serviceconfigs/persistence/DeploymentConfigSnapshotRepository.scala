@@ -79,7 +79,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .toFuture
       .map(_ => ())
 
-  def removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment: Environment): Future[Unit] =
+  private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment: Environment): Future[Unit] =
     collection
       .updateMany(
         filter = and(
@@ -90,7 +90,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
         update = set("latest", false)
       ).toFuture().map(_ => ())
 
-  def removeLatestFlagForServiceInEnvironment(serviceName: String, environment: Environment): Future[Unit] =
+  private [persistence] def removeLatestFlagForServiceInEnvironment(serviceName: String, environment: Environment): Future[Unit] =
     collection
       .updateMany(
         filter = and(
