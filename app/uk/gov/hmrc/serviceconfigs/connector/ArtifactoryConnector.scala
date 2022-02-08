@@ -26,29 +26,26 @@ import javax.inject.Inject
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{ExecutionContext, Future}
 
+class ArtifactoryConnector @Inject()(
+  config: ArtifactoryConfig,
+  ws    : WSClient
+)(implicit
+  ec          : ExecutionContext,
+  materializer: Materializer
+) {
 
-
-class ArtifactoryConnector @Inject()(config: ArtifactoryConfig, ws: WSClient)(implicit ec: ExecutionContext,
-                                                                              materializer: Materializer) {
-
-  def getSensuZip(): Future[InputStream] = {
+  def getSensuZip(): Future[InputStream] =
     ws
       .url(s"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
       .withMethod("GET")
       .withRequestTimeout(Duration.Inf)
       .stream
       .map(_.bodyAsSource.async.runWith(StreamConverters.asInputStream(readTimeout = 20.seconds)))
-  }
 
-
-  def getLatestHash(): Future[Option[String]] = {
+  def getLatestHash(): Future[Option[String]] =
     ws
       .url(s"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
       .withRequestTimeout(Duration(20, "seconds"))
       .head()
-      .map { response => response.header("x-checksum-sha256") }
-  }
+      .map(_.header("x-checksum-sha256"))
 }
-
-
-

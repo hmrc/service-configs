@@ -29,8 +29,13 @@ import javax.inject.Inject
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeploymentConfigConnector @Inject()(config: GithubConfig, ws: WSClient)(implicit ec: ExecutionContext,
-                                                                              materializer: Materializer) extends Logging {
+class DeploymentConfigConnector @Inject()(
+  config: GithubConfig,
+  ws    : WSClient
+)(implicit
+  ec          : ExecutionContext,
+  materializer: Materializer
+) extends Logging {
 
   def getAppConfigZip(environment: Environment): Future[InputStream] = {
     val repoName = s"app-config-${environment.asString}"

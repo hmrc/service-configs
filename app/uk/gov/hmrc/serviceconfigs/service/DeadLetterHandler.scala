@@ -30,52 +30,44 @@ import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
-class DeadLetterHandler @Inject()
-( messageHandling: SqsMessageHandling,
+class DeadLetterHandler @Inject()(
   config         : ArtefactReceivingConfig
-) (implicit
-   actorSystem : ActorSystem,
-   materializer: Materializer,
-   ec          : ExecutionContext
+)(implicit
+  actorSystem : ActorSystem,
+  materializer: Materializer,
+  ec          : ExecutionContext
 ) extends Logging {
-
-  if (!config.isEnabled) {
-    logger.debug("DeadLetterHandler is disabled.")
-  }
 
   private lazy val queueUrl = config.sqsSlugDeadLetterQueue
   private lazy val settings = SqsSourceSettings()
 
   private lazy val awsSqsClient =
-    Try{
+    Try {
       val client = SqsAsyncClient.builder()
         .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
         .build()
       actorSystem.registerOnTermination(client.close())
       client
-    }.recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Failure(e) }
-     .get
+    }.recoverWith {
+      case NonFatal(e) => logger.error(e.getMessage, e); Failure(e)
+    }.get
 
-  if (config.isEnabled) {
+  if (config.isEnabled)
     SqsSource(queueUrl.toString, settings)(awsSqsClient)
       .mapAsync(10)(processMessage)
       .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
       .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
-  }
+  else
+    logger.debug("DeadLetterHandler is disabled.")
 
   private def processMessage(message: Message) = {
-    messageHandling.decompress(message.body).onComplete {
-      case Success(m) =>
-        logger.warn(
-          s"""Dead letter message with
-             |ID: '${message.messageId}'
-             |Body: '$m'""".stripMargin)
-      case Failure(e) =>
-        // if the decompress failed, log without message body
-        logger.error(s"Could not decompress message with ID '${message.messageId}'", e)
-    }
+    logger.warn(
+      s"""Dead letter message with
+         |ID: '${message.messageId}'
+         |Body: '${message.body}'""".stripMargin
+    )
     Future(Delete(message))
   }
 }

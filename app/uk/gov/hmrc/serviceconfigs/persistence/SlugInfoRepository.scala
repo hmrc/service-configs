@@ -35,7 +35,7 @@ class SlugInfoRepository @Inject()(
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "slugConfigurations",
-  domainFormat   = MongoSlugInfoFormats.siFormat,
+  domainFormat   = MongoSlugInfoFormats.slugInfoFormat,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
                      IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
@@ -91,6 +91,7 @@ class SlugInfoRepository @Inject()(
            .toFuture
    } yield ()
 
+  // TODO make transactional
   def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
     for {
       _ <- clearFlag(flag, name)

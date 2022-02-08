@@ -56,8 +56,8 @@ class SlugConfigurationService @Inject()(
     } yield ()
   }
 
-  def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Seq[Unit]] =
-    dependencyConfigs.toList.traverse(dependencyConfigRepository.add)
+  def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Unit] =
+    dependencyConfigs.toList.traverse_(dependencyConfigRepository.add)
 
   def getSlugInfo(name: String, flag: SlugInfoFlag): Future[Option[SlugInfo]] =
     slugInfoRepository.getSlugInfo(name, flag)

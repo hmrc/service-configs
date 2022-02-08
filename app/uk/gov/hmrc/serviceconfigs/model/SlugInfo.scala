@@ -63,18 +63,20 @@ case class DependencyConfig(
     configs : Map[String, String]
 )
 
-case class SlugMessage(
-    info: SlugInfo,
-    configs: Seq[DependencyConfig]
-)
-
 trait MongoSlugInfoFormats {
-  val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
+  private val slugDependencyFormat: OFormat[SlugDependency] =
+    ( (__ \ "path"    ).format[String]
+    ~ (__ \ "version" ).format[String]
+    ~ (__ \ "group"   ).format[String]
+    ~ (__ \ "artifact").format[String]
+    ~ (__ \ "meta"    ).formatWithDefault[String]("")
+    )(SlugDependency.apply, unlift(SlugDependency.unapply))
 
-  def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
+  private def ignore[A]: OWrites[A] =
+    OWrites[A](_ => Json.obj())
 
-  val siFormat: OFormat[SlugInfo] = {
-    implicit val sdf = sdFormat
+  val slugInfoFormat: OFormat[SlugInfo] = {
+    implicit val sdf = slugDependencyFormat
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime](MongoJavatimeFormats.localDateTimeFormat)
     ~ (__ \ "name"             ).format[String]
@@ -89,7 +91,7 @@ trait MongoSlugInfoFormats {
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
 
-  val dcFormat: OFormat[DependencyConfig] =
+  val dependencyConfigFormat: OFormat[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
@@ -105,12 +107,19 @@ object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
 trait ApiSlugInfoFormats {
 
-  def ignore[A]: OWrites[A] = OWrites[A](_ => Json.obj())
+  private def ignore[A]: OWrites[A] =
+    OWrites[A](_ => Json.obj())
 
-  val sdFormat: OFormat[SlugDependency] = Json.format[SlugDependency]
+  private val slugDependencyFormat: OFormat[SlugDependency] =
+    ( (__ \ "path"    ).format[String]
+    ~ (__ \ "version" ).format[String]
+    ~ (__ \ "group"   ).format[String]
+    ~ (__ \ "artifact").format[String]
+    ~ (__ \ "meta"    ).formatWithDefault[String]("")
+    )(SlugDependency.apply, unlift(SlugDependency.unapply))
 
-  val siFormat: OFormat[SlugInfo] = {
-    implicit val sdf = sdFormat
+  val slugInfoFormat: OFormat[SlugInfo] = {
+    implicit val sdf = slugDependencyFormat
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[LocalDateTime]
     ~ (__ \ "name"             ).format[String]
@@ -125,18 +134,12 @@ trait ApiSlugInfoFormats {
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
 
-  val dcFormat: OFormat[DependencyConfig] =
+  val dependencyConfigFormat: OFormat[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
-
-  val slugFormat: OFormat[SlugMessage] = {
-    implicit val dcf: OFormat[DependencyConfig] = dcFormat
-    implicit val sif: OFormat[SlugInfo]         = siFormat
-    Json.format[SlugMessage]
-  }
 }
 
 object ApiSlugInfoFormats extends ApiSlugInfoFormats

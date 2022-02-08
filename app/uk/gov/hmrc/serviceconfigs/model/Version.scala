@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.{__, Format, JsError, JsString, JsSuccess, JsValue, OFormat, Writes}
+import play.api.libs.json.{__, Format, JsError, JsString, JsSuccess, JsValue, OFormat}
 import play.api.libs.functional.syntax._
 
 case class Version(
@@ -55,10 +55,10 @@ object Version {
       (v.major, v.minor, v.patch, None)
 
     ( (__ \ "major" ).format[Int]
-      ~ (__ \ "minor" ).format[Int]
-      ~ (__ \ "patch" ).format[Int]
-      ~ (__ \ "suffix").formatNullable[String]
-      )(toVersion, fromVersion)
+    ~ (__ \ "minor" ).format[Int]
+    ~ (__ \ "patch" ).format[Int]
+    ~ (__ \ "suffix").formatNullable[String]
+    )(toVersion, fromVersion)
   }
 
   private val versionAsStringFormat: Format[Version] =
@@ -85,16 +85,8 @@ object Version {
 
   val apiFormat: Format[Version] = versionAsStringFormat
 
-  val mongoVersionRepositoryFormat:OFormat[Version] = (__ \ "version" ).format[Version](mongoFormat)
-
-  // for backward compatibility - non-catalogue apis require broken down version
-  val legacyApiWrites: Writes[Version] =
-    ( (__ \ "major"   ).write[Int]
-      ~ (__ \ "minor"   ).write[Int]
-      ~ (__ \ "patch"   ).write[Int]
-      ~ (__ \ "original").write[String]
-      )(v => (v.major, v.minor, v.patch, v.original))
-
+  val mongoVersionRepositoryFormat :OFormat[Version] =
+    (__ \ "version" ).format[Version](mongoFormat)
 
   def apply(version: String): Version =
     parse(version).getOrElse(sys.error(s"Could not parse version $version"))
