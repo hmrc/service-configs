@@ -31,25 +31,25 @@ import java.time.Instant
   * @param deploymentConfig The snapshot of the `DeploymentConfig`
   */
 final case class DeploymentConfigSnapshot(
-  date: Instant,
-  latest: Boolean,
-  deleted: Boolean,
+  date            : Instant,
+  latest          : Boolean,
+  deleted         : Boolean,
   deploymentConfig: DeploymentConfig
 )
 
 object DeploymentConfigSnapshot {
 
   val mongoFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format(MongoJavatimeFormats.instantFormat)
-      ~ (__ \ "latest"           ).format[Boolean]
-      ~ (__ \ "deleted"          ).format[Boolean]
-      ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.mongoFormat)
-      ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
+    ( (__ \ "date"             ).format(MongoJavatimeFormats.instantFormat)
+    ~ (__ \ "latest"           ).format[Boolean]
+    ~ (__ \ "deleted"          ).format[Boolean]
+    ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.mongoFormat)
+    )(DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 
   val apiFormat: Format[DeploymentConfigSnapshot] =
-    (   (__ \ "date"             ).format[Instant]
-      ~ (__ \ "latest"           ).format[Boolean]
-      ~ (__ \ "deleted"          ).format[Boolean]
-      ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.apiFormat)
-      ) (DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
+    ( (__ \ "date"             ).format[Instant]
+    ~ (__ \ "latest"           ).format[Boolean]
+    ~ (__ \ "deleted"          ).format[Boolean]
+    ~ (__ \ "deploymentConfig" ).format[DeploymentConfig](DeploymentConfig.apiFormat)
+    )(DeploymentConfigSnapshot.apply, unlift(DeploymentConfigSnapshot.unapply))
 }

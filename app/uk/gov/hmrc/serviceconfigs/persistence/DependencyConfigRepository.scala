@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.mongodb.BasicDBObject
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -27,25 +27,28 @@ import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, MongoSlugInfoFormats}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
-    extends PlayMongoRepository(
-      mongoComponent = mongoComponent,
-      collectionName = "dependencyConfigs",
-      domainFormat   = MongoSlugInfoFormats.dcFormat,
-      indexes = Seq(
-        IndexModel(
-          Indexes.ascending("group", "artefact", "version"),
-          IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
-      )
-    ) {
+class DependencyConfigRepository @Inject()(
+  mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
+) extends PlayMongoRepository(
+  mongoComponent = mongoComponent,
+  collectionName = "dependencyConfigs",
+  domainFormat   = MongoSlugInfoFormats.dependencyConfigFormat,
+  indexes        = Seq(
+                     IndexModel(
+                       Indexes.ascending("group", "artefact", "version"),
+                       IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
+                   )
+) {
 
   def add(dependencyConfig: DependencyConfig): Future[Unit] =
     collection
       .findOneAndReplace(
-        filter = and(
-          equal("group", dependencyConfig.group),
-          equal("artefact", dependencyConfig.artefact),
-          equal("version", dependencyConfig.version)),
+        filter      = and(
+                        equal("group",    dependencyConfig.group),
+                        equal("artefact", dependencyConfig.artefact),
+                        equal("version",  dependencyConfig.version)
+                      ),
         replacement = dependencyConfig,
         options     = FindOneAndReplaceOptions().upsert(true)
       )
@@ -55,12 +58,18 @@ class DependencyConfigRepository @Inject()(mongoComponent: MongoComponent)(impli
   def getAllEntries: Future[Seq[DependencyConfig]] =
     collection.find().toFuture()
 
-  def clearAllData: Future[Boolean] = collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
+  def clearAllData: Future[Unit] =
+    collection.deleteMany(BsonDocument())
+      .toFuture
+      .map(_ => ())
 
   def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     collection
-      .find(and(equal("group", group), equal("artefact", artefact), equal("version", version)))
+      .find(and(
+        equal("group",    group),
+        equal("artefact", artefact),
+        equal("version",  version)
+      ))
       .first()
       .toFutureOption()
-
 }

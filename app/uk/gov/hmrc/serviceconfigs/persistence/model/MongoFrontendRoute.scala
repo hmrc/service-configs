@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence.model
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.Instant
 
 import play.api.libs.json.{Format, Json, OFormat}
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
@@ -32,7 +32,7 @@ case class MongoFrontendRoute(
   shutterServiceSwitch: Option[MongoShutterSwitch] = None,
   ruleConfigurationUrl: String                     = "",
   isRegex             : Boolean                    = false,
-  updateDate          : LocalDateTime              = LocalDateTime.now(ZoneOffset.UTC)
+  updateDate          : Instant                    = Instant.now()
 )
 
 case class MongoShutterSwitch(
@@ -47,7 +47,7 @@ object MongoFrontendRoute {
     Json.format[MongoShutterSwitch]
 
   implicit val formats: OFormat[MongoFrontendRoute] = {
-    implicit val dateFormat: Format[LocalDateTime] = MongoJavatimeFormats.localDateTimeFormat
+    implicit val dateFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
     Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
   }
 }

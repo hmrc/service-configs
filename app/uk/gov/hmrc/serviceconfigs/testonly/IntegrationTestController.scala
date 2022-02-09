@@ -148,7 +148,7 @@ class IntegrationTestController @Inject()(
     import play.api.libs.json.__
 
     val reads: Reads[SlugInfoWithFlags] = {
-        implicit val sif = ApiSlugInfoFormats.siFormat
+        implicit val sif = ApiSlugInfoFormats.slugInfoFormat
         ( (__                 ).read[SlugInfo]
         ~ (__ \ "latest"      ).read[Boolean]
         ~ (__ \ "production"  ).read[Boolean]

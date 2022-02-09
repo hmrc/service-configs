@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnaps
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -199,39 +199,39 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotA1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = false,
+      date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+      latest  = false,
       deleted = false,
       DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotA2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-02T00:00:00.000Z"),
+      latest  = true,
       deleted = false,
       DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotA3: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 3, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-03T00:00:00.00Z"),
+      latest  = true,
       deleted = false,
       DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = false,
+      date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+      latest  = false,
       deleted = false,
       DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
+      date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest = false,
       deleted = false,
       DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
@@ -239,7 +239,7 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 3, 0, 0, 0).toInstant(ZoneOffset.UTC),
+      date    = Instant.parse("2021-01-03T00:00:00.000Z"),
       latest = false,
       deleted = false,
       DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
@@ -247,48 +247,48 @@ object DeploymentConfigSnapshotRepositorySpec {
 
   val deploymentConfigSnapshotC1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = false,
+      date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+      latest  = false,
       deleted = false,
       DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotC2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-02T00:00:00.000Z"),
+      latest  = true,
       deleted = true,
       DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotD1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-02T00:00:00.000Z"),
+      latest  = true,
       deleted = true,
       DeploymentConfig("D", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotD2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 3, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-03T00:00:00.000Z"),
+      latest  = true,
       deleted = false,
       DeploymentConfig("D", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotE1: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+      latest  = true,
       deleted = false,
       DeploymentConfig("E", None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotE2: DeploymentConfigSnapshot =
     DeploymentConfigSnapshot(
-      LocalDateTime.of(2021, 1, 2, 0, 0, 0).toInstant(ZoneOffset.UTC),
-      latest = true,
+      date    = Instant.parse("2021-01-02T00:00:00.000Z"),
+      latest  = true,
       deleted = true,
       DeploymentConfig("E", None, Environment.Production, "public", "service", 5, 1),
     )

@@ -36,11 +36,11 @@ class ResourceUsageService @Inject() (
 }
 
 final case class ResourceUsage(
-  date: Instant,
+  date       : Instant,
   serviceName: String,
   environment: Environment,
-  slots: Int,
-  instances: Int
+  slots      : Int,
+  instances  : Int
 )
 
 object ResourceUsage {
@@ -53,19 +53,19 @@ object ResourceUsage {
       deploymentConfigSnapshot.deploymentConfig.instances
 
     ResourceUsage(
-      deploymentConfigSnapshot.date,
-      deploymentConfigSnapshot.deploymentConfig.name,
-      deploymentConfigSnapshot.deploymentConfig.environment,
-      slots = slots,
-      instances = instances
+      date        = deploymentConfigSnapshot.date,
+      serviceName = deploymentConfigSnapshot.deploymentConfig.name,
+      environment = deploymentConfigSnapshot.deploymentConfig.environment,
+      slots       = slots,
+      instances   = instances
     )
   }
 
   val apiFormat: Format[ResourceUsage] =
-    (   (__ \ "date"        ).format[Instant]
-      ~ (__ \ "serviceName" ).format[String]
-      ~ (__ \ "environment" ).format[Environment](Environment.format)
-      ~ (__ \ "slots"       ).format[Int]
-      ~ (__ \ "instances"   ).format[Int]
-      ) (ResourceUsage.apply, unlift(ResourceUsage.unapply))
+    ( (__ \ "date"        ).format[Instant]
+    ~ (__ \ "serviceName" ).format[String]
+    ~ (__ \ "environment" ).format[Environment](Environment.format)
+    ~ (__ \ "slots"       ).format[Int]
+    ~ (__ \ "instances"   ).format[Int]
+    )(ResourceUsage.apply, unlift(ResourceUsage.unapply))
 }

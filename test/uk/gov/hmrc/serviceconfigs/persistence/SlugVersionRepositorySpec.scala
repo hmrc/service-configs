@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import java.time.LocalDateTime
+import java.time.Instant
 
+import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
@@ -26,10 +27,11 @@ import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import scala.concurrent.ExecutionContext
 
 class SlugVersionRepositorySpec
-    extends AnyWordSpecLike
-    with Matchers
-    with PlayMongoRepositorySupport[Version]
-    with CleanMongoCollectionSupport {
+  extends AnyWordSpecLike
+     with Matchers
+     with PlayMongoRepositorySupport[Version]
+     with CleanMongoCollectionSupport
+     with IntegrationPatience {
 
   import ExecutionContext.Implicits.global
 
@@ -53,16 +55,13 @@ class SlugVersionRepositorySpec
 
   def sampleSlugInfo(version: Version, uri: String): SlugInfo =
     SlugInfo(
-      created           = LocalDateTime.of(2019, 6, 28, 11, 51, 23),
+      created           = Instant.parse("2019-06-28T11:51:23.000Z"),
       uri               = uri,
       name              = "my-slug",
       version           = version,
-      teams             = List.empty,
-      runnerVersion     = "0.5.2",
       classpath         = "",
-      jdkVersion        = "1.181.0",
       dependencies      = List.empty,
       applicationConfig = "",
-      slugConfig = ""
+      slugConfig        = ""
     )
 }

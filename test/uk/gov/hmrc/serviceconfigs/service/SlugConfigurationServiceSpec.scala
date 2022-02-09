@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import java.time.LocalDateTime
+import java.time.Instant
+
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -110,23 +111,21 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
   def sampleSlugInfo(version: Version, uri: String, latest: Boolean = true): SlugInfo =
     SlugInfo(
-      created = LocalDateTime.of(2019, 6, 28, 11, 51, 23),
-      uri = uri,
-      name = "my-slug",
-      version = version,
-      teams = List.empty,
-      runnerVersion = "0.5.2",
-      classpath = "",
-      jdkVersion = "1.181.0",
-      dependencies = List.empty,
+      created           = Instant.parse("2019-06-28T11:51:23.000Z"),
+      uri               = uri,
+      name              = "my-slug",
+      version           = version,
+      classpath         = "",
+      dependencies      = List.empty,
       applicationConfig = "",
-      slugConfig = "")
+      slugConfig        = ""
+    )
 
   case class Boot(
-                   mockedSlugInfoRepository : SlugInfoRepository
-                 , mockedSlugVersionRepository: SlugVersionRepository
-                   , service                             : SlugConfigurationService
-                 )
+    mockedSlugInfoRepository   : SlugInfoRepository
+  , mockedSlugVersionRepository: SlugVersionRepository
+  , service                    : SlugConfigurationService
+  )
 
   object Boot {
     def init: Boot = {
@@ -136,16 +135,15 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       val service = new SlugConfigurationService(
         mockedSlugInfoRepository
-        , mockedSlugVersionRepository
-        , mockedDependencyConfigRepository
+      , mockedSlugVersionRepository
+      , mockedDependencyConfigRepository
       )
 
       Boot(
         mockedSlugInfoRepository
-        , mockedSlugVersionRepository
-        , service
+      , mockedSlugVersionRepository
+      , service
       )
     }
   }
-
 }

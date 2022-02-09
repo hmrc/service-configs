@@ -18,30 +18,35 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.BasicDBObject
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.ClientSession
 import org.mongodb.scala.model.Filters.{equal, and}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
 import org.mongodb.scala.model.Updates.set
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, Version}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugInfoRepository @Inject()(
-  mongoComponent: MongoComponent
-)( implicit ec: ExecutionContext
+  final val mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "slugConfigurations",
-  domainFormat   = MongoSlugInfoFormats.siFormat,
+  domainFormat   = MongoSlugInfoFormats.slugInfoFormat,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
                      IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
                      IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
                    )
-) with Logging {
+) with Logging
+  with Transactions {
+
+  private implicit val tc = TransactionConfiguration.strict
 
   def add(slugInfo: SlugInfo): Future[Unit] =
     collection
@@ -81,26 +86,35 @@ class SlugInfoRepository @Inject()(
       .toFuture
 
   def clearFlag(flag: SlugInfoFlag, name: String): Future[Unit] =
+    withSessionAndTransaction { session =>
+      clearFlag(flag, name, session)
+    }
+
+  private def clearFlag(flag: SlugInfoFlag, name: String, session: ClientSession): Future[Unit] =
    for {
     _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on $name"))
     _ <- collection
            .updateMany(
-               filter = equal("name", name)
-             , update = set(flag.asString, false)
+               clientSession = session
+             , filter        = equal("name", name)
+             , update        = set(flag.asString, false)
              )
            .toFuture
    } yield ()
 
   def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
-    for {
-      _ <- clearFlag(flag, name)
-      _ =  logger.debug(s"mark slug $name $version with ${flag.asString} flag")
-      _ <- collection
-             .updateOne(
-                 filter = and( equal("name", name)
-                             , equal("version", version.original)
-                             )
-               , update = set(flag.asString, true))
-             .toFuture
-    } yield ()
+    withSessionAndTransaction { session =>
+      for {
+        _ <- clearFlag(flag, name, session)
+        _ =  logger.debug(s"mark slug $name $version with ${flag.asString} flag")
+        _ <- collection
+               .updateOne(
+                   clientSession = session
+                 , filter        = and( equal("name", name)
+                                      , equal("version", version.original)
+                                      )
+                 , update        = set(flag.asString, true))
+               .toFuture
+      } yield ()
+    }
 }
