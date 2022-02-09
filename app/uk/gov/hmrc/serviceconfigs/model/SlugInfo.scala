@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
@@ -44,7 +44,7 @@ case class SlugDependency(
 
 case class SlugInfo(
   uri               : String,
-  created           : LocalDateTime, //not used
+  created           : Instant, //not used
   name              : String,
   version           : Version,
   teams             : List[String],  //not used
@@ -78,7 +78,7 @@ trait MongoSlugInfoFormats {
   val slugInfoFormat: OFormat[SlugInfo] = {
     implicit val sdf = slugDependencyFormat
     ( (__ \ "uri"              ).format[String]
-    ~ (__ \ "created"          ).format[LocalDateTime](MongoJavatimeFormats.localDateTimeFormat)
+    ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
     ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
@@ -121,7 +121,7 @@ trait ApiSlugInfoFormats {
   val slugInfoFormat: OFormat[SlugInfo] = {
     implicit val sdf = slugDependencyFormat
     ( (__ \ "uri"              ).format[String]
-    ~ (__ \ "created"          ).format[LocalDateTime]
+    ~ (__ \ "created"          ).format[Instant]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[Version](Version.apiFormat)
     ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])

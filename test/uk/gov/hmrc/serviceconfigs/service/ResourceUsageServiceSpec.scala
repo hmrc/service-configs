@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -36,14 +36,14 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
       val snapshots =
         Seq(
           DeploymentConfigSnapshot(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-            latest = false,
+            date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+            latest  = false,
             deleted = false,
             DeploymentConfig("A", None, Environment.Staging, "public", "service", 5, 1),
           ),
           DeploymentConfigSnapshot(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 1).toInstant(ZoneOffset.UTC),
-            latest = false,
+            date    = Instant.parse("2021-01-01T00:00:00.000Z"),
+            latest  = false,
             deleted = false,
             DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
           )
@@ -55,18 +55,18 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
       val expectedHistoricResourceUsages =
         Seq(
           ResourceUsage(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC),
-            "A",
-            Environment.Staging,
-            5,
-            1
+            date        = Instant.parse("2021-01-01T00:00:00.000Z"),
+            serviceName = "A",
+            environment = Environment.Staging,
+            slots       = 5,
+            instances   = 1
           ),
           ResourceUsage(
-            LocalDateTime.of(2021, 1, 1, 0, 0, 1).toInstant(ZoneOffset.UTC),
-            "B",
-            Environment.Production,
-            5,
-            1
+            date        = Instant.parse("2021-01-01T00:00:00.000Z"),
+            serviceName = "B",
+            environment = Environment.Production,
+            slots       = 5,
+            instances   = 1
           )
         )
 
@@ -82,7 +82,8 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
     val repository =
       mock[DeploymentConfigSnapshotRepository]
 
-    when(repository.snapshotsForService(name)).thenReturn(Future.successful(snapshots))
+    when(repository.snapshotsForService(name))
+      .thenReturn(Future.successful(snapshots))
 
     repository
   }
