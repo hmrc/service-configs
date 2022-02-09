@@ -33,12 +33,16 @@ trait ConfigParser extends Logging {
     val includer = new ConfigIncluder with ConfigIncluderClasspath {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
-      override def include(context: ConfigIncludeContext,
-                           what: String): ConfigObject =
+      override def include(
+        context: ConfigIncludeContext,
+        what   : String
+      ): ConfigObject =
         includeResources(context, what)
 
-      override def includeResources(context: ConfigIncludeContext,
-                                    what: String): ConfigObject = {
+      override def includeResources(
+        context: ConfigIncludeContext,
+        what   : String
+      ): ConfigObject =
         includeCandidates.find { case (k, v) =>
           if (exts.exists(ext => what.endsWith(ext)))
             k == what
@@ -50,7 +54,6 @@ trait ConfigParser extends Logging {
                                  logger.warn(s"Could not find $what to include in $includeCandidates")
                                ConfigFactory.empty.root
         }
-      }
     }
 
     val parseOptions: ConfigParseOptions =
@@ -128,11 +131,13 @@ trait ConfigParser extends Logging {
     dependencyConfigs.tails
       .map {
         case dc :: rest =>
-          def configFor(filename: String) =
+          def configFor(filename: String) = {
+            logger.info(s"configFor($filename) dc=${dc.copy(configs = dc.configs.mapValues(_ => "..."))} (rest.size=${rest.size})")
             dc.configs
               .get(filename)
               .map(parseConfString(_, toIncludeCandidates(dc :: rest)))
               .getOrElse(ConfigFactory.empty)
+          }
           configFor("play/reference-overrides.conf").withFallback(
             configFor("reference.conf")
           )

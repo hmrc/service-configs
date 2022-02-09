@@ -150,6 +150,8 @@ object ConfigService {
 
   object ConfigSource {
     case object ReferenceConf extends ConfigSource {
+      private val logger = play.api.Logger(getClass)
+
       val name       = "referenceConf"
       val precedence = 9
 
@@ -174,7 +176,9 @@ object ConfigService {
                                  }
                                case None => Future(List.empty[DependencyConfig])
                              }
+          _ = if (configs.isEmpty) logger.info(s"No configs found for ${serviceName} ${slugInfoFlag} optSlugInfo.isDefined=${optSlugInfo.isDefined}")
           referenceConfig =  ConfigParser.reduceConfigs(configs)
+          _ = if (configs.isEmpty)  logger.info(s"Empty configs -> ${referenceConfig}")
           entries         =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
