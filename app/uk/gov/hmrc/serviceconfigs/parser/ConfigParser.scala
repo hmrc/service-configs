@@ -123,7 +123,8 @@ trait ConfigParser extends Logging {
   /** Combine the reference.conf and play/reference-overrides.conf configs according order,
     * respecting any include directives.
     */
-  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config =
+  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config = {
+    logger.info(s"Reducing:\n${dependencyConfigs.map(dc => dc.copy(configs = dc.configs.mapValues(_ => "..."))).mkString("\n")}")
     dependencyConfigs.tails
       .map {
         case dc :: rest =>
@@ -138,6 +139,7 @@ trait ConfigParser extends Logging {
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
+    }
 }
 
 object ConfigParser extends ConfigParser
