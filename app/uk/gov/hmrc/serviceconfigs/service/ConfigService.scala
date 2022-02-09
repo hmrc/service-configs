@@ -215,8 +215,9 @@ object ConfigService {
                                case None           => // if no slug info (e.g. java apps) get from github
                                                       connector.serviceApplicationConfigFile(serviceName)
                              }
-          _               =  logger.debug(s"Parsing applicationConfig for $serviceName $slugInfoFlag with ${configs.size} configs (${ConfigParser.toIncludeCandidates(configs)})")
+          _               =  logger.info(s"Parsing applicationConfig for $serviceName $slugInfoFlag with ${configs.size} configs (${ConfigParser.toIncludeCandidates(configs).isEmpty})")
           applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
+          _               =  logger.info(s"applicationConfig parsed")
           entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }

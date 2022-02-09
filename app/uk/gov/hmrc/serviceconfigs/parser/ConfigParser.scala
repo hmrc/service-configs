@@ -50,8 +50,10 @@ trait ConfigParser extends Logging {
             exts.exists(ext => k == s"$what$ext")
         } match {
           case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
-          case None         => if (logMissing)
+          case None         => if (logMissing) {
                                  logger.warn(s"Could not find $what to include in $includeCandidates")
+                                 logger.info(s"Could not find $what to include in $includeCandidates - parsing $confString")
+                               }
                                ConfigFactory.empty.root
         }
     }
@@ -132,7 +134,6 @@ trait ConfigParser extends Logging {
       .map {
         case dc :: rest =>
           def configFor(filename: String) = {
-            logger.info(s"configFor($filename) dc=${dc.copy(configs = dc.configs.mapValues(_ => "..."))} (rest.size=${rest.size})")
             dc.configs
               .get(filename)
               .map(parseConfString(_, toIncludeCandidates(dc :: rest)))
