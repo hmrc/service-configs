@@ -141,7 +141,7 @@ object JobAvailable {
   import play.api.libs.json.{Reads, __}
   val reads: Reads[JobAvailable] = {
     import play.api.libs.functional.syntax._
-    implicit val vr  = Version.apiFormat
+    implicit val vr  = Version.format
     ( (__ \ "jobType").read[String]
     ~ (__ \ "name"   ).read[String]
     ~ (__ \ "version").read[Version]

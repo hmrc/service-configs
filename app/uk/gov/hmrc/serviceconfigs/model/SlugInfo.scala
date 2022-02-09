@@ -77,7 +77,7 @@ trait MongoSlugInfoFormats {
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
     ~ (__ \ "name"             ).format[String]
-    ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
+    ~ (__ \ "version"          ).format[Version](Version.format)
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
@@ -113,7 +113,7 @@ trait ApiSlugInfoFormats {
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant]
     ~ (__ \ "name"             ).format[String]
-    ~ (__ \ "version"          ).format[Version](Version.apiFormat)
+    ~ (__ \ "version"          ).format[Version](Version.format)
     ~ (__ \ "classpath"        ).format[String]
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
