@@ -1,0 +1,11 @@
+[
+  {
+    "group"   : "uk.gov.hmrc",
+    "artefact": "time",
+    "version" : "3.2.0",
+    "configs" : {
+      "includes.conf" : "a = 1",
+      "reference.conf": "include \"includes.conf\"\n\nb = 2"
+    }
+  }
+]
