@@ -47,20 +47,17 @@ case class SlugInfo(
   created           : Instant, //not used
   name              : String,
   version           : Version,
-  teams             : List[String],  //not used
-  runnerVersion     : String,        //not used
-  classpath         : String,
-  jdkVersion        : String,        //not used
+  classpath         : String,  // not stored in Mongo - used to order dependencies before storing
   dependencies      : List[SlugDependency],
   applicationConfig : String,
   slugConfig        : String
 )
 
 case class DependencyConfig(
-    group   : String,
-    artefact: String,
-    version : String,
-    configs : Map[String, String]
+  group   : String,
+  artefact: String,
+  version : String,
+  configs : Map[String, String]
 )
 
 trait MongoSlugInfoFormats {
@@ -81,9 +78,6 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[String].inmap[Version](Version.apply, _.original)
-    ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
-    ~ OFormat(Reads.pure(""), ignore[String])
-    ~ OFormat(Reads.pure(""), ignore[String])
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
@@ -106,10 +100,6 @@ trait MongoSlugInfoFormats {
 object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
 trait ApiSlugInfoFormats {
-
-  private def ignore[A]: OWrites[A] =
-    OWrites[A](_ => Json.obj())
-
   private val slugDependencyFormat: OFormat[SlugDependency] =
     ( (__ \ "path"    ).format[String]
     ~ (__ \ "version" ).format[String]
@@ -124,10 +114,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "created"          ).format[Instant]
     ~ (__ \ "name"             ).format[String]
     ~ (__ \ "version"          ).format[Version](Version.apiFormat)
-    ~ OFormat(Reads.pure(List.empty[String]), ignore[List[String]])
-    ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "classpath"        ).format[String]
-    ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
     ~ (__ \ "slugConfig"       ).format[String]

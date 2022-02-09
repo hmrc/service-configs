@@ -59,10 +59,7 @@ class SlugVersionRepositorySpec
       uri               = uri,
       name              = "my-slug",
       version           = version,
-      teams             = List.empty,
-      runnerVersion     = "0.5.2",
       classpath         = "",
-      jdkVersion        = "1.181.0",
       dependencies      = List.empty,
       applicationConfig = "",
       slugConfig        = ""
