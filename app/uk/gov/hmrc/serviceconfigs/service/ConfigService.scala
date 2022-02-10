@@ -150,8 +150,6 @@ object ConfigService {
 
   object ConfigSource {
     case object ReferenceConf extends ConfigSource {
-      private val logger = play.api.Logger(getClass)
-
       val name       = "referenceConf"
       val precedence = 9
 
@@ -174,18 +172,14 @@ object ConfigService {
                                    dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
                                      .map(acc ++ _)
                                  }
-                               case None => Future(List.empty[DependencyConfig])
+                               case None => Future.successful(List.empty[DependencyConfig])
                              }
-          _ = if (configs.isEmpty) logger.info(s"No configs found for ${serviceName} ${slugInfoFlag} optSlugInfo.isDefined=${optSlugInfo.isDefined}")
           referenceConfig =  ConfigParser.reduceConfigs(configs)
-          _ = if (configs.isEmpty)  logger.info(s"Empty configs -> ${referenceConfig}")
           entries         =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
     case object ApplicationConf extends ConfigSource {
-      private val logger = play.api.Logger(getClass)
-
       val name       = "applicationConf"
       val precedence = 10
 
@@ -208,17 +202,21 @@ object ConfigService {
                                    dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
                                      .map(acc ++ _)
                                  }
-                               case None => Future(List.empty[DependencyConfig])
+                               case None => Future.successful(List.empty[DependencyConfig])
                              }
-          raw             <- optSlugInfo match {
-                               case Some(slugInfo) => Future(slugInfo.applicationConfig)
-                               case None           => // if no slug info (e.g. java apps) get from github
-                                                      connector.serviceApplicationConfigFile(serviceName)
+          optRaw          <- optSlugInfo.traverse {
+                               case slugInfo if slugInfo.applicationConfig == "" =>
+                                 // if no slug info (e.g. java apps) get from github
+                                 connector.serviceApplicationConfigFile(serviceName)
+                               case slugInfo =>
+                                 Future.successful(slugInfo.applicationConfig)
                              }
-          _               =  logger.info(s"Parsing applicationConfig for $serviceName $slugInfoFlag with ${configs.size} configs (${ConfigParser.toIncludeCandidates(configs).isEmpty})")
-          applicationConf =  ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
-          _               =  logger.info(s"applicationConfig parsed")
-          entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
+          entries         = optRaw match {
+                               case None      => Map.empty[KeyName, String]
+                               case Some(raw) =>
+                                 val applicationConf = ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
+                                 ConfigParser.flattenConfigToDotNotation(applicationConf)
+                             }
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -240,7 +238,7 @@ object ConfigService {
         for {
           optSlugInfo <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
           raw         <- optSlugInfo match {
-                           case Some(slugInfo) => Future(slugInfo.slugConfig)
+                           case Some(slugInfo) => Future.successful(slugInfo.slugConfig)
                            case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
                          }
           baseConf    = ConfigParser.parseConfString(raw, logMissing = false) // ignoring includes, since we know this is applicationConf

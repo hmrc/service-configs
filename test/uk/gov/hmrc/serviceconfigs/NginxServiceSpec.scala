@@ -73,7 +73,7 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
       ))
 
     when(repo.replaceAll(any, any))
-      .thenReturn(Future(()))
+      .thenReturn(Future.unit)
 
     val envs = List("production", "development")
     service.update(envs).futureValue

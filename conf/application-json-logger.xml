@@ -1,18 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="uk.gov.hmrc.play.logging.JsonEncoder"/>
+  </appender>
 
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="uk.gov.hmrc.play.logging.JsonEncoder"/>
-    </appender>
+  <logger name="uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter" level="ERROR"/>
 
-    <logger name="uk.gov" level="${logger.uk.gov:-WARN}"/>
-
-    <logger name="uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter"
-            level="${uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter}:-ERROR"/>
-
-
-
-    <root level="${logger.application:-WARN}">
-        <appender-ref ref="STDOUT"/>
-    </root>
+  <root level="WARN">
+    <appender-ref ref="STDOUT"/>
+  </root>
 </configuration>

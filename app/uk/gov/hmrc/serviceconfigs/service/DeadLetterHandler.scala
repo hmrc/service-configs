@@ -68,6 +68,6 @@ class DeadLetterHandler @Inject()(
          |ID: '${message.messageId}'
          |Body: '${message.body}'""".stripMargin
     )
-    Future(Delete(message))
+    Future.successful(Delete(message))
   }
 }

@@ -50,10 +50,8 @@ trait ConfigParser extends Logging {
             exts.exists(ext => k == s"$what$ext")
         } match {
           case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
-          case None         => if (logMissing) {
+          case None         => if (logMissing)
                                  logger.warn(s"Could not find $what to include in $includeCandidates")
-                                 logger.info(s"Could not find $what to include in $includeCandidates - parsing $confString")
-                               }
                                ConfigFactory.empty.root
         }
     }
@@ -79,18 +77,14 @@ trait ConfigParser extends Logging {
       .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
       .entrySet
       .asScala
-      .map(
-        e =>
-          s"${e.getKey}" -> removeQuotes(
-            e.getValue.render(ConfigRenderOptions.concise)
-        )
+      .map(e =>
+        s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise))
       )
       .toMap
 
   private def removeQuotes(input: String): String =
-    if (input
-          .charAt(0)
-          .equals('"') && input.charAt(input.length - 1).equals('"'))
+    if (input.charAt(0).equals('"') &&
+         input.charAt(input.length - 1).equals('"'))
       input.substring(1, input.length - 1)
     else
       input
@@ -98,8 +92,10 @@ trait ConfigParser extends Logging {
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
   ): Map[String, String] = {
-    def go(input: Map[String, Object],
-           currentPrefix: String): Map[String, String] =
+    def go(
+      input        : Map[String, Object],
+      currentPrefix: String
+    ): Map[String, String] =
       input.flatMap {
         case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
           go(v.asScala.toMap, buildPrefix(currentPrefix, k))
@@ -128,24 +124,21 @@ trait ConfigParser extends Logging {
   /** Combine the reference.conf and play/reference-overrides.conf configs according order,
     * respecting any include directives.
     */
-  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config = {
-    logger.info(s"Reducing:\n${dependencyConfigs.map(dc => dc.copy(configs = dc.configs.mapValues(_ => "..."))).mkString("\n")}")
+  def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config =
     dependencyConfigs.tails
       .map {
         case dc :: rest =>
-          def configFor(filename: String) = {
+          def configFor(filename: String) =
             dc.configs
               .get(filename)
               .map(parseConfString(_, toIncludeCandidates(dc :: rest)))
               .getOrElse(ConfigFactory.empty)
-          }
           configFor("play/reference-overrides.conf").withFallback(
             configFor("reference.conf")
           )
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
-    }
 }
 
 object ConfigParser extends ConfigParser

@@ -97,7 +97,7 @@ class FrontendRouteRepository @Inject()(
       .toList
       .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) { (prevRes, query) =>
         if (prevRes.isEmpty) search(query)
-        else Future(prevRes)
+        else Future.successful(prevRes)
       }
   }
 

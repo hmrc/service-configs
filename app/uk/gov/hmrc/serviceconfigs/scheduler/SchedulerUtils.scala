@@ -47,7 +47,7 @@ trait SchedulerUtils extends Logging {
             }
           }
 
-        applicationLifecycle.addStopHook(() => Future(cancellable.cancel()))
+        applicationLifecycle.addStopHook(() => Future.successful(cancellable.cancel()))
       } else
         logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
 

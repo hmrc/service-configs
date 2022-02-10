@@ -89,7 +89,7 @@ class IntegrationTestController @Inject()(
           if (toSet(slugInfoWithFlag))
             slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
           else
-            Future(())
+            Future.unit
         for {
           _ <- slugInfoRepo.add(slugInfoWithFlag.slugInfo)
           _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )

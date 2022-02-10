@@ -52,7 +52,7 @@ class SlugConfigurationService @Inject()(
             isLatest
         }
 
-      _        <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future(())
+      _        <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future.unit
     } yield ()
   }
 
