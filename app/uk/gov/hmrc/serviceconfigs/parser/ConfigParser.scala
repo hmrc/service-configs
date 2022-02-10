@@ -33,12 +33,16 @@ trait ConfigParser extends Logging {
     val includer = new ConfigIncluder with ConfigIncluderClasspath {
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
-      override def include(context: ConfigIncludeContext,
-                           what: String): ConfigObject =
+      override def include(
+        context: ConfigIncludeContext,
+        what   : String
+      ): ConfigObject =
         includeResources(context, what)
 
-      override def includeResources(context: ConfigIncludeContext,
-                                    what: String): ConfigObject = {
+      override def includeResources(
+        context: ConfigIncludeContext,
+        what   : String
+      ): ConfigObject =
         includeCandidates.find { case (k, v) =>
           if (exts.exists(ext => what.endsWith(ext)))
             k == what
@@ -50,7 +54,6 @@ trait ConfigParser extends Logging {
                                  logger.warn(s"Could not find $what to include in $includeCandidates")
                                ConfigFactory.empty.root
         }
-      }
     }
 
     val parseOptions: ConfigParseOptions =
@@ -74,18 +77,14 @@ trait ConfigParser extends Logging {
       .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
       .entrySet
       .asScala
-      .map(
-        e =>
-          s"${e.getKey}" -> removeQuotes(
-            e.getValue.render(ConfigRenderOptions.concise)
-        )
+      .map(e =>
+        s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise))
       )
       .toMap
 
   private def removeQuotes(input: String): String =
-    if (input
-          .charAt(0)
-          .equals('"') && input.charAt(input.length - 1).equals('"'))
+    if (input.charAt(0).equals('"') &&
+         input.charAt(input.length - 1).equals('"'))
       input.substring(1, input.length - 1)
     else
       input
@@ -93,8 +92,10 @@ trait ConfigParser extends Logging {
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
   ): Map[String, String] = {
-    def go(input: Map[String, Object],
-           currentPrefix: String): Map[String, String] =
+    def go(
+      input        : Map[String, Object],
+      currentPrefix: String
+    ): Map[String, String] =
       input.flatMap {
         case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
           go(v.asScala.toMap, buildPrefix(currentPrefix, k))
