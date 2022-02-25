@@ -16,5 +16,6 @@
                              "build"   : "some-dependencyDotBuild"
                            },
   "applicationConfig"    : "some-application-config",
+  "loggerConfig"         : "some-logger-config",
   "slugConfig"           : "some-slug-config"
 }

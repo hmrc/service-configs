@@ -62,6 +62,7 @@ class SlugVersionRepositorySpec
       classpath         = "",
       dependencies      = List.empty,
       applicationConfig = "",
+      loggerConfig      = "",
       slugConfig        = ""
     )
 }

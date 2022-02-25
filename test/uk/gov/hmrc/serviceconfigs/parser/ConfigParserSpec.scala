@@ -209,5 +209,4 @@ class ConfigParserSpec extends AnyFlatSpec with Matchers {
       version = "v",
       configs = configs
     )
-
 }

@@ -43,7 +43,6 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
     Future.traverse(Environment.values)(update).map(_ => ())
   }
 
-
   def update(environment: Environment): Future[Unit] = {
     logger.info(s"getting deployment config for ${environment.asString}")
     for {

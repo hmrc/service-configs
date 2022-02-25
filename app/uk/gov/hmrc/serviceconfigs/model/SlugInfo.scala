@@ -50,6 +50,7 @@ case class SlugInfo(
   classpath         : String,  // not stored in Mongo - used to order dependencies before storing
   dependencies      : List[SlugDependency],
   applicationConfig : String,
+  loggerConfig      : String,
   slugConfig        : String
 )
 
@@ -81,6 +82,7 @@ trait MongoSlugInfoFormats {
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
+    ~ (__ \ "loggerConfig"     ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     ~ (__ \ "slugConfig"       ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
@@ -117,6 +119,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "classpath"        ).format[String]
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
+    ~ (__ \ "loggerConfig"     ).format[String]
     ~ (__ \ "slugConfig"       ).format[String]
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }

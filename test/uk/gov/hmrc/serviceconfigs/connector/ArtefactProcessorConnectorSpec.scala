@@ -71,6 +71,7 @@ class ArtefactProcessorConnectorSpec
           classpath            = "some-classpath",
           dependencies         = List.empty,
           applicationConfig    = "some-application-config",
+          loggerConfig         = "some-logger-config",
           slugConfig           = "some-slug-config"
         )
       )
