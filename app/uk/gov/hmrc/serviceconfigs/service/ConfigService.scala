@@ -21,7 +21,7 @@ import cats.syntax.all._
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
@@ -42,6 +42,7 @@ class ConfigService @Inject()(
   )
 
   private val deployedConfigSources = Seq(
+    ConfigSource.LoggerConf,
     ConfigSource.ReferenceConf,
     ConfigSource.ApplicationConf,
     ConfigSource.BaseConfig,
@@ -149,6 +150,39 @@ object ConfigService {
   }
 
   object ConfigSource {
+    case object LoggerConf extends ConfigSource {
+      val name       = "loggerConf"
+      val precedence = 8
+
+      def entries(
+        connector                 : ConfigConnector,
+        slugInfoRepository        : SlugInfoRepository,
+        dependencyConfigRepository: DependencyConfigRepository
+      )(serviceName               : String,
+        slugInfoFlag              : SlugInfoFlag,
+        serviceType               : Option[String] = None
+      )(implicit
+        hc: HeaderCarrier,
+        ec: ExecutionContext
+      ): Future[ConfigSourceEntries] =
+        for {
+          optSlugInfo  <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
+          entries      =  optSlugInfo match {
+                            // LoggerModule was added for this version
+                            case Some(slugInfo) if slugInfo.dependencies.exists(d =>
+                                                  d.group == "uk.gov.hmrc"
+                                                  && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
+                                                  && Version.parse(d.version).exists(_ >= Version("5.18.0"))
+                                                ) =>
+                              ConfigParser
+                                .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
+                                .getOrElse(Map.empty[String, String])
+                            case _ =>
+                              Map.empty[String, String]
+                          }
+        } yield ConfigSourceEntries(name, precedence, entries)
+    }
+
     case object ReferenceConf extends ConfigSource {
       val name       = "referenceConf"
       val precedence = 9

@@ -137,6 +137,64 @@ class ConfigParserSpec extends AnyFlatSpec with Matchers {
     ConfigParser.parseYamlStringAsMap("") shouldBe None
   }
 
+  "ConfigParser.parseXmlLoggerConfigStringAsMap" should "parse xml logger config as map" in {
+    ConfigParser.parseXmlLoggerConfigStringAsMap(
+      """<?xml version="1.0" encoding="UTF-8"?>
+        <configuration>
+
+          <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+              <pattern>%date [%level] [%logger] [%thread] %message%n</pattern>
+            </encoder>
+          </appender>
+
+          <logger name="uk.gov" level="DEBUG"/>
+          <logger name="application" level="DEBUG"/>
+
+          <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+          </root>
+        </configuration>
+      """
+    ) shouldBe Some(
+      Map(
+        "logger.root"        -> "INFO",
+        "logger.uk.gov"      -> "DEBUG",
+        "logger.application" -> "DEBUG"
+      )
+    )
+  }
+
+  it should "parse xml logger config with env-var overrides as map"in {
+    ConfigParser.parseXmlLoggerConfigStringAsMap(
+      f"""<?xml version="1.0" encoding="UTF-8"?>
+        <configuration>
+
+          <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+              <encoder class="uk.gov.hmrc.play.logging.JsonEncoder"/>
+          </appender>
+
+          <logger name="application" level="$${logger.application:-WARN}"/>
+          <logger name="uk.gov" level="$${logger.uk.gov:-WARN}"/>
+
+          <root level="$${logger.root:-WARN}">
+            <appender-ref ref="STDOUT"/>
+          </root>
+        </configuration>
+      """
+    ) shouldBe Some(
+      Map(
+        "logger.root"        -> f"$${logger.root:-WARN}",
+        "logger.uk.gov"      -> f"$${logger.uk.gov:-WARN}",
+        "logger.application" -> f"$${logger.application:-WARN}"
+      )
+    )
+  }
+
+  it should "handle invalid xml" in {
+    ConfigParser.parseXmlLoggerConfigStringAsMap("") shouldBe None
+  }
+
   "parseConfString" should "inline the include" in {
     val config =
       """include "included1.conf"
