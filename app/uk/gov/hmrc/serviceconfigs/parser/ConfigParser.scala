@@ -20,6 +20,7 @@ import com.typesafe.config._
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
+import uk.gov.hmrc.serviceconfigs.util.SafeXml
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -71,6 +72,27 @@ trait ConfigParser extends Logging {
         .asInstanceOf[java.util.LinkedHashMap[String, Object]]
     ).map(flattenYamlToDotNotation)
       .toOption
+
+  def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, String]] =
+    Try{
+      val xml = SafeXml().loadString(xmlString)
+      val root =
+          (for {
+            node  <- (xml \ "root").headOption
+            level <- (node \ "@level").headOption
+          } yield Map("logger.root" -> level.text)
+          ).getOrElse(Map.empty)
+      val logger =
+          (xml \ "logger")
+            .flatMap { x =>
+              for {
+                k <- (x \ "@name").headOption
+                v <- (x \ "@level").headOption
+              } yield s"logger.${k.text}" -> v.text
+            }
+            .toMap
+      root ++ logger
+    }.toOption
 
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
     config
