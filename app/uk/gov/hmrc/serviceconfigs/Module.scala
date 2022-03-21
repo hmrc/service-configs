@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs
 
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
-import uk.gov.hmrc.serviceconfigs.service.{DeadLetterHandler, SlugConfigUpdateHandler}
+import uk.gov.hmrc.serviceconfigs.notification.{DeadLetterHandler, SlugConfigUpdateHandler}
 import uk.gov.hmrc.serviceconfigs.scheduler.{AlertConfigScheduler, DeploymentConfigScheduler, DeploymentConfigSnapshotScheduler, FrontendRouteScheduler, SlugMetadataUpdateScheduler}
 
 

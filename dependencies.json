@@ -1,0 +1,982 @@
+[
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.service-configs-0.103.0-sans-externalized.jar",
+    "version": "0.103.0-sans-externalized",
+    "group": "uk.gov.hmrc",
+    "artifact": "service-configs",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.scala-library-2.12.15.jar",
+    "version": "2.12.15",
+    "group": "org.scala-lang",
+    "artifact": "scala-library",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.twirl-api_2.12-1.5.1.jar",
+    "version": "1.5.1",
+    "group": "com.typesafe.play",
+    "artifact": "twirl-api",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-server_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-server",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-logback_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-logback",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-akka-http-server_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-akka-http-server",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.filters-helpers_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "filters-helpers",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.bootstrap-backend-play-28_2.12-5.20.0.jar",
+    "version": "5.20.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "bootstrap-backend-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.yaml.snakeyaml-1.27.jar",
+    "version": "1.27",
+    "group": "org.yaml",
+    "artifact": "snakeyaml",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.github-client_2.12-3.0.0.jar",
+    "version": "3.0.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "github-client",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.modules.scala-parser-combinators_2.12-1.1.2.jar",
+    "version": "1.1.2",
+    "group": "org.scala-lang.modules",
+    "artifact": "scala-parser-combinators",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.typelevel.cats-core_2.12-2.4.2.jar",
+    "version": "2.4.2",
+    "group": "org.typelevel",
+    "artifact": "cats core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.typelevel.alleycats-core_2.12-2.1.1.jar",
+    "version": "2.1.1",
+    "group": "org.typelevel",
+    "artifact": "alleycats core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.lightbend.akka.akka-stream-alpakka-sns_2.12-2.0.2.jar",
+    "version": "2.0.2",
+    "group": "com.lightbend.akka",
+    "artifact": "akka-stream-alpakka-sns",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.lightbend.akka.akka-stream-alpakka-sqs_2.12-2.0.2.jar",
+    "version": "2.0.2",
+    "group": "com.lightbend.akka",
+    "artifact": "akka-stream-alpakka-sqs",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-http_2.12-10.1.15.jar",
+    "version": "10.1.15",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-http",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.iterable.swagger-play_2.12-2.0.1.jar",
+    "version": "2.0.1",
+    "group": "com.iterable",
+    "artifact": "swagger-play",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.mongo.hmrc-mongo-play-28_2.12-0.59.0.jar",
+    "version": "0.59.0",
+    "group": "uk.gov.hmrc.mongo",
+    "artifact": "hmrc-mongo-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ahc-ws_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-ahc-ws",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.modules.scala-xml_2.12-1.2.0.jar",
+    "version": "1.2.0",
+    "group": "org.scala-lang.modules",
+    "artifact": "scala-xml",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/ch.qos.logback.logback-classic-1.2.10.jar",
+    "version": "1.2.10",
+    "group": "ch.qos.logback",
+    "artifact": "logback-classic",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-streams_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-streams",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-http-core_2.12-10.1.15.jar",
+    "version": "10.1.15",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-http-core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.bootstrap-common-play-28_2.12-5.20.0.jar",
+    "version": "5.20.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "bootstrap-common-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.bootstrap-health-play-28_2.12-5.20.0.jar",
+    "version": "5.20.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "bootstrap-health-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/ch.qos.logback.logback-core-1.2.10.jar",
+    "version": "1.2.10",
+    "group": "ch.qos.logback",
+    "artifact": "logback-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.kenshoo.metrics-play_2.12-2.7.3_0.8.2.jar",
+    "version": "2.7.3_0.8.2",
+    "group": "com.kenshoo",
+    "artifact": "metrics-play",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-guice_2.12-2.8.8.jar",
+    "version": "2.8.8",
+    "group": "com.typesafe.play",
+    "artifact": "play-guice",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.dropwizard.metrics.metrics-graphite-4.1.17.jar",
+    "version": "4.1.17",
+    "group": "io.dropwizard.metrics",
+    "artifact": "metrics-graphite",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.auth-client_2.12-5.7.0-play-28.jar",
+    "version": "5.7.0-play-28",
+    "group": "uk.gov.hmrc",
+    "artifact": "auth-client",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.crypto_2.12-6.1.0.jar",
+    "version": "6.1.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "crypto",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.http-verbs-play-28_2.12-13.12.0.jar",
+    "version": "13.12.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "http-verbs-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.play-auditing-play-28_2.12-7.10.0.jar",
+    "version": "7.10.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "play-auditing-play-28",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.logback-json-logger_2.12-5.1.0.jar",
+    "version": "5.1.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "logback-json-logger",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.eclipse.mylyn.github.org.eclipse.egit.github.core-2.1.5.jar",
+    "version": "2.1.5",
+    "group": "org.eclipse.mylyn.github",
+    "artifact": "org.eclipse.egit.github.core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-json_2.12-2.8.2.jar",
+    "version": "2.8.2",
+    "group": "com.typesafe.play",
+    "artifact": "play-json",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.slf4j.slf4j-api-1.7.32.jar",
+    "version": "1.7.32",
+    "group": "org.slf4j",
+    "artifact": "slf4j-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.config-1.4.1.jar",
+    "version": "1.4.1",
+    "group": "com.typesafe",
+    "artifact": "config",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.guava.guava-30.1.1-jre.jar",
+    "version": "30.1.1-jre",
+    "group": "com.google.guava",
+    "artifact": "guava",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.typelevel.cats-kernel_2.12-2.4.2.jar",
+    "version": "2.4.2",
+    "group": "org.typelevel",
+    "artifact": "cats kernel",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.typelevel.simulacrum-scalafix-annotations_2.12-0.5.4.jar",
+    "version": "0.5.4",
+    "group": "org.typelevel",
+    "artifact": "annotation",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-stream_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-stream",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.github.matsluni.aws-spi-akka-http_2.12-0.0.9.jar",
+    "version": "0.0.9",
+    "group": "com.github.matsluni",
+    "artifact": "aws-spi-akka-http",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.sns-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "sns",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.core.jackson-core-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.core",
+    "artifact": "jackson-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.core.jackson-databind-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.core",
+    "artifact": "jackson-databind",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.sqs-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "sqs",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.routes-compiler_2.12-2.7.3.jar",
+    "version": "2.7.3",
+    "group": "com.typesafe.play",
+    "artifact": "routes-compiler",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.swagger.swagger-core-1.5.24.jar",
+    "version": "1.5.24",
+    "group": "io.swagger",
+    "artifact": "swagger-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.swagger.swagger-scala-module_2.12-1.0.6.jar",
+    "version": "1.0.6",
+    "group": "io.swagger",
+    "artifact": "swagger-scala-module",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.module.jackson-module-scala_2.12-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.module",
+    "artifact": "jackson-module-scala",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.modules.scala-collection-compat_2.12-2.1.2.jar",
+    "version": "2.1.2",
+    "group": "org.scala-lang.modules",
+    "artifact": "scala-collection-compat",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.mongo.hmrc-mongo-common_2.12-0.59.0.jar",
+    "version": "0.59.0",
+    "group": "uk.gov.hmrc.mongo",
+    "artifact": "hmrc-mongo-common",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ws_2.12-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-ws",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ahc-ws-standalone_2.12-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "play-ahc-ws-standalone",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.shaded-asynchttpclient-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "shaded-asynchttpclient",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.shaded-oauth-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "shaded-oauth",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/javax.cache.cache-api-1.1.1.jar",
+    "version": "1.1.1",
+    "group": "javax.cache",
+    "artifact": "cache-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.build-link-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "build-link",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.slf4j.jul-to-slf4j-1.7.32.jar",
+    "version": "1.7.32",
+    "group": "org.slf4j",
+    "artifact": "jul-to-slf4j",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.slf4j.jcl-over-slf4j-1.7.32.jar",
+    "version": "1.7.32",
+    "group": "org.slf4j",
+    "artifact": "jcl-over-slf4j",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-actor_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-actor",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-actor-typed_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-actor-typed",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-slf4j_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-slf4j",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-serialization-jackson_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-serialization-jackson",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.core.jackson-annotations-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.core",
+    "artifact": "jackson-annotations",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.datatype",
+    "artifact": "jackson-datatype-jdk8",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.datatype",
+    "artifact": "jackson-datatype-jsr310",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.jsonwebtoken.jjwt-0.9.1.jar",
+    "version": "0.9.1",
+    "group": "io.jsonwebtoken",
+    "artifact": "jjwt",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/jakarta.xml.bind.jakarta.xml.bind-api-2.3.3.jar",
+    "version": "2.3.3",
+    "group": "jakarta.xml.bind",
+    "artifact": "jakarta.xml.bind-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/jakarta.transaction.jakarta.transaction-api-1.3.3.jar",
+    "version": "1.3.3",
+    "group": "jakarta.transaction",
+    "artifact": "jakarta.transaction-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/javax.inject.javax.inject-1.jar",
+    "version": "1",
+    "group": "javax.inject.javax",
+    "artifact": "inject",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.modules.scala-java8-compat_2.12-0.9.1.jar",
+    "version": "0.9.1",
+    "group": "org.scala-lang.modules",
+    "artifact": "scala-java8-compat",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.ssl-config-core_2.12-0.4.2.jar",
+    "version": "0.4.2",
+    "group": "com.typesafe",
+    "artifact": "ssl-config-core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.reactivestreams.reactive-streams-1.0.3.jar",
+    "version": "1.0.3",
+    "group": "org.reactivestreams",
+    "artifact": "reactive-streams",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-parsing_2.12-10.1.15.jar",
+    "version": "10.1.15",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-parsing",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.dropwizard.metrics.metrics-core-4.1.17.jar",
+    "version": "4.1.17",
+    "group": "io.dropwizard.metrics",
+    "artifact": "metrics-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.dropwizard.metrics.metrics-json-4.0.5.jar",
+    "version": "4.0.5",
+    "group": "io.dropwizard.metrics",
+    "artifact": "metrics-json",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.dropwizard.metrics.metrics-jvm-4.0.5.jar",
+    "version": "4.0.5",
+    "group": "io.dropwizard.metrics",
+    "artifact": "metrics-jvm",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.dropwizard.metrics.metrics-logback-4.0.5.jar",
+    "version": "4.0.5",
+    "group": "io.dropwizard.metrics",
+    "artifact": "metrics-logback",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.joda.joda-convert-2.2.0.jar",
+    "version": "2.2.0",
+    "group": "org.joda",
+    "artifact": "joda-convert",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.inject.guice-4.2.3.jar",
+    "version": "3.3.0",
+    "group": "cglib",
+    "artifact": "cglib",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.inject.extensions.guice-assistedinject-4.2.3.jar",
+    "version": "4.2.3",
+    "group": "com.google.inject.extensions",
+    "artifact": "guice-assistedinject",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.rabbitmq.amqp-client-5.10.0.jar",
+    "version": "5.10.0",
+    "group": "com.rabbitmq",
+    "artifact": "amqp-client",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.iheart.ficus_2.12-1.4.7.jar",
+    "version": "1.4.7",
+    "group": "com.iheart",
+    "artifact": "ficus",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.secure_2.12-8.1.0.jar",
+    "version": "8.1.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "secure",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.http-verbs_2.12-13.12.0.jar",
+    "version": "13.12.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "http-verbs",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.softwaremill.sttp.model.core_2.12-1.2.2.jar",
+    "version": "1.2.2",
+    "group": "com.softwaremill.sttp.model",
+    "artifact": "core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.http-core_2.12-2.5.0.jar",
+    "version": "2.5.0",
+    "group": "uk.gov.hmrc",
+    "artifact": "http-core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.apache.commons.commons-lang3-3.11.jar",
+    "version": "3.11",
+    "group": "org.apache.commons",
+    "artifact": "commons-lang3",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/commons-io.commons-io-2.8.0.jar",
+    "version": "2.8.0",
+    "group": "commons-io",
+    "artifact": "commons-io",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.code.gson.gson-2.2.2.jar",
+    "version": "2.2.2",
+    "group": "com.google.code.gson",
+    "artifact": "gson",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-functional_2.12-2.8.2.jar",
+    "version": "2.8.2",
+    "group": "com.typesafe.play",
+    "artifact": "play-functional",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.scala-lang.scala-reflect-2.12.15.jar",
+    "version": "2.12.15",
+    "group": "org.scala-lang",
+    "artifact": "scala-reflect",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/joda-time.joda-time-2.10.5.jar",
+    "version": "2.10.5",
+    "group": "joda-time",
+    "artifact": "joda-time",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.guava.failureaccess-1.0.1.jar",
+    "version": "1.0.1",
+    "group": "com.google.guava",
+    "artifact": "failureaccess",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.guava.listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar",
+    "version": "9999.0-empty-to-avoid-conflict-with-guava",
+    "group": "com.google.guava",
+    "artifact": "listenablefuture",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.code.findbugs.jsr305-3.0.2.jar",
+    "version": "3.0.2",
+    "group": "com.google.code.findbugs",
+    "artifact": "jsr305",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.checkerframework.checker-qual-3.8.0.jar",
+    "version": "3.8.0",
+    "group": "org.checkerframework",
+    "artifact": "checker-qual",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.errorprone.error_prone_annotations-2.5.1.jar",
+    "version": "2.5.1",
+    "group": "com.google.errorprone",
+    "artifact": "error_prone_annotations",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.google.j2objc.j2objc-annotations-1.3.jar",
+    "version": "1.3",
+    "group": "com.google.j2objc",
+    "artifact": "j2objc-annotations",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.akka.akka-protobuf-v3_2.12-2.6.18.jar",
+    "version": "2.6.18",
+    "group": "com.typesafe.akka",
+    "artifact": "akka-protobuf-v3",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.http-client-spi-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "http-client-spi",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.aws-query-protocol-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "aws-query-protocol",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.protocol-core-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "protocol-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.sdk-core-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "sdk-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.auth-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "auth",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.regions-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "regions",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.annotations-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "annotations",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.utils-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "utils",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.aws-core-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "aws-core",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.9.10.jar",
+    "version": "2.9.10",
+    "group": "com.fasterxml.jackson.dataformat",
+    "artifact": "jackson-dataformat-yaml",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.swagger.swagger-models-1.5.24.jar",
+    "version": "1.5.24",
+    "group": "io.swagger",
+    "artifact": "swagger-models",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/javax.validation.validation-api-1.1.0.Final.jar",
+    "version": "1.1.0.Final",
+    "group": "javax.validation",
+    "artifact": "validation-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.module.jackson-module-paranamer-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.module",
+    "artifact": "jackson-module-paranamer",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.mongodb.scala.mongo-scala-driver_2.12-4.4.0.jar",
+    "version": "4.4.0",
+    "group": "org.mongodb.scala",
+    "artifact": "mongo-scala-driver",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ws-standalone_2.12-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "play-ws-standalone",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ws-standalone-xml_2.12-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "play-ws-standalone-xml",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-ws-standalone-json_2.12-2.1.7.jar",
+    "version": "2.1.7",
+    "group": "com.typesafe.play",
+    "artifact": "play-ws-standalone-json",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.cachecontrol_2.12-2.0.0.jar",
+    "version": "2.0.0",
+    "group": "com.typesafe.play",
+    "artifact": "cachecontrol",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.typesafe.play.play-exceptions-2.8.13.jar",
+    "version": "2.8.13",
+    "group": "com.typesafe.play",
+    "artifact": "play-exceptions",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.module.jackson-module-parameter-names-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.module",
+    "artifact": "jackson-module-parameter-names",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.fasterxml.jackson.dataformat.jackson-dataformat-cbor-2.11.4.jar",
+    "version": "2.11.4",
+    "group": "com.fasterxml.jackson.dataformat",
+    "artifact": "jackson-dataformat-cbor",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.lz4.lz4-java-1.8.0.jar",
+    "version": "1.8.0",
+    "group": "org.lz4",
+    "artifact": "lz4-java",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/jakarta.activation.jakarta.activation-api-1.2.2.jar",
+    "version": "1.2.2",
+    "group": "jakarta.activation",
+    "artifact": "jakarta.activation-api",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/aopalliance.aopalliance-1.0.jar",
+    "version": "1.0",
+    "group": "aopalliance",
+    "artifact": "aopalliance",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.typelevel.macro-compat_2.12-1.1.1.jar",
+    "version": "1.1.1",
+    "group": "org.typelevel",
+    "artifact": "core",
+    "meta": "fromManifest"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/commons-codec.commons-codec-1.15.jar",
+    "version": "1.15",
+    "group": "commons-codec",
+    "artifact": "commons-codec",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.bouncycastle.bcprov-jdk15on-1.68.jar",
+    "version": "1.68",
+    "group": "org.bouncycastle",
+    "artifact": "bcprov-jdk15on",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.awssdk.profiles-2.11.14.jar",
+    "version": "2.11.14",
+    "group": "software.amazon.awssdk",
+    "artifact": "profiles",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/software.amazon.eventstream.eventstream-1.0.1.jar",
+    "version": "1.0.1",
+    "group": "software.amazon.eventstream",
+    "artifact": "eventstream",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.swagger.swagger-annotations-1.5.24.jar",
+    "version": "1.5.24",
+    "group": "io.swagger",
+    "artifact": "swagger-annotations",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/com.thoughtworks.paranamer.paranamer-2.8.jar",
+    "version": "2.8",
+    "group": "com.thoughtworks.paranamer",
+    "artifact": "paranamer",
+    "meta": "fromPom"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.mongodb.scala.mongo-scala-bson_2.12-4.4.0.jar",
+    "version": "4.4.0",
+    "group": "org.mongodb.scala",
+    "artifact": "mongo-scala-bson",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.mongodb.mongodb-driver-reactivestreams-4.4.0.jar",
+    "version": "4.4.0",
+    "group": "org.mongodb",
+    "artifact": "mongodb-driver-reactivestreams",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.mongodb.bson-4.4.0.jar",
+    "version": "4.4.0",
+    "group": "org.mongodb",
+    "artifact": "bson",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/org.mongodb.mongodb-driver-core-4.4.0.jar",
+    "version": "4.4.0",
+    "group": "org.mongodb",
+    "artifact": "mongodb-driver-core",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/io.projectreactor.reactor-core-3.2.22.RELEASE.jar",
+    "version": "3.2.22.RELEASE",
+    "group": "io.projectreactor",
+    "artifact": "reactor-core",
+    "meta": "fromFilename"
+  },
+  {
+    "path": "service-configs-0.103.0/lib/uk.gov.hmrc.service-configs-0.103.0-assets.jar",
+    "version": "0.103.0-assets",
+    "group": "uk.gov.hmrc",
+    "artifact": "service-configs",
+    "meta": "fromFilename"
+  }
+]

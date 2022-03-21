@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.service
+package uk.gov.hmrc.serviceconfigs.notification
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
