@@ -60,7 +60,7 @@ class DependencyConfigRepository @Inject()(
 
   def clearAllData: Future[Unit] =
     collection.deleteMany(BsonDocument())
-      .toFuture
+      .toFuture()
       .map(_ => ())
 
   def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =

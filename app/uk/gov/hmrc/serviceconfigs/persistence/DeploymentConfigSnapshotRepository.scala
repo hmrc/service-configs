@@ -37,15 +37,18 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
   deploymentConfigRepository: DeploymentConfigRepository,
-  final val mongoComponent: MongoComponent)(implicit ec: ExecutionContext)
+  final val mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
+)
   extends PlayMongoRepository(
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfigSnapshots",
-    domainFormat = DeploymentConfigSnapshot.mongoFormat,
-    indexes = Seq(
-      IndexModel(hashed("latest"), IndexOptions().background(true)),
-      IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
-      IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true)))
+    domainFormat   = DeploymentConfigSnapshot.mongoFormat,
+    indexes        = Seq(
+                       IndexModel(hashed("latest"), IndexOptions().background(true)),
+                       IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
+                       IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true))
+                     )
   ) with Transactions with Logging {
 
   private implicit val tc: TransactionConfiguration =

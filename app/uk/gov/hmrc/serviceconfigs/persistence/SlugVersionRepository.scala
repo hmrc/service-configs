@@ -32,9 +32,9 @@ class SlugVersionRepository @Inject()(
   ec: ExecutionContext
 ) extends PlayMongoRepository(
     mongoComponent = mongoComponent,
-    collectionName = "slugConfigurations",
+    collectionName = SlugInfoRepository.collectionName,
     domainFormat   = Version.mongoVersionRepositoryFormat,
-    indexes        = Seq(),
+    indexes        = SlugInfoRepository.indexes,
     replaceIndexes = false
   ) {
 

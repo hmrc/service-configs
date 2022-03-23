@@ -36,17 +36,9 @@ class SlugInfoRepository @Inject()(
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
-  collectionName = "slugConfigurations",
+  collectionName = SlugInfoRepository.collectionName,
   domainFormat   = MongoSlugInfoFormats.slugInfoFormat,
-  indexes        = Seq(
-                     IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
-                     IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
-                     IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx")),
-                     IndexModel(
-                       Indexes.compoundIndex(Indexes.ascending("name"), Indexes.descending("version")),
-                       IndexOptions().name("slugInfoNameVersionIdx").background(true)
-                     )
-                   )
+  indexes        = SlugInfoRepository.indexes
 ) with Logging
   with Transactions {
 
@@ -132,4 +124,21 @@ class SlugInfoRepository @Inject()(
                .toFuture
       } yield ()
     }
+}
+
+
+object SlugInfoRepository {
+  val collectionName: String =
+    "slugConfigurations"
+
+  val indexes: Seq[IndexModel] =
+    Seq(
+      IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
+      IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
+      IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx")),
+      IndexModel(
+        Indexes.compoundIndex(Indexes.ascending("name"), Indexes.descending("version")),
+        IndexOptions().name("slugInfoNameVersionIdx").background(true)
+      )
+    )
 }

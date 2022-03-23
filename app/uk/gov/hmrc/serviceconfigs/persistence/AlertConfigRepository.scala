@@ -30,15 +30,15 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AlertEnvironmentHandlerRepository @Inject()(
-                                       mongoComponent: MongoComponent
-                                       )(implicit ec: ExecutionContext
-                                       ) extends PlayMongoRepository(
+  mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
+) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "alertEnvironmentHandlers",
   domainFormat   = AlertEnvironmentHandler.mongoFormats,
   indexes        = Seq(
-    IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
-  )
+                     IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
+                   )
 ) {
 
   def insert(alertEnvironmentHandlers: Seq[AlertEnvironmentHandler]): Future[Unit] =
@@ -50,9 +50,9 @@ class AlertEnvironmentHandlerRepository @Inject()(
       .map(_ => ())
 
   def deleteAll(): Future[Unit] =
-    collection.deleteMany(
-      BsonDocument()
-    ).toFuture()
+    collection
+      .deleteMany(BsonDocument())
+      .toFuture()
       .map(_ => ())
 
 
@@ -63,20 +63,24 @@ class AlertEnvironmentHandlerRepository @Inject()(
 
 
   def findAll(): Future[Seq[AlertEnvironmentHandler]] =
-    collection.find().toFuture().map(_.toList)
+    collection
+      .find()
+      .toFuture()
+      .map(_.toList)
 }
 
 @Singleton
 class AlertHashStringRepository @Inject()(
-                                       mongoComponent: MongoComponent
-                                     )(implicit ec: ExecutionContext
-                                     ) extends PlayMongoRepository(
+  mongoComponent: MongoComponent
+)(implicit ec: ExecutionContext
+) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "lastHashString",
   domainFormat   = LastHash.formats,
   indexes        = Seq(
-    IndexModel(ascending("hash"), IndexOptions().unique(true).background(true).name("hashUniqIdx"))
-  )) {
+                     IndexModel(ascending("hash"), IndexOptions().unique(true).background(true).name("hashUniqIdx"))
+                   )
+) {
 
   def update(hash: String): Future[Unit] =
     collection
@@ -89,6 +93,8 @@ class AlertHashStringRepository @Inject()(
       .map(_ => ())
 
     def findOne(): Future[Option[LastHash]] =
-      collection.find.toFuture().map(_.headOption)
-
+      collection
+        .find
+        .toFuture()
+        .map(_.headOption)
   }
