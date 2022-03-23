@@ -148,7 +148,8 @@ object FrontendRouteRepository {
         Document(
           "$regex"   -> pathsToRegex(paths),
           "$options" -> "i" // case insensitive
-        ))
+        )
+    )
 
   def queries(path: String): Seq[Bson] =
     path
