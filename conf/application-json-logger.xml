@@ -4,7 +4,7 @@
     <encoder class="uk.gov.hmrc.play.logging.JsonEncoder"/>
   </appender>
 
-  <logger name="uk.gov.hmrc.play.bootstrap.backend.filters.DefaultBackendAuditFilter" level="ERROR"/>
+  <logger name="uk.gov.hmrc.play.audit" level="OFF"/>
 
   <root level="WARN">
     <appender-ref ref="STDOUT"/>

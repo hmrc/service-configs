@@ -1,7 +1,7 @@
 import play.sbt.PlayImport.PlayKeys.playDefaultPort
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin.publishingSettings
 
-val silencerVersion = "1.7.7"
+val silencerVersion = "1.7.8"
 
 lazy val microservice = Project("service-configs", file("."))
   .enablePlugins(play.sbt.PlayScala, SbtDistributablesPlugin)
