@@ -41,7 +41,11 @@ class SlugInfoRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
                      IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
-                     IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx"))
+                     IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx")),
+                     IndexModel(
+                       Indexes.compoundIndex(Indexes.ascending("name"), Indexes.descending("version")),
+                       IndexOptions().name("slugInfoNameVersionIdx").background(true)
+                     )
                    )
 ) with Logging
   with Transactions {
@@ -56,6 +60,17 @@ class SlugInfoRepository @Inject()(
          options     = FindOneAndReplaceOptions().upsert(true)
        )
       .toFutureOption()
+      .map(_ => ())
+
+  def delete(name: String, version: Version): Future[Unit] =
+    collection
+      .deleteOne(
+          and(
+            equal("name"   , name),
+            equal("version", version.toString)
+          )
+        )
+      .toFuture()
       .map(_ => ())
 
   def clearAll(): Future[Boolean] =
