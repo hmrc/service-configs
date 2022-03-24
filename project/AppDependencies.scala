@@ -10,7 +10,6 @@ object AppDependencies {
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"            %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
     "org.yaml"               %  "snakeyaml"                 % "1.27",
-    "uk.gov.hmrc"            %% "github-client"             % "3.0.0",
     "org.scala-lang.modules" %% "scala-parser-combinators"  % "1.1.2",
     "org.typelevel"          %% "cats-core"                 % "2.4.2",
     "org.typelevel"          %% "alleycats-core"            % "2.1.1",
