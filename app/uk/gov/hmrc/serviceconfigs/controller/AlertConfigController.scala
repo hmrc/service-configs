@@ -26,28 +26,28 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class AlertConfigController @Inject()(alertConfigService: AlertConfigService,
-                                      cc: ControllerComponents)
-                                     (implicit ec: ExecutionContext)
-  extends BackendController(cc){
+class AlertConfigController @Inject()(
+  alertConfigService: AlertConfigService,
+  cc                : ControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(cc){
 
   def getAlertConfigs(): Action[AnyContent] = {
     implicit val writes: Writes[AlertEnvironmentHandler] = AlertEnvironmentHandler.mongoFormats
     Action.async {
       for {
-        configs <- alertConfigService.findConfigs
-        result = Ok(Json.toJson(configs))
+        configs <- alertConfigService.findConfigs()
+        result  =  Ok(Json.toJson(configs))
       } yield result
     }
   }
 
-  def getAlertConfigForService(serviceName: String): Action[AnyContent] = {
+  def getAlertConfigForService(serviceName: String): Action[AnyContent] =
     Action.async {
       for {
         config <- alertConfigService.findOneConfig(serviceName)
-        result = config.map(c => Ok(Json.toJson(c)(AlertEnvironmentHandler.mongoFormats))).getOrElse(NotFound)
+        result =  config.map(c => Ok(Json.toJson(c)(AlertEnvironmentHandler.mongoFormats))).getOrElse(NotFound)
       } yield result
     }
-  }
-
 }

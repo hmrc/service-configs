@@ -23,14 +23,13 @@ import uk.gov.hmrc.serviceconfigs.model.Environment.Production
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters._
 
 class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
 
   import DeploymentConfigService._
 
   "isAppConfig" must {
-
     "reject non yaml" in {
       isAppConfig("/test/helloworld.txt") mustBe false
       isAppConfig("/app-config-production/foo/bar.xml") mustBe false
@@ -46,7 +45,6 @@ class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
       isAppConfig("/app-config-production/test.yaml") mustBe true
       isAppConfig("/app-config-production/auth.yaml") mustBe true
     }
-
   }
 
   "modifyConfigKeys" must {
@@ -90,7 +88,5 @@ class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
       val result = modifyConfigKeys(data, "test", Production)
       result mustBe None
     }
-
   }
-
 }

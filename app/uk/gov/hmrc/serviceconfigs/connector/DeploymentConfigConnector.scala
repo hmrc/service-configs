@@ -46,7 +46,7 @@ class DeploymentConfigConnector @Inject()(
       .withHttpHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
       .withFollowRedirects(true)
       .withRequestTimeout(60.seconds)
-      .stream
+      .stream()
       .map { resp =>
         logger.info(s"Download of ${url} responded with ${resp.status} ${resp.statusText}")
         resp.bodyAsSource.async.runWith(StreamConverters.asInputStream(readTimeout = 60.seconds))

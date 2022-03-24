@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.config
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import javax.inject.{Inject, Singleton}
 import play.api.{ConfigLoader, Configuration}
@@ -32,8 +32,8 @@ class NginxConfig @Inject()(configuration: Configuration) {
   def getStringList(key: String): List[String] =
     configuration.underlying.getStringList(key).asScala.toList
 
-  val configRepo: String = getValue[String]("nginx.config-repo")
-  val configRepoBranch: String = getValue[String]("nginx.config-repo-branch")
+  val configRepo             : String       = getValue[String]("nginx.config-repo")
+  val configRepoBranch       : String       = getValue[String]("nginx.config-repo-branch")
   val frontendConfigFileNames: List[String] = getStringList("nginx.config-files")
 
   val shutterConfig: NginxShutterConfig = {
@@ -43,4 +43,7 @@ class NginxConfig @Inject()(configuration: Configuration) {
   }
 }
 
-case class NginxShutterConfig(shutterKillswitchPath: String, shutterServiceSwitchPathPrefix: String)
+case class NginxShutterConfig(
+  shutterKillswitchPath         : String,
+  shutterServiceSwitchPathPrefix: String
+)

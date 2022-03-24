@@ -17,12 +17,17 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import org.mockito.scalatest.MockitoSugar
+import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterSwitch}
 
-class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar {
+class NginxConfigParserSpec
+  extends AnyFlatSpec
+     with Matchers
+     with MockitoSugar
+     with EitherValues {
 
   val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", " /etc/nginx/switches/mdtp/")
@@ -43,9 +48,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://test-gateway.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(configRegex)
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(configRegex).right.value
+
     cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
   }
 
@@ -66,9 +70,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |}
       """.stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal)
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal).right.value
+
     cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))),
       shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None )))
   }
@@ -83,9 +86,9 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  return 204;
         |}""".stripMargin
 
-    val parsed = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    parsed shouldBe Right(Nil)
+    cfg shouldBe Nil
   }
 
   it should "parse s3 proxy_pass routes" in {
@@ -100,10 +103,9 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  more_set_headers 'X-Content-Type-Options: nosniff';
         |  proxy_pass $s3_upstream;
         |}""".stripMargin
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+
     cfg.head shouldBe FrontendRoute("/assets", "$s3_upstream")
   }
 
@@ -114,10 +116,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
   }
 
@@ -130,10 +130,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))), shutterServiceSwitch = None)
   }
 
@@ -147,10 +145,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
       shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), errorPage = Some("/shutter/index.html"))), shutterServiceSwitch = None)
   }
@@ -165,10 +161,8 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
       shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None)),
       shutterKillswitch = None
@@ -182,13 +176,10 @@ class NginxConfigParserSpec extends AnyFlatSpec with Matchers with MockitoSugar 
         |  proxy_pass https://lol-frontend.public.local;
         |}""".stripMargin
 
-    val eCfg = new NginxConfigParser(nginxConfig).parseConfig(config)
+    val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
 
-    eCfg.isRight shouldBe true
-    val Right(cfg) = eCfg
     cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
       markerComments = Set("NOT_SHUTTERABLE")
     )
   }
-
 }

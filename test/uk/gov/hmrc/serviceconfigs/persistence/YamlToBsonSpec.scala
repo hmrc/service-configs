@@ -48,7 +48,7 @@ class YamlToBsonSpec extends AnyWordSpecLike with Matchers {
   )
 
   "YamlToBson" must {
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     "convert yaml to bson" in {
       val data   = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala

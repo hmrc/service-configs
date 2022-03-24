@@ -324,8 +324,10 @@ object ConfigService {
           entries =  ConfigParser
                        .parseYamlStringAsMap(raw)
                        .getOrElse(Map.empty)
+                       .view
                        .filterKeys(_.startsWith("hmrc_config.fixed"))
                        .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+                       .toMap
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -349,8 +351,10 @@ object ConfigService {
           entries =  ConfigParser
                        .parseYamlStringAsMap(raw)
                        .getOrElse(Map.empty)
+                       .view
                        .filterKeys(_.startsWith("hmrc_config.overridable"))
                        .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
+                       .toMap
         } yield ConfigSourceEntries(name, precedence, entries)
     }
   }

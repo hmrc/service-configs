@@ -117,16 +117,16 @@ class FrontendRouteRepository @Inject()(
   def clearAll(): Future[Boolean] =
     collection
       .deleteMany(BsonDocument())
-      .toFuture
+      .toFuture()
       .map(_.wasAcknowledged())
 
   def replaceAll(environment: String, routes: Set[MongoFrontendRoute]): Future[Unit] = {
     withSessionAndTransaction { session =>
       for {
-        _        <- collection.deleteMany(session, equal("environment", environment)).toFuture.map(_.wasAcknowledged())
-        _         = logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
+        _        <- collection.deleteMany(session, equal("environment", environment)).toFuture()
+        _        =  logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
         inserted <- collection.insertMany(session, routes.toList).toFuture().map(_.getInsertedIds)
-        _         = logger.info(s"Inserted ${inserted.size()} routes into mongo for $environment")
+        _        =  logger.info(s"Inserted ${inserted.size} routes into mongo for $environment")
       } yield ()
     }
   }

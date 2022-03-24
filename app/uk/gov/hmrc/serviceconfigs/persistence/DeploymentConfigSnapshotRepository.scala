@@ -84,7 +84,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   def deleteAll(): Future[Unit] =
     collection
       .deleteMany(new BasicDBObject())
-      .toFuture
+      .toFuture()
       .map(_ => ())
 
   private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(

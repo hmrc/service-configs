@@ -17,7 +17,8 @@
 package uk.gov.hmrc.serviceconfigs
 
 import org.mockito.scalatest.MockitoSugar
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.EitherValues
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
@@ -30,9 +31,14 @@ import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
-class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with ScalaFutures {
+class NginxServiceSpec
+  extends AnyFlatSpec
+     with Matchers
+     with MockitoSugar
+     with ScalaFutures
+     with IntegrationPatience
+     with EitherValues {
 
   private val nginxConfig   = mock[NginxConfig]
   private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
@@ -86,13 +92,11 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
 
     when(nginxConfig.shutterConfig)
       .thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
+
     val parser = new NginxConfigParser(nginxConfig)
-
     val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "HEAD")
-    val eResult    = NginxService.parseConfig(parser, configFile)
+    val result     = NginxService.parseConfig(parser, configFile).right.value
 
-    eResult.isRight shouldBe true
-    val Right(result) = eResult
     result.length shouldBe 2
 
     result.head.environment          shouldBe "dev"
@@ -117,7 +121,6 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
   }
 
   "parseConfig" should "ignore general comments" in {
-
     val parser = new NginxConfigParser(nginxConfig)
 
     val config = """location /lol {
@@ -128,10 +131,8 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
                        |}""".stripMargin
 
     val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "HEAD")
-    val eResult    = NginxService.parseConfig(parser, configFile)
+    val result     = NginxService.parseConfig(parser, configFile).right.value
 
-    eResult.isRight shouldBe true
-    val Right(result) = eResult
     result.length shouldBe 1
 
     result.head.environment          shouldBe "dev"
@@ -144,29 +145,28 @@ class NginxServiceSpec extends AnyFlatSpec with Matchers with MockitoSugar with 
     result.head.shutterServiceSwitch shouldBe None
   }
 
-  private val testConfig = """location /test/assets {
-                 |  more_set_headers 'X-Frame-Options: DENY';
-                 |  more_set_headers 'X-XSS-Protection: 1; mode=block';
-                 |  more_set_headers 'X-Content-Type-Options: nosniff';
-                 |
-                 |  if ( -f /etc/nginx/switches/mdtp/offswitch )   {
-                 |    return 503;
-                 |  }
-                 |
-                 |  if ( -f /etc/nginx/switches/mdtp/service1 )   {
-                 |    error_page 503 /shutter/service1/index.html;
-                 |    return 503;
-                 |  }
-                 |
-                 |  proxy_pass http://service1;
-                 |}
-                 |location /lol {
-                 |  #!NOT_SHUTTERABLE
-                 |  #!ABC
-                 |  #NOT_A_VALID_MARKER_COMMENT
-                 |  more_set_headers '';
-                 |  proxy_pass http://testservice;
-                 |}""".stripMargin
-
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.seconds)
+  private val testConfig =
+    """location /test/assets {
+      |  more_set_headers 'X-Frame-Options: DENY';
+      |  more_set_headers 'X-XSS-Protection: 1; mode=block';
+      |  more_set_headers 'X-Content-Type-Options: nosniff';
+      |
+      |  if ( -f /etc/nginx/switches/mdtp/offswitch )   {
+      |    return 503;
+      |  }
+      |
+      |  if ( -f /etc/nginx/switches/mdtp/service1 )   {
+      |    error_page 503 /shutter/service1/index.html;
+      |    return 503;
+      |  }
+      |
+      |  proxy_pass http://service1;
+      |}
+      |location /lol {
+      |  #!NOT_SHUTTERABLE
+      |  #!ABC
+      |  #NOT_A_VALID_MARKER_COMMENT
+      |  more_set_headers '';
+      |  proxy_pass http://testservice;
+      |}""".stripMargin
 }
