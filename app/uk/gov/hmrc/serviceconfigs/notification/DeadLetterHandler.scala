@@ -22,7 +22,7 @@ import akka.stream.alpakka.sqs.MessageAction.Delete
 import akka.stream.alpakka.sqs.SqsSourceSettings
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
@@ -32,6 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
+@Singleton
 class DeadLetterHandler @Inject()(
   config         : ArtefactReceivingConfig
 )(implicit

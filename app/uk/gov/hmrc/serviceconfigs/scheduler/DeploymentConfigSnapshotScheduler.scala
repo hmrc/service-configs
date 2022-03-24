@@ -24,10 +24,11 @@ import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import java.time.Instant
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
+@Singleton
 class DeploymentConfigSnapshotScheduler @Inject()(
   schedulerConfigs: SchedulerConfigs,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,

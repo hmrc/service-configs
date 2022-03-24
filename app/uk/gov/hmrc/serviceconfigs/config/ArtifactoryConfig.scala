@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.config
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 
-class ArtifactoryConfig @Inject()(config: Configuration) {
-
+@Singleton
+class ArtifactoryConfig @Inject()(
+  config: Configuration
+) {
   lazy val artifactoryUrl: String = config.get[String]("artifactory.url")
-
 }

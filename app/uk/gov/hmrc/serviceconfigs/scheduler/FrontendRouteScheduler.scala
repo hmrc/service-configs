@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, LockService}
@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
+@Singleton
 class FrontendRouteScheduler @Inject()(
   nginxConfig        : NginxConfig,
   nginxService       : NginxService,

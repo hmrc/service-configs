@@ -28,10 +28,11 @@ import uk.gov.hmrc.serviceconfigs.service.AlertConfigSchedulerService.NonClosabl
 import java.io.InputStreamReader
 import java.util
 import java.util.zip.ZipInputStream
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class DeploymentConfigService @Inject()(
   deploymentConfigConnector : DeploymentConfigConnector,
   deploymentConfigRepository: DeploymentConfigRepository

@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -27,6 +27,7 @@ import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class BobbyConnector @Inject()(
   httpClient  : HttpClient,
   githubConfig: GithubConfig,
@@ -48,6 +49,7 @@ class BobbyConnector @Inject()(
   }
 }
 
+@Singleton
 class BobbyConfig @Inject()(config: Configuration) {
   val url: String = config.get[String]("bobby.url")
 }

@@ -23,10 +23,11 @@ import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
+@Singleton
 class DeploymentConfigScheduler @Inject()(
   schedulerConfigs       : SchedulerConfigs,
   deploymentConfigService: DeploymentConfigService,

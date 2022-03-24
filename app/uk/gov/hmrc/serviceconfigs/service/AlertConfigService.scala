@@ -19,18 +19,15 @@ package uk.gov.hmrc.serviceconfigs.service
 import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
 import uk.gov.hmrc.serviceconfigs.persistence.AlertEnvironmentHandlerRepository
 import javax.inject.{Singleton, Inject}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 @Singleton
-class AlertConfigService @Inject() (alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository)
-                                   (implicit val ec : ExecutionContext) {
-
-  def findConfigs(): Future[Seq[AlertEnvironmentHandler]] = {
+class AlertConfigService @Inject()(
+  alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository
+){
+  def findConfigs(): Future[Seq[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findAll()
-  }
 
-  def findOneConfig(serviceName: String): Future[Option[AlertEnvironmentHandler]] = {
+  def findOneConfig(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findOne(serviceName)
-  }
-
 }

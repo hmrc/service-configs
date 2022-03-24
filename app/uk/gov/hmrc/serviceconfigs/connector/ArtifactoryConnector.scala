@@ -22,10 +22,11 @@ import play.api.libs.ws.{WSClient}
 import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
 
 import java.io.InputStream
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class ArtifactoryConnector @Inject()(
   config: ArtifactoryConfig,
   ws    : WSClient

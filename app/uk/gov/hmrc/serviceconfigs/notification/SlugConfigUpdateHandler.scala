@@ -23,7 +23,7 @@ import akka.stream.{ActorAttributes, Materializer, Supervision}
 import cats.data.EitherT
 import cats.implicits._
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.libs.json.Json
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
@@ -37,6 +37,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
+@Singleton
 class SlugConfigUpdateHandler @Inject()(
   slugConfigurationService  : SlugConfigurationService,
   config                    : ArtefactReceivingConfig,
