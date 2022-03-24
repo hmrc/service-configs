@@ -16,29 +16,32 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class NginxConfigFileSpec extends AnyFlatSpec with Matchers {
+class NginxConfigFileSpec
+  extends AnyWordSpec
+     with Matchers {
 
-  "fileName" should "retrieve just the filename from the url" in {
-    val configFile = NginxConfigFile(
-      "production",
-      "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf",
-      "",
-      "HEAD"
-    )
-    configFile.fileName shouldBe "frontend-proxy-application-rules.conf"
+  "NginxConfigFile.fileName" should {
+    "retrieve just the filename from the url" in {
+      val configFile = NginxConfigFile(
+        "production",
+        "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf",
+        "",
+        "HEAD"
+      )
+      configFile.fileName shouldBe "frontend-proxy-application-rules.conf"
+    }
+
+    "not throw an error if a filename can't be extracted from the url" in {
+      val configFile = NginxConfigFile(
+        "production",
+        "",
+        "",
+        "HEAD"
+      )
+      configFile.fileName shouldBe ""
+    }
   }
-
-  it should "not throw an error if a filename can't be extracted from the url" in {
-    val configFile = NginxConfigFile(
-      "production",
-      "",
-      "",
-      "HEAD"
-    )
-    configFile.fileName shouldBe ""
-  }
-
 }

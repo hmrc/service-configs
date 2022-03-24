@@ -20,14 +20,14 @@ import java.time.Instant
 
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext
 
 class SlugVersionRepositorySpec
-  extends AnyWordSpecLike
+  extends AnyWordSpec
      with Matchers
      with PlayMongoRepositorySupport[Version]
      with CleanMongoCollectionSupport

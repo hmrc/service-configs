@@ -19,11 +19,15 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import java.util
 
 import org.mongodb.scala.bson.{BsonArray, BsonDocument, BsonString}
-import org.scalatest.matchers.must.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.TryValues
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.yaml.snakeyaml.Yaml
 
-class YamlToBsonSpec extends AnyWordSpecLike with Matchers {
+class YamlToBsonSpec
+  extends AnyWordSpec
+     with Matchers
+     with TryValues {
 
   val yaml =
     """
@@ -47,21 +51,17 @@ class YamlToBsonSpec extends AnyWordSpecLike with Matchers {
     )
   )
 
-  "YamlToBson" must {
+  "YamlToBson" should {
     import scala.jdk.CollectionConverters._
 
     "convert yaml to bson" in {
       val data   = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = YamlToBson(data)
-      result.isSuccess mustBe true
-      result.get mustBe bson
+      YamlToBson(data).success.value shouldBe bson
     }
 
     "escapes dots in keynames" in {
       val data   = new Yaml().load("dot.dot: dash").asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = YamlToBson(data)
-      result.isSuccess mustBe true
-      result.get mustBe BsonDocument("dot\\.dot" -> BsonString("dash"))
+      YamlToBson(data).success.value shouldBe BsonDocument("dot\\.dot" -> BsonString("dash"))
     }
   }
 }

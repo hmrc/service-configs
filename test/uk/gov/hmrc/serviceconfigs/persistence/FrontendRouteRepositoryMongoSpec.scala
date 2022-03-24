@@ -17,27 +17,25 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
+import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
-
-import scala.concurrent.duration.DurationInt
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class FrontendRouteRepositoryMongoSpec
-    extends AnyWordSpecLike
-    with Matchers
-    // not using DefaultPlayMongoRepositorySupport since we run unindexed queries
-    with PlayMongoRepositorySupport[MongoFrontendRoute]
-    with CleanMongoCollectionSupport {
+  extends AnyWordSpec
+     with Matchers
+     // not using DefaultPlayMongoRepositorySupport since we run unindexed queries
+     with PlayMongoRepositorySupport[MongoFrontendRoute]
+     with CleanMongoCollectionSupport
+     with IntegrationPatience {
 
   import ExecutionContext.Implicits.global
 
   override lazy val repository = new FrontendRouteRepository(mongoComponent)
-
-  override implicit val patienceConfig = PatienceConfig(timeout = 30.seconds, interval = 100.millis)
 
   "FrontendRouteRepository.update" should {
     "add new route" in {

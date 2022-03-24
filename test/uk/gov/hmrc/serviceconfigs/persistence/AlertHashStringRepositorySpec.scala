@@ -17,9 +17,8 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.MockitoSugar
-import org.scalatest.concurrent.Eventually
-import org.scalatest.matchers.must.Matchers
-import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.concurrent.{Eventually, IntegrationPatience}
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.LastHash
@@ -28,14 +27,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class AlertHashStringRepositorySpec
   extends AnyWordSpec
-    with Matchers
-    with MockitoSugar
-    with Eventually
-    with DefaultPlayMongoRepositorySupport[LastHash] {
+     with Matchers
+     with MockitoSugar
+     with Eventually
+     with IntegrationPatience
+     with DefaultPlayMongoRepositorySupport[LastHash] {
 
-
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = scaled(Span(1000, Millis)))
 
   override protected val repository = new AlertHashStringRepository(mongoComponent)
 

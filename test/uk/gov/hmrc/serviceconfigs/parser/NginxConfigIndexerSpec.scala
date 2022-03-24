@@ -16,60 +16,66 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class NginxConfigIndexerSpec extends AnyFlatSpec with Matchers {
+class NginxConfigIndexerSpec
+  extends AnyWordSpec
+     with Matchers {
 
-  "Indexer" should "find the line number of the first path" in {
-    val res = NginxConfigIndexer.index(config)
-    res("/shutter/employees") shouldBe 1
+  "Indexer" should {
+    "find the line number of the first path" in {
+      val res = NginxConfigIndexer.index(config)
+      res("/shutter/employees") shouldBe 1
+    }
+
+    "find the index of the second path" in {
+      val res = NginxConfigIndexer.index(config)
+      res("/employees") shouldBe 7
+    }
+
+    "find the line number of the /check-tax path" in {
+      val res = NginxConfigIndexer.index(config)
+      res("/check-tax") shouldBe 24
+    }
+
+    "find the line number of an exact path" in {
+      val res = NginxConfigIndexer.index(config)
+      res("/some-path") shouldBe 47
+    }
+
+    "not find a non-existent location" in {
+      NginxConfigIndexer.index(config).get("/this/doesnt/exist") shouldBe None
+    }
+
+    "index regex paths" in {
+      val res = NginxConfigIndexer.index(config)
+      res("^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))") shouldBe 35
+    }
   }
 
-  it should "find the index of the second path" in {
-    val res = NginxConfigIndexer.index(config)
-    res("/employees") shouldBe 7
-  }
 
-  it should "find the line number of the /check-tax path" in {
-    val res = NginxConfigIndexer.index(config)
-    res("/check-tax") shouldBe 24
-  }
+  "URL Generator" should {
+    "return none if path is not indexed" in {
+      val indexes = Map("/test123" -> 55, "/someurl" -> 4)
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", "prod", "/nothing", indexes) shouldBe None
+    }
 
-  it should "find the line number of an exact path" in {
-    val res = NginxConfigIndexer.index(config)
-    res("/some-path") shouldBe 47
-  }
+    "return a url to the correct file and line in github" in {
+      val indexes = Map("/test123" -> 55, "/someurl" -> 4)
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L55")
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", "development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L4")
+    }
 
-  it should "not find a non-existent location" in {
-    NginxConfigIndexer.index(config).get("/this/doesnt/exist") shouldBe None
-  }
+    "return a url for a regex path" in {
+      val res = NginxConfigIndexer.index(config)
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L35")
+    }
 
-  it should "index regex paths" in {
-    val res = NginxConfigIndexer.index(config)
-    res("^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))") shouldBe 35
-  }
-
-
-  "URL Generator" should "return none if path is not indexed" in {
-    val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-    NginxConfigIndexer.generateUrl(fileName, "HEAD", "prod", "/nothing", indexes) shouldBe None
-  }
-
-  it should "return a url to the correct file and line in github" in {
-    val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-    NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L55")
-    NginxConfigIndexer.generateUrl(fileName, "HEAD", "development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L4")
-  }
-
-  it should "return a url for a regex path" in {
-    val res = NginxConfigIndexer.index(config)
-    NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L35")
-  }
-
-  it should "use the fileName passed in the URL" in {
-    val indexes = Map("/test123" -> 55)
-    NginxConfigIndexer.generateUrl("anotherfile.conf", "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/anotherfile.conf#L55")
+    "use the fileName passed in the URL" in {
+      val indexes = Map("/test123" -> 55)
+      NginxConfigIndexer.generateUrl("anotherfile.conf", "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/anotherfile.conf#L55")
+    }
   }
 
   val fileName = "frontend-proxy-application-rules.conf"

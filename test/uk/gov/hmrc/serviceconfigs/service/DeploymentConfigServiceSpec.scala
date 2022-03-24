@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.scalatest.matchers.must.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.OptionValues
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.yaml.snakeyaml.Yaml
 import uk.gov.hmrc.serviceconfigs.model.Environment.Production
 
@@ -25,30 +26,31 @@ import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
-class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
-
+class DeploymentConfigServiceSpec
+  extends AnyWordSpec
+     with Matchers
+     with OptionValues {
   import DeploymentConfigService._
 
-  "isAppConfig" must {
+  "isAppConfig" should {
     "reject non yaml" in {
-      isAppConfig("/test/helloworld.txt") mustBe false
-      isAppConfig("/app-config-production/foo/bar.xml") mustBe false
-      isAppConfig("/app-config-production/.yaml/not-a-yaml.json") mustBe false
+      isAppConfig("/test/helloworld.txt")                         shouldBe false
+      isAppConfig("/app-config-production/foo/bar.xml")           shouldBe false
+      isAppConfig("/app-config-production/.yaml/not-a-yaml.json") shouldBe false
     }
 
     "reject files in the ignore list" in {
-      isAppConfig("/app-config-production/repository.yaml") mustBe false
-      isAppConfig("/app-config-production/.github/stale.yaml") mustBe false
+      isAppConfig("/app-config-production/repository.yaml")    shouldBe false
+      isAppConfig("/app-config-production/.github/stale.yaml") shouldBe false
     }
 
     "accept any other yaml file" in {
-      isAppConfig("/app-config-production/test.yaml") mustBe true
-      isAppConfig("/app-config-production/auth.yaml") mustBe true
+      isAppConfig("/app-config-production/test.yaml") shouldBe true
+      isAppConfig("/app-config-production/auth.yaml") shouldBe true
     }
   }
 
-  "modifyConfigKeys" must {
-
+  "modifyConfigKeys" should {
     "discard the 0.0.0 root element, hmrc_config and add name and environment" in {
       val yaml =
         s"""
@@ -63,16 +65,16 @@ class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
            |""".stripMargin
 
       val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = modifyConfigKeys(data, "test", Production)
+      val result = modifyConfigKeys(data, "test", Production).value
 
-      result.isDefined mustBe true
-      result.get.keySet mustBe Set("slots", "instances", "zone", "name", "environment", "type")
+      result.keySet shouldBe Set("slots", "instances", "zone", "name", "environment", "type")
     }
 
     "return None when there is no 0.0.0 root element" in {
-      val data: mutable.Map[String, Object] = mutable.Map[String, Object]("any-other-key" -> new mutable.LinkedHashMap[String,Object]())
+      val data = mutable.Map[String, Object]("any-other-key" -> new mutable.LinkedHashMap[String,Object]())
       val result = modifyConfigKeys(data, "test", Production)
-      result mustBe None
+
+      result shouldBe None
     }
 
     "returns None when the config is missing required keys" in {
@@ -86,7 +88,8 @@ class DeploymentConfigServiceSpec extends AnyWordSpecLike with Matchers {
 
       val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
       val result = modifyConfigKeys(data, "test", Production)
-      result mustBe None
+
+      result shouldBe None
     }
   }
 }

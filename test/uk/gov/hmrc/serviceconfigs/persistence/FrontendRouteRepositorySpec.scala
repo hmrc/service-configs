@@ -16,25 +16,29 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class FrontendRouteRepositorySpec extends AnyFlatSpec with Matchers {
+class FrontendRouteRepositorySpec extends AnyWordSpec with Matchers {
 
-  "FrontendRouteRepository.pathsToRegex" should "create regex from paths" in {
-    FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|$)"
-    FrontendRouteRepository.pathsToRegex(Seq("account"))            shouldBe "^(\\^)?(\\/)?account(\\/|$)"
-    FrontendRouteRepository.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
+  "FrontendRouteRepository.pathsToRegex" should {
+    "create regex from paths" in {
+      FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|$)"
+      FrontendRouteRepository.pathsToRegex(Seq("account"))            shouldBe "^(\\^)?(\\/)?account(\\/|$)"
+      FrontendRouteRepository.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
+    }
+
+    "escape '-'" in {
+      FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
+    }
   }
 
-  it should "escape '-'" in {
-    FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
-  }
-
-  "FrontendRouteRepository.queries" should "create queries from path" in {
-    FrontendRouteRepository.queries("a/b/c").toList shouldBe Seq(
-      FrontendRouteRepository.toQuery(Seq("a", "b", "c")),
-      FrontendRouteRepository.toQuery(Seq("a", "b")),
-      FrontendRouteRepository.toQuery(Seq("a")))
+  "FrontendRouteRepository.queries" should {
+    "create queries from path" in {
+      FrontendRouteRepository.queries("a/b/c").toList shouldBe Seq(
+        FrontendRouteRepository.toQuery(Seq("a", "b", "c")),
+        FrontendRouteRepository.toQuery(Seq("a", "b")),
+        FrontendRouteRepository.toQuery(Seq("a")))
+    }
   }
 }
