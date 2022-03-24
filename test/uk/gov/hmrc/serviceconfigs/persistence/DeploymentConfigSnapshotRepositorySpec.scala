@@ -20,7 +20,7 @@ import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
-import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, DefaultPlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
@@ -30,11 +30,12 @@ import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class DeploymentConfigSnapshotRepositorySpec extends AnyWordSpecLike
-  with Matchers
-  with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
-  with CleanMongoCollectionSupport
-  with MockitoSugar {
+class DeploymentConfigSnapshotRepositorySpec
+  extends AnyWordSpec
+     with Matchers
+     with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
+     with CleanMongoCollectionSupport
+     with MockitoSugar {
 
   private val stubDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]

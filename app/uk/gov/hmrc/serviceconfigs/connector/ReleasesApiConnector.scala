@@ -31,10 +31,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ReleasesApiConnector @Inject()(
-    httpClient   : HttpClient,
-    serviceConfig: ServicesConfig
-  )(implicit ec: ExecutionContext) {
-
+  httpClient   : HttpClient,
+  serviceConfig: ServicesConfig
+)(implicit ec: ExecutionContext) {
   import ReleasesApiConnector._
 
   private val serviceUrl: URL = url"${serviceConfig.baseUrl("releases-api")}"

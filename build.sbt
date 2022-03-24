@@ -7,7 +7,7 @@ lazy val microservice = Project("service-configs", file("."))
   .enablePlugins(play.sbt.PlayScala, SbtDistributablesPlugin)
   .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
   .settings(
-    scalaVersion := "2.12.15",
+    scalaVersion := "2.13.8",
     majorVersion := 0,
     playDefaultPort := 8460,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
@@ -23,4 +23,4 @@ lazy val microservice = Project("service-configs", file("."))
     )
   )
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.10")
+addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)

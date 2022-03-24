@@ -36,7 +36,7 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
 
   import DeploymentConfigService._
 
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   def updateAll(): Future[Unit] = {
     logger.info("Updating all environments...")
@@ -47,38 +47,35 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
     logger.info(s"getting deployment config for ${environment.asString}")
     for {
       is       <- connector.getAppConfigZip(environment)
-      zip       = new ZipInputStream(is)
-      toAdd     = Iterator
-        .continually(zip.getNextEntry)
-        .takeWhile(_ != null)
-        .flatMap { file =>
-          logger.debug(s"processing config file $file")
-          file.getName match {
-            case name if isAppConfig(name.toLowerCase) =>
-              val shortName  = name.split("/").last.replace(".yaml", "")
-              val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
-              val parsedYaml = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-              modifyConfigKeys(parsedYaml, shortName, environment).flatMap(m => YamlToBson(m).toOption)
-            case _ => None
-          }
-        }.toSeq
+      zip      =  new ZipInputStream(is)
+      toAdd    =  Iterator
+                    .continually(zip.getNextEntry)
+                    .takeWhile(_ != null)
+                    .flatMap { file =>
+                      logger.debug(s"processing config file $file")
+                      file.getName match {
+                        case name if isAppConfig(name.toLowerCase) =>
+                          val shortName  = name.split("/").last.replace(".yaml", "")
+                          val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
+                          val parsedYaml = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
+                          modifyConfigKeys(parsedYaml, shortName, environment).flatMap(m => YamlToBson(m).toOption)
+                        case _ => None
+                      }
+                    }.toSeq
       _        <- repo.updateAll(toAdd)
       // remove records that dont have an app-config-$env file
       allNames <- repo.findAllNames(environment).map(_.toSet)
-      toRemove  = toAdd.filterNot(c => allNames(c.getString("name").getValue)).map(_.getString("name").getValue).toSeq
+      toRemove =  toAdd.filterNot(c => allNames(c.getString("name").getValue)).map(_.getString("name").getValue).toSeq
       result   <- repo.delete(toRemove, environment)
-      _         = logger.info(s"updated ${toAdd.length}, removed ${toRemove.length} deployment configs in ${environment.asString}")
+      _        =  logger.info(s"updated ${toAdd.length}, removed ${toRemove.length} deployment configs in ${environment.asString}")
     } yield result
   }
-
 
   def findAll(environment: Environment): Future[Seq[DeploymentConfig]] =
     repo.findAll(environment)
 
-
   def find(environment: Environment, serviceName: String): Future[Option[DeploymentConfig]] =
     repo.findByName(environment, serviceName)
-
 }
 
 object DeploymentConfigService {
@@ -87,7 +84,6 @@ object DeploymentConfigService {
 
   def isAppConfig(filename: String) : Boolean =
     filename.endsWith(".yaml") && ignoreList.forall(i => !filename.endsWith(i))
-
 
   def parseConfig(filename: String, cfg: Map[String, String], environment: Environment): Option[DeploymentConfig] = {
     val name = filename.split("/").last.replace(".yaml", "")
@@ -100,9 +96,8 @@ object DeploymentConfigService {
     } yield DeploymentConfig(name, artifactName, environment, zone, deploymentType, slots, instances)
   }
 
-
   def modifyConfigKeys(data: mutable.Map[String, Object], name: String, environment: Environment): Option[mutable.Map[String, Object]] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val requiredKeys = Set("zone", "type", "slots", "instances")
     data
       .get("0.0.0")

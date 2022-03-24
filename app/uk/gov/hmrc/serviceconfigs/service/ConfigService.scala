@@ -243,14 +243,10 @@ object ConfigService {
                                  // if no slug info (e.g. java apps) get from github
                                  connector.serviceApplicationConfigFile(serviceName)
                                case slugInfo =>
-                                 Future.successful(slugInfo.applicationConfig)
-                             }
-          entries         = optRaw match {
-                               case None      => Map.empty[KeyName, String]
-                               case Some(raw) =>
-                                 val applicationConf = ConfigParser.parseConfString(raw, ConfigParser.toIncludeCandidates(configs))
-                                 ConfigParser.flattenConfigToDotNotation(applicationConf)
-                             }
+                                 Future.successful(Some(slugInfo.applicationConfig))
+                             }.map(_.flatten)
+          applicationConf =  ConfigParser.parseConfString(optRaw.getOrElse(""), ConfigParser.toIncludeCandidates(configs))
+          entries         =  ConfigParser.flattenConfigToDotNotation(applicationConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -271,11 +267,12 @@ object ConfigService {
       ): Future[ConfigSourceEntries] =
         for {
           optSlugInfo <- slugInfoRepository.getSlugInfo(serviceName, slugInfoFlag)
-          raw         <- optSlugInfo match {
-                           case Some(slugInfo) => Future.successful(slugInfo.slugConfig)
-                           case None           => connector.serviceConfigConf("base", serviceName) // if no slug info (e.g. java apps) get from github
+          optRaw      <- optSlugInfo match {
+                           case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
+                           case None           => // if no slug info (e.g. java apps) get from github
+                                                  connector.serviceConfigConf("base", serviceName)
                          }
-          baseConf    = ConfigParser.parseConfString(raw, logMissing = false) // ignoring includes, since we know this is applicationConf
+          baseConf    = ConfigParser.parseConfString(optRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
           entries     = ConfigParser.flattenConfigToDotNotation(baseConf)
         } yield ConfigSourceEntries(name, precedence, entries)
     }
@@ -296,9 +293,9 @@ object ConfigService {
         ec: ExecutionContext
       ): Future[ConfigSourceEntries] =
         for {
-          raw     <- connector.serviceConfigYaml(slugInfoFlag.asString, serviceName)
+          optRaw  <- connector.serviceConfigYaml(slugInfoFlag.asString, serviceName)
           entries =  ConfigParser
-                       .parseYamlStringAsMap(raw)
+                       .parseYamlStringAsMap(optRaw.getOrElse(""))
                        .getOrElse(Map.empty)
                        .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
         } yield ConfigSourceEntries(name, precedence, entries)
@@ -320,12 +317,14 @@ object ConfigService {
         ec: ExecutionContext
       ): Future[ConfigSourceEntries] =
         for {
-          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st)).getOrElse(Future.successful(""))
+          optRaw  <- serviceType.fold(Future.successful(None: Option[String]))(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st))
           entries =  ConfigParser
-                       .parseYamlStringAsMap(raw)
+                       .parseYamlStringAsMap(optRaw.getOrElse(""))
                        .getOrElse(Map.empty)
+                       .view
                        .filterKeys(_.startsWith("hmrc_config.fixed"))
                        .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+                       .toMap
         } yield ConfigSourceEntries(name, precedence, entries)
     }
 
@@ -345,12 +344,14 @@ object ConfigService {
         ec: ExecutionContext
       ): Future[ConfigSourceEntries] =
         for {
-          raw     <- serviceType.map(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st)).getOrElse(Future.successful(""))
+          optRaw  <- serviceType.fold(Future.successful(None: Option[String]))(st => connector.serviceCommonConfigYaml(slugInfoFlag.asString, st))
           entries =  ConfigParser
-                       .parseYamlStringAsMap(raw)
+                       .parseYamlStringAsMap(optRaw.getOrElse(""))
                        .getOrElse(Map.empty)
+                       .view
                        .filterKeys(_.startsWith("hmrc_config.overridable"))
                        .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
+                       .toMap
         } yield ConfigSourceEntries(name, precedence, entries)
     }
   }

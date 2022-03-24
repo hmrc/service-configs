@@ -30,8 +30,8 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 class DeploymentConfigConnector @Inject()(
-  config: GithubConfig,
-  ws    : WSClient
+  githubConfig: GithubConfig,
+  wsClient    : WSClient
 )(implicit
   ec          : ExecutionContext,
   materializer: Materializer
@@ -39,19 +39,17 @@ class DeploymentConfigConnector @Inject()(
 
   def getAppConfigZip(environment: Environment): Future[InputStream] = {
     val repoName = s"app-config-${environment.asString}"
-    val url      = url"${config.githubApiUrl}/repos/hmrc/$repoName/zipball/HEAD"
-    val key      = config.githubApiOpenConfig.key
-
-    ws.url(url.toString)
+    val url      = url"${githubConfig.githubApiUrl}/repos/hmrc/$repoName/zipball/HEAD"
+    wsClient
+      .url(url.toString)
       .withMethod("GET")
-      .withHttpHeaders(("Authorization", s"token ${key}"))
+      .withHttpHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
       .withFollowRedirects(true)
       .withRequestTimeout(60.seconds)
-      .stream
-      .map(resp => {
+      .stream()
+      .map { resp =>
         logger.info(s"Download of ${url} responded with ${resp.status} ${resp.statusText}")
         resp.bodyAsSource.async.runWith(StreamConverters.asInputStream(readTimeout = 60.seconds))
-      })
+      }
   }
-
 }

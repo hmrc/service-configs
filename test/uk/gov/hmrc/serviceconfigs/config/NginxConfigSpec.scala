@@ -16,33 +16,36 @@
 
 package uk.gov.hmrc.serviceconfigs.config
 
-import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 
-class NginxConfigSpec extends AnyFunSpec with Matchers {
+class NginxConfigSpec
+  extends AnyWordSpec
+     with Matchers {
 
-  describe("nginx config") {
-    it("should fail-fast if config is missing") {
+  "nginx config" should {
+    "fail-fast if config is missing" in {
       val error = intercept[RuntimeException] {
         new NginxConfig(Configuration())
       }
       error.getMessage.contains("not specified") shouldBe true
     }
-    it("should load the config") {
+
+    "load the config" in {
       val nginxConfig =
         new NginxConfig(
           Configuration(
-            "nginx.config-repo" -> "repo",
-            "nginx.config-repo-branch" -> "HEAD",
-            "nginx.config-files" -> List("file1", "file2"),
-            "nginx.shutter-killswitch-path" -> "killswitch",
+            "nginx.config-repo"                       -> "repo",
+            "nginx.config-repo-branch"                -> "HEAD",
+            "nginx.config-files"                      -> List("file1", "file2"),
+            "nginx.shutter-killswitch-path"           -> "killswitch",
             "nginx.shutter-serviceswitch-path-prefix" -> "serviceswitch"
           ))
 
-      nginxConfig.configRepo shouldBe "repo"
-      nginxConfig.frontendConfigFileNames shouldBe List("file1", "file2")
-      nginxConfig.shutterConfig.shutterKillswitchPath shouldBe "killswitch"
+      nginxConfig.configRepo                                   shouldBe "repo"
+      nginxConfig.frontendConfigFileNames                      shouldBe List("file1", "file2")
+      nginxConfig.shutterConfig.shutterKillswitchPath          shouldBe "killswitch"
       nginxConfig.shutterConfig.shutterServiceSwitchPathPrefix shouldBe "serviceswitch"
     }
   }

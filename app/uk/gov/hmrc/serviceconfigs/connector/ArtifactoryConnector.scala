@@ -39,7 +39,7 @@ class ArtifactoryConnector @Inject()(
       .url(s"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
       .withMethod("GET")
       .withRequestTimeout(Duration.Inf)
-      .stream
+      .stream()
       .map(_.bodyAsSource.async.runWith(StreamConverters.asInputStream(readTimeout = 20.seconds)))
 
   def getLatestHash(): Future[Option[String]] =

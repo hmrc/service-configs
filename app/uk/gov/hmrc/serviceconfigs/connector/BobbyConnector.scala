@@ -28,22 +28,22 @@ import uk.gov.hmrc.http.StringContextOps
 import scala.concurrent.{ExecutionContext, Future}
 
 class BobbyConnector @Inject()(
-  http      : HttpClient,
-  githubConf: GithubConfig,
-  bobbyConf : BobbyConfig
+  httpClient  : HttpClient,
+  githubConfig: GithubConfig,
+  bobbyConfig : BobbyConfig
 )( implicit ec: ExecutionContext
 ) extends Logging {
-  private val configKey = githubConf.githubApiOpenConfig.key
 
   def findAllRules(): Future[String] = {
-    val url                        = url"${bobbyConf.url}"
-    implicit val hc: HeaderCarrier = HeaderCarrier().withExtraHeaders("Authorization" -> s"token $configKey")
+    val url = url"${bobbyConfig.url}"
 
-    http.GET[HttpResponse](url).map {
-      case response: HttpResponse if response.status != 200 =>
-        logger.warn(s"Failed to download Bobby rules $url, server returned ${response.status}")
-        throw new RuntimeException()
-      case response: HttpResponse => response.body
+    implicit val hc: HeaderCarrier =
+      HeaderCarrier().withExtraHeaders("Authorization" -> s"token ${githubConfig.githubToken}")
+
+    httpClient.GET[HttpResponse](url).map {
+      case response if response.status != 200 =>
+        sys.error(s"Failed to download Bobby rules $url, server returned ${response.status}")
+      case response => response.body
     }
   }
 }

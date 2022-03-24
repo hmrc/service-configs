@@ -94,7 +94,7 @@ class AlertHashStringRepository @Inject()(
 
     def findOne(): Future[Option[LastHash]] =
       collection
-        .find
+        .find()
         .toFuture()
         .map(_.headOption)
   }

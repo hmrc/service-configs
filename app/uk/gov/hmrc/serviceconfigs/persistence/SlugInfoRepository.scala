@@ -65,8 +65,11 @@ class SlugInfoRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def clearAll(): Future[Boolean] =
-    collection.deleteMany(new BasicDBObject()).toFuture.map(_.wasAcknowledged())
+  def clearAll(): Future[Unit] =
+    collection
+      .deleteMany(new BasicDBObject())
+      .toFuture()
+      .map(_ => ())
 
   def getSlugInfo(
     name: String,
@@ -90,7 +93,7 @@ class SlugInfoRepository @Inject()(
 
   def getUniqueSlugNames: Future[Seq[String]] =
     collection.distinct[String]("name")
-      .toFuture
+      .toFuture()
 
   def clearFlag(flag: SlugInfoFlag, name: String): Future[Unit] =
     withSessionAndTransaction { session =>
@@ -106,7 +109,7 @@ class SlugInfoRepository @Inject()(
              , filter        = equal("name", name)
              , update        = set(flag.asString, false)
              )
-           .toFuture
+           .toFuture()
    } yield ()
 
   def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
@@ -121,7 +124,7 @@ class SlugInfoRepository @Inject()(
                                       , equal("version", version.original)
                                       )
                  , update        = set(flag.asString, true))
-               .toFuture
+               .toFuture()
       } yield ()
     }
 }
