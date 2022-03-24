@@ -122,5 +122,5 @@ class NginxTokenParserTest
       val location = LOCATION(path = "/test/a",  body = List(PROXY_PASS("http://www.com")))
       parser.NginxTokenParser.locToRoute(location) shouldBe Some(FrontendRoute("/test/a", "http://www.com", isRegex = false))
     }
-}
+  }
 }

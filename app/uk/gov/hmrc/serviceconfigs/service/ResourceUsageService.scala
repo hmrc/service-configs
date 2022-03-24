@@ -27,7 +27,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ResourceUsageService @Inject() (
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository)(implicit ec: ExecutionContext) {
+  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository
+)(implicit
+  ec: ExecutionContext
+) {
 
   def resourceUsageSnapshotsForService(serviceName: String): Future[Seq[ResourceUsage]] =
     deploymentConfigSnapshotRepository

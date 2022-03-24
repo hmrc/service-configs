@@ -25,10 +25,11 @@ import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import java.io.InputStream
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class DeploymentConfigConnector @Inject()(
   githubConfig: GithubConfig,
   wsClient    : WSClient

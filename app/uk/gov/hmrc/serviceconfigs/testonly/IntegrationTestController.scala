@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.testonly
 
 import cats.implicits._
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, Deplo
 
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class IntegrationTestController @Inject()(
   routeRepo                    : FrontendRouteRepository,
   dependencyConfigRepo         : DependencyConfigRepository,
@@ -57,11 +58,10 @@ class IntegrationTestController @Inject()(
     )
 
   def addRoutes(): Action[List[MongoFrontendRoute]] =
-    Action.async(validateJson[List[MongoFrontendRoute]]) {
-      implicit request =>
-        request.body
-          .traverse(routeRepo.update)
-          .map(_ => Ok("Ok"))
+    Action.async(validateJson[List[MongoFrontendRoute]]) { implicit request =>
+      request.body
+        .traverse(routeRepo.update)
+        .map(_ => Ok("Ok"))
     }
 
   def clearRoutes(): Action[AnyContent] =

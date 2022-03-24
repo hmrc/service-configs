@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
+import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Span}
 import org.scalatest.wordspec.AnyWordSpec
@@ -35,7 +36,8 @@ class DeploymentConfigSnapshotRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
      with CleanMongoCollectionSupport
-     with MockitoSugar {
+     with MockitoSugar
+     with IntegrationPatience {
 
   private val stubDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]

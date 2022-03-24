@@ -29,21 +29,24 @@ import scala.concurrent.{ExecutionContext, Future}
 
 
 @Singleton
-class AlertConfigSchedulerService @Inject()(alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository,
-                                            alertHashStringRepository: AlertHashStringRepository,
-                                            artifactoryConnector: ArtifactoryConnector)(implicit val ec : ExecutionContext) {
-
+class AlertConfigSchedulerService @Inject()(
+  alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository,
+  alertHashStringRepository        : AlertHashStringRepository,
+  artifactoryConnector             : ArtifactoryConnector
+)(implicit
+  ec : ExecutionContext
+) {
   private val logger = Logger(this.getClass)
 
   def updateConfigs(): Future[Unit] = {
-
     logger.info("Starting")
 
     (for {
-      latestHashString       <- artifactoryConnector.getLatestHash().map(x => x.getOrElse(""))
-      previousHashString     <- alertHashStringRepository.findOne().map(x => x.getOrElse(LastHash("")).hash)
-      maybeHashString        =  if (!latestHashString.equals(previousHashString)) Option(latestHashString) else None
-    } yield maybeHashString).flatMap {
+       latestHashString   <- artifactoryConnector.getLatestHash().map(_.getOrElse(""))
+       previousHashString <- alertHashStringRepository.findOne().map(_.getOrElse(LastHash("")).hash)
+       maybeHashString    =  if (!latestHashString.equals(previousHashString)) Option(latestHashString) else None
+     } yield maybeHashString
+    ).flatMap {
       case Some(hashString) =>
         for {
           zip           <- artifactoryConnector.getSensuZip()
@@ -58,7 +61,6 @@ class AlertConfigSchedulerService @Inject()(alertEnvironmentHandlerRepository: A
         logger.info("No updates")
         Future.successful(())
     }
-
   }
 }
 
@@ -136,5 +138,3 @@ object AlertConfigSchedulerService {
     service.split('.').head
   }
 }
-
-

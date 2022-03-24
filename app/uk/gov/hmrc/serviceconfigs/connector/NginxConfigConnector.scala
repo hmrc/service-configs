@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse}
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
@@ -26,6 +26,7 @@ import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
+@Singleton
 class NginxConfigConnector @Inject()(
   httpClient  : HttpClient,
   githubConfig: GithubConfig,

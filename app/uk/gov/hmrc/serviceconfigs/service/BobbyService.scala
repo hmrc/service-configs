@@ -16,12 +16,15 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.serviceconfigs.connector.BobbyConnector
 
 import scala.concurrent.Future
 
-class BobbyService @Inject()(connector: BobbyConnector) {
+@Singleton
+class BobbyService @Inject()(
+  connector: BobbyConnector
+) {
   def findAllRules(): Future[String] =
     connector.findAllRules()
 }

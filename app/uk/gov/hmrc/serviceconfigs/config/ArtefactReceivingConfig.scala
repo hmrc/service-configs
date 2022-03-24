@@ -23,13 +23,17 @@ import uk.gov.hmrc.http.StringContextOps
 import java.net.URL
 
 @Singleton
-class ArtefactReceivingConfig @Inject()(configuration: Configuration,
-                                        serviceConfig: ServicesConfig) {
+class ArtefactReceivingConfig @Inject()(
+  configuration: Configuration,
+  serviceConfig: ServicesConfig
+) {
+  private lazy val sqsQueueUrlPrefix =
+    new URL(configuration.get[String]("artefact.receiver.aws.sqs.queue-prefix"))
 
-  private lazy val sqsQueueUrlPrefix  : URL = new URL(configuration.get[String]("artefact.receiver.aws.sqs.queue-prefix"))
-  private lazy val sqsQueueSlugInfo   : String = configuration.get[String]("artefact.receiver.aws.sqs.queue-slug")
+  private lazy val sqsQueueSlugInfo =
+    configuration.get[String]("artefact.receiver.aws.sqs.queue-slug")
 
-  lazy val sqsSlugQueue           = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo"
-  lazy val sqsSlugDeadLetterQueue = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo-deadletter"
-  lazy val isEnabled              = configuration.get[Boolean]("artefact.receiver.enabled")
+  lazy val sqsSlugQueue          : URL  = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo"
+  lazy val sqsSlugDeadLetterQueue: URL  = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo-deadletter"
+  lazy val isEnabled             : Boolean = configuration.get[Boolean]("artefact.receiver.enabled")
 }

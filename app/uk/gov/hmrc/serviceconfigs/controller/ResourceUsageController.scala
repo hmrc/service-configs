@@ -21,13 +21,16 @@ import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.service.{ResourceUsage, ResourceUsageService}
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
+@Singleton
 class ResourceUsageController @Inject()(
   resourceUsageService: ResourceUsageService,
   cc: ControllerComponents
-  )(implicit ec: ExecutionContext) extends BackendController(cc) {
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(cc) {
 
   private implicit val resourceUsageFormat: Format[ResourceUsage] =
     ResourceUsage.apiFormat

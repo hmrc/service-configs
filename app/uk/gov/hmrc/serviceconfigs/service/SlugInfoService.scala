@@ -30,7 +30,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugInfoService @Inject()(
   slugInfoRepository   : SlugInfoRepository
 , releasesApiConnector : ReleasesApiConnector
-)(implicit ec: ExecutionContext
+)(implicit
+  ec: ExecutionContext
 ) {
 
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =

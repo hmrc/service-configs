@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
@@ -28,17 +28,17 @@ import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
-
+@Singleton
 class SlugMetadataUpdateScheduler @Inject()(
-    schedulerConfigs    : SchedulerConfigs,
-    slugInfoService     : SlugInfoService,
-    mongoLockRepository : MongoLockRepository
-  )(implicit
-    actorSystem         : ActorSystem,
-    applicationLifecycle: ApplicationLifecycle,
-    ec                  : ExecutionContext
-  ) extends SchedulerUtils
-    with Logging {
+  schedulerConfigs    : SchedulerConfigs,
+  slugInfoService     : SlugInfoService,
+  mongoLockRepository : MongoLockRepository
+)(implicit
+  actorSystem         : ActorSystem,
+  applicationLifecycle: ApplicationLifecycle,
+  ec                  : ExecutionContext
+) extends SchedulerUtils
+  with Logging {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
