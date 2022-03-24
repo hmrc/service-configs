@@ -28,13 +28,14 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 class DeploymentConfigScheduler @Inject()(
-                                           schedulerConfigs: SchedulerConfigs,
-                                           envCfgService: DeploymentConfigService,
-                                           mongoLockRepository: MongoLockRepository
-                                          )(implicit
-                                            actorSystem: ActorSystem,
-                                            applicationLifecycle: ApplicationLifecycle,
-                                            ec: ExecutionContext) extends SchedulerUtils with Logging {
+  schedulerConfigs       : SchedulerConfigs,
+  deploymentConfigService: DeploymentConfigService,
+  mongoLockRepository    : MongoLockRepository
+)(implicit
+  actorSystem         : ActorSystem,
+  applicationLifecycle: ApplicationLifecycle,
+  ec                  : ExecutionContext
+) extends SchedulerUtils with Logging {
 
   scheduleWithLock(
     "deployment config updater",
@@ -43,9 +44,8 @@ class DeploymentConfigScheduler @Inject()(
   ){
       logger.info("starting deployment config updater")
       for {
-        _ <- envCfgService.updateAll()
+        _ <- deploymentConfigService.updateAll()
         _ =  logger.info("finished updating deployment config")
       } yield ()
   }
-
 }

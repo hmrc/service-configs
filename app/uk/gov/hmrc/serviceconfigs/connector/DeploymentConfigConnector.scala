@@ -43,7 +43,7 @@ class DeploymentConfigConnector @Inject()(
     wsClient
       .url(url.toString)
       .withMethod("GET")
-      .withHttpHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
+      .withHttpHeaders("Authorization" -> s"token ${githubConfig.githubToken}")
       .withFollowRedirects(true)
       .withRequestTimeout(60.seconds)
       .stream()

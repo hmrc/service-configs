@@ -32,8 +32,12 @@ import javax.inject.Inject
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
-class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, repo: DeploymentConfigRepository)(implicit val ec: ExecutionContext) extends Logging {
-
+class DeploymentConfigService @Inject()(
+  deploymentConfigConnector : DeploymentConfigConnector,
+  deploymentConfigRepository: DeploymentConfigRepository
+)(implicit
+  ec: ExecutionContext
+) extends Logging {
   import DeploymentConfigService._
 
   import scala.jdk.CollectionConverters._
@@ -46,7 +50,7 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
   def update(environment: Environment): Future[Unit] = {
     logger.info(s"getting deployment config for ${environment.asString}")
     for {
-      is       <- connector.getAppConfigZip(environment)
+      is       <- deploymentConfigConnector.getAppConfigZip(environment)
       zip      =  new ZipInputStream(is)
       toAdd    =  Iterator
                     .continually(zip.getNextEntry)
@@ -62,20 +66,20 @@ class DeploymentConfigService @Inject()(connector: DeploymentConfigConnector, re
                         case _ => None
                       }
                     }.toSeq
-      _        <- repo.updateAll(toAdd)
+      _        <- deploymentConfigRepository.updateAll(toAdd)
       // remove records that dont have an app-config-$env file
-      allNames <- repo.findAllNames(environment).map(_.toSet)
+      allNames <- deploymentConfigRepository.findAllNames(environment).map(_.toSet)
       toRemove =  toAdd.filterNot(c => allNames(c.getString("name").getValue)).map(_.getString("name").getValue).toSeq
-      result   <- repo.delete(toRemove, environment)
+      result   <- deploymentConfigRepository.delete(toRemove, environment)
       _        =  logger.info(s"updated ${toAdd.length}, removed ${toRemove.length} deployment configs in ${environment.asString}")
     } yield result
   }
 
   def findAll(environment: Environment): Future[Seq[DeploymentConfig]] =
-    repo.findAll(environment)
+    deploymentConfigRepository.findAll(environment)
 
   def find(environment: Environment, serviceName: String): Future[Option[DeploymentConfig]] =
-    repo.findByName(environment, serviceName)
+    deploymentConfigRepository.findByName(environment, serviceName)
 }
 
 object DeploymentConfigService {
