@@ -51,10 +51,10 @@ class SlugInfoService @Inject()(
                                                              }
                                   (serviceName, deploymentsByFlag)
                                 }
-      _                      <- allServiceDeployments.toList.traverse { case (serviceName, deployments) =>
-                                  deployments.traverse {
-                                    case (flag, None         ) => slugInfoRepository.clearFlag(flag, serviceName)
-                                    case (flag, Some(version)) => slugInfoRepository.setFlag(flag, serviceName, version)
+      _                      <- allServiceDeployments.toList.foldLeftM(()) { case (_, (serviceName, deployments)) =>
+                                  deployments.foldLeftM(()) {
+                                    case (_, (flag, None         )) => slugInfoRepository.clearFlag(flag, serviceName)
+                                    case (_, (flag, Some(version))) => slugInfoRepository.setFlag(flag, serviceName, version)
                                   }
                                 }
     } yield ()
