@@ -106,7 +106,9 @@ class SlugInfoRepository @Inject()(
     _ <- collection
            .updateMany(
                clientSession = session
-             , filter        = equal("name", name)
+             , filter        = and( equal("name", name)
+                                  , equal(flag.asString, true)
+                                  )
              , update        = set(flag.asString, false)
              )
            .toFuture()
