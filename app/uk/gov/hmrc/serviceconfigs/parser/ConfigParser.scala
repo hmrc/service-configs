@@ -94,9 +94,29 @@ trait ConfigParser extends Logging {
       root ++ logger
     }.toOption
 
+  private def resolveConfig(config: Config, includeSubstitutions: Boolean): Config = {
+    val options =
+      ConfigResolveOptions.defaults
+        .setAllowUnresolved(true)
+        .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
+    if (includeSubstitutions)
+      config
+        .resolve(options)
+    else
+      config
+      .resolveWith(
+        ConfigFactory.empty, // stop substitutions by looking them up in an empty config
+        options
+      )
+  }
+
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    config
-      .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
+    Try(resolveConfig(config, includeSubstitutions = false))
+      .recover { case e: com.typesafe.config.ConfigException =>
+        logger.warn(s"Failed to resolveConfig without substitutions: ${e.getMessage}", e)
+        resolveConfig(config, includeSubstitutions = true)
+      }
+      .get
       .entrySet
       .asScala
       .map(e =>

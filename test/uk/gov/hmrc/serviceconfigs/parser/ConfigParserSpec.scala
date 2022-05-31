@@ -56,7 +56,7 @@ class ConfigParserSpec
       )
     }
 
-    "handle substitutions" in {
+    "handle unresolved substitutions" in {
       val config = ConfigParser.parseConfString(s"""
         |param1=$${akka.http.version}
         |param2=$${play.http.parser.maxMemoryBuffer}
@@ -68,23 +68,38 @@ class ConfigParserSpec
       )
     }
 
-    "handle overriding substitutions" in {
+    "preserve substitutions" in {
       val config = ConfigParser.parseConfString(s"""
-      |{"cookie" {
-      |   "encryption": {
-      |     "key":"1",
-      |     "previousKeys":["2"]
-      |   }
-      | }
-      | "queryParameter":
-      |  {
-      |   "encryption":$${cookie.encryption},
-      |   "encryption":{
-      |     "key":"P5xsJ9Nt+quxGZzB4DeLfw==",
-      |     "previousKeys":[]
-      |   }
-      |  }
-      |}""".stripMargin)
+        |param1=asd
+        |param2=$${param1}
+        |""".stripMargin)
+      println(s"config=$config")
+
+      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+        "param1" -> s"asd",
+        "param2" -> s"$${param1}"
+      )
+    }
+
+    "handle merging of substitutions" in {
+      // we can get this in practice when overriding "include"d config
+      // Note, this requires substitutions to take place ir order to merge encryption
+      val config = ConfigParser.parseConfString(s"""
+        |{"cookie" {
+        |   "encryption": {
+        |     "key":"1",
+        |     "previousKeys":["2"]
+        |   }
+        | }
+        | "queryParameter":
+        |  {
+        |   "encryption":$${cookie.encryption},
+        |   "encryption":{
+        |     "key":"P5xsJ9Nt+quxGZzB4DeLfw==",
+        |     "previousKeys":[]
+        |   }
+        |  }
+        |}""".stripMargin)
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
         "cookie.encryption.key" -> "1",
