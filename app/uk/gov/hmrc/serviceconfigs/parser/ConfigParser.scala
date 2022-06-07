@@ -43,8 +43,8 @@ trait ConfigParser extends Logging {
       override def includeResources(
         context: ConfigIncludeContext,
         what   : String
-      ): ConfigObject = {
-        val res = includeCandidates.find { case (k, v) =>
+      ): ConfigObject =
+        includeCandidates.find { case (k, v) =>
           if (exts.exists(ext => what.endsWith(ext)))
             k == what
           else
@@ -55,9 +55,6 @@ trait ConfigParser extends Logging {
                                  logger.warn(s"Could not find $what to include in $includeCandidates")
                                ConfigFactory.empty.root
         }
-        println(s"============= Looking up $what -> $res")
-        res
-      }
     }
 
     val parseOptions: ConfigParseOptions =

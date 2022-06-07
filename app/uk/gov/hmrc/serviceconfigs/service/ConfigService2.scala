@@ -81,7 +81,6 @@ class ConfigService2 @Inject()(
         optSlugInfo                       <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
         // referenceConfig
-      _ = println(s"££ $environment ReferenceConfig")
         configs                           <- optSlugInfo match {
                                               case Some(slugInfo) =>
                                                 slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
@@ -94,7 +93,6 @@ class ConfigService2 @Inject()(
         referenceEntries                  =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
 
         // applicationConfig
-      _ = println(s"££ $environment applicationConfig")
         optApplicationConfRaw             <- optSlugInfo.traverse {
                                               case slugInfo if slugInfo.applicationConfig == "" =>
                                                 // if no slug info (e.g. java apps) get from github
@@ -117,7 +115,6 @@ class ConfigService2 @Inject()(
 
 
       // loggerConfig
-      _ = println(s"££ $environment LoggerConfig")
       loggerEntries1                    =  optSlugInfo match {
                                              // LoggerModule was added for this version
                                              case Some(slugInfo) if slugInfo.dependencies.exists(d =>
@@ -134,7 +131,6 @@ class ConfigService2 @Inject()(
       loggerEntries                     =  ConfigParser.flattenConfigToDotNotation(loggerConfig)
 
       // referenceConfig
-      _ = println(s"££ $environment referenceConfig")
       configs                           <- optSlugInfo match {
                                              case Some(slugInfo) =>
                                                slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
@@ -147,10 +143,8 @@ class ConfigService2 @Inject()(
                                              ConfigParser.reduceConfigs(configs),
                                              loggerConfig
                                            )
-      //referenceEntries                  =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
 
       // applicationConfig
-      _ = println(s"££ $environment applicationConfig")
       optApplicationConfRaw             <- optSlugInfo.traverse {
                                              case slugInfo if slugInfo.applicationConfig == "" =>
                                                // if no slug info (e.g. java apps) get from github
@@ -158,18 +152,19 @@ class ConfigService2 @Inject()(
                                              case slugInfo =>
                                                Future.successful(Some(slugInfo.applicationConfig))
                                            }.map(_.flatten)
-      _ = if (environment.name == "production") println(s"\n>>>>>>>>>\noptApplicationConfRaw=$optApplicationConfRaw\n<<<<<<<<<<<<<\n")
       (applicationConf, applicationEntries)                   =  delta(
                                              ConfigParser.parseConfString(optApplicationConfRaw.getOrElse(""), ConfigParser.toIncludeCandidates(configs)),
                                              referenceConfig
                                            )
-      //  _ = if (environment.name == "production") println(s"\n>>>>>>>>>\napplicationConf=$applicationConf\n<<<<<<<<<<<<<\n")
-      //applicationEntries                =  ConfigParser.flattenConfigToDotNotation(applicationConf)
 
-      serviceType                       =  applicationEntries.get("type")
+      optAppConfigEnvRaw                <- configConnector.serviceConfigYaml(environment.slugInfoFlag.asString, serviceName) // TODO take SlugInfoFlag rather than String
+      appConfigEnvEntries1              =  ConfigParser
+                                            .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
+                                            .getOrElse(Map.empty)
+                                            .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+      serviceType                       =  appConfigEnvEntries1.get("type")
 
       // baseConfig
-      _ = println(s"££ $environment baseConfig")
       optBaseConfRaw                    <- optSlugInfo match {
                                              case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
                                              case None           => // if no slug info (e.g. java apps) get from github
@@ -179,10 +174,8 @@ class ConfigService2 @Inject()(
                                              ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false), // ignoring includes, since we know this is applicationConf
                                              applicationConf
                                             )
-      //baseEntries                       =  ConfigParser.flattenConfigToDotNotation(baseConf)
 
       // appConfigCommonOverrideable
-      _ = println(s"££ $environment appConfigCommonOverrideable")
       optAppConfigCommonOverrideableRaw <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st)) // TODO take SlugInfoFlag rather than String
       configCommonOverrideableEntries1  =  ConfigParser
                                              .parseYamlStringAsMap(optAppConfigCommonOverrideableRaw.getOrElse(""))
@@ -195,24 +188,15 @@ class ConfigService2 @Inject()(
                                              ConfigFactory.parseMap(configCommonOverrideableEntries1.asJava),
                                              baseConf
                                            )
-      //configCommonOverrideableEntries   =  ConfigParser.flattenConfigToDotNotation(configCommonOverrideableConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
 
       // appConfigEnv
-      _ = println(s"££ $environment appConfigEnv")
-      optAppConfigEnvRaw                <- configConnector.serviceConfigYaml(environment.slugInfoFlag.asString, serviceName) // TODO take SlugInfoFlag rather than String
-      appConfigEnvEntries1              =  ConfigParser
-                                            .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
-                                            .getOrElse(Map.empty)
-                                            .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
       (appConfigEnvConf,appConfigEnvEntries)                  =  delta(
                                              ConfigFactory.parseMap(appConfigEnvEntries1.asJava),
                                              configCommonOverrideableConf
                                            )
-      //appConfigEnvEntries               =  ConfigParser.flattenConfigToDotNotation(appConfigEnvConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
 
 
       // appConfigCommonFixed
-      _ = println(s"££ $environment appConfigCommonFixed")
       optAppConfigCommonFixedRaw        <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st))  // TODO take SlugInfoFlag rather than String
       appConfigCommonFixedEntries1      =  ConfigParser
                                             .parseYamlStringAsMap(optAppConfigCommonFixedRaw.getOrElse(""))
@@ -225,7 +209,6 @@ class ConfigService2 @Inject()(
                                              ConfigFactory.parseMap(appConfigCommonFixedEntries1.asJava),
                                              appConfigEnvConf
                                            )
-      //appConfigCommonFixedEntries       =  ConfigParser.flattenConfigToDotNotation(appConfigCommonFixedConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
     } yield Seq(
       // TODO precedence is defined by order, why the numbers?
       ConfigSourceEntries("loggerConfig"               , 8 , loggerEntries),
