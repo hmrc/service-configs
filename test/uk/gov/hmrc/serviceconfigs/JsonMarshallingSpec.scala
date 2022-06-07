@@ -19,8 +19,8 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
-import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import uk.gov.hmrc.serviceconfigs.service.ConfigService2
+import uk.gov.hmrc.serviceconfigs.service.ConfigService2._
 
 class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
 
@@ -61,8 +61,8 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val configByKey = Map("key1" ->
         Map("environmentName" ->
           Seq(
-            ConfigService.ConfigSourceValue("baseConfig", 10, "configEntry1"),
-            ConfigService.ConfigSourceValue("appConfig", 20, "configEntry2"))))
+            ConfigService2.ConfigSourceValue("baseConfig", 10, "configEntry1"),
+            ConfigService2.ConfigSourceValue("appConfig", 20, "configEntry2"))))
 
       Json.toJson(configByKey) shouldBe Json.parse(
         """
