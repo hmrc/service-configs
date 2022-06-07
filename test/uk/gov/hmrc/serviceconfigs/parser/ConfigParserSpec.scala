@@ -68,19 +68,6 @@ class ConfigParserSpec
       )
     }
 
-    "preserve substitutions" in {
-      val config = ConfigParser.parseConfString(s"""
-        |param1=asd
-        |param2=$${param1}
-        |""".stripMargin)
-      println(s"config=$config")
-
-      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "param1" -> s"asd",
-        "param2" -> s"$${param1}"
-      )
-    }
-
     "handle merging of substitutions" in {
       // we can get this in practice when overriding "include"d config
       // Note, this requires substitutions to take place ir order to merge encryption

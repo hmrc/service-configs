@@ -22,13 +22,13 @@ import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.ConfigService2
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Github Config")
-class ConfigController @Inject()(configService: ConfigService, mcc: MessagesControllerComponents)(
+class ConfigController @Inject()(configService: ConfigService2, mcc: MessagesControllerComponents)(
   implicit ec: ExecutionContext)
     extends BackendController(mcc)
     with ConfigJson {

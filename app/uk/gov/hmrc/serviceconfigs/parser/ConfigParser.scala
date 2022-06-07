@@ -74,19 +74,19 @@ trait ConfigParser extends Logging {
       .toOption
 
   def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, String]] =
-    Try{
+    Try {
       val xml = SafeXml().loadString(xmlString)
       val root =
-          (for {
-            node  <- (xml \ "root").headOption
-            level <- (node \ "@level").headOption
-          } yield Map("logger.root" -> level.text)
-          ).getOrElse(Map.empty)
+        (for {
+           node  <- (xml  \ "root"  ).headOption
+           level <- (node \ "@level").headOption
+         } yield Map("logger.root" -> level.text)
+        ).getOrElse(Map.empty)
       val logger =
           (xml \ "logger")
             .flatMap { x =>
               for {
-                k <- (x \ "@name").headOption
+                k <- (x \ "@name" ).headOption
                 v <- (x \ "@level").headOption
               } yield s"logger.${k.text}" -> v.text
             }
@@ -94,29 +94,9 @@ trait ConfigParser extends Logging {
       root ++ logger
     }.toOption
 
-  private def resolveConfig(config: Config, includeSubstitutions: Boolean): Config = {
-    val options =
-      ConfigResolveOptions.defaults
-        .setAllowUnresolved(true)
-        .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
-    if (includeSubstitutions)
-      config
-        .resolve(options)
-    else
-      config
-      .resolveWith(
-        ConfigFactory.empty, // stop substitutions by looking them up in an empty config
-        options
-      )
-  }
-
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    Try(resolveConfig(config, includeSubstitutions = false))
-      .recover { case e: com.typesafe.config.ConfigException =>
-        logger.warn(s"Failed to resolveConfig without substitutions: ${e.getMessage}", e)
-        resolveConfig(config, includeSubstitutions = true)
-      }
-      .get
+    config
+      .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
       .entrySet
       .asScala
       .map(e =>
