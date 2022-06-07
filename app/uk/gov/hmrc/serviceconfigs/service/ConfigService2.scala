@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.instances.all._
 import cats.syntax.all._
+import com.typesafe.config.ConfigFactory
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
@@ -26,6 +27,7 @@ import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 
 @Singleton
 class ConfigService2 @Inject()(
@@ -68,87 +70,101 @@ class ConfigService2 @Inject()(
     hc: HeaderCarrier
   ): Future[Seq[ConfigSourceEntries]] =
     for {
-      optSlugInfo      <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+      optSlugInfo                       <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
       // loggerConfig
-      loggerEntries    =  optSlugInfo match {
-                            // LoggerModule was added for this version
-                            case Some(slugInfo) if slugInfo.dependencies.exists(d =>
-                                                  d.group == "uk.gov.hmrc"
-                                                  && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
-                                                  && Version.parse(d.version).exists(_ >= Version("5.18.0"))
-                                                ) =>
-                              ConfigParser
-                                .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
-                                .getOrElse(Map.empty[String, String])
-                            case _ => Map.empty[String, String]
-                          }
+      loggerEntries1                    =  optSlugInfo match {
+                                             // LoggerModule was added for this version
+                                             case Some(slugInfo) if slugInfo.dependencies.exists(d =>
+                                                                   d.group == "uk.gov.hmrc"
+                                                                   && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
+                                                                   && Version.parse(d.version).exists(_ >= Version("5.18.0"))
+                                                                 ) =>
+                                               ConfigParser
+                                                 .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
+                                                 .getOrElse(Map.empty[String, String])
+                                             case _ => Map.empty[String, String]
+                                           }
+      loggerConfig                      =  ConfigFactory.parseMap(loggerEntries1.asJava)
+      loggerEntries                     =  ConfigParser.flattenConfigToDotNotation(loggerConfig)
 
       // referenceConfig
-      configs               <- optSlugInfo match {
-                                 case Some(slugInfo) =>
-                                   slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
-                                     dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
-                                       .map(acc ++ _)
-                                   }
-                                 case None => Future.successful(List.empty[DependencyConfig])
-                               }
-      referenceConfig       =  ConfigParser.reduceConfigs(configs)
-      referenceEntries      =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
+      configs                           <- optSlugInfo match {
+                                             case Some(slugInfo) =>
+                                               slugInfo.dependencies.foldLeftM(List.empty[DependencyConfig]){ case (acc, d) =>
+                                                 dependencyConfigRepository.getDependencyConfig(d.group, d.artifact, d.version)
+                                                   .map(acc ++ _)
+                                               }
+                                             case None => Future.successful(List.empty[DependencyConfig])
+                                           }
+      referenceConfig                   =  ConfigParser.reduceConfigs(configs)
+                                             .withFallback(loggerConfig)
+      referenceEntries                  =  ConfigParser.flattenConfigToDotNotation(referenceConfig)
 
       // applicationConfig
-      optApplicationConfRaw <- optSlugInfo.traverse {
-                                 case slugInfo if slugInfo.applicationConfig == "" =>
-                                   // if no slug info (e.g. java apps) get from github
-                                   configConnector.serviceApplicationConfigFile(serviceName)
-                                 case slugInfo =>
-                                   Future.successful(Some(slugInfo.applicationConfig))
-                               }.map(_.flatten)
-      applicationConf       =  ConfigParser.parseConfString(optApplicationConfRaw.getOrElse(""), ConfigParser.toIncludeCandidates(configs))
-      applicationEntries    =  ConfigParser.flattenConfigToDotNotation(applicationConf)
+      optApplicationConfRaw             <- optSlugInfo.traverse {
+                                             case slugInfo if slugInfo.applicationConfig == "" =>
+                                               // if no slug info (e.g. java apps) get from github
+                                               configConnector.serviceApplicationConfigFile(serviceName)
+                                             case slugInfo =>
+                                               Future.successful(Some(slugInfo.applicationConfig))
+                                           }.map(_.flatten)
+      applicationConf                   =  ConfigParser.parseConfString(optApplicationConfRaw.getOrElse(""), ConfigParser.toIncludeCandidates(configs))
+                                             .withFallback(referenceConfig)
+      applicationEntries                =  ConfigParser.flattenConfigToDotNotation(applicationConf)
 
-      serviceType           =  applicationEntries.get("type")
+      serviceType                       =  applicationEntries.get("type")
 
       // baseConfig
-      optBaseConfRaw        <- optSlugInfo match {
-                                 case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
-                                 case None           => // if no slug info (e.g. java apps) get from github
-                                                        configConnector.serviceConfigConf("base", serviceName)
-                               }
-      baseConf              =  ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
-      baseEntries           =  ConfigParser.flattenConfigToDotNotation(baseConf)
+      optBaseConfRaw                    <- optSlugInfo match {
+                                             case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
+                                             case None           => // if no slug info (e.g. java apps) get from github
+                                                                    configConnector.serviceConfigConf("base", serviceName)
+                                           }
+      baseConf                          =  ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
+                                             .withFallback(applicationConf)
+      baseEntries                       =  ConfigParser.flattenConfigToDotNotation(baseConf)
 
       // appConfigCommonOverrideable
-      optAppConfigCommonOverrideableRaw  <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st)) // TODO take SlugInfoFlag rather than String
-      configCommonOverrideableEntries    =  ConfigParser
+      optAppConfigCommonOverrideableRaw <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st)) // TODO take SlugInfoFlag rather than String
+      configCommonOverrideableEntries1  =  ConfigParser
                                              .parseYamlStringAsMap(optAppConfigCommonOverrideableRaw.getOrElse(""))
                                              .getOrElse(Map.empty)
                                              .view
                                              .filterKeys(_.startsWith("hmrc_config.overridable"))
                                              .map { case (k, v) => k.replace("hmrc_config.overridable.", "") -> v }
                                              .toMap
+      configCommonOverrideableConf      =  ConfigFactory.parseMap(configCommonOverrideableEntries1.asJava)
+                                             .withFallback(applicationConf)
+      configCommonOverrideableEntries   =  ConfigParser.flattenConfigToDotNotation(configCommonOverrideableConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
 
       // appConfigEnv
-      optAppConfigEnvRaw  <- configConnector.serviceConfigYaml(environment.slugInfoFlag.asString, serviceName) // TODO take SlugInfoFlag rather than String
-      appConfigEnvEntries =  ConfigParser
-                               .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
-                               .getOrElse(Map.empty)
-                               .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+      optAppConfigEnvRaw                <- configConnector.serviceConfigYaml(environment.slugInfoFlag.asString, serviceName) // TODO take SlugInfoFlag rather than String
+      appConfigEnvEntries1              =  ConfigParser
+                                            .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
+                                            .getOrElse(Map.empty)
+                                            .map { case (k, v) => k.replace("hmrc_config.", "") -> v }
+      appConfigEnvConf                  =  ConfigFactory.parseMap(appConfigEnvEntries1.asJava)
+                                                               .withFallback(configCommonOverrideableConf)
+      appConfigEnvEntries               =  ConfigParser.flattenConfigToDotNotation(appConfigEnvConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
 
 
       // appConfigCommonFixed
-      optAppConfigCommonFixedRaw  <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st))  // TODO take SlugInfoFlag rather than String
-      appConfigCommonFixedEntries =  ConfigParser
-                                       .parseYamlStringAsMap(optAppConfigCommonFixedRaw.getOrElse(""))
-                                       .getOrElse(Map.empty)
-                                       .view
-                                       .filterKeys(_.startsWith("hmrc_config.fixed"))
-                                       .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
-                                       .toMap
+      optAppConfigCommonFixedRaw        <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st))  // TODO take SlugInfoFlag rather than String
+      appConfigCommonFixedEntries1      =  ConfigParser
+                                            .parseYamlStringAsMap(optAppConfigCommonFixedRaw.getOrElse(""))
+                                            .getOrElse(Map.empty)
+                                            .view
+                                            .filterKeys(_.startsWith("hmrc_config.fixed"))
+                                            .map { case (k, v) => k.replace("hmrc_config.fixed.", "") -> v }
+                                            .toMap
+      appConfigCommonFixedConf       =  ConfigFactory.parseMap(appConfigCommonFixedEntries1.asJava)
+                                             .withFallback(appConfigEnvConf)
+      appConfigCommonFixedEntries    =  ConfigParser.flattenConfigToDotNotation(appConfigCommonFixedConf) // TODO remove entries that are the same as in `applicationConf` and were not in `configCommonOverrideableEntries1`
     } yield Seq(
       // TODO precedence is defined by order, why the numbers?
-      ConfigSourceEntries("loggerConfig"               , 8, loggerEntries),
-      ConfigSourceEntries("referenceConfig"            , 9, referenceEntries),
+      ConfigSourceEntries("loggerConfig"               , 8 , loggerEntries),
+      ConfigSourceEntries("referenceConfig"            , 9 , referenceEntries),
       ConfigSourceEntries("applicationConfig"          , 10, applicationEntries),
       ConfigSourceEntries("baseConfig"                 , 20, baseEntries),
       ConfigSourceEntries("appConfigCommonOverrideable", 30, configCommonOverrideableEntries),
