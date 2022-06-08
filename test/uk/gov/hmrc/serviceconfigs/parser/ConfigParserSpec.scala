@@ -208,7 +208,7 @@ class ConfigParserSpec
     }
   }
 
-  "parseConfString" should {
+  "ConfigParser.parseConfString" should {
     "inline the include" in {
       val config =
         """include "included1.conf"
@@ -256,7 +256,7 @@ class ConfigParserSpec
     }
   }
 
-  "reduceConfigs" should {
+  "ConfigParser.reduceConfigs" should {
     "combine the configs" in {
       val configs = Seq(
         dependencyConfig(
@@ -274,6 +274,81 @@ class ConfigParserSpec
       )
       val combinedConfig = ConfigParser.reduceConfigs(configs)
       combinedConfig.root.render(ConfigRenderOptions.concise) shouldBe """{"key1":"val1","key2":"val2","key3":"val3"}"""
+    }
+  }
+
+  "ConfigParser.delta" should {
+    "apply substitutions" in {
+      val latestConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |""".stripMargin
+      )
+
+      val previousConf = ConfigParser.parseConfString(s"""
+        |param1=asd
+        |param2=$${param1}
+        |""".stripMargin
+      )
+
+      val (conf, entries) = ConfigParser.delta(latestConf, previousConf)
+      // conf should not apply substitions yet - for further updates
+      conf shouldBe ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |param2=$${param1}
+        |""".stripMargin
+      )
+      // entries should have substitutions applied
+      entries shouldBe Map(
+        "param1" -> s"yyy",
+        "param2" -> s"yyy"
+      )
+    }
+
+    "strip untouched config" in {
+      val latestConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |""".stripMargin
+      )
+
+      val previousConf = ConfigParser.parseConfString(s"""
+        |param2=zzz
+        |""".stripMargin
+      )
+
+      val (conf, entries) = ConfigParser.delta(latestConf, previousConf)
+      // conf should contain both values - for further updates
+      conf shouldBe ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |param2=zzz
+        |""".stripMargin
+      )
+      // entries should only include effective changes from latestConf
+      entries shouldBe Map(
+        "param1" -> s"yyy"
+      )
+    }
+
+    "preserve explicit definitions even if the same" in {
+      val latestConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |""".stripMargin
+      )
+
+      val previousConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |""".stripMargin
+      )
+
+      val (conf, entries) = ConfigParser.delta(latestConf, previousConf)
+      // conf should contain the accumulated values - for further updates
+      conf shouldBe ConfigParser.parseConfString(s"""
+        |param1=yyy
+        |""".stripMargin
+      )
+      // and entries should preserve the update from latestConf, even though it hasn't changed from previousConf
+      entries shouldBe Map(
+        "param1" -> s"yyy"
+      )
     }
   }
 

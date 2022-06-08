@@ -84,19 +84,26 @@ trait ConfigParser extends Logging {
         ).getOrElse(Map.empty)
       val logger =
           (xml \ "logger")
-            .flatMap { x =>
+            .flatMap(x =>
               for {
                 k <- (x \ "@name" ).headOption
                 v <- (x \ "@level").headOption
               } yield s"logger.${k.text}" -> v.text
-            }
+            )
             .toMap
       root ++ logger
     }.toOption
 
+  /** The config is resolved (substitutions applied) and
+    * the config is returned as a flat Map
+    */
   def flattenConfigToDotNotation(config: Config): Map[String, String] =
     config
-      .resolve(ConfigResolveOptions.defaults.setAllowUnresolved(true).setUseSystemEnvironment(false)) //environment substitutions cannot be resolved
+      .resolve(
+        ConfigResolveOptions.defaults
+          .setAllowUnresolved(true)
+          .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
+        )
       .entrySet
       .asScala
       .map(e =>
@@ -161,6 +168,44 @@ trait ConfigParser extends Logging {
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
+
+  def extractAsConfig(config: Map[String, String], prefix: String): Config =
+    ConfigFactory.parseMap(
+      config
+        .view
+        .filterKeys(_.startsWith(prefix))
+        .map { case (k, v) => k.replace(prefix, "") -> v }
+        .toMap
+        .asJava
+    )
+
+  /** Config is processed relative to the previous one.
+    * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
+    * i.e. new entries from latestConf, or entries that have been changed because of latestConf (e.g. latestConf provided different substitutions)
+    */
+  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, String]) = {
+    val previousConfMap = ConfigParser.flattenConfigToDotNotation(previousConf)
+
+    val conf = latestConf.withFallback(previousConf)
+    val latestConfResolved = // we have to resolve in order to call "hasPath"
+      latestConf.resolve(
+        ConfigResolveOptions.defaults
+          .setAllowUnresolved(true)
+          .setUseSystemEnvironment(false)
+      )
+    val confAsMap = ConfigParser.flattenConfigToDotNotation(conf)
+    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, String]){ case (acc, (k, v)) =>
+        // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
+        // keep it for now...
+        if (scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true) ||
+          previousConfMap.get(k) != Some(v)
+        )
+          acc ++ Seq(k -> v) // and not explicitly included in previousConf
+        else
+          acc
+      }
+    (conf, confAsMap2)
+  }
 }
 
 object ConfigParser extends ConfigParser
