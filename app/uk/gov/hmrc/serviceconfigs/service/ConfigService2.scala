@@ -211,13 +211,13 @@ class ConfigService2 @Inject()(
                                            )
     } yield Seq(
       // TODO precedence is defined by order, why the numbers?
-      ConfigSourceEntries("loggerConfig"               , 8 , loggerEntries),
-      ConfigSourceEntries("referenceConfig"            , 9 , referenceEntries),
-      ConfigSourceEntries("applicationConfig"          , 10, applicationEntries),
-      ConfigSourceEntries("baseConfig"                 , 20, baseEntries),
-      ConfigSourceEntries("appConfigCommonOverrideable", 30, configCommonOverrideableEntries),
-      ConfigSourceEntries("appConfigEnv"               , 40, appConfigEnvEntries),
-      ConfigSourceEntries("appConfigCommonFixed"       , 50, appConfigCommonFixedEntries)
+      ConfigSourceEntries("loggerConf"                , 8 , loggerEntries),
+      ConfigSourceEntries("referenceConf"             , 9 , referenceEntries),
+      ConfigSourceEntries("applicationConf"           , 10, applicationEntries),
+      ConfigSourceEntries("baseConfig"                , 20, baseEntries),
+      ConfigSourceEntries("appConfigCommonOverridable", 30, configCommonOverrideableEntries),
+      ConfigSourceEntries("appConfigEnvironment"      , 40, appConfigEnvEntries),
+      ConfigSourceEntries("appConfigCommonFixed"      , 50, appConfigCommonFixedEntries)
     )
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
