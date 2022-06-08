@@ -19,8 +19,8 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.serviceconfigs.service.ConfigService2
-import uk.gov.hmrc.serviceconfigs.service.ConfigService2._
+import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
 
@@ -30,28 +30,33 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
         "environmentName" -> Seq(
           ConfigSourceEntries("baseConfig", 20, Map(
             "entry1" -> "configEntry-1",
-            "entry2" -> "configEntry-2")),
-          ConfigSourceEntries("appConfig", 40, Map("entry3" -> "configEntry-3"))))
-
-      Json.toJson(cbe) shouldBe Json.parse(
-        """{
-            |"environmentName":[
-              |{
-                |"source":"baseConfig",
-                |"precedence":20,
-                |"entries":{
-                  |"entry1":"configEntry-1",
-                  |"entry2":"configEntry-2"
-                |}
-              |},
-              |{
-                |"source":"appConfig",
-                |"precedence":40,
-                |"entries":{"entry3":"configEntry-3"}
-              |}
-            |]
-           |}""".stripMargin
+            "entry2" -> "configEntry-2"
+          )),
+          ConfigSourceEntries("appConfig", 40, Map(
+            "entry3" -> "configEntry-3"
+          ))
         )
+      )
+
+      Json.toJson(cbe) shouldBe Json.parse("""
+        {
+          "environmentName":[
+            {
+              "source":"baseConfig",
+              "precedence":20,
+              "entries":{
+                "entry1":"configEntry-1",
+                "entry2":"configEntry-2"
+              }
+            },
+            {
+              "source":"appConfig",
+              "precedence":40,
+              "entries":{"entry3":"configEntry-3"}
+            }
+          ]
+        }
+      """)
     }
   }
 
@@ -61,30 +66,27 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val configByKey = Map("key1" ->
         Map("environmentName" ->
           Seq(
-            ConfigService2.ConfigSourceValue("baseConfig", 10, "configEntry1"),
-            ConfigService2.ConfigSourceValue("appConfig", 20, "configEntry2"))))
+            ConfigService.ConfigSourceValue("baseConfig", 10, "configEntry1"),
+            ConfigService.ConfigSourceValue("appConfig", 20, "configEntry2"))))
 
-      Json.toJson(configByKey) shouldBe Json.parse(
-        """
-          |{
-            |"key1":{
-              |"environmentName":[
-                |{
-                  |"source":"baseConfig",
-                  |"precedence":10,
-                  |"value":"configEntry1"
-                |},
-                |{
-                  |"source":"appConfig",
-                  |"precedence":20,
-                  |"value":"configEntry2"
-                |}
-              |]
-            |}
-          |}
-        """.stripMargin
-      )
+      Json.toJson(configByKey) shouldBe Json.parse("""
+        {
+          "key1":{
+            "environmentName":[
+              {
+                "source":"baseConfig",
+                "precedence":10,
+                "value":"configEntry1"
+              },
+              {
+                "source":"appConfig",
+                "precedence":20,
+                "value":"configEntry2"
+              }
+            ]
+          }
+        }
+      """)
     }
   }
-
 }

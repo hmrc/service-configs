@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs
 
 import play.api.libs.json.Json
-import uk.gov.hmrc.serviceconfigs.service.ConfigService2._
+import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 trait ConfigJson {
   implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]

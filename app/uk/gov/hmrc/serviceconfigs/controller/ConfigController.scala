@@ -22,16 +22,19 @@ import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.service.ConfigService2
+import uk.gov.hmrc.serviceconfigs.service.ConfigService
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Github Config")
-class ConfigController @Inject()(configService: ConfigService2, mcc: MessagesControllerComponents)(
-  implicit ec: ExecutionContext)
-    extends BackendController(mcc)
-    with ConfigJson {
+class ConfigController @Inject()(
+  configService: ConfigService,
+  mcc          : MessagesControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(mcc)
+     with ConfigJson {
 
   @ApiOperation(
     value = "Retrieves all of the config for a given service, broken down by environment",
@@ -56,5 +59,4 @@ class ConfigController @Inject()(configService: ConfigService2, mcc: MessagesCon
       Ok(Json.toJson(k))
     }
   }
-
 }
