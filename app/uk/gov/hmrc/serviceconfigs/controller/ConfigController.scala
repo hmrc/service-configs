@@ -28,10 +28,13 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Github Config")
-class ConfigController @Inject()(configService: ConfigService, mcc: MessagesControllerComponents)(
-  implicit ec: ExecutionContext)
-    extends BackendController(mcc)
-    with ConfigJson {
+class ConfigController @Inject()(
+  configService: ConfigService,
+  mcc          : MessagesControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(mcc)
+     with ConfigJson {
 
   @ApiOperation(
     value = "Retrieves all of the config for a given service, broken down by environment",
@@ -56,5 +59,4 @@ class ConfigController @Inject()(configService: ConfigService, mcc: MessagesCont
       Ok(Json.toJson(k))
     }
   }
-
 }

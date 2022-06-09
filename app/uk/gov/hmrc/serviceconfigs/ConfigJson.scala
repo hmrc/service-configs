@@ -16,10 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import play.api.libs.json.Json
+import play.api.libs.json.{Writes, __}
+import play.api.libs.functional.syntax._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 trait ConfigJson {
-  implicit val configSourceEntriesWrites = Json.writes[ConfigSourceEntries]
-  implicit val configSourceValueWrites = Json.writes[ConfigSourceValue]
+  implicit val configSourceEntriesWrites: Writes[ConfigSourceEntries] =
+    ( (__ \ "source" ).write[String]
+    ~ (__ \ "entries").write[Map[KeyName, String]]
+    )(unlift(ConfigSourceEntries.unapply))
+
+  implicit val configSourceValueWrites: Writes[ConfigSourceValue] =
+    ( (__ \ "source").write[String]
+    ~ (__ \ "value" ).write[String]
+    )(unlift(ConfigSourceValue.unapply))
 }

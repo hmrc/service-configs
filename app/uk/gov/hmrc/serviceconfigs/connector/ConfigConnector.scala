@@ -23,6 +23,7 @@ import play.api.Logging
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse, StringContextOps}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.SlugInfoFlag
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,21 +34,21 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def serviceConfigYaml(env: String, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
+  def serviceConfigYaml(env: SlugInfoFlag, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-$env/HEAD/$service.yaml"
+    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/HEAD/$service.yaml"
     doCall(requestUrl, newHc)
   }
 
-  def serviceConfigConf(env: String, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
+  def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-$env/HEAD/$service.conf"
+    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf"
     doCall(requestUrl, newHc)
   }
 
-  def serviceCommonConfigYaml(env: String, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
+  def serviceCommonConfigYaml(env: SlugInfoFlag, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
     val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/$env-$serviceType-common.yaml"
+    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/${env.asString}-$serviceType-common.yaml"
     doCall(requestUrl, newHc)
   }
 

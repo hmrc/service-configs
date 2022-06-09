@@ -28,9 +28,12 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Nginx Routes")
-class NginxController @Inject()(db: FrontendRouteRepository, mcc: MessagesControllerComponents)(
-  implicit ec: ExecutionContext)
-    extends BackendController(mcc) {
+class NginxController @Inject()(
+  db: FrontendRouteRepository,
+  mcc: MessagesControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(mcc) {
 
   implicit val formats: OFormat[FrontendRoutes] = Json.format[FrontendRoutes]
 
