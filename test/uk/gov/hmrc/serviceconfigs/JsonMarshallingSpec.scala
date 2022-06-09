@@ -28,11 +28,11 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
     "unmarshal" in {
       val cbe: ConfigByEnvironment = Map(
         "environmentName" -> Seq(
-          ConfigSourceEntries("baseConfig", 20, Map(
+          ConfigSourceEntries("baseConfig", Map(
             "entry1" -> "configEntry-1",
             "entry2" -> "configEntry-2"
           )),
-          ConfigSourceEntries("appConfig", 40, Map(
+          ConfigSourceEntries("appConfig", Map(
             "entry3" -> "configEntry-3"
           ))
         )
@@ -42,17 +42,17 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
         {
           "environmentName":[
             {
-              "source":"baseConfig",
-              "precedence":20,
-              "entries":{
-                "entry1":"configEntry-1",
-                "entry2":"configEntry-2"
+              "source": "baseConfig",
+              "entries": {
+                "entry1": "configEntry-1",
+                "entry2": "configEntry-2"
               }
             },
             {
-              "source":"appConfig",
-              "precedence":40,
-              "entries":{"entry3":"configEntry-3"}
+              "source": "appConfig",
+              "entries": {
+                "entry3": "configEntry-3"
+              }
             }
           ]
         }
@@ -66,22 +66,23 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val configByKey = Map("key1" ->
         Map("environmentName" ->
           Seq(
-            ConfigService.ConfigSourceValue("baseConfig", 10, "configEntry1"),
-            ConfigService.ConfigSourceValue("appConfig", 20, "configEntry2"))))
+            ConfigService.ConfigSourceValue("baseConfig", "configEntry1"),
+            ConfigService.ConfigSourceValue("appConfig" , "configEntry2")
+          )
+        )
+      )
 
       Json.toJson(configByKey) shouldBe Json.parse("""
         {
-          "key1":{
-            "environmentName":[
+          "key1": {
+            "environmentName": [
               {
-                "source":"baseConfig",
-                "precedence":10,
-                "value":"configEntry1"
+                "source": "baseConfig",
+                "value": "configEntry1"
               },
               {
-                "source":"appConfig",
-                "precedence":20,
-                "value":"configEntry2"
+                "source": "appConfig",
+                "value": "configEntry2"
               }
             ]
           }

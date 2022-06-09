@@ -23,34 +23,34 @@ import play.api.libs.json.{Format, __}
  * Deployment config represents the non-application config from the app-config-env files.
  * It represents data about where and how a service is deployed
  */
-case class DeploymentConfig(name:           String,
-                            artifactName:   Option[String],
-                            environment:    Environment,
-                            zone:           String,
-                            deploymentType: String,
-                            slots:          Int,
-                            instances:      Int)
+case class DeploymentConfig(
+  name:           String,
+  artifactName:   Option[String],
+  environment:    Environment,
+  zone:           String,
+  deploymentType: String,
+  slots:          Int,
+  instances:      Int
+)
 
 object DeploymentConfig {
-  val mongoFormat: Format[DeploymentConfig] = {
-    (   (__ \ "name"        ).format[String]
-      ~ (__ \ "artifactName").formatNullable[String]
-      ~ (__ \ "environment" ).format[Environment](Environment.format)
-      ~ (__ \ "zone"        ).format[String]
-      ~ (__ \ "type"        ).format[String]
-      ~ (__ \ "slots"       ).format[String].inmap[Int](_.toInt, _.toString)
-      ~ (__ \ "instances"   ).format[String].inmap[Int](_.toInt, _.toString)
-      ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
-  }
+  val mongoFormat: Format[DeploymentConfig] =
+    ( (__ \ "name"        ).format[String]
+    ~ (__ \ "artifactName").formatNullable[String]
+    ~ (__ \ "environment" ).format[Environment](Environment.format)
+    ~ (__ \ "zone"        ).format[String]
+    ~ (__ \ "type"        ).format[String]
+    ~ (__ \ "slots"       ).format[String].inmap[Int](_.toInt, _.toString)
+    ~ (__ \ "instances"   ).format[String].inmap[Int](_.toInt, _.toString)
+    ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 
-  val apiFormat: Format[DeploymentConfig] = {
-    (   (__ \ "name"        ).format[String]
-      ~ (__ \ "artifactName").formatNullable[String]
-      ~ (__ \ "environment" ).format[Environment](Environment.format)
-      ~ (__ \ "zone"        ).format[String]
-      ~ (__ \ "type"        ).format[String]
-      ~ (__ \ "slots"       ).format[Int]
-      ~ (__ \ "instances"   ).format[Int]
-      ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
-  }
+  val apiFormat: Format[DeploymentConfig] =
+    ( (__ \ "name"        ).format[String]
+    ~ (__ \ "artifactName").formatNullable[String]
+    ~ (__ \ "environment" ).format[Environment](Environment.format)
+    ~ (__ \ "zone"        ).format[String]
+    ~ (__ \ "type"        ).format[String]
+    ~ (__ \ "slots"       ).format[Int]
+    ~ (__ \ "instances"   ).format[Int]
+    ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 }

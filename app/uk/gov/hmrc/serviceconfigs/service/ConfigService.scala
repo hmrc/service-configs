@@ -116,7 +116,7 @@ class ConfigService @Inject()(
           case None                 => (entry.config, ConfigParser.flattenConfigToDotNotation(entry.config))
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
       }
-      (acc :+ ConfigSourceEntries(entry.name, entry.precedence, entries), Some(nextConfig))
+      (acc :+ ConfigSourceEntries(entry.name, entries), Some(nextConfig))
     }._1
 
   private def configSourceEntries(
@@ -134,8 +134,8 @@ class ConfigService @Inject()(
 
         aplicationConf            <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
       } yield toConfigSourceEntries(Seq(
-          ConfigSourceConfig("referenceConf"   , 9 , referenceConf ),
-          ConfigSourceConfig("applicationConf" , 10, aplicationConf)
+          ConfigSourceConfig("referenceConf"   , referenceConf ),
+          ConfigSourceConfig("applicationConf" , aplicationConf)
         ))
     else
     for {
@@ -164,13 +164,13 @@ class ConfigService @Inject()(
 
       appConfigCommonFixed        =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
     } yield toConfigSourceEntries(Seq(
-      ConfigSourceConfig("loggerConf"                , 8 , loggerConf                 ),
-      ConfigSourceConfig("referenceConf"             , 9 , referenceConf              ),
-      ConfigSourceConfig("applicationConf"           , 10, applicationConf            ),
-      ConfigSourceConfig("baseConfig"                , 20, baseConf                   ),
-      ConfigSourceConfig("appConfigCommonOverridable", 30, appConfigCommonOverrideable),
-      ConfigSourceConfig("appConfigEnvironment"      , 40, appConfigEnvironment       ),
-      ConfigSourceConfig("appConfigCommonFixed"      , 50, appConfigCommonFixed       )
+      ConfigSourceConfig("loggerConf"                , loggerConf                 ),
+      ConfigSourceConfig("referenceConf"             , referenceConf              ),
+      ConfigSourceConfig("applicationConf"           , applicationConf            ),
+      ConfigSourceConfig("baseConfig"                , baseConf                   ),
+      ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable),
+      ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       ),
+      ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       )
     ))
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
@@ -191,7 +191,7 @@ class ConfigService @Inject()(
                   case (key, value) =>
                     val envMap = subMap.getOrElse(key, Map.empty)
                     val values = envMap.getOrElse(e.name, Seq.empty)
-                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.precedence, value))))
+                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, value))))
                 }
             }
           }
@@ -212,21 +212,16 @@ object ConfigService {
 
   case class ConfigSourceConfig(
     name      : String,
-    precedence: Int,
     config    : Config
   )
 
   case class ConfigSourceEntries(
     source    : String,
-    // TODO remove precedence and sort the results
-    precedence: Int,
     entries   : Map[KeyName, String]
   )
 
   case class ConfigSourceValue(
     source    : String,
-    // TODO remove precedence and sort the results
-    precedence: Int,
     value     : String
   )
 
