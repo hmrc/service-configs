@@ -279,14 +279,14 @@ class ConfigParserSpec
 
   "ConfigParser.delta" should {
     "apply substitutions" in {
-      val latestConf = ConfigParser.parseConfString(s"""
-        |param1=yyy
-        |""".stripMargin
-      )
-
       val previousConf = ConfigParser.parseConfString(s"""
         |param1=asd
         |param2=$${param1}
+        |""".stripMargin
+      )
+
+      val latestConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
         |""".stripMargin
       )
 
@@ -305,13 +305,13 @@ class ConfigParserSpec
     }
 
     "strip untouched config" in {
-      val latestConf = ConfigParser.parseConfString(s"""
-        |param1=yyy
+      val previousConf = ConfigParser.parseConfString(s"""
+        |param2=zzz
         |""".stripMargin
       )
 
-      val previousConf = ConfigParser.parseConfString(s"""
-        |param2=zzz
+      val latestConf = ConfigParser.parseConfString(s"""
+        |param1=yyy
         |""".stripMargin
       )
 
@@ -329,12 +329,12 @@ class ConfigParserSpec
     }
 
     "preserve explicit definitions even if the same" in {
-      val latestConf = ConfigParser.parseConfString(s"""
+      val previousConf = ConfigParser.parseConfString(s"""
         |param1=yyy
         |""".stripMargin
       )
 
-      val previousConf = ConfigParser.parseConfString(s"""
+      val latestConf = ConfigParser.parseConfString(s"""
         |param1=yyy
         |""".stripMargin
       )

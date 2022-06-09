@@ -197,8 +197,8 @@ trait ConfigParser extends Logging {
     val confAsMap2 = confAsMap.foldLeft(Map.empty[String, String]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now...
-        if (scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true) ||
-          previousConfMap.get(k) != Some(v)
+        if (previousConfMap.get(k) != Some(v) ||
+          scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
         )
           acc ++ Seq(k -> v) // and not explicitly included in previousConf
         else

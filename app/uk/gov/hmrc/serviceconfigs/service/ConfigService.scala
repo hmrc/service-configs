@@ -31,7 +31,7 @@ import scala.jdk.CollectionConverters._
 
 @Singleton
 class ConfigService @Inject()(
-  configConnector           : ConfigConnector, // TODO rename GithubConnector?
+  configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository
 )(implicit ec: ExecutionContext) {
@@ -102,7 +102,7 @@ class ConfigService @Inject()(
       optBaseConfRaw <- optSlugInfo match {
                           case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
                           case None           => // if no slug info (e.g. java apps) get from github
-                                                 configConnector.serviceConfigConf("base", serviceName)
+                                                 configConnector.serviceConfigBaseConf(serviceName)
                         }
     } yield
       ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
@@ -148,7 +148,7 @@ class ConfigService @Inject()(
 
       applicationConf             <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
-      optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag.asString, serviceName) // TODO take SlugInfoFlag rather than String
+      optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
       appConfigEnvEntriesAll      =  ConfigParser
                                        .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
                                        .getOrElse(Map.empty)
@@ -157,7 +157,7 @@ class ConfigService @Inject()(
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-      optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag.asString, st)) // TODO take SlugInfoFlag rather than String
+      optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
                                        .map(optRaw => ConfigParser.parseYamlStringAsMap(optRaw.getOrElse("")).getOrElse(Map.empty))
 
       appConfigCommonOverrideable =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
@@ -203,7 +203,6 @@ class ConfigService @Inject()(
 }
 
 object ConfigService {
-  // TODO type vals?
   type EnvironmentName = String
   type KeyName         = String
 
