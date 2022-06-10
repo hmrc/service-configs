@@ -23,6 +23,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 
 class FrontendRouteRepositoryMongoSpec
@@ -136,7 +138,8 @@ class FrontendRouteRepositoryMongoSpec
       ruleConfigurationUrl = "rule1",
       shutterKillswitch    = None,
       shutterServiceSwitch = None,
-      isRegex              = isRegex
+      isRegex              = isRegex,
+      updateDate           = Instant.now().truncatedTo(ChronoUnit.MILLIS)
     )
 
   def addFrontendRoutes(path: String*): Future[Unit] =
