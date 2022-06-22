@@ -71,7 +71,12 @@ class DeploymentConfigRepository @Inject()(
         .map(_ => ())
     }
 
-  def findAll(environment: Environment): Future[Seq[DeploymentConfig]] =
+  def findAll: Future[Seq[DeploymentConfig]] =
+    collection
+      .find()
+      .toFuture()
+
+  def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
     collection.find(equal("environment", environment.asString)).toFuture()
 
 

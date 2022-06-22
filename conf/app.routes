@@ -10,6 +10,7 @@ GET     /bobby/rules                                    @uk.gov.hmrc.serviceconf
 GET     /alert-configs                                  @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
 GET     /alert-configs/:serviceName                     @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: String)
 
+GET     /deployment-config                              @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigAll
 GET     /deployment-config/:environment                 @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForEnv(environment)
 GET     /deployment-config/:environment/:name           @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment, name)
 

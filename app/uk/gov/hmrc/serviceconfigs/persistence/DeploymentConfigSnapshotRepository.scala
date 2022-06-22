@@ -125,7 +125,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
 
     def forEnvironment(environment: Environment): Future[Unit] = {
       for {
-        deploymentConfigs <- deploymentConfigRepository.findAll(environment)
+        deploymentConfigs <- deploymentConfigRepository.findAllForEnv(environment)
         latestSnapshots   <- latestSnapshotsInEnvironment(environment)
         planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
         _                 <- executePlanOfWork(planOfWork, environment)
