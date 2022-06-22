@@ -76,8 +76,11 @@ class DeploymentConfigService @Inject()(
     } yield result
   }
 
-  def findAll(environment: Environment): Future[Seq[DeploymentConfig]] =
-    deploymentConfigRepository.findAll(environment)
+  def findAll: Future[Seq[DeploymentConfig]] =
+    deploymentConfigRepository.findAll
+
+  def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
+    deploymentConfigRepository.findAllForEnv(environment)
 
   def find(environment: Environment, serviceName: String): Future[Option[DeploymentConfig]] =
     deploymentConfigRepository.findByName(environment, serviceName)

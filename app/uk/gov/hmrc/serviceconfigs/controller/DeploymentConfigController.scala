@@ -39,6 +39,11 @@ class DeploymentConfigController @Inject()(
   implicit val dcw = DeploymentConfig.apiFormat
   implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
+  def deploymentConfigAll: Action[AnyContent] =
+    Action.async {
+     deploymentConfigService.findAll.map(res => Ok(Json.toJson(res)))
+    }
+
   def deploymentConfigForEnv(environment: String): Action[AnyContent] =
     Action.async {
       Environment
@@ -46,7 +51,7 @@ class DeploymentConfigController @Inject()(
         .fold(
             Future.successful(BadRequest(s"invalid environment name, must be one of ${Environment.values.mkString(",")}"))
           )(env =>
-            deploymentConfigService.findAll(env).map(res => Ok(Json.toJson(res)))
+            deploymentConfigService.findAllForEnv(env).map(res => Ok(Json.toJson(res)))
           )
     }
 
