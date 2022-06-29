@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.instances.all._
 import cats.syntax.all._
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
@@ -27,7 +27,6 @@ import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.CollectionConverters._
 
 @Singleton
 class ConfigService @Inject()(
@@ -48,22 +47,19 @@ class ConfigService @Inject()(
     EnvironmentMapping("production"  , SlugInfoFlag.ForEnvironment(Environment.Production  ))
   )
 
-  private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Config = {
-    val loggerEntries =
-      optSlugInfo match {
-        // LoggerModule was added for this version
-        case Some(slugInfo) if slugInfo.dependencies.exists(d =>
-                              d.group == "uk.gov.hmrc"
-                              && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
-                              && Version.parse(d.version).exists(_ >= Version("5.18.0"))
-                            ) =>
-          ConfigParser
-            .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
-            .getOrElse(Map.empty[String, String])
-        case _ => Map.empty[String, String]
-      }
-    ConfigFactory.parseMap(loggerEntries.asJava)
-  }
+  private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Map[String, String] =
+    optSlugInfo match {
+      // LoggerModule was added for this version
+      case Some(slugInfo) if slugInfo.dependencies.exists(d =>
+                            d.group == "uk.gov.hmrc"
+                            && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
+                            && Version.parse(d.version).exists(_ >= Version("5.18.0"))
+                          ) =>
+        ConfigParser
+          .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
+          .getOrElse(Map.empty)
+      case _ => Map.empty[String, String]
+    }
 
   private def lookupDependencyConfigs(optSlugInfo: Option[SlugInfo]): Future[List[DependencyConfig]] =
     optSlugInfo match {
@@ -141,7 +137,7 @@ class ConfigService @Inject()(
     for {
       optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
-      loggerConf                  =  lookupLoggerConfig(optSlugInfo)
+      loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
       dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
       referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
@@ -163,15 +159,16 @@ class ConfigService @Inject()(
       appConfigCommonOverrideable =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 
       appConfigCommonFixed        =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
-    } yield toConfigSourceEntries(Seq(
-      ConfigSourceConfig("loggerConf"                , loggerConf                 ),
-      ConfigSourceConfig("referenceConf"             , referenceConf              ),
-      ConfigSourceConfig("applicationConf"           , applicationConf            ),
-      ConfigSourceConfig("baseConfig"                , baseConf                   ),
-      ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable),
-      ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       ),
-      ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       )
-    ))
+    } yield
+      ConfigSourceEntries("loggerConf"                , loggerConfMap               ) +:
+      toConfigSourceEntries(Seq(
+        ConfigSourceConfig("referenceConf"             , referenceConf              ),
+        ConfigSourceConfig("applicationConf"           , applicationConf            ),
+        ConfigSourceConfig("baseConfig"                , baseConf                   ),
+        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable),
+        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       ),
+        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       )
+      ))
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
     environments.toList.foldLeftM[Future, ConfigByEnvironment](Map.empty) { (map, e) =>
