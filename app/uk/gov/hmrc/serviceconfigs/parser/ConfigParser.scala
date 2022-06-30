@@ -21,6 +21,8 @@ import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
+
+import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -65,13 +67,22 @@ trait ConfigParser extends Logging {
     ConfigFactory.parseString(confString, parseOptions)
   }
 
-  def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] =
+  // We return as Properties rather than Map[String, String] since
+  // they are treated differently when converting to Config - i.e.
+  // Map will fail when merging Object and Value - where as Properties will not, since it has a defined ordering.
+  // Also note, that for Properties, the object takes precendence, where as for String (also with defined ordering), the second entry will.
+  // Since Yaml is provided as Properties to the service, we treat in the same way here.
+  def parseYamlStringAsProperties(yamlString: String): Properties = {
+    val props = new Properties
     Try(
       new Yaml()
         .load(yamlString)
         .asInstanceOf[java.util.LinkedHashMap[String, Object]]
     ).map(flattenYamlToDotNotation)
-      .toOption
+      .getOrElse(Seq.empty)
+      .foreach { case (k, v) => props.setProperty(k, v) }
+    props
+  }
 
   def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, String]] =
     Try {
@@ -120,18 +131,18 @@ trait ConfigParser extends Logging {
 
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
-  ): Map[String, String] = {
+  ): Seq[(String, String)] = {
     def go(
-      input        : Map[String, Object],
+      input        : Seq[(String, Object)],
       currentPrefix: String
-    ): Map[String, String] =
+    ): Seq[(String, String)] =
       input.flatMap {
         case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
-          go(v.asScala.toMap, buildPrefix(currentPrefix, k))
+          go(v.asScala.toSeq, buildPrefix(currentPrefix, k))
         case (k: String, v: Object) =>
-          Map(buildPrefix(currentPrefix, k) -> v.toString)
+          Seq(buildPrefix(currentPrefix, k) -> v.toString)
       }
-    go(input.asScala.toMap, "")
+    go(input.asScala.toSeq, "")
   }
 
   private def buildPrefix(currentPrefix: String, key: String) =
@@ -169,15 +180,16 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(config: Map[String, String], prefix: String): Config =
-    ConfigFactory.parseMap(
-      config
-        .view
-        .filterKeys(_.startsWith(prefix))
-        .map { case (k, v) => k.replace(prefix, "") -> v }
-        .toMap
-        .asJava
-    )
+  def extractAsConfig(properties: Properties, prefix: String): Config =
+    // TODO collect a list of ignored entries and return to client (e.g. key -> "IGNORED!")
+    ConfigFactory.parseProperties {
+      val newProps = new Properties
+      properties
+        .entrySet
+        .asScala
+        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+      newProps
+    }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
