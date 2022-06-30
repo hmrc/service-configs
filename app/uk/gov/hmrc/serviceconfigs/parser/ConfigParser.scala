@@ -21,6 +21,8 @@ import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
+
+import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -65,7 +67,8 @@ trait ConfigParser extends Logging {
     ConfigFactory.parseString(confString, parseOptions)
   }
 
-  def parseYamlStringAsMap(yamlString: String): Option[Map[String, String]] =
+  // we return as Seq[(String, String)] rather than Map[String, String]
+  def parseYamlStringAsSeq(yamlString: String): Option[Seq[(String, String)]] =
     Try(
       new Yaml()
         .load(yamlString)
@@ -120,18 +123,18 @@ trait ConfigParser extends Logging {
 
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
-  ): Map[String, String] = {
+  ): Seq[(String, String)] = {
     def go(
-      input        : Map[String, Object],
+      input        : Seq[(String, Object)],
       currentPrefix: String
-    ): Map[String, String] =
+    ): Seq[(String, String)] =
       input.flatMap {
         case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
-          go(v.asScala.toMap, buildPrefix(currentPrefix, k))
+          go(v.asScala.toSeq, buildPrefix(currentPrefix, k))
         case (k: String, v: Object) =>
-          Map(buildPrefix(currentPrefix, k) -> v.toString)
+          Seq(buildPrefix(currentPrefix, k) -> v.toString)
       }
-    go(input.asScala.toMap, "")
+    go(input.asScala.toSeq, "")
   }
 
   private def buildPrefix(currentPrefix: String, key: String) =
@@ -169,15 +172,23 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(config: Map[String, String], prefix: String): Config =
-    ConfigFactory.parseMap(
+  def extractAsConfig(config: Seq[(String, String)], prefix: String): Config =
+    // ConfigFactory.parseMap will fail if there are parent and child configs, since it can't merge object and value
+    // Both parseProperties and parseString don't have that problem since there is a defined order - howeever they treat it differently
+    // for parseProperties the object takes precedence, for parseString the second entry will.
+    // We parse with parseProperties here since this is how the config is provided to the service
+
+    // TODO provide the config as Properties, rather than Seq
+    // TODO collect a list of ignored entries and return to client (e.g. key -> "IGNORED!")
+    ConfigFactory.parseProperties {
+      val p = new Properties
       config
         .view
-        .filterKeys(_.startsWith(prefix))
+        .filter(_._1.startsWith(prefix))
         .map { case (k, v) => k.replace(prefix, "") -> v }
-        .toMap
-        .asJava
-    )
+        .foreach { case (k, v) => p.setProperty(k, v) }
+      p
+    }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -

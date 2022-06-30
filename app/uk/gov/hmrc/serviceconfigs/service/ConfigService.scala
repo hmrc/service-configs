@@ -146,15 +146,15 @@ class ConfigService @Inject()(
 
       optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
       appConfigEnvEntriesAll      =  ConfigParser
-                                       .parseYamlStringAsMap(optAppConfigEnvRaw.getOrElse(""))
-                                       .getOrElse(Map.empty)
-      serviceType                 =  appConfigEnvEntriesAll.get("type")
+                                       .parseYamlStringAsSeq(optAppConfigEnvRaw.getOrElse(""))
+                                       .getOrElse(Seq.empty)
+      serviceType                 =  appConfigEnvEntriesAll.find(_._1 == "type").map(_._2)
       appConfigEnvironment        =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
       optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
-                                       .map(optRaw => ConfigParser.parseYamlStringAsMap(optRaw.getOrElse("")).getOrElse(Map.empty))
+                                       .map(optRaw => ConfigParser.parseYamlStringAsSeq(optRaw.getOrElse("")).getOrElse(Seq.empty))
 
       appConfigCommonOverrideable =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 

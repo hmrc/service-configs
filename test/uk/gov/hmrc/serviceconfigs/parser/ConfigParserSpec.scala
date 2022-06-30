@@ -16,10 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import com.typesafe.config.ConfigRenderOptions
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
+
+import scala.jdk.CollectionConverters._
 
 class ConfigParserSpec
   extends AnyWordSpec
@@ -108,9 +111,9 @@ class ConfigParserSpec
     }
   }
 
-  "ConfigParser.parseYamlStringAsMap" should {
-    "parse yaml as map" in {
-      val res = ConfigParser.parseYamlStringAsMap(
+  "ConfigParser.parseYamlStringAsSeq" should {
+    "parse yaml as seq" in {
+      val res = ConfigParser.parseYamlStringAsSeq(
         """
         |digital-service: Catalogue
         |
@@ -130,21 +133,21 @@ class ConfigParserSpec
         |""".stripMargin
       )
       res shouldBe Some(
-        Map(
-          "bill-to.address.lines" -> "458 Walkman Dr.",
-          "bill-to.given" -> "Chris",
-          "bill-to.address.postal" -> "48046",
+        Seq(
           "digital-service" -> "Catalogue",
-          "bill-to.address.city" -> "Royal Oak",
+          "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]",
+          "bill-to.given" -> "Chris",
           "bill-to.family" -> "Dumars",
+          "bill-to.address.lines" -> "458 Walkman Dr.",
+          "bill-to.address.city" -> "Royal Oak",
           "bill-to.address.state" -> "MI",
-          "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]"
+          "bill-to.address.postal" -> "48046",
         )
       )
     }
 
     "handle invalid yaml" in {
-      ConfigParser.parseYamlStringAsMap("") shouldBe None
+      ConfigParser.parseYamlStringAsSeq("") shouldBe None
     }
   }
 
@@ -205,6 +208,47 @@ class ConfigParserSpec
 
     "handle invalid xml" in {
       ConfigParser.parseXmlLoggerConfigStringAsMap("") shouldBe None
+    }
+  }
+
+  "ConfigParser.extractAsConfig" should {
+    "strip and return entries under prefix" in {
+      ConfigParser.extractAsConfig(
+        Seq(
+          "prefix.a" -> "1",
+          "prefix.b" -> "2"
+        ),
+        "prefix."
+      ) shouldBe ConfigFactory.parseMap(
+        Map(
+          "a" -> "1",
+          "b" -> "2"
+        ).asJava
+      )
+    }
+
+    "handle object and value conflicts by ignoring values" in {
+      ConfigParser.extractAsConfig(Seq(
+          "prefix.a" -> "1",
+          "prefix.a.b" -> "2"
+        ),
+        "prefix."
+      ) shouldBe ConfigFactory.parseMap(
+        Map(
+          "a.b" -> "2"
+        ).asJava
+      )
+
+      ConfigParser.extractAsConfig(Seq(
+          "prefix.a.b" -> "2",
+          "prefix.a" -> "1"
+        ),
+        "prefix."
+      ) shouldBe ConfigFactory.parseMap(
+        Map(
+          "a.b" -> "2"
+        ).asJava
+      )
     }
   }
 
