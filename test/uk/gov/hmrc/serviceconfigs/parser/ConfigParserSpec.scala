@@ -22,6 +22,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import com.typesafe.config.ConfigRenderOptions
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 
+import java.util.Properties
 import scala.jdk.CollectionConverters._
 
 class ConfigParserSpec
@@ -111,9 +112,9 @@ class ConfigParserSpec
     }
   }
 
-  "ConfigParser.parseYamlStringAsSeq" should {
-    "parse yaml as seq" in {
-      val res = ConfigParser.parseYamlStringAsSeq(
+  "ConfigParser.parseYamlStringAsProperties" should {
+    "parse yaml as properties" in {
+      val res = ConfigParser.parseYamlStringAsProperties(
         """
         |digital-service: Catalogue
         |
@@ -132,7 +133,7 @@ class ConfigParserSpec
         |    postal: 48046
         |""".stripMargin
       )
-      res shouldBe Some(
+      res shouldBe toProperties(
         Seq(
           "digital-service" -> "Catalogue",
           "leakDetectionExemptions" -> "[{ruleId=ip_addresses, filePaths=[/test/uk/gov/hmrc/servicedependencies/model/VersionSpec.scala]}]",
@@ -147,7 +148,7 @@ class ConfigParserSpec
     }
 
     "handle invalid yaml" in {
-      ConfigParser.parseYamlStringAsSeq("") shouldBe None
+      ConfigParser.parseYamlStringAsProperties("") shouldBe new Properties
     }
   }
 
@@ -214,10 +215,10 @@ class ConfigParserSpec
   "ConfigParser.extractAsConfig" should {
     "strip and return entries under prefix" in {
       ConfigParser.extractAsConfig(
-        Seq(
+        toProperties(Seq(
           "prefix.a" -> "1",
           "prefix.b" -> "2"
-        ),
+        )),
         "prefix."
       ) shouldBe ConfigFactory.parseMap(
         Map(
@@ -228,10 +229,11 @@ class ConfigParserSpec
     }
 
     "handle object and value conflicts by ignoring values" in {
-      ConfigParser.extractAsConfig(Seq(
+      ConfigParser.extractAsConfig(
+        toProperties(Seq(
           "prefix.a" -> "1",
           "prefix.a.b" -> "2"
-        ),
+        )),
         "prefix."
       ) shouldBe ConfigFactory.parseMap(
         Map(
@@ -239,10 +241,11 @@ class ConfigParserSpec
         ).asJava
       )
 
-      ConfigParser.extractAsConfig(Seq(
+      ConfigParser.extractAsConfig(
+        toProperties(Seq(
           "prefix.a.b" -> "2",
           "prefix.a" -> "1"
-        ),
+        )),
         "prefix."
       ) shouldBe ConfigFactory.parseMap(
         Map(
@@ -403,4 +406,10 @@ class ConfigParserSpec
       version  = "v",
       configs  = configs
     )
+
+  def toProperties(seq: Seq[(String, String)]): Properties = {
+    val p = new Properties
+    seq.foreach(e => p.setProperty(e._1, e._2))
+    p
+  }
 }

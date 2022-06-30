@@ -27,6 +27,7 @@ import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 
 @Singleton
 class ConfigService @Inject()(
@@ -146,15 +147,14 @@ class ConfigService @Inject()(
 
       optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
       appConfigEnvEntriesAll      =  ConfigParser
-                                       .parseYamlStringAsSeq(optAppConfigEnvRaw.getOrElse(""))
-                                       .getOrElse(Seq.empty)
-      serviceType                 =  appConfigEnvEntriesAll.find(_._1 == "type").map(_._2)
+                                       .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+      serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
       appConfigEnvironment        =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
       optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
-                                       .map(optRaw => ConfigParser.parseYamlStringAsSeq(optRaw.getOrElse("")).getOrElse(Seq.empty))
+                                       .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
       appConfigCommonOverrideable =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 

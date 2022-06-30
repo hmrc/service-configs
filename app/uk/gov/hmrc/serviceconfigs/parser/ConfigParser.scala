@@ -67,14 +67,22 @@ trait ConfigParser extends Logging {
     ConfigFactory.parseString(confString, parseOptions)
   }
 
-  // we return as Seq[(String, String)] rather than Map[String, String]
-  def parseYamlStringAsSeq(yamlString: String): Option[Seq[(String, String)]] =
+  // We return as Properties rather than Map[String, String] since
+  // they are treated differently when converting to Config - i.e.
+  // Map will fail when merging Object and Value - where as Properties will not, since it has a defined ordering.
+  // Also note, that for Properties, the object takes precendence, where as for String (also with defined ordering), the second entry will.
+  // Since Yaml is provided as Properties to the service, we treat in the same way here.
+  def parseYamlStringAsProperties(yamlString: String): Properties = {
+    val props = new Properties
     Try(
       new Yaml()
         .load(yamlString)
         .asInstanceOf[java.util.LinkedHashMap[String, Object]]
     ).map(flattenYamlToDotNotation)
-      .toOption
+      .getOrElse(Seq.empty)
+      .foreach { case (k, v) => props.setProperty(k, v) }
+    props
+  }
 
   def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, String]] =
     Try {
@@ -172,22 +180,15 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(config: Seq[(String, String)], prefix: String): Config =
-    // ConfigFactory.parseMap will fail if there are parent and child configs, since it can't merge object and value
-    // Both parseProperties and parseString don't have that problem since there is a defined order - howeever they treat it differently
-    // for parseProperties the object takes precedence, for parseString the second entry will.
-    // We parse with parseProperties here since this is how the config is provided to the service
-
-    // TODO provide the config as Properties, rather than Seq
+  def extractAsConfig(properties: Properties, prefix: String): Config =
     // TODO collect a list of ignored entries and return to client (e.g. key -> "IGNORED!")
     ConfigFactory.parseProperties {
-      val p = new Properties
-      config
-        .view
-        .filter(_._1.startsWith(prefix))
-        .map { case (k, v) => k.replace(prefix, "") -> v }
-        .foreach { case (k, v) => p.setProperty(k, v) }
-      p
+      val newProps = new Properties
+      properties
+        .entrySet
+        .asScala
+        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+      newProps
     }
 
   /** Config is processed relative to the previous one.
