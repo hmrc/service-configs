@@ -20,8 +20,8 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.http.HttpClient
 import uk.gov.hmrc.serviceconfigs.model.{Environment, Version}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ReleasesApiConnector @Inject()(
-  httpClient   : HttpClient,
+  httpClientV2 : HttpClientV2,
   serviceConfig: ServicesConfig
 )(implicit ec: ExecutionContext) {
   import ReleasesApiConnector._
@@ -41,7 +41,9 @@ class ReleasesApiConnector @Inject()(
   implicit val sdir = ServiceDeploymentInformation.reads
 
   def getWhatIsRunningWhere(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
-    httpClient.GET[Seq[ServiceDeploymentInformation]](url"$serviceUrl/releases-api/whats-running-where")
+    httpClientV2
+      .get(url"$serviceUrl/releases-api/whats-running-where")
+      .execute[Seq[ServiceDeploymentInformation]]
 }
 
 object ReleasesApiConnector {
