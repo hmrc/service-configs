@@ -21,7 +21,8 @@ import java.net.URL
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.serviceconfigs.model.SlugInfoFlag
 
@@ -29,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ConfigConnector @Inject()(
-  httpClient    : HttpClient,
+  httpClientV2  : HttpClientV2,
   githubConfig  : GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
@@ -60,13 +61,16 @@ class ConfigConnector @Inject()(
 
   private def doCall(url: URL, newHc: HeaderCarrier) = {
     implicit val hc: HeaderCarrier = newHc
-    httpClient.GET[HttpResponse](url).map {
-      case response if response.status == 200=>
-        Some(response.body)
-      case response if response.status == 404 =>
-        None
-      case response =>
-        sys.error(s"Failed with status code '${response.status}' to download config file from $url")
-    }
+    httpClientV2
+      .get(url)
+      .execute[HttpResponse]
+      .map {
+        case response if response.status == 200 =>
+          Some(response.body)
+        case response if response.status == 404 =>
+          None
+        case response =>
+          sys.error(s"Failed with status code '${response.status}' to download config file from $url")
+      }
   }
 }

@@ -18,7 +18,8 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
@@ -28,25 +29,30 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class NginxConfigConnector @Inject()(
-  httpClient  : HttpClient,
+  httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
   nginxConfig : NginxConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
+  private implicit val hc: HeaderCarrier =
+      HeaderCarrier()
+
   def getNginxRoutesFile(fileName: String, environment: String): Future[NginxConfigFile] = {
     val url =
       url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
 
-    implicit val hc: HeaderCarrier =
-      HeaderCarrier().withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-
-    httpClient.GET[HttpResponse](url).map {
-      case response if response.status != 200 =>
-        sys.error(s"Failed to download nginx config from $url, server returned ${response.status}")
-      case response =>
-        logger.info(s"Retrieved Nginx routes file at $url")
-        NginxConfigFile(environment, url.toString, response.body, branch = nginxConfig.configRepoBranch)
-    }
+    httpClientV2
+      .get(url)
+      .replaceHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .withProxy
+      .execute[HttpResponse]
+      .map {
+        case response if response.status != 200 =>
+          sys.error(s"Failed to download nginx config from $url, server returned ${response.status}")
+        case response =>
+          logger.info(s"Retrieved Nginx routes file at $url")
+          NginxConfigFile(environment, url.toString, response.body, branch = nginxConfig.configRepoBranch)
+      }
   }
 }
