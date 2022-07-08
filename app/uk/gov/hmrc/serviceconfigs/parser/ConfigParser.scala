@@ -180,16 +180,22 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): Config =
-    // TODO collect a list of ignored entries and return to client (e.g. key -> "IGNORED!")
-    ConfigFactory.parseProperties {
-      val newProps = new Properties
-      properties
-        .entrySet
-        .asScala
-        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
-      newProps
-    }
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Set[String]) = {
+    val newProps = new Properties
+
+    properties
+      .entrySet
+      .asScala
+      .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+
+    val config      = ConfigFactory.parseProperties(newProps)
+    val ignoredKeys = newProps
+                        .asScala
+                        .toSet
+                        .diff(flattenConfigToDotNotation(config).toSet)
+                        .map(_._1)
+    (config, ignoredKeys)
+  }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -

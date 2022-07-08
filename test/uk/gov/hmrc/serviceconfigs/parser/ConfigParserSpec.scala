@@ -220,38 +220,34 @@ class ConfigParserSpec
           "prefix.b" -> "2"
         )),
         "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a" -> "1",
-          "b" -> "2"
-        ).asJava
-      )
+      ) shouldBe (toConfig(Map("a" -> "1", "b" -> "2")), Set.empty[(String, String)])
     }
 
     "handle object and value conflicts by ignoring values" in {
       ConfigParser.extractAsConfig(
         toProperties(Seq(
-          "prefix.a" -> "1",
+          "prefix.a"   -> "1",
           "prefix.a.b" -> "2"
         )),
         "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a.b" -> "2"
-        ).asJava
-      )
+      ) shouldBe (toConfig(Map("a.b" -> "2")), Set("a"))
 
       ConfigParser.extractAsConfig(
         toProperties(Seq(
           "prefix.a.b" -> "2",
-          "prefix.a" -> "1"
+          "prefix.a"   -> "1"
         )),
         "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a.b" -> "2"
-        ).asJava
-      )
+      ) shouldBe (toConfig(Map("a.b" -> "2")), Set("a"))
+
+      ConfigParser.extractAsConfig(
+        toProperties(Seq(
+          "prefix.a"     -> "1",
+          "prefix.a.b"   -> "2",
+          "prefix.a.b.c" -> "3"
+        )),
+        "prefix."
+      ) shouldBe (toConfig(Map("a.b.c" -> "3")), Set("a", "a.b"))
     }
   }
 
@@ -412,4 +408,7 @@ class ConfigParserSpec
     seq.foreach(e => p.setProperty(e._1, e._2))
     p
   }
+
+  private def toConfig(m: Map[String, String]) =
+    ConfigFactory.parseMap(m.asJava)
 }
