@@ -180,19 +180,24 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): (Config, Set[String]) = {
+  def extractAsConfig(properties: Properties, prefix: String, applicationConf: Config): (Config, Set[String]) = {
     val newProps = new Properties
-
     properties
       .entrySet
       .asScala
       .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
-    val config      = ConfigFactory.parseProperties(newProps)
-    val ignoredKeys = newProps
+    val config = ConfigFactory.parseProperties(newProps)
+
+    val allProps = new Properties
+    allProps.putAll(flattenConfigToDotNotation(applicationConf).asJava)
+    allProps.putAll(newProps)
+    val oldConfig = ConfigFactory.parseProperties(allProps)
+
+    val ignoredKeys = allProps
                         .asScala
                         .toSet
-                        .diff(flattenConfigToDotNotation(config).toSet)
+                        .diff((flattenConfigToDotNotation(oldConfig) ++ flattenConfigToDotNotation(config)).toSet)
                         .map(_._1)
     (config, ignoredKeys)
   }

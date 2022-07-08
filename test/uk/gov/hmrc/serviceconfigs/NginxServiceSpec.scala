@@ -99,7 +99,7 @@ class NginxServiceSpec
 
       val parser = new NginxConfigParser(nginxConfig)
       val configFile = NginxConfigFile(environment = "dev", routesFileUrl, testConfig, branch = "HEAD")
-      val result     = NginxService.parseConfig(parser, configFile).right.value
+      val result     = NginxService.parseConfig(parser, configFile).getOrElse(sys.error(s"Expected to parse $configFile"))
 
       result.length shouldBe 2
 
@@ -135,7 +135,7 @@ class NginxServiceSpec
                         |}""".stripMargin
 
       val configFile = NginxConfigFile(environment = "dev", routesFileUrl, config, branch = "HEAD")
-      val result     = NginxService.parseConfig(parser, configFile).right.value
+      val result     = NginxService.parseConfig(parser, configFile).getOrElse(sys.error(s"Expected to parse $configFile"))
 
       result.length shouldBe 1
 

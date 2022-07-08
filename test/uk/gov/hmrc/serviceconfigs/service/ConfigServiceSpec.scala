@@ -103,7 +103,6 @@ class ConfigServiceSpec
       stubFor(
         get(urlEqualTo(s"/hmrc/app-config-qa/HEAD/$service.yaml"))
         .willReturn(aResponse.withBody("""
-          |hmrc_config.a: 5
           |hmrc_config.a.b: 6
         """.stripMargin))
       )

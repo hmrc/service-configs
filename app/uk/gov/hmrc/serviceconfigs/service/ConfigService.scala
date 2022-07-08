@@ -153,7 +153,7 @@ class ConfigService @Inject()(
       serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
 
       (appConfigEnvironment, appConfigEnvironmentIgnored)
-                                  =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+                                  =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.", applicationConf)
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
@@ -161,10 +161,10 @@ class ConfigService @Inject()(
                                        .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
       (appConfigCommonOverrideable, appConfigCommonOverrideableIgnored)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
+                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.", applicationConf)
 
       (appConfigCommonFixed, appConfigCommonFixedIgnored)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
+                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.", applicationConf)
     } yield
       ConfigSourceEntries("loggerConf"                 , loggerConfMap                         ) +:
       toConfigSourceEntries(Seq(

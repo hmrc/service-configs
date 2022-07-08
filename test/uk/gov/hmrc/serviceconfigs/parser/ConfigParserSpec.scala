@@ -213,41 +213,40 @@ class ConfigParserSpec
   }
 
   "ConfigParser.extractAsConfig" should {
+    val applicationConf = ConfigFactory.parseProperties(toProperties(Seq("a" -> "1", "b" -> "2", "c" -> "3")))
+
     "strip and return entries under prefix" in {
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a" -> "1",
-          "prefix.b" -> "2"
-        )),
-        "prefix."
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
+      , prefix          = "prefix."
+      , applicationConf = applicationConf
       ) shouldBe (toConfig(Map("a" -> "1", "b" -> "2")), Set.empty[(String, String)])
     }
 
     "handle object and value conflicts by ignoring values" in {
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a"   -> "1",
-          "prefix.a.b" -> "2"
-        )),
-        "prefix."
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
+      , prefix          = "prefix."
+      , applicationConf = applicationConf
       ) shouldBe (toConfig(Map("a.b" -> "2")), Set("a"))
-
+      // Check not affected by order
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a.b" -> "2",
-          "prefix.a"   -> "1"
-        )),
-        "prefix."
+        properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
+      , prefix          = "prefix."
+      , applicationConf = applicationConf
       ) shouldBe (toConfig(Map("a.b" -> "2")), Set("a"))
-
+      // Check nested
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a"     -> "1",
-          "prefix.a.b"   -> "2",
-          "prefix.a.b.c" -> "3"
-        )),
-        "prefix."
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
+      , prefix          = "prefix."
+      , applicationConf = applicationConf
       ) shouldBe (toConfig(Map("a.b.c" -> "3")), Set("a", "a.b"))
+      // Check for values not in app config
+      ConfigParser.extractAsConfig(
+        properties      = toProperties(Seq("prefix.d" -> "4"))
+      , prefix          = "prefix."
+      , applicationConf = applicationConf
+      ) shouldBe (toConfig(Map("d" -> "4")), Set.empty[(String, String)])
     }
   }
 
