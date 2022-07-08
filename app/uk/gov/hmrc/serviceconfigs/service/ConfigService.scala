@@ -113,8 +113,9 @@ class ConfigService @Inject()(
           case None                 => (entry.config, ConfigParser.flattenConfigToDotNotation(entry.config))
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
       }
-      val entriesWithIgnored = entries ++ entry.ignoredKeys.map(_ -> "<<IGNORED>>")
-      (acc :+ ConfigSourceEntries(entry.name, entriesWithIgnored), Some(nextConfig))
+      val ignored = (ConfigParser.ignored(nextConfig, optPreviousConfig) ++ entry.ignored)
+                      .map { case (k, v) => k -> s"<<IGNORED value=$v>>" }
+      (acc :+ ConfigSourceEntries(entry.name, entries ++ ignored), Some(nextConfig))
     }._1
 
   private def configSourceEntries(
@@ -132,8 +133,8 @@ class ConfigService @Inject()(
 
         aplicationConf            <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
       } yield toConfigSourceEntries(Seq(
-          ConfigSourceConfig("referenceConf"   , referenceConf , Set.empty),
-          ConfigSourceConfig("applicationConf" , aplicationConf, Set.empty)
+          ConfigSourceConfig("referenceConf"   , referenceConf , Map.empty),
+          ConfigSourceConfig("applicationConf" , aplicationConf, Map.empty)
         ))
     else
     for {
@@ -149,11 +150,9 @@ class ConfigService @Inject()(
       optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
       appConfigEnvEntriesAll      =  ConfigParser
                                        .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
-
       serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-
       (appConfigEnvironment, appConfigEnvironmentIgnored)
-                                  =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.", applicationConf)
+                                  =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
@@ -161,16 +160,16 @@ class ConfigService @Inject()(
                                        .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
       (appConfigCommonOverrideable, appConfigCommonOverrideableIgnored)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.", applicationConf)
+                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 
       (appConfigCommonFixed, appConfigCommonFixedIgnored)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.", applicationConf)
+                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
     } yield
       ConfigSourceEntries("loggerConf"                 , loggerConfMap                         ) +:
       toConfigSourceEntries(Seq(
-        ConfigSourceConfig("referenceConf"             , referenceConf              , Set.empty),
-        ConfigSourceConfig("applicationConf"           , applicationConf            , Set.empty),
-        ConfigSourceConfig("baseConfig"                , baseConf                   , Set.empty),
+        ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty),
+        ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty),
+        ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty),
         ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableIgnored),
         ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentIgnored),
         ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedIgnored)
@@ -213,9 +212,9 @@ object ConfigService {
   type ConfigByKey         = Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]
 
   case class ConfigSourceConfig(
-    name        : String,
-    config      : Config,
-    ignoredKeys : Set[String]
+    name      : String,
+    config    : Config,
+    ignored   : Map[String, String]
   )
 
   case class ConfigSourceEntries(

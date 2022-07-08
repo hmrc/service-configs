@@ -180,27 +180,18 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String, applicationConf: Config): (Config, Set[String]) = {
-    val newProps = new Properties
-    properties
-      .entrySet
-      .asScala
-      .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, String]) = {
+     val newProps = new Properties
 
-    val config = ConfigFactory.parseProperties(newProps)
+     properties
+       .entrySet
+       .asScala
+       .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
-    val allProps = new Properties
-    allProps.putAll(flattenConfigToDotNotation(applicationConf).asJava)
-    allProps.putAll(newProps)
-    val oldConfig = ConfigFactory.parseProperties(allProps)
-
-    val ignoredKeys = allProps
-                        .asScala
-                        .toSet
-                        .diff((flattenConfigToDotNotation(oldConfig) ++ flattenConfigToDotNotation(config)).toSet)
-                        .map(_._1)
-    (config, ignoredKeys)
-  }
+     val config  = ConfigFactory.parseProperties(newProps)
+     val ignored = newProps.asScala.view.filterKeys(k => !flattenConfigToDotNotation(config).contains(k)).toMap
+     (config, ignored)
+   }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
@@ -228,6 +219,19 @@ trait ConfigParser extends Logging {
           acc
       }
     (conf, confAsMap2)
+  }
+
+  def ignored(latestConf: Config, oPreviousConf: Option[Config]): Map[String, String] = {
+    val allProps = new Properties
+    oPreviousConf.foreach(c => allProps.putAll(ConfigParser.flattenConfigToDotNotation(c).asJava))
+    allProps.putAll(ConfigParser.flattenConfigToDotNotation(latestConf).asJava)
+    val oldConfig = ConfigFactory.parseProperties(allProps)
+
+    allProps
+      .asScala
+      .toSet
+      .diff((ConfigParser.flattenConfigToDotNotation(oldConfig) ++ ConfigParser.flattenConfigToDotNotation(latestConf)).toSet)
+      .toMap
   }
 }
 

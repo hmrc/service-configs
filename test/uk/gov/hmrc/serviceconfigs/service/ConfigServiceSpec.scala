@@ -88,11 +88,9 @@ class ConfigServiceSpec
 
       stubFor(
         get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf"))
-        .willReturn(aResponse.withBody("""
-          |hmrc_config.a: 1
-          |hmrc_config.b: 2
-        """.stripMargin))
+        .willReturn(aResponse.withBody(s"\na=1\nb=2\nc=$${a}\n"))
       )
+      // stubFor(get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf")).willReturn(aResponse.withStatus(404)))
       stubFor(
         get(urlEqualTo(s"/hmrc/app-config-development/HEAD/$service.yaml"))
         .willReturn(aResponse.withBody("""
@@ -104,6 +102,8 @@ class ConfigServiceSpec
         get(urlEqualTo(s"/hmrc/app-config-qa/HEAD/$service.yaml"))
         .willReturn(aResponse.withBody("""
           |hmrc_config.a.b: 6
+          |hmrc_config.d: 1
+          |hmrc_config.d.e: 2
         """.stripMargin))
       )
       stubFor(get(urlEqualTo(s"/hmrc/app-config-staging/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
@@ -129,9 +129,13 @@ class ConfigServiceSpec
 
       Json.toJson(configByKey.futureValue) shouldBe Json.parse("""
         { "a": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                            ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}          ],
-            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED>>"}]
+            "local":        [{"source": "applicationConf", "value": "1"}                                                                    ],
+            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}                  ],
+            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}],
+            "integration":  [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "staging":      [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "production":   [{"source": "baseConfig",      "value": "1"}                                                                    ]
           },
           "a.b": {
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
@@ -139,27 +143,29 @@ class ConfigServiceSpec
           "b": {
             "local":        [{"source": "applicationConf", "value": "2"}                                                  ],
             "development":  [{"source": "applicationConf", "value": "2"}, {"source": "appConfigEnvironment", "value": "4"}],
-            "qa":           [{"source": "applicationConf", "value": "2"}                                                  ]
+            "qa":           [{"source": "applicationConf", "value": "2"}                                                  ],
+            "integration":  [{"source": "baseConfig",      "value": "2"}                                                  ],
+            "staging":      [{"source": "baseConfig",      "value": "2"}                                                  ],
+            "externaltest": [{"source": "baseConfig",      "value": "2"}                                                  ],
+            "production":   [{"source": "baseConfig",      "value": "2"}                                                  ]
           },
           "c": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                  ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}],
-            "qa":           [{"source": "applicationConf", "value": "1"}                                                  ]
+            "local":        [{"source": "applicationConf", "value": "1"}                                                                    ],
+            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"                  }],
+            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}],
+            "integration":  [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "staging":      [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                                    ],
+            "production":   [{"source": "baseConfig",      "value": "1"}                                                                    ]
           },
           "c.b": {
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
           },
-          "hmrc_config.a": {
-            "staging":      [{"source": "baseConfig", "value": "1"}],
-            "integration":  [{"source": "baseConfig", "value": "1"}],
-            "externaltest": [{"source": "baseConfig", "value": "1"}],
-            "production":   [{"source": "baseConfig", "value": "1"}]
+          "d": {
+            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}]
           },
-          "hmrc_config.b": {
-            "staging":      [{"source": "baseConfig", "value": "2"}],
-            "integration":  [{"source": "baseConfig", "value": "2"}],
-            "externaltest": [{"source": "baseConfig", "value": "2"}],
-            "production":   [{"source": "baseConfig", "value": "2"}]
+          "d.e": {
+            "qa":           [                                             {"source": "appConfigEnvironment", "value": "2"}]
           }
         }
       """")
