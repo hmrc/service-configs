@@ -25,7 +25,7 @@ trait ConfigJson {
     ( (__ \ "source" ).write[String]
       ~ (__ \ "entries").write[Map[KeyName, String]].contramap[Map[KeyName, String]]( m => m.map {
       case (k, v) if v.startsWith("ENC[") => k -> "ENC[...]"
-      case (k, v)                        => k -> v
+      case (k, v)                         => k -> v
     })
       )(unlift(ConfigSourceEntries.unapply))
   }
