@@ -21,13 +21,17 @@ import play.api.libs.functional.syntax._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
 trait ConfigJson {
-  implicit val configSourceEntriesWrites: Writes[ConfigSourceEntries] =
+  implicit val configSourceEntriesWrites: Writes[ConfigSourceEntries] = {
     ( (__ \ "source" ).write[String]
-    ~ (__ \ "entries").write[Map[KeyName, String]]
-    )(unlift(ConfigSourceEntries.unapply))
+      ~ (__ \ "entries").write[Map[KeyName, String]].contramap[Map[KeyName, String]]( m => m.map {
+      case (k, v) if v.startsWith("ENC[") => k -> "ENC[...]"
+      case (k, v)                         => k -> v
+    })
+      )(unlift(ConfigSourceEntries.unapply))
+  }
 
   implicit val configSourceValueWrites: Writes[ConfigSourceValue] =
     ( (__ \ "source").write[String]
-    ~ (__ \ "value" ).write[String]
+    ~ (__ \ "value" ).write[String].contramap[String](s => if (s.startsWith("ENC[")) "ENC[...]" else s)
     )(unlift(ConfigSourceValue.unapply))
 }
