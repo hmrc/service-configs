@@ -114,7 +114,7 @@ class ConfigService @Inject()(
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
       }
       val ignored = (ConfigParser.ignored(nextConfig, optPreviousConfig) ++ entry.ignored)
-                      .map { case (k, v) => k -> s"<<IGNORED value=$v>>" }
+                      .map { case (k, _) => k -> s"<<IGNORED>>" }
       (acc :+ ConfigSourceEntries(entry.name, entries ++ ignored), Some(nextConfig))
     }._1
 

@@ -189,7 +189,7 @@ trait ConfigParser extends Logging {
        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
      val config  = ConfigFactory.parseProperties(newProps)
-     val ignored = newProps.asScala.view.filterKeys(k => !flattenConfigToDotNotation(config).contains(k)).toMap
+     val ignored = newProps.asScala.view.filterKeys(!flattenConfigToDotNotation(config).contains(_)).toMap
      (config, ignored)
    }
 
@@ -228,6 +228,7 @@ trait ConfigParser extends Logging {
     val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
     val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
     flattenConfigToDotNotation(previousConf)
+      .view
       .filterKeys(!combined.contains(_))
       .toMap
   }

@@ -71,8 +71,8 @@ class ConfigServiceSpec
     dropDatabase()
   }
 
-  "ConfigService" should {
-    "configByKey shows config changes per key for each enviroment" in {
+  "ConfigService.configByKey" should {
+    "shows config changes per key for each enviroment" in {
       val service = "test-service"
       val slugInfo = SlugInfo(
         uri               = "some/uri"
@@ -81,21 +81,21 @@ class ConfigServiceSpec
       , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
       , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
       , dependencies      = Nil
-      , applicationConfig = s"\na=1\nb=2\nc=$${a}\n"
+      , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
       , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
       , slugConfig        = ""
       )
 
       stubFor(
         get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf"))
-        .willReturn(aResponse.withBody(s"\na=1\nb=2\nc=$${a}\n"))
+        .willReturn(aResponse.withBody(slugInfo.applicationConfig))
       )
-      // stubFor(get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf")).willReturn(aResponse.withStatus(404)))
       stubFor(
         get(urlEqualTo(s"/hmrc/app-config-development/HEAD/$service.yaml"))
         .willReturn(aResponse.withBody("""
           |hmrc_config.a: 3
           |hmrc_config.b: 4
+          |hmrc_config.list.2: 3
         """.stripMargin))
       )
       stubFor(
@@ -129,13 +129,13 @@ class ConfigServiceSpec
 
       Json.toJson(configByKey.futureValue) shouldBe Json.parse("""
         { "a": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                                    ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}                  ],
-            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}],
-            "integration":  [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "staging":      [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "production":   [{"source": "baseConfig",      "value": "1"}                                                                    ]
+            "local":        [{"source": "applicationConf", "value": "1"}                                                            ],
+            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}          ],
+            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED>>"}],
+            "integration":  [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "staging":      [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "production":   [{"source": "baseConfig",      "value": "1"}                                                            ]
           },
           "a.b": {
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
@@ -150,22 +150,34 @@ class ConfigServiceSpec
             "production":   [{"source": "baseConfig",      "value": "2"}                                                  ]
           },
           "c": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                                    ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"                  }],
-            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}],
-            "integration":  [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "staging":      [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                                    ],
-            "production":   [{"source": "baseConfig",      "value": "1"}                                                                    ]
+            "local":        [{"source": "applicationConf", "value": "1"}                                                            ],
+            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"          }],
+            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<IGNORED>>"}],
+            "integration":  [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "staging":      [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "externaltest": [{"source": "baseConfig",      "value": "1"}                                                            ],
+            "production":   [{"source": "baseConfig",      "value": "1"}                                                            ]
           },
           "c.b": {
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
           },
           "d": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<IGNORED value=1>>"}]
+            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<IGNORED>>"}]
           },
           "d.e": {
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "2"}]
+          },
+          "list": {
+            "local":        [{"source": "applicationConf", "value": "[1,2]"}                                                            ],
+            "development":  [{"source": "applicationConf", "value": "[1,2]"}, {"source": "appConfigEnvironment", "value": "<<IGNORED>>"}],
+            "qa":           [{"source": "applicationConf", "value": "[1,2]"}                                                            ],
+            "integration":  [{"source": "baseConfig",      "value": "[1,2]"}                                                            ],
+            "staging":      [{"source": "baseConfig",      "value": "[1,2]"}                                                            ],
+            "externaltest": [{"source": "baseConfig",      "value": "[1,2]"}                                                            ],
+            "production":   [{"source": "baseConfig",      "value": "[1,2]"}                                                            ]
+          },
+          "list.2": {
+            "development": [                                                  {"source": "appConfigEnvironment", "value": "3" }]
           }
         }
       """")
