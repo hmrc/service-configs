@@ -180,16 +180,18 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): Config =
-    // TODO collect a list of ignored entries and return to client (e.g. key -> "IGNORED!")
-    ConfigFactory.parseProperties {
-      val newProps = new Properties
-      properties
-        .entrySet
-        .asScala
-        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
-      newProps
-    }
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, String]) = {
+     val newProps = new Properties
+
+     properties
+       .entrySet
+       .asScala
+       .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+
+     val config  = ConfigFactory.parseProperties(newProps)
+     val ignored = newProps.asScala.view.filterKeys(!flattenConfigToDotNotation(config).contains(_)).toMap
+     (config, ignored)
+   }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
@@ -217,6 +219,18 @@ trait ConfigParser extends Logging {
           acc
       }
     (conf, confAsMap2)
+  }
+
+  /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
+    * This is often the sign of an error.
+    */
+  def ignored(latestConf: Config, optPreviousConf: Option[Config]): Map[String, String] = {
+    val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
+    val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
+    flattenConfigToDotNotation(previousConf)
+      .view
+      .filterKeys(!combined.contains(_))
+      .toMap
   }
 }
 

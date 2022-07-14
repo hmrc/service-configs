@@ -215,43 +215,60 @@ class ConfigParserSpec
   "ConfigParser.extractAsConfig" should {
     "strip and return entries under prefix" in {
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a" -> "1",
-          "prefix.b" -> "2"
-        )),
-        "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a" -> "1",
-          "b" -> "2"
-        ).asJava
-      )
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
+      , prefix          = "prefix."
+      ) shouldBe (toConfig(Map("a" -> "1", "b" -> "2")), Map.empty[String, String])
     }
 
     "handle object and value conflicts by ignoring values" in {
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a" -> "1",
-          "prefix.a.b" -> "2"
-        )),
-        "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a.b" -> "2"
-        ).asJava
-      )
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
+      , prefix          = "prefix."
+      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
 
+      // Check not affected by order
       ConfigParser.extractAsConfig(
-        toProperties(Seq(
-          "prefix.a.b" -> "2",
-          "prefix.a" -> "1"
-        )),
-        "prefix."
-      ) shouldBe ConfigFactory.parseMap(
-        Map(
-          "a.b" -> "2"
-        ).asJava
-      )
+        properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
+      , prefix          = "prefix."
+      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
+
+      // Check nested
+      ConfigParser.extractAsConfig(
+        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
+      , prefix          = "prefix."
+      ) shouldBe (toConfig(Map("a.b.c" -> "3")), Map("a" -> "1", "a.b" -> "2"))
+
+      // Ensure diff by key since Play Config applies its escaping
+      ConfigParser.extractAsConfig(
+        properties      = toProperties(Seq("prefix.Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
+      , prefix          = "prefix."
+      ) shouldBe (toConfig(Map("Prod.http-client.audit.disabled-for" -> """http://.*\.service""")), Map.empty[String, String])
+    }
+  }
+
+  "ConfigParser.ignored" should {
+    "spot when config is overwritten" in {
+      ConfigParser.ignored(
+        latestConf      = ConfigFactory.parseString("a.b=2")
+      , optPreviousConf = Some(ConfigFactory.parseString(
+                            """|a=1
+                               |b=2
+                               |c=3
+                               |""".stripMargin
+                          ))
+      ) shouldBe Map("a" -> "1")
+    }
+
+    "work on many levels" in {
+      ConfigParser.ignored(
+        latestConf      = ConfigFactory.parseString("a.b.c=3")
+      , optPreviousConf = Some(ConfigFactory.parseString(
+                            """|a=1
+                               |b=2
+                               |c=3
+                               |""".stripMargin
+                          ))
+      ) shouldBe Map("a" -> "1")
     }
   }
 
@@ -412,4 +429,7 @@ class ConfigParserSpec
     seq.foreach(e => p.setProperty(e._1, e._2))
     p
   }
+
+  private def toConfig(m: Map[String, String]) =
+    ConfigFactory.parseMap(m.asJava)
 }
