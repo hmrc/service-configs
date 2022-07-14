@@ -249,15 +249,25 @@ class ConfigParserSpec
   "ConfigParser.ignored" should {
     "spot when config is overwritten" in {
       ConfigParser.ignored(
-        latestConf    = ConfigFactory.parseString("a.b=2")
-      , oPreviousConf = Some(ConfigFactory.parseString("a=1\nb=2\nc=3\n"))
+        latestConf      = ConfigFactory.parseString("a.b=2")
+      , optPreviousConf = Some(ConfigFactory.parseString(
+                            """|a=1
+                               |b=2
+                               |c=3
+                               |""".stripMargin
+                          ))
       ) shouldBe Map("a" -> "1")
     }
 
     "work on many levels" in {
       ConfigParser.ignored(
-        latestConf    = ConfigFactory.parseString("a.b.c=3")
-      , oPreviousConf = Some(ConfigFactory.parseString("a=1\nb=2\nc=3\n"))
+        latestConf      = ConfigFactory.parseString("a.b.c=3")
+      , optPreviousConf = Some(ConfigFactory.parseString(
+                            """|a=1
+                               |b=2
+                               |c=3
+                               |""".stripMargin
+                          ))
       ) shouldBe Map("a" -> "1")
     }
   }

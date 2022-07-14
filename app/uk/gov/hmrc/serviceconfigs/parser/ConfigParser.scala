@@ -221,16 +221,14 @@ trait ConfigParser extends Logging {
     (conf, confAsMap2)
   }
 
-  def ignored(latestConf: Config, oPreviousConf: Option[Config]): Map[String, String] = {
-    val allProps = new Properties
-    oPreviousConf.foreach(c => allProps.putAll(ConfigParser.flattenConfigToDotNotation(c).asJava))
-    allProps.putAll(ConfigParser.flattenConfigToDotNotation(latestConf).asJava)
-    val oldConfig = ConfigFactory.parseProperties(allProps)
-
-    allProps
-      .asScala
-      .toSet
-      .diff((ConfigParser.flattenConfigToDotNotation(oldConfig) ++ ConfigParser.flattenConfigToDotNotation(latestConf)).toSet)
+  /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
+    * This is often the sign of an error.
+    */
+  def ignored(latestConf: Config, optPreviousConf: Option[Config]): Map[String, String] = {
+    val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
+    val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
+    flattenConfigToDotNotation(previousConf)
+      .filterKeys(!combined.contains(_))
       .toMap
   }
 }
