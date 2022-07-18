@@ -113,9 +113,9 @@ class ConfigService @Inject()(
           case None                 => (entry.config, ConfigParser.flattenConfigToDotNotation(entry.config))
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
       }
-      val ignored = (ConfigParser.ignored(entry.config, optPreviousConfig) ++ entry.ignored)
-                      .map { case (k, _) => k -> s"<<IGNORED>>" }
-      (acc :+ ConfigSourceEntries(entry.name, entries ++ ignored), Some(nextConfig))
+      val suppressed = (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
+                        .map { case (k, _) => k -> s"<<SUPPRESSED>>" }
+      (acc :+ ConfigSourceEntries(entry.name, entries ++ suppressed), Some(nextConfig))
     }._1
 
   private def configSourceEntries(
@@ -151,7 +151,7 @@ class ConfigService @Inject()(
       appConfigEnvEntriesAll      =  ConfigParser
                                        .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
       serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-      (appConfigEnvironment, appConfigEnvironmentIgnored)
+      (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                   =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
@@ -159,10 +159,10 @@ class ConfigService @Inject()(
       optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
                                        .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
-      (appConfigCommonOverrideable, appConfigCommonOverrideableIgnored)
+      (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
                                   =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 
-      (appConfigCommonFixed, appConfigCommonFixedIgnored)
+      (appConfigCommonFixed, appConfigCommonFixedSuppressed)
                                   =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
     } yield
       ConfigSourceEntries("loggerConf"                 , loggerConfMap                         ) +:
@@ -170,9 +170,9 @@ class ConfigService @Inject()(
         ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty),
         ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty),
         ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty),
-        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableIgnored),
-        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentIgnored),
-        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedIgnored)
+        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed),
+        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed),
+        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)
       ))
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
@@ -212,9 +212,9 @@ object ConfigService {
   type ConfigByKey         = Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]
 
   case class ConfigSourceConfig(
-    name      : String,
-    config    : Config,
-    ignored   : Map[String, String]
+    name         : String,
+    config       : Config,
+    suppressed   : Map[String, String]
   )
 
   case class ConfigSourceEntries(

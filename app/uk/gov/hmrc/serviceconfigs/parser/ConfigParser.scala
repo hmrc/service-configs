@@ -188,9 +188,9 @@ trait ConfigParser extends Logging {
        .asScala
        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
-     val config  = ConfigFactory.parseProperties(newProps)
-     val ignored = newProps.asScala.view.filterKeys(!flattenConfigToDotNotation(config).contains(_)).toMap
-     (config, ignored)
+     val config     = ConfigFactory.parseProperties(newProps)
+     val suppressed = newProps.asScala.view.filterKeys(!flattenConfigToDotNotation(config).contains(_)).toMap
+     (config, suppressed)
    }
 
   /** Config is processed relative to the previous one.
@@ -224,7 +224,7 @@ trait ConfigParser extends Logging {
   /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
     * This is often the sign of an error.
     */
-  def ignored(latestConf: Config, optPreviousConf: Option[Config]): Map[String, String] = {
+  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, String] = {
     val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
     val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
     flattenConfigToDotNotation(previousConf)
