@@ -246,9 +246,9 @@ class ConfigParserSpec
     }
   }
 
-  "ConfigParser.ignored" should {
+  "ConfigParser.suppressed" should {
     "spot when config is overwritten" in {
-      ConfigParser.ignored(
+      ConfigParser.suppressed(
         latestConf      = ConfigFactory.parseString("a.b=2")
       , optPreviousConf = Some(ConfigFactory.parseString(
                             """|a=1
@@ -260,7 +260,7 @@ class ConfigParserSpec
     }
 
     "work on many levels" in {
-      ConfigParser.ignored(
+      ConfigParser.suppressed(
         latestConf      = ConfigFactory.parseString("a.b.c=3")
       , optPreviousConf = Some(ConfigFactory.parseString(
                             """|a=1
