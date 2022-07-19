@@ -72,24 +72,41 @@ class ConfigService @Inject()(
       case None => Future.successful(List.empty[DependencyConfig])
     }
 
+  /** Gets application config from slug info or config connector (Java apps).
+    * Exposes the raw bootstrap conf if its at the start of the file, otherwise merges it in.
+    */
   private def lookupApplicationConf(
     serviceName     : String,
     referenceConfigs: List[DependencyConfig],
     optSlugInfo     : Option[SlugInfo]
-  )(implicit hc: HeaderCarrier): Future[Config] =
+  )(implicit hc: HeaderCarrier): Future[(Config, Map[String, Config])] =
     for {
-      optApplicationConfRaw <- optSlugInfo.traverse {
-                                case slugInfo if slugInfo.applicationConfig == "" =>
-                                  // if no slug info (e.g. java apps) get from github
-                                  configConnector.serviceApplicationConfigFile(serviceName)
-                                case slugInfo =>
-                                  Future.successful(Some(slugInfo.applicationConfig))
-                              }.map(_.flatten)
+      applicationConfRaw <- optSlugInfo.traverse {
+                              // if no slug info (e.g. java apps) get from github
+                              case x if x.applicationConfig == "" => configConnector.serviceApplicationConfigFile(serviceName)
+                              case x                              => Future.successful(Some(x.applicationConfig))
+                            }.map(_.flatten.getOrElse(""))
+      regex              =  """^include\s+["'](frontend.conf|backend.conf)["']""".r.unanchored
+      optBootstrapFile   =  applicationConfRaw
+                              .split("\n")
+                              .filterNot(_.trim.startsWith("#"))
+                              .mkString("\n")
+                              .trim match {
+                                case regex(v) => Some(v)
+                                case _        => None
+                              }
+      bootstrapConf      =  referenceConfigs
+                              .flatMap(_.configs)
+                              .collect {
+                                case ("frontend.conf", v) if optBootstrapFile.exists(_ == "frontend.conf") => "bootstrapFrontendConf" -> ConfigParser.parseConfString(v)
+                                case ("backend.conf", v)  if optBootstrapFile.exists(_ == "backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
+                              }
+                              .toMap
+      includeConfs       =  referenceConfigs
+                              .map(x => x.copy(configs = optBootstrapFile.foldLeft(x.configs)((c, y) => c + (y -> ""))))
+      applicationConf    =  ConfigParser.parseConfString(applicationConfRaw, ConfigParser.toIncludeCandidates(includeConfs))
     } yield
-      ConfigParser.parseConfString(
-        optApplicationConfRaw.getOrElse(""),
-        ConfigParser.toIncludeCandidates(referenceConfigs)
-      )
+      (applicationConf, bootstrapConf)
 
   private def lookupBaseConf(
     serviceName: String,
@@ -131,11 +148,14 @@ class ConfigService @Inject()(
         dependencyConfigs         <- lookupDependencyConfigs(optSlugInfo)
         referenceConf             =  ConfigParser.reduceConfigs(dependencyConfigs)
 
-        aplicationConf            <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-      } yield toConfigSourceEntries(Seq(
-          ConfigSourceConfig("referenceConf"   , referenceConf , Map.empty),
-          ConfigSourceConfig("applicationConf" , aplicationConf, Map.empty)
-        ))
+        (applicationConf, bootstrapConf)
+                                  <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
+      } yield toConfigSourceEntries(
+        ConfigSourceConfig("referenceConf"  , referenceConf  , Map.empty)               ::
+        bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList :::
+        ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
+        Nil
+      )
     else
     for {
       optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
@@ -145,7 +165,8 @@ class ConfigService @Inject()(
       dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
       referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
 
-      applicationConf             <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
+      (applicationConf, bootstrapConf)
+                                  <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
       optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
       appConfigEnvEntriesAll      =  ConfigParser
@@ -165,15 +186,17 @@ class ConfigService @Inject()(
       (appConfigCommonFixed, appConfigCommonFixedSuppressed)
                                   =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
     } yield
-      ConfigSourceEntries("loggerConf"                 , loggerConfMap                         ) +:
-      toConfigSourceEntries(Seq(
-        ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty),
-        ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty),
-        ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty),
-        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed),
-        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed),
-        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)
-      ))
+      ConfigSourceEntries("loggerConf"                 , loggerConfMap) +:
+      toConfigSourceEntries(
+        ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty)                             ::
+        bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList                                      :::
+        ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty)                             ::
+        ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty)                             ::
+        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
+        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
+        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
+        Nil
+      )
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
     environments.toList.foldLeftM[Future, ConfigByEnvironment](Map.empty) { (map, e) =>
