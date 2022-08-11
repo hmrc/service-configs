@@ -104,6 +104,28 @@ class FrontendRouteRepositoryMongoSpec
       service1Entries.map(_.frontendPath).toList shouldBe List("a")
     }
 
+    "FrontendRouteRepository.findAllFrontendServices" should {
+      "return list of all services" in {
+
+        repository.update(newFrontendRoute(service = "service1", environment = "foo")).futureValue
+        repository.update(newFrontendRoute(service = "service1", environment = "bar")).futureValue
+        repository.update(newFrontendRoute(service = "service2", environment = "foo")).futureValue
+        repository.update(newFrontendRoute(service = "service2", environment = "bar")).futureValue
+
+        val allEntries = repository
+          .collection
+          .find()
+          .toFuture()
+          .futureValue
+
+        allEntries should have size 4
+
+        val services = repository.findAllFrontendServices().futureValue
+        services should have size 2
+        services shouldBe List("service1", "service2")
+      }
+    }
+
     "return routes with the subpath" in {
       addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb").futureValue
 

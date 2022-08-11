@@ -19,6 +19,8 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import cats.instances.all._
 import cats.syntax.all._
 import com.mongodb.client.model.Indexes
+import org.mongodb.scala.MongoCollection
+
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.collection.immutable.Document
@@ -44,8 +46,9 @@ class FrontendRouteRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
-                   )
+                   ),
 ) with Transactions {
+
 
   private val logger = Logger(this.getClass)
 
@@ -130,6 +133,13 @@ class FrontendRouteRepository @Inject()(
       } yield ()
     }
   }
+
+  val serviceNameCollection: MongoCollection[String] = mongoComponent.database.getCollection[String]("frontendRoutes")
+
+  def findAllFrontendServices(): Future[Seq[String]] =
+    serviceNameCollection
+      .distinct[String]("service")
+      .toFuture()
 }
 
 object FrontendRouteRepository {
