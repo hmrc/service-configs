@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import io.swagger.annotations.{Api, ApiOperation, ApiParam}
+
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Json, OFormat}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
@@ -76,6 +77,18 @@ class NginxController @Inject()(
       db.searchByFrontendPath(frontendPath)
         .map(FrontendRoutes.fromMongo)
         .map(routes => Json.toJson(routes))
+        .map(Ok(_))
+    }
+
+  @ApiOperation(
+    value = "Retrieves list of frontend services",
+    notes = """All the services in the mdtp-frontend-routes repo are defined as frontend services"""
+  )
+  def allFrontendServices(): Action[AnyContent] =
+    Action.async {
+      db.findAllFrontendServices()
+        .map(_.filterNot(_.contains("$")))
+        .map(service => Json.toJson(service))
         .map(Ok(_))
     }
 }
