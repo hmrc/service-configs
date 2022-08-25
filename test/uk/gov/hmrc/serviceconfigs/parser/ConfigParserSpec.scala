@@ -22,7 +22,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import com.typesafe.config.ConfigRenderOptions
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 
-import java.util.Properties
+import java.util.{Base64, Properties}
 import scala.jdk.CollectionConverters._
 
 class ConfigParserSpec
@@ -149,6 +149,26 @@ class ConfigParserSpec
 
     "handle invalid yaml" in {
       ConfigParser.parseYamlStringAsProperties("") shouldBe new Properties
+    }
+
+    "decode base64 suffixed values" in {
+      val cfg =
+        s"""
+          |my.key.base64 : ${new String(Base64.getEncoder.encode("test123".getBytes))}
+          |""".stripMargin
+      val result = ConfigParser.parseYamlStringAsProperties(cfg)
+      result.getProperty("my.key") shouldBe "test123"
+      result.getProperty("my.key.base64") shouldBe null
+    }
+
+    "invalid base64 values display as warnings" in {
+      val cfg =
+        s"""
+           |my.key.base64 : bad%^va!)}
+           |""".stripMargin
+      val result = ConfigParser.parseYamlStringAsProperties(cfg)
+      result.getProperty("my.key") shouldBe "<<Invalid base64>>"
+      result.getProperty("my.key.base64") shouldBe null
     }
   }
 

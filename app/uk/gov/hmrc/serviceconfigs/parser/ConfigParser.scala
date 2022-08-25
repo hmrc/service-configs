@@ -22,7 +22,7 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
 
-import java.util.Properties
+import java.util.{Base64, Properties}
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -80,7 +80,10 @@ trait ConfigParser extends Logging {
         .asInstanceOf[java.util.LinkedHashMap[String, Object]]
     ).map(flattenYamlToDotNotation)
       .getOrElse(Seq.empty)
-      .foreach { case (k, v) => props.setProperty(k, v) }
+      .foreach {
+        case (k, v) if k.endsWith(".base64") => props.setProperty(k.replaceAll("\\.base64$", ""), Try(new String(Base64.getDecoder.decode(v), "UTF-8")).getOrElse("<<Invalid base64>>"))
+        case (k, v)                          => props.setProperty(k, v)
+      }
     props
   }
 
