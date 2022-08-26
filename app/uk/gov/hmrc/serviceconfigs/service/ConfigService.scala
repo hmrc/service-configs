@@ -26,8 +26,10 @@ import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
+import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 @Singleton
 class ConfigService @Inject()(
@@ -124,8 +126,8 @@ class ConfigService @Inject()(
   /** Converts the unresolved configurations for each level into a
     * list of the effective configs
     */
-  private def toConfigSourceEntries(cscs: Seq[ConfigSourceConfig]): Seq[ConfigSourceEntries] =
-    cscs.foldLeft((Seq.empty[ConfigSourceEntries], None: Option[Config])){ case ((acc, optPreviousConfig), entry) =>
+  private def toConfigSourceEntries(cscs: Seq[ConfigSourceConfig]): Seq[ConfigSourceEntries] = {
+    val (cses, lastConfig) = cscs.foldLeft((Seq.empty[ConfigSourceEntries], None: Option[Config])){ case ((acc, optPreviousConfig), entry) =>
       val (nextConfig, entries) = optPreviousConfig match {
           case None                 => (entry.config, ConfigParser.flattenConfigToDotNotation(entry.config))
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
@@ -133,7 +135,19 @@ class ConfigService @Inject()(
       val suppressed = (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
                         .map { case (k, _) => k -> s"<<SUPPRESSED>>" }
       (acc :+ ConfigSourceEntries(entry.name, entries ++ suppressed), Some(nextConfig))
-    }._1
+    }
+    // ApplicationLoader in bootstrap will decode any ".base64" keys and replace the keys without the .base64 extension
+    lastConfig match {
+      case Some(config) =>
+        val base64 = ConfigParser.flattenConfigToDotNotation(config).flatMap {
+          case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> Try(new String(Base64.getDecoder.decode(v), "UTF-8")).getOrElse("<<Invalid base64>>"))
+          case _                               => Map.empty
+        }
+        cses :+ ConfigSourceEntries("base64", base64)
+      case None =>
+        cses
+    }
+  }
 
   private def configSourceEntries(
     environment: EnvironmentMapping,
