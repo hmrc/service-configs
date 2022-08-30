@@ -103,7 +103,7 @@ class ConfigServiceSpec
         .willReturn(aResponse.withBody("""
           |hmrc_config.a.b: 6
           |hmrc_config.d: 1
-          |hmrc_config.d.e: 2
+          |hmrc_config.d.base64: Mg==
         """.stripMargin))
       )
       stubFor(get(urlEqualTo(s"/hmrc/app-config-staging/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
@@ -162,10 +162,10 @@ class ConfigServiceSpec
             "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
           },
           "d": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}]
+            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}, {"source": "base64", "value": "2"}]
           },
-          "d.e": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "2"}]
+          "d.base64": {
+            "qa":           [                                             {"source": "appConfigEnvironment", "value": "Mg=="}]
           },
           "list": {
             "local":        [{"source": "applicationConf", "value": "[1,2]"}                                                               ],
