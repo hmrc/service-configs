@@ -59,4 +59,15 @@ class ConfigController @Inject()(
       Ok(Json.toJson(k))
     }
   }
+
+  @ApiOperation(
+    value = "Retrieves just the app config for a given service"
+  )
+  def appConfig(
+    @ApiParam(value = "The service name to query") serviceName: String
+  ): Action[AnyContent] = Action.async { implicit request =>
+    configService.appConfig(serviceName).map { k =>
+      Ok(Json.toJson(k))
+    }
+  }
 }

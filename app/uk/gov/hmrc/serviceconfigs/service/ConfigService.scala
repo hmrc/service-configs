@@ -239,6 +239,16 @@ class ConfigService @Inject()(
       .map { map =>
         scala.collection.immutable.ListMap(map.toSeq.sortBy(_._1): _*)
       }
+
+  def appConfig(serviceName: String)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
+    for {
+      optSlugInfo <- slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.Latest)
+      (applicationConf, bootstrapConf)
+                  <- lookupApplicationConf(serviceName, Nil, optSlugInfo)
+    } yield toConfigSourceEntries(
+      ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
+      Nil
+    )
 }
 
 object ConfigService {
