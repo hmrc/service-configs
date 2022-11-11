@@ -17,15 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.Indexes
-import org.mongodb.scala.MongoCollection
 
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.bson.collection.immutable.Document
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
-import play.api.Logger
+import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
