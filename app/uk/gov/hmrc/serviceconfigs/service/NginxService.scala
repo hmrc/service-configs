@@ -49,7 +49,7 @@ class NginxService @Inject()(
       _ <- Future.successful(logger.info(s"Update started..."))
       _ <- environments.traverse { environment =>
              updateNginxRoutesForEnv(environment)
-               .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e) }
+               .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e); Nil }
            }
       _ =  logger.info(s"Update complete...")
     } yield ()

@@ -35,14 +35,13 @@ class BobbyConnector @Inject()(
 )( implicit ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc: HeaderCarrier =
-      HeaderCarrier()
+  private implicit val hc = HeaderCarrier()
 
   def findAllRules(): Future[String] = {
     val url = url"${bobbyConfig.url}"
     httpClientV2
       .get(url)
-      .replaceHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[HttpResponse]
       .map {

@@ -35,16 +35,13 @@ class NginxConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc: HeaderCarrier =
-      HeaderCarrier()
+  private implicit val hc = HeaderCarrier()
 
   def getNginxRoutesFile(fileName: String, environment: String): Future[NginxConfigFile] = {
-    val url =
-      url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
-
+    val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
     httpClientV2
       .get(url)
-      .replaceHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[HttpResponse]
       .map {

@@ -35,34 +35,23 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def serviceConfigYaml(env: SlugInfoFlag, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/HEAD/$service.yaml"
-    doCall(requestUrl, newHc)
-  }
+  def serviceConfigYaml(env: SlugInfoFlag, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/HEAD/$service.yaml")
 
-  def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf"
-    doCall(requestUrl, newHc)
-  }
+  def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf")
 
-  def serviceCommonConfigYaml(env: SlugInfoFlag, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/${env.asString}-$serviceType-common.yaml"
-    doCall(requestUrl, newHc)
-  }
+  def serviceCommonConfigYaml(env: SlugInfoFlag, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/${env.asString}-$serviceType-common.yaml")
 
-  def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val newHc      = hc.withExtraHeaders(("Authorization", s"token ${githubConfig.githubToken}"))
-    val requestUrl = url"${githubConfig.githubRawUrl}/hmrc/$serviceName/HEAD/conf/application.conf"
-    doCall(requestUrl, newHc)
-  }
+  def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/HEAD/conf/application.conf")
 
-  private def doCall(url: URL, newHc: HeaderCarrier) = {
-    implicit val hc: HeaderCarrier = newHc
+  private def doCall(url: URL)(implicit hc: HeaderCarrier) =
     httpClientV2
       .get(url)
+      .setHeader(("Authorization", s"token ${githubConfig.githubToken}"))
+      .withProxy
       .execute[HttpResponse]
       .map {
         case response if response.status == 200 =>
@@ -72,5 +61,4 @@ class ConfigConnector @Inject()(
         case response =>
           sys.error(s"Failed with status code '${response.status}' to download config file from $url")
       }
-  }
 }
