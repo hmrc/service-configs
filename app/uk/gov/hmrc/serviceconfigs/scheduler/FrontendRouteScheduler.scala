@@ -22,7 +22,7 @@ import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, LockService}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.service.NginxService
+import uk.gov.hmrc.serviceconfigs.service.{NginxService, RoutesConfigService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 
 import scala.concurrent.ExecutionContext
@@ -32,6 +32,7 @@ import scala.concurrent.duration.DurationInt
 class FrontendRouteScheduler @Inject()(
   nginxConfig        : NginxConfig,
   nginxService       : NginxService,
+  routesConfigService: RoutesConfigService,
   configuration      : Configuration,
   schedulerConfigs   : SchedulerConfigs,
   mongoLockRepository: MongoLockRepository
@@ -56,7 +57,9 @@ class FrontendRouteScheduler @Inject()(
   , schedulerConfig = schedulerConfigs.frontendRoutesReload
   , lock            = LockService(mongoLockRepository, "service-configs-sync-job", 20.minutes)
   ){
-    nginxService.update(environments)
-      .map(_ => ())
+    for {
+      _ <- nginxService.update(environments)
+      _ <- routesConfigService.updateAdminFrontendRoutes()
+    } yield ()
   }
 }
