@@ -116,9 +116,10 @@ class ConfigService @Inject()(
   )(implicit hc: HeaderCarrier): Future[Config] =
     for {
       optBaseConfRaw <- optSlugInfo match {
-                          case Some(slugInfo) => Future.successful(Some(slugInfo.slugConfig))
-                          case None           => // if no slug info (e.g. java apps) get from github
-                                                 configConnector.serviceConfigBaseConf(serviceName)
+                          // if no slug config (e.g. java apps) get from github
+                          case Some(x) if x.slugConfig == "" => configConnector.serviceConfigBaseConf(serviceName)
+                          case Some(x)                       => Future.successful(Some(x.slugConfig))
+                          case None                          => Future.successful(None)
                         }
     } yield
       ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
