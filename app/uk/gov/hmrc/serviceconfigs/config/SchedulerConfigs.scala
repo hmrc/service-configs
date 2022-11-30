@@ -51,4 +51,6 @@ class SchedulerConfigs @Inject()(configuration: Configuration) {
   val alertConfigUpdate                = SchedulerConfig(configuration, "alert-config-scheduler")
   val deploymentConfigUpdate           = SchedulerConfig(configuration, "deployment-config-scheduler")
   val deploymentConfigSnapshotPopulate = SchedulerConfig(configuration, "deployment-config-snapshot-scheduler")
+  val dashboardUpdate                  = SchedulerConfig(configuration, "dashboard-scheduler")
+  val buildJobUpdate                   = SchedulerConfig(configuration, "build-jobs-scheduler")
 }

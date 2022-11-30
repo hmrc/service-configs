@@ -19,8 +19,7 @@ package uk.gov.hmrc.serviceconfigs
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.notification.{DeadLetterHandler, SlugConfigUpdateHandler}
-import uk.gov.hmrc.serviceconfigs.scheduler.{AlertConfigScheduler, DeploymentConfigScheduler, DeploymentConfigSnapshotScheduler, FrontendRouteScheduler, SlugMetadataUpdateScheduler}
-
+import uk.gov.hmrc.serviceconfigs.scheduler._
 
 class Module extends AbstractModule {
   override def configure(): Unit = {
@@ -31,6 +30,8 @@ class Module extends AbstractModule {
     bind(classOf[AlertConfigScheduler              ]).asEagerSingleton()
     bind(classOf[DeploymentConfigScheduler         ]).asEagerSingleton()
     bind(classOf[DeploymentConfigSnapshotScheduler ]).asEagerSingleton()
+    bind(classOf[DashboardScheduler                ]).asEagerSingleton()
+    bind(classOf[BuildJobScheduler                 ]).asEagerSingleton()
     bind(classOf[FrontendRouteParser               ]).to(classOf[NginxConfigParser]).asEagerSingleton()
   }
 }
