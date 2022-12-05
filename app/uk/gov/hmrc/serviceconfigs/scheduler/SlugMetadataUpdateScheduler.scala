@@ -43,14 +43,13 @@ class SlugMetadataUpdateScheduler @Inject()(
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
   scheduleWithLock(
-    "Slug Metadata Updater",
-    schedulerConfigs.slugMetadataUpdate,
-    LockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)
+    label           = "SlugMetadataUpdateScheduler",
+    schedulerConfig = schedulerConfigs.slugMetadataScheduler,
+    lock            = LockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)
   ) {
     logger.info("Updating slug metadata")
     for {
       _ <- slugInfoService.updateMetadata()
-      _ = logger.info("Finished updating slug metadata")
-    } yield ()
+    } yield logger.info("Finished updating slug metadata")
   }
 }
