@@ -25,7 +25,7 @@ import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.service.DashboardService
+import uk.gov.hmrc.serviceconfigs.model.Dashboard
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,7 +36,7 @@ class GrafanaDashboardRepository @Inject()(
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "grafanaDashboards",
-  domainFormat   = DashboardService.format,
+  domainFormat   = Dashboard.format,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
@@ -44,12 +44,12 @@ class GrafanaDashboardRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def findByService(service: String): Future[Option[DashboardService.Dashboard]] =
+  def findByService(service: String): Future[Option[Dashboard]] =
     collection
       .find(equal("service", service))
       .headOption()
 
-  def replaceAll(rows: Seq[DashboardService.Dashboard]): Future[Int] = {
+  def replaceAll(rows: Seq[Dashboard]): Future[Int] = {
     withSessionAndTransaction { session =>
       for {
         _  <- collection.deleteMany(session, BsonDocument()).toFuture()

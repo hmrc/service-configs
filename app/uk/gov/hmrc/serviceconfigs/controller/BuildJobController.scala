@@ -22,6 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import uk.gov.hmrc.serviceconfigs.model.BuildJob
 import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 
 import scala.concurrent.ExecutionContext
@@ -35,7 +36,7 @@ class BuildJobController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val buildJobFormat = BuildJobRepository.format
+  implicit val buildJobFormat = BuildJob.format
 
   @ApiOperation(
     value = "Retrieves Build Jobs config for the given service",

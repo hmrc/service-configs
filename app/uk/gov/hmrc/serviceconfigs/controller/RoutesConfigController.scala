@@ -22,6 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
 
 import scala.concurrent.ExecutionContext
@@ -35,7 +36,7 @@ class RoutesConfigController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val adminFrontendRouteFormat = AdminFrontendRouteRepository.format
+  implicit val adminFrontendRouteFormat = AdminFrontendRoute.format
 
   @ApiOperation(
     value = "Retrieves nginx route config for the given service",

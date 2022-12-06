@@ -25,20 +25,9 @@ import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.BuildJob
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object BuildJobRepository {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json._
-
-  case class BuildJob(service: String, location: String)
-
-  val format: Format[BuildJob] =
-    ( (__ \ "service" ).format[String]
-    ~ (__ \ "location").format[String]
-    )(BuildJob.apply, unlift(BuildJob.unapply))
-}
 
 @Singleton
 class BuildJobRepository @Inject()(
@@ -47,7 +36,7 @@ class BuildJobRepository @Inject()(
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "buildJobs",
-  domainFormat   = BuildJobRepository.format,
+  domainFormat   = BuildJob.format,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
@@ -55,12 +44,12 @@ class BuildJobRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def findByService(service: String): Future[Option[BuildJobRepository.BuildJob]] =
+  def findByService(service: String): Future[Option[BuildJob]] =
     collection
       .find(equal("service", service))
       .headOption()
 
-  def replaceAll(rows: Seq[BuildJobRepository.BuildJob]): Future[Int] = {
+  def replaceAll(rows: Seq[BuildJob]): Future[Int] = {
     withSessionAndTransaction { session =>
       for {
         _  <- collection.deleteMany(session, BsonDocument()).toFuture()

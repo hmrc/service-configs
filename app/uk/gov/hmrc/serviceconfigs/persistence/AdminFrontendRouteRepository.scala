@@ -25,27 +25,9 @@ import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object AdminFrontendRouteRepository {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json._
-
-  case class AdminFrontendRoute(
-    service : String
-  , route   : String
-  , allow   : Map[String, List[String]]
-  , location: String
-  )
-
-  val format: Format[AdminFrontendRoute] =
-    ( (__ \ "service" ).format[String]
-    ~ (__ \ "route"   ).format[String]
-    ~ (__ \ "allow"   ).format[Map[String, List[String]]]
-    ~ (__ \ "location").format[String]
-    )(AdminFrontendRoute.apply, unlift(AdminFrontendRoute.unapply))
-}
 
 @Singleton
 class AdminFrontendRouteRepository @Inject()(
@@ -54,13 +36,12 @@ class AdminFrontendRouteRepository @Inject()(
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "adminFrontendRoutes",
-  domainFormat   = AdminFrontendRouteRepository.format,
+  domainFormat   = AdminFrontendRoute.format,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("route"),   IndexOptions().background(true).name("routeIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
 ) with Transactions {
-  import AdminFrontendRouteRepository._
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 

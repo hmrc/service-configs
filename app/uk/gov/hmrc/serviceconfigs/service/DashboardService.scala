@@ -19,22 +19,11 @@ package uk.gov.hmrc.serviceconfigs.service
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.model.Dashboard
 import uk.gov.hmrc.serviceconfigs.persistence.{GrafanaDashboardRepository, KibanaDashboardRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object DashboardService {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json._
-
-  case class Dashboard(service: String, location: String)
-
-  val format: Format[Dashboard] =
-    ( (__ \ "service" ).format[String]
-    ~ (__ \ "location").format[String]
-    )(Dashboard.apply, unlift(Dashboard.unapply))
-}
 
 @Singleton
 class DashboardService @Inject()(
@@ -44,7 +33,6 @@ class DashboardService @Inject()(
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
 )(implicit ec: ExecutionContext
 ) extends Logging {
-  import DashboardService._
 
   def updateGrafanaDashboards(): Future[Unit] =
     for {
