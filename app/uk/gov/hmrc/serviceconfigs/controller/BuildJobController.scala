@@ -20,34 +20,34 @@ import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
-import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
+import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
+import uk.gov.hmrc.serviceconfigs.model.BuildJob
+import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Routes")
-class RoutesConfigController @Inject()(
-  db: AdminFrontendRouteRepository,
+@Api("Build Job")
+class BuildJobController @Inject()(
+  buildJobRepository: BuildJobRepository,
   mcc: MessagesControllerComponents
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val adminFrontendRouteFormat = AdminFrontendRoute.format
+  implicit val buildJobFormat = BuildJob.format
 
   @ApiOperation(
-    value = "Retrieves nginx route config for the given service",
-    notes = "YAML config is extracted from the admin-frontend-proxy repo"
+    value = "Retrieves Build Jobs config for the given service",
+    notes = "Build Job config is extracted fromt the build-jobs repo"
   )
-  def searchByServiceName(
+  def buildJob(
     @ApiParam(value = "The service name to query") serviceName: String
   ): Action[AnyContent] =
     Action.async {
-      db.findByService(serviceName)
-        .map(routes => Json.toJson(routes))
-        .map(Ok(_))
+      buildJobRepository
+        .findByService(serviceName)
+        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
     }
 }

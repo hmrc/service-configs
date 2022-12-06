@@ -34,35 +34,32 @@ class AlertEnvironmentHandlerRepositorySpec
 
   "AlertEnvironmentHandlerRepository" should {
     "insert correctly" in {
-
-      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true)
-
+      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true, location = "")
       repository.insert(Seq(alertEnvironmentHandler)).futureValue
       repository.findAll().futureValue should contain(alertEnvironmentHandler)
     }
 
     "find one by matching service name" in {
-      val alertEnvironmentHandlers = Seq(AlertEnvironmentHandler("testNameOne", production = true),
-        AlertEnvironmentHandler("testNameTwo", production = true))
-
-      val expectedResult = Option(AlertEnvironmentHandler("testNameOne", production = true))
-
+      val alertEnvironmentHandlers = Seq(
+        AlertEnvironmentHandler("testNameOne", production = true, location = ""),
+        AlertEnvironmentHandler("testNameTwo", production = true, location = "")
+      )
+      val expectedResult = Option(AlertEnvironmentHandler("testNameOne", production = true, location = ""))
       repository.insert(alertEnvironmentHandlers).futureValue
       repository.findOne("testNameOne").futureValue shouldBe expectedResult
     }
 
     "delete all correctly" in {
-      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true)
-
-        (for {
-           _          <- repository.insert(Seq(alertEnvironmentHandler))
-           preDelete  <- repository.findAll()
-           _          =  preDelete should contain(alertEnvironmentHandler)
-           _          <- repository.deleteAll()
-           postDelete <- repository.findAll()
-           _          =  postDelete shouldBe empty
-         } yield ()
-        ).futureValue
+      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true, location = "")
+      (for {
+          _          <- repository.insert(Seq(alertEnvironmentHandler))
+          preDelete  <- repository.findAll()
+          _          =  preDelete should contain(alertEnvironmentHandler)
+          _          <- repository.deleteAll()
+          postDelete <- repository.findAll()
+          _          =  postDelete shouldBe empty
+        } yield ()
+      ).futureValue shouldBe (())
     }
   }
 }

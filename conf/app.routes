@@ -20,3 +20,8 @@ GET     /deployment-config/:environment                 @uk.gov.hmrc.serviceconf
 GET     /deployment-config/:environment/:name           @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment, name)
 
 GET     /resource-usage/services/:serviceName/snapshots @uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.resourceUsageSnapshotsForService(serviceName)
+
+GET     /grafana-dashboards/:serviceName                @uk.gov.hmrc.serviceconfigs.controller.DashboardController.grafana(serviceName)
+GET     /kibana-dashboards/:serviceName                 @uk.gov.hmrc.serviceconfigs.controller.DashboardController.kibana(serviceName)
+
+GET     /build-jobs/:serviceName                        @uk.gov.hmrc.serviceconfigs.controller.BuildJobController.buildJob(serviceName)

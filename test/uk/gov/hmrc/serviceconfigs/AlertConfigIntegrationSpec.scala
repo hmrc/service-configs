@@ -60,14 +60,14 @@ class AlertConfigIntegrationSpec
 
     "return correct json when getAlertConfigs receives a get request" in {
       val testData = Seq(
-        AlertEnvironmentHandler("testNameTwo", true),
-        AlertEnvironmentHandler("testNameOne", true)
+        AlertEnvironmentHandler("testNameTwo", true, "L2"),
+        AlertEnvironmentHandler("testNameOne", true, "L1")
       )
 
       repository.insert(testData)
 
-      val expectedResultOne = """{"serviceName":"testNameOne","production":true}"""
-      val expectedResultTwo = """{"serviceName":"testNameTwo","production":true}"""
+      val expectedResultOne = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
+      val expectedResultTwo = """{"serviceName":"testNameTwo","production":true,"location":"L2"}"""
 
       eventually {
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs").get().futureValue
@@ -81,13 +81,13 @@ class AlertConfigIntegrationSpec
     "return correct json when getAlertConfigForService receives a get request" in {
       val testData =
         Seq(
-          AlertEnvironmentHandler("testNameOne", true),
-          AlertEnvironmentHandler("testNameTwo", true)
+          AlertEnvironmentHandler("testNameOne", true, "L1"),
+          AlertEnvironmentHandler("testNameTwo", true, "L2")
         )
 
       repository.insert(testData)
 
-      val expectedResult = """{"serviceName":"testNameOne","production":true}"""
+      val expectedResult = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
 
       eventually {
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs/testNameOne").get().futureValue
@@ -100,8 +100,8 @@ class AlertConfigIntegrationSpec
     "return NotFound when getAlertConfigForService receives a get request for a non-existing service" in {
       val testData =
         Seq(
-          AlertEnvironmentHandler("testNameOne", true),
-          AlertEnvironmentHandler("testNameTwo", true)
+          AlertEnvironmentHandler("testNameOne", true, ""),
+          AlertEnvironmentHandler("testNameTwo", true, "")
         )
 
       repository.insert(testData)

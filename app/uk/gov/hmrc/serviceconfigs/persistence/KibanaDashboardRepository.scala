@@ -25,36 +25,35 @@ import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.Dashboard
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AdminFrontendRouteRepository @Inject()(
+class KibanaDashboardRepository @Inject()(
   final val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
-  collectionName = "adminFrontendRoutes",
-  domainFormat   = AdminFrontendRoute.format,
+  collectionName = "kibanaDashboards",
+  domainFormat   = Dashboard.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("route"),   IndexOptions().background(true).name("routeIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
 ) with Transactions {
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def findByService(service: String): Future[Seq[AdminFrontendRoute]] =
+  def findByService(service: String): Future[Option[Dashboard]] =
     collection
       .find(equal("service", service))
-      .toFuture()
+      .headOption()
 
-  def replaceAll(routes: Seq[AdminFrontendRoute]): Future[Int] = {
+  def replaceAll(rows: Seq[Dashboard]): Future[Int] = {
     withSessionAndTransaction { session =>
       for {
         _  <- collection.deleteMany(session, BsonDocument()).toFuture()
-        xs <- collection.insertMany(session, routes).toFuture().map(_.getInsertedIds)
+        xs <- collection.insertMany(session, rows).toFuture().map(_.getInsertedIds)
       } yield xs.size
     }
   }

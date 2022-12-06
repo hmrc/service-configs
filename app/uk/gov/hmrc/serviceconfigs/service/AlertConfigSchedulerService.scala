@@ -16,125 +16,105 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 import play.api.Logger
-import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.serviceconfigs.connector.ArtifactoryConnector
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
+import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, AlertHashStringRepository}
-import uk.gov.hmrc.serviceconfigs.service.AlertConfigSchedulerService.{processSensuConfig, processZip}
+import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
-import java.io.{FilterInputStream, InputStream}
-import java.util.zip.ZipInputStream
+import cats.data.EitherT
+
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-
 
 @Singleton
 class AlertConfigSchedulerService @Inject()(
   alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository,
   alertHashStringRepository        : AlertHashStringRepository,
-  artifactoryConnector             : ArtifactoryConnector
+  artifactoryConnector             : ArtifactoryConnector,
+  configAsCodeConnector            : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
 
-  def updateConfigs(): Future[Unit] = {
-    logger.info("Starting")
-
+  def updateConfigs(): Future[Unit] =
     (for {
-       latestHashString   <- artifactoryConnector.getLatestHash().map(_.getOrElse(""))
-       previousHashString <- alertHashStringRepository.findOne().map(_.getOrElse(LastHash("")).hash)
-       maybeHashString    =  if (!latestHashString.equals(previousHashString)) Option(latestHashString) else None
-     } yield maybeHashString
-    ).flatMap {
-      case Some(hashString) =>
-        for {
-          zip           <- artifactoryConnector.getSensuZip()
-          sensuConfig   =  processZip(zip)
-          alertHandlers =  processSensuConfig(sensuConfig)
-          _             <- alertEnvironmentHandlerRepository.deleteAll()
-          _             <- alertEnvironmentHandlerRepository.insert(alertHandlers)
-          ok            <- alertHashStringRepository.update(hashString)
-        } yield ok
-
-      case None =>
-        logger.info("No updates")
-        Future.successful(())
-    }
-  }
+      _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
+      currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))
+      previousHash  <- EitherT.right[Unit](alertHashStringRepository.findOne().map(_.map(_.hash).getOrElse("")))
+      oHash          = Option.when(currentHash != previousHash)(currentHash)
+      hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
+      jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())
+      sensuConfig   =  AlertConfigSchedulerService.processZip(jsonZip)
+      codeZip       <- EitherT.right[Unit](configAsCodeConnector.streamAlertConfig())
+      regex          = """src/main/scala/uk/gov/hmrc/alertconfig/configs/(.*).scala""".r
+      blob           = "https://github.com/hmrc/alert-config/blob"
+      repos          = AlertConfigSchedulerService.toRepos(sensuConfig)
+      locations      = ZipUtil.findRepos(codeZip, repos, regex, blob)
+      alertHandlers  = AlertConfigSchedulerService.toAlertEnvironmentHandler(sensuConfig, locations)
+      _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.deleteAll())
+      _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.insert(alertHandlers))
+      _             <- EitherT.right[Unit](alertHashStringRepository.update(hash))
+    } yield ()).merge
 }
-
-case class AlertConfig(
-  app: String,
-  handlers: Seq[String]
-)
-
-object AlertConfig {
-  implicit val formats: OFormat[AlertConfig] =
-    Json.format[AlertConfig]
-}
-
-case class Handler(
-  command: String
-)
-
-object Handler {
-  implicit val formats: OFormat[Handler] =
-    Json.format[Handler]
-}
-
-case class SensuConfig(
-  alertConfigs: Seq[AlertConfig] = Seq.empty,
-  productionHandler: Map[String, Handler] = Map.empty
-)
 
 object AlertConfigSchedulerService {
+  import uk.gov.hmrc.serviceconfigs.util.ZipUtil.NonClosableInputStream
+  import java.util.zip.ZipInputStream
+  import play.api.libs.json.{Json, Reads}
 
-  class NonClosableInputStream(inputStream: ZipInputStream) extends FilterInputStream(inputStream) {
-    override def close(): Unit = {
-      inputStream.closeEntry()
-    }
-  }
+  case class AlertConfig(
+    app     : String,
+    handlers: Seq[String]
+  )
 
-  def processZip(inputStream: InputStream): SensuConfig = {
+  implicit val readsAlert: Reads[AlertConfig] =
+    Json.reads[AlertConfig]
 
-    implicit val alertsReads: OFormat[AlertConfig] = AlertConfig.formats
-    implicit val handlerReads: OFormat[Handler] = Handler.formats
+  case class Handler(command: String)
 
-    val zip = new ZipInputStream(inputStream)
+  implicit val readsHandler: Reads[Handler] =
+    Json.reads[Handler]
 
-    Iterator.continually(zip.getNextEntry)
+  case class SensuConfig(
+    alertConfigs: Seq[AlertConfig]          = Seq.empty,
+    productionHandler: Map[String, Handler] = Map.empty
+  )
+
+  def processZip(zip: ZipInputStream): SensuConfig =
+    Iterator
+      .continually(zip.getNextEntry)
       .takeWhile(z => z != null)
       .foldLeft(SensuConfig())((config, entry) => {
         entry.getName match {
-          case p if p.startsWith("target/output/configs/") && p.endsWith(".json")   => {
-              val json = Json.parse(new NonClosableInputStream(zip))
-              val newConfig = config.copy(alertConfigs = config.alertConfigs :+ json.as[AlertConfig])
-              newConfig
-          }
-          case p if p.startsWith("target/output/handlers/aws_production") && p.endsWith(".json")  => {
+          case p if p.startsWith("target/output/configs/") && p.endsWith(".json") =>
+            val json = Json.parse(new NonClosableInputStream(zip))
+            config.copy(alertConfigs = config.alertConfigs :+ json.as[AlertConfig])
+          case p if p.startsWith("target/output/handlers/aws_production") && p.endsWith(".json") =>
             config.copy(productionHandler = (Json.parse(new NonClosableInputStream(zip)) \ "handlers").as[Map[String, Handler]])
-          }
           case _ => config
         }
     })
-  }
 
-  def processSensuConfig(sensuConfig: SensuConfig): Seq[AlertEnvironmentHandler] = {
-    sensuConfig.alertConfigs.map(alertConfig => {
-      AlertEnvironmentHandler(serviceName = trimServiceName(alertConfig.app),
-        production = alertConfig
-          .handlers
-          .exists(h => hasProductionHandler(sensuConfig.productionHandler, h)))
-    })
+  def toRepos(sensuConfig: SensuConfig): Seq[Repo] =
+    for {
+      alertConfig <- sensuConfig.alertConfigs
+      serviceName <- alertConfig.app.split('.').headOption
+    } yield Repo(serviceName)
 
-  }
+  import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+  def toAlertEnvironmentHandler(sensuConfig: SensuConfig, locations: Seq[(Repo, String)]): Seq[AlertEnvironmentHandler] =
+    for {
+      alertConfig <- sensuConfig.alertConfigs
+      serviceName <- alertConfig.app.split('.').headOption
+      isProduction = alertConfig.handlers.exists(h => hasProductionHandler(sensuConfig.productionHandler, h))
+      location    <- locations
+                       .collect { case (Repo(name), location) if name == serviceName => location }
+                       .headOption
+    } yield AlertEnvironmentHandler(serviceName = serviceName, production = isProduction, location = location)
 
-  def hasProductionHandler(productionHandlers: Map[String, Handler], handler: String): Boolean = {
-    productionHandlers.get(handler).exists(p => !p.command.contains("noop.rb"))
-  }
-
-  def trimServiceName(service: String): String = {
-    service.split('.').head
-  }
+  private def hasProductionHandler(productionHandlers: Map[String, Handler], handler: String): Boolean =
+    productionHandlers
+      .get(handler)
+      .exists(!_.command.contains("noop.rb"))
 }

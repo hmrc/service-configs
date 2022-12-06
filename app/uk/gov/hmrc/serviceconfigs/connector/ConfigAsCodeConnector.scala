@@ -23,9 +23,9 @@ import akka.stream.scaladsl.StreamConverters
 import play.api.Logging
 
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
-import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
+import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
 import javax.inject.{Inject, Singleton}
 import java.util.zip.ZipInputStream
@@ -33,31 +33,34 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class ArtifactoryConnector @Inject()(
-  config      : ArtifactoryConfig,
+class ConfigAsCodeConnector @Inject()(
+  githubConfig: GithubConfig,
   httpClientV2: HttpClientV2
 )(implicit
   ec : ExecutionContext,
   mat: Materializer
 ) extends Logging {
-  import HttpReads.Implicits._
 
   implicit private val hc = HeaderCarrier()
 
-  def getSensuZip(): Future[ZipInputStream] =
-    stream(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
+  def streamBuildJobs(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/build-jobs/zipball/HEAD")
 
-  def getLatestHash(): Future[Option[String]] =
-    httpClientV2
-      .head(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
-      .transform(_.withRequestTimeout(20.seconds))
-      .execute[HttpResponse]
-      .map(_.header("x-checksum-sha256"))
+  def streamGrafana(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/grafana-dashboards/zipball/HEAD")
+
+  def streamKibana(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/kibana-dashboards/zipball/HEAD")
+
+  def streamAlertConfig(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/alert-config/zipball/HEAD")
 
   private def stream(url: java.net.URL): Future[ZipInputStream] =
     httpClientV2
       .get(url)
-      .transform(_.withRequestTimeout(60.seconds))
+      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .withProxy
+      .transform(_.withRequestTimeout(120.seconds))
       .stream[Either[UpstreamErrorResponse, Source[ByteString, _]]]
       .map {
         case Right(source) =>

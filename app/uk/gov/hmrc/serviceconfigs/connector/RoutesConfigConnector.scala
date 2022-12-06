@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.http.StringContextOps
-import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._

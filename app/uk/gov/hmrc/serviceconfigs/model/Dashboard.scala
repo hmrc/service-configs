@@ -17,26 +17,13 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, __}
+import play.api.libs.json._
 
+case class Dashboard(service: String, location: String)
 
-case class AlertEnvironmentHandler(
-  serviceName: String,
-  production : Boolean,
-  location   : String
-)
-
-object AlertEnvironmentHandler {
-  implicit val mongoFormats: Format[AlertEnvironmentHandler] =
-    ( (__ \ "serviceName").format[String]
-    ~ (__ \ "production" ).format[Boolean]
-    ~ (__ \ "location"   ).format[String]
-    )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
-}
-
-case class LastHash(hash: String)
-
-object LastHash {
-  val formats: Format[LastHash] =
-    Format.at[String](__ \ "hash").inmap(LastHash.apply, unlift(LastHash.unapply))
+object  Dashboard {
+  val format: Format[Dashboard] =
+    ( (__ \ "service" ).format[String]
+    ~ (__ \ "location").format[String]
+    )(Dashboard.apply, unlift(Dashboard.unapply))
 }
