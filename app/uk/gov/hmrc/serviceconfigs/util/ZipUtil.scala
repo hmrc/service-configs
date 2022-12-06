@@ -19,15 +19,15 @@ package uk.gov.hmrc.serviceconfigs.util
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
 
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-
 import java.util.zip.ZipInputStream
-import java.io.InputStreamReader
+import java.io.{FilterInputStream, InputStreamReader}
 import scala.util.matching.Regex
-import scala.collection.mutable.ListBuffer
 
-object Scrapper {
-  def findRepos(zip: ZipInputStream, repos: List[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
+object ZipUtil {
+
+  import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
+  def findRepos(zip: ZipInputStream, repos: Seq[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
+    import scala.collection.mutable.ListBuffer
     val repoBuffer: ListBuffer[Repo] = repos.to(ListBuffer)
     Iterator
       .continually(zip.getNextEntry)
@@ -52,4 +52,9 @@ object Scrapper {
         }
       }.sortBy(_._1.name)
     }
+
+  class NonClosableInputStream(zip: ZipInputStream) extends FilterInputStream(zip) {
+    override def close(): Unit =
+      zip.closeEntry()
+  }
 }

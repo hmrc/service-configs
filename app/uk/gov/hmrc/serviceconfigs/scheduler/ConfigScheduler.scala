@@ -61,7 +61,7 @@ class ConfigScheduler @Inject()(
       _ <- run("update Kibana Dashdoards",      dashboardService.updateKibanaDashboards())
       _ <- run("update Frontend Routes",        nginxService.update(environments))
       _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
-      _ <- run("update Alert Handlers",         alertConfigSchedulerService.updateConfigs)
+      _ <- run("update Alert Handlers",         alertConfigSchedulerService.updateConfigs())
     } yield logger.info("Finished updating config")
   }
 

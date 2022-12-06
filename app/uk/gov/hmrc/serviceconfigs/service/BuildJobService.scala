@@ -18,16 +18,16 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.connector.{BuildJobConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
-import uk.gov.hmrc.serviceconfigs.util.Scrapper
+import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class BuildJobService @Inject()(
   buildJobRepository           : BuildJobRepository
-, buildJobConnector            : BuildJobConnector
+, configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
 )(implicit ec: ExecutionContext
 ) extends Logging {
@@ -36,10 +36,10 @@ class BuildJobService @Inject()(
     for {
       _      <- Future.successful(logger.info(s"Updating Build Jobs..."))
       repos  <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-      zip    <- buildJobConnector.streamBuildJobs()
+      zip    <- configAsCodeConnector.streamBuildJobs()
       regex   = """jobs/live/(.*).groovy""".r
       blob    = "https://github.com/hmrc/build-jobs/blob"
-      items   = Scrapper
+      items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => BuildJobRepository.BuildJob(service = repo.name, location = location) }
       _       = logger.info(s"Inserting ${items.size} Build Jobs into mongo")

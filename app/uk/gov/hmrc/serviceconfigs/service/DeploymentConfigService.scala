@@ -23,14 +23,11 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
-import uk.gov.hmrc.serviceconfigs.service.AlertConfigSchedulerService.NonClosableInputStream
 
-import java.io.InputStreamReader
-import java.util
-import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import org.mongodb.scala.bson.BsonDocument
 
 @Singleton
 class DeploymentConfigService @Inject()(
@@ -39,9 +36,6 @@ class DeploymentConfigService @Inject()(
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
-  import DeploymentConfigService._
-
-  import scala.jdk.CollectionConverters._
 
   def updateAll(): Future[Unit] = {
     logger.info("Updating all environments...")
@@ -51,22 +45,8 @@ class DeploymentConfigService @Inject()(
   def update(environment: Environment): Future[Unit] = {
     logger.info(s"getting deployment config for ${environment.asString}")
     for {
-      is       <- deploymentConfigConnector.getAppConfigZip(environment)
-      zip      =  new ZipInputStream(is)
-      toAdd    =  Iterator
-                    .continually(zip.getNextEntry)
-                    .takeWhile(_ != null)
-                    .flatMap { file =>
-                      logger.debug(s"processing config file $file")
-                      file.getName match {
-                        case name if isAppConfig(name.toLowerCase) =>
-                          val shortName  = name.split("/").last.replace(".yaml", "")
-                          val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
-                          val parsedYaml = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-                          modifyConfigKeys(parsedYaml, shortName, environment).flatMap(m => YamlToBson(m).toOption)
-                        case _ => None
-                      }
-                    }.toSeq
+      zip      <- deploymentConfigConnector.getAppConfigZip(environment)
+      toAdd    =  DeploymentConfigService.processZip(zip, environment)
       _        <- deploymentConfigRepository.updateAll(toAdd)
       // remove records that dont have an app-config-$env file
       allNames <- deploymentConfigRepository.findAllNames(environment).map(_.toSet)
@@ -86,7 +66,27 @@ class DeploymentConfigService @Inject()(
     deploymentConfigRepository.findByName(environment, serviceName)
 }
 
-object DeploymentConfigService {
+object DeploymentConfigService extends Logging {
+  import uk.gov.hmrc.serviceconfigs.util.ZipUtil.NonClosableInputStream
+  import java.io.InputStreamReader
+  import java.util.zip.ZipInputStream
+  import scala.jdk.CollectionConverters._
+
+  def processZip(zip: ZipInputStream, environment: Environment): Seq[BsonDocument] =
+    Iterator
+      .continually(zip.getNextEntry)
+      .takeWhile(_ != null)
+      .flatMap { file =>
+        logger.debug(s"processing config file $file")
+        file.getName match {
+          case name if isAppConfig(name.toLowerCase) =>
+            val shortName  = name.split("/").last.replace(".yaml", "")
+            val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
+            val parsedYaml = new Yaml().load(yaml).asInstanceOf[java.util.LinkedHashMap[String, Object]].asScala
+            modifyConfigKeys(parsedYaml, shortName, environment).flatMap(m => YamlToBson(m).toOption)
+          case _ => None
+        }
+      }.toSeq
 
   private val ignoreList = Set("repository.yaml", "stale.yaml")
 
@@ -109,7 +109,7 @@ object DeploymentConfigService {
     val requiredKeys = Set("zone", "type", "slots", "instances")
     data
       .get("0.0.0")
-      .map(_.asInstanceOf[util.LinkedHashMap[String, Object]].asScala)
+      .map(_.asInstanceOf[java.util.LinkedHashMap[String, Object]].asScala)
       .flatMap(m => if (m.keySet.intersect(requiredKeys) == requiredKeys) Some(m) else None)
       .map { m =>
         m.remove("hmrc_config") // discard the app config, outside the scope of service

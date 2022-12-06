@@ -33,7 +33,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BuildJobConnector @Inject()(
+class ConfigAsCodeConnector @Inject()(
   githubConfig: GithubConfig,
   httpClientV2: HttpClientV2
 )(implicit
@@ -45,6 +45,15 @@ class BuildJobConnector @Inject()(
 
   def streamBuildJobs(): Future[ZipInputStream] =
     stream(url"${githubConfig.githubApiUrl}/repos/hmrc/build-jobs/zipball/HEAD")
+
+  def streamGrafana(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/grafana-dashboards/zipball/HEAD")
+
+  def streamKibana(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/kibana-dashboards/zipball/HEAD")
+
+  def streamAlertConfig(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/alert-config/zipball/HEAD")
 
   private def stream(url: java.net.URL): Future[ZipInputStream] =
     httpClientV2

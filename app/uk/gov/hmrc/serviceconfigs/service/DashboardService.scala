@@ -18,9 +18,9 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.connector.{DashboardConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.persistence.{GrafanaDashboardRepository, KibanaDashboardRepository}
-import uk.gov.hmrc.serviceconfigs.util.Scrapper
+import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -40,7 +40,7 @@ object DashboardService {
 class DashboardService @Inject()(
   grafanaDashboardRepo         : GrafanaDashboardRepository
 , kibanaDashboardRepo          : KibanaDashboardRepository
-, dashboardConnector           : DashboardConnector
+, configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
 )(implicit ec: ExecutionContext
 ) extends Logging {
@@ -50,10 +50,10 @@ class DashboardService @Inject()(
     for {
       _      <- Future.successful(logger.info(s"Updating Grafana Dashboards..."))
       repos  <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-      zip    <- dashboardConnector.streamGrafana()
+      zip    <- configAsCodeConnector.streamGrafana()
       regex   = """src/main/scala/uk/gov/hmrc/grafanadashboards/dashboards/(.*).scala""".r
       blob    = "https://github.com/hmrc/grafana-dashboards/blob"
-      items   = Scrapper
+      items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
       _       = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
@@ -65,10 +65,10 @@ class DashboardService @Inject()(
     for {
       _      <- Future.successful(logger.info(s"Updating Kibana Dashboards..."))
       repos  <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-      zip    <- dashboardConnector.streamKibana()
+      zip    <- configAsCodeConnector.streamKibana()
       regex   = """src/main/scala/uk/gov/hmrc/kibanadashboards/digitalservices/(.*).scala""".r
       blob    = "https://github.com/hmrc/kibana-dashboards/blob"
-      items   = Scrapper
+      items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
       _       = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")

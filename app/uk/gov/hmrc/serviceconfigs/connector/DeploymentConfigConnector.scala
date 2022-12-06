@@ -29,6 +29,7 @@ import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import javax.inject.{Inject, Singleton}
+import java.util.zip.ZipInputStream
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,7 +44,7 @@ class DeploymentConfigConnector @Inject()(
 
   implicit private val hc = HeaderCarrier()
 
-  def getAppConfigZip(environment: Environment): Future[java.io.InputStream] = {
+  def getAppConfigZip(environment: Environment): Future[ZipInputStream] = {
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/app-config-${environment.asString}/zipball/HEAD"
     httpClientV2
       .get(url)
@@ -54,7 +55,7 @@ class DeploymentConfigConnector @Inject()(
       .map {
         case Right(source) =>
           logger.info(s"Successfully downloaded $url")
-          source.runWith(StreamConverters.asInputStream(readTimeout = 60.seconds))
+          new ZipInputStream(source.runWith(StreamConverters.asInputStream(readTimeout = 60.seconds)))
         case Left(error)   =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error

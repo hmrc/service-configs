@@ -48,7 +48,7 @@ class TeamsAndRepositoriesConnector @Inject()(
   implicit private val hc = HeaderCarrier()
   implicit private val rd = TeamsAndRepositoriesConnector.readsRepo
 
-  def getRepos(archived: Option[Boolean] = None, repoType: Option[String] = None): Future[List[TeamsAndRepositoriesConnector.Repo]] =
+  def getRepos(archived: Option[Boolean] = None, repoType: Option[String] = None): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/v2/repositories?archived=$archived&repoType=$repoType")
       .execute[List[TeamsAndRepositoriesConnector.Repo]]

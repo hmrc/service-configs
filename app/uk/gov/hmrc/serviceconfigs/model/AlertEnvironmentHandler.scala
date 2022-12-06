@@ -22,13 +22,15 @@ import play.api.libs.json.{Format, __}
 
 case class AlertEnvironmentHandler(
   serviceName: String,
-  production: Boolean
+  production : Boolean,
+  location   : String
 )
 
 object AlertEnvironmentHandler {
   implicit val mongoFormats: Format[AlertEnvironmentHandler] =
     ( (__ \ "serviceName").format[String]
     ~ (__ \ "production" ).format[Boolean]
+    ~ (__ \ "location"   ).format[String]
     )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
 }
 
