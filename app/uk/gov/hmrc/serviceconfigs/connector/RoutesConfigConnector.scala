@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
-import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -27,7 +26,23 @@ import uk.gov.hmrc.http.StringContextOps
 import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.CollectionConverters._
+
+object RoutesConfigConnector {
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json._
+
+  case class RawAdminFrontendRoute(
+    service : String
+  , route   : String
+  , allow   : Map[String, List[String]]
+  )
+
+  def readsRawAdminFrontendRoute(key: String): Reads[RawAdminFrontendRoute] =
+    ( (__ \ "microservice").read[String]
+    ~ Reads.pure(key)
+    ~ (__ \ "allow"       ).read[Map[String, List[String]]]
+    )(RawAdminFrontendRoute.apply _)
+}
 
 @Singleton
 class RoutesConfigConnector @Inject()(
@@ -35,6 +50,7 @@ class RoutesConfigConnector @Inject()(
 , githubConfig: GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
+  import RoutesConfigConnector._
 
   private implicit val hc = HeaderCarrier()
 
@@ -50,25 +66,25 @@ class RoutesConfigConnector @Inject()(
         case rsp                      => rsp.body
       }
       .map { body =>
-        val lines = body.linesIterator.toList.map(_.replaceAll(" ", "")) // remove any white space between colon for index search
-        new Yaml()
-          .load(body)
-          .asInstanceOf[java.util.LinkedHashMap[String, Object]] // LinkedHashMap to preserve order
-          .asScala
-          .collect { case (route, v: java.util.HashMap[String, Object]) =>
-            AdminFrontendRoute(
-              service  = v.get("microservice").asInstanceOf[String]
-            , route    = route
-            , allow    = v.get("allow")
-                          .asInstanceOf[java.util.HashMap[String, java.util.ArrayList[String]]]
-                          .asScala
-                          .map { case (k2, v2) => k2 -> v2.asScala.toList }
-                          .toMap
-            , location = s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}"
-            )
-          }.toSeq
+        val lines = body.linesIterator.toList.map(_.replaceAll(" ", ""))
+        yamlToJson(body)
+          .as[Map[String, play.api.libs.json.JsValue]]
+          .map { case (k, v) => v.as[RawAdminFrontendRoute](readsRawAdminFrontendRoute(k)) }
+          .map { raw => AdminFrontendRoute(
+            service  = raw.service
+          , route    = raw.route
+          , allow    = raw.allow
+          , location = s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(raw.route + ":") + 1}"
+          )}.toSeq
       }
-    }
+  }
+
+  import play.api.libs.json.{Json, JsValue}
+  import com.fasterxml.jackson.databind.ObjectMapper
+  import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+  def yamlToJson(yaml: String): JsValue = {
+    val yamlReader = new ObjectMapper(new YAMLFactory())
+    val jsonWriter = new ObjectMapper()
+    Json.parse(jsonWriter.writeValueAsString(yamlReader.readValue(yaml, classOf[Object])))
+  }
 }
-
-
