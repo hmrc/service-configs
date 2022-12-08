@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.model
+package uk.gov.hmrc.serviceconfigs.util
 
-case class NginxConfigFile(environment: Environment, url: String, content: String, branch: String){
-  def fileName: String = url.split("/").last
-}
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import play.api.libs.json.{Json, Reads}
 
-final case class YamlRoutesFile(url: String, blobUrl: String, content: String, branch: String) {
-  def fileName: String = url.split("/").last
+object YamlUtil {
+  def fromYaml[A : Reads](yaml: String): A = {
+    val yamlReader = new ObjectMapper(new YAMLFactory())
+    val jsonWriter = new ObjectMapper()
+    Json.parse(jsonWriter.writeValueAsString(yamlReader.readValue(yaml, classOf[Object]))).as[A]
+  }
 }

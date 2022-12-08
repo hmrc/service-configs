@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.service
 
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.EitherValues
@@ -23,11 +23,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
-import uk.gov.hmrc.serviceconfigs.parser.NginxConfigParser
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, YamlRoutesFile}
+import uk.gov.hmrc.serviceconfigs.parser.{NginxConfigParser, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
-import uk.gov.hmrc.serviceconfigs.service.NginxService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -50,6 +49,46 @@ class NginxServiceSpec
   when(nginxConfig.shutterConfig)
     .thenReturn(shutterConfig)
 
+  private val testConfig =
+    """location /test/assets {
+      |  more_set_headers 'X-Frame-Options: DENY';
+      |  more_set_headers 'X-XSS-Protection: 1; mode=block';
+      |  more_set_headers 'X-Content-Type-Options: nosniff';
+      |
+      |  if ( -f /etc/nginx/switches/mdtp/offswitch )   {
+      |    return 503;
+      |  }
+      |
+      |  if ( -f /etc/nginx/switches/mdtp/service1 )   {
+      |    error_page 503 /shutter/service1/index.html;
+      |    return 503;
+      |  }
+      |
+      |  proxy_pass http://service1;
+      |}
+      |location /lol {
+      |  #!NOT_SHUTTERABLE
+      |  #!ABC
+      |  #NOT_A_VALID_MARKER_COMMENT
+      |  more_set_headers '';
+      |  proxy_pass http://testservice;
+      |}""".stripMargin
+
+  private val testYamlConfig =
+    """
+      |a-service:
+      |  environments:
+      |  - production
+      |  locations:
+      |  - /hello
+      |
+      |b-service:
+      |  environments:
+      |  - production
+      |  locations:
+      |  - /goodbye
+      |""".stripMargin
+
   "NginxService.urlToService" should {
     "extract the service name from url" in {
       val url = "https://test-service.public.local"
@@ -71,14 +110,20 @@ class NginxServiceSpec
     "parse configs and save result" in {
       val repo = mock[FrontendRouteRepository]
 
-      val parser    = new NginxConfigParser(nginxConfig)
-      val connector = mock[NginxConfigConnector]
+      val parser     = new NginxConfigParser(nginxConfig)
+      val yamlParser = new YamlConfigParser(nginxConfig)
+      val connector  = mock[NginxConfigConnector]
 
-      val service = new NginxService(repo, parser, connector, nginxConfig)
+      val service = new NginxService(repo, parser, yamlParser, connector, nginxConfig)
 
       when(connector.getNginxRoutesFile("some-file", Environment.Production))
         .thenReturn(Future.successful(
           NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
+        ))
+
+      when(connector.getYamlRoutesFile())
+        .thenReturn(Future.successful(
+          YamlRoutesFile("", "", "", "")
         ))
 
       when(repo.replaceEnv(any, any))
@@ -89,6 +134,41 @@ class NginxServiceSpec
 
       verify(repo, times(1)).replaceEnv(any, any)
       verify(connector, times(envs.length)).getNginxRoutesFile(any, any)
+      verify(connector, times(1)).getYamlRoutesFile()
+    }
+
+    "parse configs from nginx and yaml and save the result" in {
+      val repo = mock[FrontendRouteRepository]
+
+      val parser = new NginxConfigParser(nginxConfig)
+      val yamlParser = new YamlConfigParser(nginxConfig)
+      val connector = mock[NginxConfigConnector]
+
+      val service = new NginxService(repo, parser, yamlParser, connector, nginxConfig)
+
+      when(connector.getNginxRoutesFile("some-file", Environment.Production))
+        .thenReturn(Future.successful(
+          NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
+        ))
+
+      when(connector.getYamlRoutesFile())
+        .thenReturn(Future.successful(
+          YamlRoutesFile(
+            "https://test.com/config/routes.yaml",
+            "https://test.com/blob/config/routes.yaml",
+            testYamlConfig,
+            "HEAD"
+          )
+        ))
+
+      when(repo.replaceEnv(any, any))
+        .thenReturn(Future.unit)
+
+      service.update(List(Environment.Production)).futureValue
+
+      verify(repo, times(1)).replaceEnv(any, any)
+      verify(connector, times(1)).getNginxRoutesFile(any, any)
+      verify(connector, times(1)).getYamlRoutesFile()
     }
   }
 
@@ -149,29 +229,4 @@ class NginxServiceSpec
       result.head.shutterServiceSwitch shouldBe None
     }
   }
-
-  private val testConfig =
-    """location /test/assets {
-      |  more_set_headers 'X-Frame-Options: DENY';
-      |  more_set_headers 'X-XSS-Protection: 1; mode=block';
-      |  more_set_headers 'X-Content-Type-Options: nosniff';
-      |
-      |  if ( -f /etc/nginx/switches/mdtp/offswitch )   {
-      |    return 503;
-      |  }
-      |
-      |  if ( -f /etc/nginx/switches/mdtp/service1 )   {
-      |    error_page 503 /shutter/service1/index.html;
-      |    return 503;
-      |  }
-      |
-      |  proxy_pass http://service1;
-      |}
-      |location /lol {
-      |  #!NOT_SHUTTERABLE
-      |  #!ABC
-      |  #NOT_A_VALID_MARKER_COMMENT
-      |  more_set_headers '';
-      |  proxy_pass http://testservice;
-      |}""".stripMargin
 }

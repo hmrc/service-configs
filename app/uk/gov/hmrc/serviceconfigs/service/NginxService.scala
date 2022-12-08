@@ -17,15 +17,15 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import java.net.URL
-
 import cats.instances.all._
 import cats.syntax.all._
+
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
+import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
@@ -39,6 +39,7 @@ case class SearchResults(env: String, path: String, url: String)
 class NginxService @Inject()(
   frontendRouteRepo: FrontendRouteRepository,
   parser           : FrontendRouteParser,
+  yamlParser       : YamlConfigParser,
   nginxConnector   : NginxConfigConnector,
   nginxConfig      : NginxConfig
 )(implicit ec: ExecutionContext
@@ -46,15 +47,17 @@ class NginxService @Inject()(
 
   def update(environments: List[Environment]): Future[Unit] =
     for {
-      _ <- Future.successful(logger.info(s"Update started..."))
-      _ <- environments.traverse { environment =>
-             updateNginxRoutesForEnv(environment)
-               .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e); Nil }
-           }
-      _ =  logger.info(s"Update complete...")
+      _          <- Future.successful(logger.info(s"Update started..."))
+      yamlConfig <- nginxConnector.getYamlRoutesFile().map(yamlParser.parseConfig)
+      _          <- environments.traverse { environment =>
+                      val yamlRoutes = yamlConfig.filter(_.environment == environment)
+                      updateNginxRoutesForEnv(environment, yamlRoutes)
+                        .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e); Nil }
+                    }
+      _          =  logger.info(s"Update complete...")
     } yield ()
 
-  private def updateNginxRoutesForEnv(environment: Environment): Future[List[MongoFrontendRoute]] =
+  private def updateNginxRoutesForEnv(environment: Environment, yamlRoutes: Set[MongoFrontendRoute]): Future[List[MongoFrontendRoute]] =
     for {
       _        <- Future.successful(logger.info(s"Refreshing frontend route data for $environment..."))
       routes   <- nginxConfig.frontendConfigFileNames
@@ -62,7 +65,7 @@ class NginxService @Inject()(
                      nginxConnector.getNginxRoutesFile(configFile, environment)
                       .map(processNginxRouteFile)
                    }.map(_.flatten)
-      _        <- frontendRouteRepo.replaceEnv(environment, routes.toSet)
+      _        <- frontendRouteRepo.replaceEnv(environment, routes.toSet ++ yamlRoutes)
     } yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
