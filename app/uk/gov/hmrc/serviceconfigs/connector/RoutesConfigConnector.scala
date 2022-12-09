@@ -31,17 +31,12 @@ object RoutesConfigConnector {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
-  case class RawAdminFrontendRoute(
-    service : String
-  , route   : String
-  , allow   : Map[String, List[String]]
-  )
-
-  def readsRawAdminFrontendRoute(key: String): Reads[RawAdminFrontendRoute] =
+  def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] =
     ( (__ \ "microservice").read[String]
-    ~ Reads.pure(key)
-    ~ (__ \ "allow"       ).read[Map[String, List[String]]]
-    )(RawAdminFrontendRoute.apply _)
+    ~ Reads.pure(route)
+    ~ (__ \ "allow").read[Map[String, List[String]]]
+    ~ Reads.pure(s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}")
+    )(AdminFrontendRoute.apply _)
 }
 
 @Singleton
@@ -69,13 +64,8 @@ class RoutesConfigConnector @Inject()(
         val lines = body.linesIterator.toList.map(_.replaceAll(" ", ""))
         yamlToJson(body)
           .as[Map[String, play.api.libs.json.JsValue]]
-          .map { case (k, v) => v.as[RawAdminFrontendRoute](readsRawAdminFrontendRoute(k)) }
-          .map { raw => AdminFrontendRoute(
-            service  = raw.service
-          , route    = raw.route
-          , allow    = raw.allow
-          , location = s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(raw.route + ":") + 1}"
-          )}.toSeq
+          .map { case (k, v) => v.as[AdminFrontendRoute](readsAdminFrontendRoute(k, lines)) }
+          .toSeq
       }
   }
 
