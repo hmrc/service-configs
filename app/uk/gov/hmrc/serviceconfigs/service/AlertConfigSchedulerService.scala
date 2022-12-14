@@ -46,11 +46,13 @@ class AlertConfigSchedulerService @Inject()(
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())
       sensuConfig   =  AlertConfigSchedulerService.processZip(jsonZip)
-      codeZip       <- EitherT.right[Unit](configAsCodeConnector.streamAlertConfig())
+      _             =  jsonZip.close()
       regex          = """src/main/scala/uk/gov/hmrc/alertconfig/configs/(.*).scala""".r
       blob           = "https://github.com/hmrc/alert-config/blob"
       repos          = AlertConfigSchedulerService.toRepos(sensuConfig)
+      codeZip       <- EitherT.right[Unit](configAsCodeConnector.streamAlertConfig())
       locations      = ZipUtil.findRepos(codeZip, repos, regex, blob)
+      _              = codeZip.close()
       alertHandlers  = AlertConfigSchedulerService.toAlertEnvironmentHandler(sensuConfig, locations)
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.deleteAll())
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.insert(alertHandlers))

@@ -44,6 +44,7 @@ class DashboardService @Inject()(
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
+      _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
       count  <- grafanaDashboardRepo.replaceAll(items)
       _       = logger.info(s"Inserted $count Grafana Dashboards into mongo")
@@ -59,6 +60,7 @@ class DashboardService @Inject()(
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
+      _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")
       count  <- kibanaDashboardRepo.replaceAll(items)
       _       = logger.info(s"Inserted $count Kibana Dashboards into mongo")

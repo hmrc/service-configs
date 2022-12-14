@@ -43,6 +43,7 @@ class BuildJobService @Inject()(
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
                   .map { case (repo, location) => BuildJob(service = repo.name, location = location) }
+      _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
       count  <- buildJobRepository.replaceAll(items)
       _       = logger.info(s"Inserted $count Build Jobs into mongo")

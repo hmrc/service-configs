@@ -47,6 +47,7 @@ class DeploymentConfigService @Inject()(
     for {
       zip      <- deploymentConfigConnector.getAppConfigZip(environment)
       toAdd    =  DeploymentConfigService.processZip(zip, environment)
+      _        =  zip.close()
       _        <- deploymentConfigRepository.updateAll(toAdd)
       // remove records that dont have an app-config-$env file
       allNames <- deploymentConfigRepository.findAllNames(environment).map(_.toSet)
