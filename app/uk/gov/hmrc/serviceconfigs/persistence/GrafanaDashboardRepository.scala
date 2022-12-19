@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class GrafanaDashboardRepository @Inject()(
-  final val mongoComponent: MongoComponent
+  override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
@@ -49,12 +49,11 @@ class GrafanaDashboardRepository @Inject()(
       .find(equal("service", service))
       .headOption()
 
-  def replaceAll(rows: Seq[Dashboard]): Future[Int] = {
+  def replaceAll(dashboards: Seq[Dashboard]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
-        _  <- collection.deleteMany(session, BsonDocument()).toFuture()
-        xs <- collection.insertMany(session, rows).toFuture().map(_.getInsertedIds)
-      } yield xs.size
+        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
+        r <- collection.insertMany(session, dashboards).toFuture()
+      } yield r.getInsertedIds.size()
     }
-  }
 }
