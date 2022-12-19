@@ -42,20 +42,16 @@ class DeploymentConfigService @Inject()(
     Future.traverse(Environment.values)(update).map(_ => ())
   }
 
-  def update(environment: Environment): Future[Unit] = {
-    logger.info(s"getting deployment config for ${environment.asString}")
+  def update(environment: Environment): Future[Unit] =
     for {
-      zip      <- deploymentConfigConnector.getAppConfigZip(environment)
-      toAdd    =  DeploymentConfigService.processZip(zip, environment)
-      _        =  zip.close()
-      _        <- deploymentConfigRepository.updateAll(toAdd)
-      // remove records that dont have an app-config-$env file
-      allNames <- deploymentConfigRepository.findAllNames(environment).map(_.toSet)
-      toRemove =  toAdd.filterNot(c => allNames(c.getString("name").getValue)).map(_.getString("name").getValue).toSeq
-      result   <- deploymentConfigRepository.delete(toRemove, environment)
-      _        =  logger.info(s"updated ${toAdd.length}, removed ${toRemove.length} deployment configs in ${environment.asString}")
-    } yield result
-  }
+      _      <- Future.successful(logger.info(s"Getting Deployment Configs for ${environment.asString}"))
+      zip    <- deploymentConfigConnector.getAppConfigZip(environment)
+      items   = DeploymentConfigService.processZip(zip, environment)
+      _       = zip.close()
+      _       = logger.info(s"Inserting ${items.size} Deployment Configs into mongo for ${environment.asString}")
+      count  <- deploymentConfigRepository.replaceEnv(environment, items)
+      _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
+    } yield ()
 
   def findAll: Future[Seq[DeploymentConfig]] =
     deploymentConfigRepository.findAll

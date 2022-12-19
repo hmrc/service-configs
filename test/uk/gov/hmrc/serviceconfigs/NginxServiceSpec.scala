@@ -81,13 +81,13 @@ class NginxServiceSpec
           NginxConfigFile(environment = "production", "", testConfig, branch = "HEAD")
         ))
 
-      when(repo.replaceAll(any, any))
+      when(repo.replaceEnv(any, any))
         .thenReturn(Future.unit)
 
       val envs = List("production", "development")
       service.update(envs).futureValue
 
-      verify(repo, times(1)).replaceAll(any, any)
+      verify(repo, times(1)).replaceEnv(any, any)
       verify(connector, times(envs.length)).getNginxRoutesFile(any, any)
     }
   }
