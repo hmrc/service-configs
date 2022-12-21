@@ -38,7 +38,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepository @Inject()(
-  final val mongoComponent: MongoComponent
+  override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
@@ -124,16 +124,15 @@ class FrontendRouteRepository @Inject()(
       .toFuture()
       .map(_.wasAcknowledged())
 
-  def replaceAll(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] = {
+  def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _        <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
-        _        =  logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
-        inserted <- collection.insertMany(session, routes.toList).toFuture().map(_.getInsertedIds)
-        _        =  logger.info(s"Inserted ${inserted.size} routes into mongo for $environment")
+        _ <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
+        _  = logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
+        r <- collection.insertMany(session, routes.toList).toFuture()
+        _  = logger.info(s"Inserted ${r.getInsertedIds().size} routes into mongo for $environment")
       } yield ()
     }
-  }
 
   val serviceNameCollection: MongoCollection[String] = mongoComponent.database.getCollection[String]("frontendRoutes")
 

@@ -16,59 +16,38 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.mongodb.BasicDBObject
 import javax.inject.{Inject, Singleton}
+import com.mongodb.BasicDBObject
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{and, equal, in}
-import org.mongodb.scala.model.Projections.include
+import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigRepository @Inject()(
-  mongoComponent: MongoComponent
+  override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext)
   extends PlayMongoRepository(
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfig",
     domainFormat   = DeploymentConfig.mongoFormat,
     indexes        = Seq(IndexModel(Indexes.ascending("name", "environment")))
-) {
+) with Transactions {
 
-  def add(deploymentConfig: DeploymentConfig): Future[Unit] =
-    collection
-      .findOneAndReplace(
-        filter      = and(
-                        equal("name", deploymentConfig.name),
-                        equal("environment", deploymentConfig.environment.asString)
-                      ),
-        replacement = deploymentConfig,
-        options     = FindOneAndReplaceOptions().upsert(true)
-      )
-      .toFutureOption()
-      .map(_ => ())
+  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def updateAll(configs: Seq[BsonDocument]): Future[Unit] =
-    if (configs.isEmpty)
-      Future.unit // bulkwrite with empty payload will fail
-    else {
-      mongoComponent.database.getCollection[BsonDocument](collectionName)
-        .bulkWrite(
-          configs.map(cfg => ReplaceOneModel(
-            filter         = and(
-                               equal("name", cfg.get("name")),
-                               equal("environment", cfg.get("environment"))
-                             ),
-            replacement    = cfg,
-            replaceOptions = ReplaceOptions().upsert(true)
-          ))
-        )
-        .toFuture()
-        .map(_ => ())
+  def replaceEnv(environment: Environment, configs: Seq[BsonDocument]): Future[Int] =
+    withSessionAndTransaction { session =>
+      for {
+        _ <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
+        r <- mongoComponent.database.getCollection[BsonDocument](collectionName)
+                .insertMany(session, configs).toFuture()
+      } yield r.getInsertedIds().size
     }
 
   def findAll: Future[Seq[DeploymentConfig]] =
@@ -90,23 +69,21 @@ class DeploymentConfigRepository @Inject()(
       )
       .headOption()
 
-  def findAllNames(environment: Environment): Future[Seq[String]] =
-    mongoComponent.database.getCollection[BsonDocument](collectionName)
-      .find(equal("environment", environment.asString))
-      .projection(include("name"))
-      .map(_.getString("name").getValue)
-      .toFuture()
-
-  def delete(names: Seq[String], environment: Environment): Future[Unit] =
+  // Test only
+  def add(deploymentConfig: DeploymentConfig): Future[Unit] =
     collection
-      .deleteMany(
-        and(
-          equal("environment", environment.asString),
-          in("name", names)
-        ))
-      .toFuture()
+      .findOneAndReplace(
+        filter      = and(
+                        equal("name", deploymentConfig.name),
+                        equal("environment", deploymentConfig.environment.asString)
+                      ),
+        replacement = deploymentConfig,
+        options     = FindOneAndReplaceOptions().upsert(true)
+      )
+      .toFutureOption()
       .map(_ => ())
 
+  // Test only
   def deleteAll(): Future[Unit] =
     collection
       .deleteMany(new BasicDBObject())

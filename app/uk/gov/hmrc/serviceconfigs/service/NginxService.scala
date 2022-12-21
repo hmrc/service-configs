@@ -62,7 +62,7 @@ class NginxService @Inject()(
                      nginxConnector.getNginxRoutesFile(configFile, environment)
                       .map(processNginxRouteFile)
                    }.map(_.flatten)
-      _        <- frontendRouteRepo.replaceAll(environment, routes.toSet)
+      _        <- frontendRouteRepo.replaceEnv(environment, routes.toSet)
     } yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
