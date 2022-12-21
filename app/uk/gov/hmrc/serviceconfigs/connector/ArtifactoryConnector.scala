@@ -23,7 +23,7 @@ import akka.stream.scaladsl.StreamConverters
 import play.api.Logging
 
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
 
@@ -40,7 +40,6 @@ class ArtifactoryConnector @Inject()(
   ec : ExecutionContext,
   mat: Materializer
 ) extends Logging {
-  import HttpReads.Implicits._
 
   implicit private val hc = HeaderCarrier()
 
