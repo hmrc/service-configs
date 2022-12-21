@@ -4,7 +4,6 @@
 # Below To keep consistency with other services served under the catalogue
 ->         /service-configs/                app.Routes
 
-->         /                                app.Routes
 ->         /                                health.Routes
 
 GET        /admin/metrics                   com.kenshoo.play.metrics.MetricsController.metrics

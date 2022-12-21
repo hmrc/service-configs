@@ -21,6 +21,7 @@ import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
@@ -59,7 +60,7 @@ class ConfigScheduler @Inject()(
       _ <- run("update Build Jobs",             buildJobService.updateBuildJobs())
       _ <- run("update Granfan Dashboards",     dashboardService.updateGrafanaDashboards())
       _ <- run("update Kibana Dashdoards",      dashboardService.updateKibanaDashboards())
-      _ <- run("update Frontend Routes",        nginxService.update(environments))
+      _ <- run("update Frontend Routes",        nginxService.update(Environment.values))
       _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
       _ <- run("update Alert Handlers",         alertConfigSchedulerService.updateConfigs())
     } yield logger.info("Finished updating config")
@@ -70,14 +71,4 @@ class ConfigScheduler @Inject()(
     f.map { x => logger.info(s"Successfully run scheduled task: $name"); x }
      .recover { case e => logger.error(s"Error running scheduled task $name", e) }
   }
-
-  private val environments =
-    "production"   ::
-    "externaltest" ::
-    "qa"           ::
-    "staging"      ::
-    "integration"  ::
-    "development"  ::
-    Nil
-
 }

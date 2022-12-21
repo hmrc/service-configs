@@ -25,3 +25,5 @@ GET     /grafana-dashboards/:serviceName                @uk.gov.hmrc.serviceconf
 GET     /kibana-dashboards/:serviceName                 @uk.gov.hmrc.serviceconfigs.controller.DashboardController.kibana(serviceName)
 
 GET     /build-jobs/:serviceName                        @uk.gov.hmrc.serviceconfigs.controller.BuildJobController.buildJob(serviceName)
+
+POST    /webhook                                        uk.gov.hmrc.serviceconfigs.controller.WebhookController.processGithubWebhook()

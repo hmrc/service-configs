@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
-
 case class AlertEnvironmentHandler(
   serviceName: String,
   production : Boolean,
@@ -32,11 +31,4 @@ object AlertEnvironmentHandler {
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
     )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
-}
-
-case class LastHash(hash: String)
-
-object LastHash {
-  val formats: Format[LastHash] =
-    Format.at[String](__ \ "hash").inmap(LastHash.apply, unlift(LastHash.unapply))
 }

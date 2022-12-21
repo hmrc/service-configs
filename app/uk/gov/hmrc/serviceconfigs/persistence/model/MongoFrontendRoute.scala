@@ -20,12 +20,13 @@ import java.time.Instant
 
 import play.api.libs.json.{Format, Json, OFormat}
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
+import uk.gov.hmrc.serviceconfigs.model.Environment
 
 case class MongoFrontendRoute(
   service             : String,
   frontendPath        : String,
   backendPath         : String,
-  environment         : String,
+  environment         : Environment,
   routesFile          : String,
   markerComments      : Set[String]                = Set.empty,
   shutterKillswitch   : Option[MongoShutterSwitch] = None,
@@ -47,7 +48,8 @@ object MongoFrontendRoute {
     Json.format[MongoShutterSwitch]
 
   implicit val formats: OFormat[MongoFrontendRoute] = {
-    implicit val dateFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
+    implicit val dateFormat = MongoJavatimeFormats.instantFormat
+    implicit val emvFormat  = Environment.format
     Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
   }
 }

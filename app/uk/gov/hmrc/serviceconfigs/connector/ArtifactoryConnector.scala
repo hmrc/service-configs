@@ -23,7 +23,7 @@ import akka.stream.scaladsl.StreamConverters
 import play.api.Logging
 
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
 
@@ -46,13 +46,6 @@ class ArtifactoryConnector @Inject()(
 
   def getSensuZip(): Future[ZipInputStream] =
     stream(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
-
-  def getLatestHash(): Future[Option[String]] =
-    httpClientV2
-      .head(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
-      .transform(_.withRequestTimeout(20.seconds))
-      .execute[HttpResponse]
-      .map(_.header("x-checksum-sha256"))
 
   private def stream(url: java.net.URL): Future[ZipInputStream] =
     httpClientV2

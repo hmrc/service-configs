@@ -22,7 +22,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
-import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
 import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -37,8 +37,8 @@ class NginxConfigConnector @Inject()(
 
   private implicit val hc = HeaderCarrier()
 
-  def getNginxRoutesFile(fileName: String, environment: String): Future[NginxConfigFile] = {
-    val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/$environment/$fileName"
+  def getNginxRoutesFile(fileName: String, environment: Environment): Future[NginxConfigFile] = {
+    val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/${environment.asString}/$fileName"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")

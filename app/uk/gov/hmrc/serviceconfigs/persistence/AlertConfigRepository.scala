@@ -16,14 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.mongodb.client.model.ReplaceOptions
 import org.mongodb.scala.bson.BsonDocument
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
-import org.mongodb.scala.model.Filters.{equal, exists}
+import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
 import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.{IndexModel, IndexOptions, Filters}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -58,7 +56,7 @@ class AlertEnvironmentHandlerRepository @Inject()(
 
   def findOne(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
     collection
-      .find(equal("serviceName", serviceName))
+      .find(Filters.equal("serviceName", serviceName))
       .headOption()
 
 
@@ -68,33 +66,3 @@ class AlertEnvironmentHandlerRepository @Inject()(
       .toFuture()
       .map(_.toList)
 }
-
-@Singleton
-class AlertHashStringRepository @Inject()(
-  mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
-  mongoComponent = mongoComponent,
-  collectionName = "lastHashString",
-  domainFormat   = LastHash.formats,
-  indexes        = Seq(
-                     IndexModel(ascending("hash"), IndexOptions().unique(true).background(true).name("hashUniqIdx"))
-                   )
-) {
-
-  def update(hash: String): Future[Unit] =
-    collection
-      .replaceOne(
-        filter      = exists("hash"),
-        replacement = LastHash(hash),
-        options     = new ReplaceOptions().upsert(true)
-      )
-      .toFuture()
-      .map(_ => ())
-
-    def findOne(): Future[Option[LastHash]] =
-      collection
-        .find()
-        .toFuture()
-        .map(_.headOption)
-  }

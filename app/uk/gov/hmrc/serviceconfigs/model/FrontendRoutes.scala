@@ -45,7 +45,7 @@ object ShutterSwitch {
 
 case class FrontendRoutes(
   service     : String,
-  environment : String,
+  environment : Environment,
   routesFile  : String,
   routes      : Seq[FrontendRoute]
 )
@@ -69,7 +69,10 @@ object FrontendRoute {
 
 object FrontendRoutes {
 
-  implicit val formats = Json.using[Json.WithDefaultValues].format[FrontendRoutes]
+  implicit val formats = {
+    implicit val envFormat = Environment.format
+    Json.using[Json.WithDefaultValues].format[FrontendRoutes]
+  }
 
   def fromMongo(mfr: MongoFrontendRoute): FrontendRoutes =
     FrontendRoutes(
