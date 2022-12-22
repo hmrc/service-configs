@@ -21,8 +21,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
-import uk.gov.hmrc.serviceconfigs.persistence.AlertEnvironmentHandlerRepository
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
+import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, AlertHashStringRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.io.FileInputStream
@@ -40,29 +40,48 @@ class AlertConfigSchedulerServiceSpec
 
   "AlertConfigSchedulerService.updateConfigs" should {
     "update configs when run for the first time" in new Setup {
+      when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test1")))
+      when(mockAlertHashRepository.findOne()).thenReturn(Future.successful(None))
       when(mockArtifactoryConnector.getSensuZip()).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful(()))
       when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful(()))
+      when(mockAlertHashRepository.update(eqTo("Test1"))).thenReturn(Future.successful(()))
 
       val result: Future[Unit] = Await.ready(alertConfigSchedulerService.updateConfigs(), Duration(20, "seconds"))
 
+      verify(mockArtifactoryConnector, times(1)).getLatestHash()
+      verify(mockAlertHashRepository, times(1)).findOne()
       verify(mockAlertEnvironmentHandlerRepository, times(1)).deleteAll()
       verify(mockAlertEnvironmentHandlerRepository, times(1)).insert(any[Seq[AlertEnvironmentHandler]])
+      verify(mockAlertHashRepository, times(1)).update(eqTo("Test1"))
 
       result.value.get.isSuccess shouldBe true
     }
 
     "update configs when Artifactory returns a new Hash" in new Setup {
+      when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test2")))
+      when(mockAlertHashRepository.findOne()).thenReturn(Future.successful(Some(LastHash("Test1"))))
       when(mockArtifactoryConnector.getSensuZip()).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.deleteAll()).thenReturn(Future.successful(()))
       when(mockAlertEnvironmentHandlerRepository.insert(any[Seq[AlertEnvironmentHandler]])).thenReturn(Future.successful(()))
+      when(mockAlertHashRepository.update(eqTo("Test2"))).thenReturn(Future.successful(()))
 
       val result: Future[Unit] = Await.ready(alertConfigSchedulerService.updateConfigs(), Duration(20, "seconds"))
 
       verify(mockAlertEnvironmentHandlerRepository, times(1)).deleteAll()
       verify(mockAlertEnvironmentHandlerRepository, times(1)).insert(any[Seq[AlertEnvironmentHandler]])
+      verify(mockAlertHashRepository, times(1)).update(eqTo("Test2"))
+
+      result.value.get.isSuccess shouldBe true
+    }
+
+    "return successful when Artifactory has no updated Hash" in new Setup {
+      when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test3")))
+      when(mockAlertHashRepository.findOne()).thenReturn(Future.successful(Some(LastHash("Test3"))))
+
+      val result: Future[Unit] = Await.ready(alertConfigSchedulerService.updateConfigs(), Duration(20, "seconds"))
 
       result.value.get.isSuccess shouldBe true
     }
@@ -139,12 +158,14 @@ class AlertConfigSchedulerServiceSpec
   }
 
   trait Setup {
+    lazy val mockAlertHashRepository               = mock[AlertHashStringRepository]
     lazy val mockAlertEnvironmentHandlerRepository = mock[AlertEnvironmentHandlerRepository]
     lazy val mockArtifactoryConnector              = mock[ArtifactoryConnector]
     lazy val mockConfigAsCodeConnector             = mock[ConfigAsCodeConnector]
 
     val alertConfigSchedulerService = new AlertConfigSchedulerService(
       mockAlertEnvironmentHandlerRepository,
+      mockAlertHashRepository,
       mockArtifactoryConnector,
       mockConfigAsCodeConnector
     )

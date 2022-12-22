@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.persistence.AlertEnvironmentHandlerRepository
+import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, AlertHashStringRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 import cats.data.EitherT
@@ -29,6 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AlertConfigSchedulerService @Inject()(
   alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository,
+  alertHashStringRepository        : AlertHashStringRepository,
   artifactoryConnector             : ArtifactoryConnector,
   configAsCodeConnector            : ConfigAsCodeConnector
 )(implicit
@@ -38,6 +39,11 @@ class AlertConfigSchedulerService @Inject()(
 
   def updateConfigs(): Future[Unit] =
     (for {
+      _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
+      currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))
+      previousHash  <- EitherT.right[Unit](alertHashStringRepository.findOne().map(_.map(_.hash).getOrElse("")))
+      oHash          = Option.when(currentHash != previousHash)(currentHash)
+      hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())
       sensuConfig   =  AlertConfigSchedulerService.processZip(jsonZip)
       _             =  jsonZip.close()
@@ -50,6 +56,7 @@ class AlertConfigSchedulerService @Inject()(
       alertHandlers  = AlertConfigSchedulerService.toAlertEnvironmentHandler(sensuConfig, locations)
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.deleteAll())
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.insert(alertHandlers))
+      _             <- EitherT.right[Unit](alertHashStringRepository.update(hash))
     } yield ()).merge
 }
 

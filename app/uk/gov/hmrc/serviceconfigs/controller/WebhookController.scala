@@ -37,7 +37,6 @@ class WebhookController @Inject()(
   deploymentConfigService     : DeploymentConfigService,
   nginxService                : NginxService,
   routesConfigService         : RoutesConfigService,
-  alertConfigSchedulerService : AlertConfigSchedulerService,
   buildJobService             : BuildJobService,
   dashboardService            : DashboardService,
   cc: ControllerComponents
@@ -62,7 +61,6 @@ class WebhookController @Inject()(
         case Push("kibana-dashboards",    "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
         case Push(nginxConfig.configRepo, "main") => EitherT.right[Unit](nginxService.update(Environment.values))
         case Push("admin-frontend-proxy", "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
-        case Push("alert-config",         "main") => EitherT.right[Unit](alertConfigSchedulerService.updateConfigs())
         case _                                    => EitherT.left[Unit](Future.unit)
       }).fold(
         _ => { logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
