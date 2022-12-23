@@ -26,7 +26,7 @@ class NginxConfigFileSpec
   "NginxConfigFile.fileName" should {
     "retrieve just the filename from the url" in {
       val configFile = NginxConfigFile(
-        "production",
+        Environment.Production,
         "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf",
         "",
         "HEAD"
@@ -36,7 +36,7 @@ class NginxConfigFileSpec
 
     "not throw an error if a filename can't be extracted from the url" in {
       val configFile = NginxConfigFile(
-        "production",
+        Environment.Production,
         "",
         "",
         "HEAD"

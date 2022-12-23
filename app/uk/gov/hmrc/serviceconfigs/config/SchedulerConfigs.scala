@@ -46,6 +46,7 @@ object SchedulerConfig {
 
 @Singleton
 class SchedulerConfigs @Inject()(configuration: Configuration) {
-  val configScheduler       = SchedulerConfig(configuration, "config-scheduler")
-  val slugMetadataScheduler = SchedulerConfig(configuration, "slug-metadata-scheduler")
+  val configScheduler              = SchedulerConfig(configuration, "config-scheduler")
+  val missedWebhookEventsScheduler = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
+  val slugMetadataScheduler        = SchedulerConfig(configuration, "slug-metadata-scheduler")
 }

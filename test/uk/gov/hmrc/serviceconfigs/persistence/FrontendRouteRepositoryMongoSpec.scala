@@ -20,6 +20,7 @@ import cats.implicits._
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 
@@ -83,8 +84,8 @@ class FrontendRouteRepositoryMongoSpec
 
   "FrontendRouteRepository.findByEnvironment" should {
     "return only routes with the environment" in {
-      repository.update(newFrontendRoute(environment = "production")).futureValue
-      repository.update(newFrontendRoute(environment = "qa")).futureValue
+      repository.update(newFrontendRoute(environment = Environment.Production)).futureValue
+      repository.update(newFrontendRoute(environment = Environment.QA)).futureValue
 
       val allEntries = repository.findAllRoutes().futureValue
       allEntries should have size 2
@@ -92,7 +93,7 @@ class FrontendRouteRepositoryMongoSpec
       val productionEntries = repository.findByEnvironment("production").futureValue
       productionEntries should have size 1
       val route = productionEntries.head
-      route.environment shouldBe "production"
+      route.environment shouldBe Environment.Production
     }
   }
 
@@ -107,10 +108,10 @@ class FrontendRouteRepositoryMongoSpec
     "FrontendRouteRepository.findAllFrontendServices" should {
       "return list of all services" in {
 
-        repository.update(newFrontendRoute(service = "service1", environment = "foo")).futureValue
-        repository.update(newFrontendRoute(service = "service1", environment = "bar")).futureValue
-        repository.update(newFrontendRoute(service = "service2", environment = "foo")).futureValue
-        repository.update(newFrontendRoute(service = "service2", environment = "bar")).futureValue
+        repository.update(newFrontendRoute(service = "service1", environment = Environment.Production)).futureValue
+        repository.update(newFrontendRoute(service = "service1", environment = Environment.Development)).futureValue
+        repository.update(newFrontendRoute(service = "service2", environment = Environment.Production)).futureValue
+        repository.update(newFrontendRoute(service = "service2", environment = Environment.Development)).futureValue
 
         val allEntries = repository
           .collection
@@ -146,23 +147,22 @@ class FrontendRouteRepositoryMongoSpec
   }
 
   def newFrontendRoute(
-    service     : String  = "service",
-    frontendPath: String  = "frontendPath",
-    environment : String  = "environment",
-    isRegex     : Boolean = true
-  ) =
-    MongoFrontendRoute(
-      service              = service,
-      frontendPath         = frontendPath,
-      backendPath          = "backendPath",
-      environment          = environment,
-      routesFile           = "file1",
-      ruleConfigurationUrl = "rule1",
-      shutterKillswitch    = None,
-      shutterServiceSwitch = None,
-      isRegex              = isRegex,
-      updateDate           = Instant.now().truncatedTo(ChronoUnit.MILLIS)
-    )
+    service     : String      = "service",
+    frontendPath: String      = "frontendPath",
+    environment : Environment = Environment.Production,
+    isRegex     : Boolean     = true
+  ) = MongoFrontendRoute(
+    service              = service,
+    frontendPath         = frontendPath,
+    backendPath          = "backendPath",
+    environment          = environment,
+    routesFile           = "file1",
+    ruleConfigurationUrl = "rule1",
+    shutterKillswitch    = None,
+    shutterServiceSwitch = None,
+    isRegex              = isRegex,
+    updateDate           = Instant.now().truncatedTo(ChronoUnit.MILLIS)
+  )
 
   def addFrontendRoutes(path: String*): Future[Unit] =
     path.toList

@@ -36,7 +36,7 @@ class NginxController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val formats: OFormat[FrontendRoutes] = Json.format[FrontendRoutes]
+  implicit val formats: OFormat[FrontendRoutes] = FrontendRoutes.formats
 
   @ApiOperation(
     value = "Retrieves nginx route config for the given service",

@@ -31,6 +31,7 @@ import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -63,7 +64,7 @@ class FrontendRouteRepository @Inject()(
       .findOneAndReplace(
         filter = and(
           equal("service", frontendRoute.service),
-          equal("environment", frontendRoute.environment),
+          equal("environment", frontendRoute.environment.asString),
           equal("frontendPath", frontendRoute.frontendPath),
           equal("routesFile", frontendRoute.routesFile)
         ),
@@ -123,10 +124,10 @@ class FrontendRouteRepository @Inject()(
       .toFuture()
       .map(_.wasAcknowledged())
 
-  def replaceEnv(environment: String, routes: Set[MongoFrontendRoute]): Future[Unit] =
+  def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
+        _ <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
         _  = logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
         r <- collection.insertMany(session, routes.toList).toFuture()
         _  = logger.info(s"Inserted ${r.getInsertedIds().size} routes into mongo for $environment")

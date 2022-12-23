@@ -24,7 +24,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.NginxConfigFile
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
@@ -44,7 +44,7 @@ class NginxService @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def update(environments: List[String]): Future[Unit] =
+  def update(environments: List[Environment]): Future[Unit] =
     for {
       _ <- Future.successful(logger.info(s"Update started..."))
       _ <- environments.traverse { environment =>
@@ -54,7 +54,7 @@ class NginxService @Inject()(
       _ =  logger.info(s"Update complete...")
     } yield ()
 
-  private def updateNginxRoutesForEnv(environment: String): Future[List[MongoFrontendRoute]] =
+  private def updateNginxRoutesForEnv(environment: Environment): Future[List[MongoFrontendRoute]] =
     for {
       _        <- Future.successful(logger.info(s"Refreshing frontend route data for $environment..."))
       routes   <- nginxConfig.frontendConfigFileNames

@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
-
 case class AlertEnvironmentHandler(
   serviceName: String,
   production : Boolean,

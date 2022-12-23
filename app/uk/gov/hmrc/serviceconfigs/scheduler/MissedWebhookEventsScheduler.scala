@@ -21,21 +21,23 @@ import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import javax.inject.{Inject, Singleton}
-import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 @Singleton
-class ConfigScheduler @Inject()(
+class MissedWebhookEventsScheduler @Inject()(
   configuration                     : Configuration,
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
-  alertConfigSchedulerService       : AlertConfigSchedulerService,
+  deploymentConfigService           : DeploymentConfigService,
+  nginxService                      : NginxService,
+  routesConfigService               : RoutesConfigService,
+  buildJobService                   : BuildJobService,
+  dashboardService                  : DashboardService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -43,15 +45,19 @@ class ConfigScheduler @Inject()(
 ) extends SchedulerUtils with Logging {
 
   scheduleWithLock(
-    label           = "ConfigScheduler",
-    schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = LockService(mongoLockRepository, "config-scheduler", 10.minutes)
+    label           = "MissedWebhookEventsScheduler",
+    schedulerConfig = schedulerConfigs.missedWebhookEventsScheduler,
+    lock            = LockService(mongoLockRepository, "missed-webhook-events", 20.minutes)
   ) {
-    logger.info("Updating config")
+    logger.info("Updating encase of missed webhook event")
     for {
-      _ <- run("snapshot Deployments",  deploymentConfigSnapshotRepository.populate(Instant.now()))
-      _ <- run("update Alert Handlers", alertConfigSchedulerService.updateConfigs())
-    } yield logger.info("Finished updating config")
+      _ <- run("update Deployments",            deploymentConfigService.updateAll())
+      _ <- run("update Build Jobs",             buildJobService.updateBuildJobs())
+      _ <- run("update Granfan Dashboards",     dashboardService.updateGrafanaDashboards())
+      _ <- run("update Kibana Dashdoards",      dashboardService.updateKibanaDashboards())
+      _ <- run("update Frontend Routes",        nginxService.update(Environment.values))
+      _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
+    } yield logger.info("Finished updating encase of missed webhook event")
   }
 
   private def run(name: String, f: Future[Unit]) = {

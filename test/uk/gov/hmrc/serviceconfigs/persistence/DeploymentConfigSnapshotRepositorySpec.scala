@@ -20,7 +20,6 @@ import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, DefaultPlayMongoRepositorySupport}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
@@ -44,10 +43,6 @@ class DeploymentConfigSnapshotRepositorySpec
 
   override lazy val repository =
     new DeploymentConfigSnapshotRepository(stubDeploymentConfigRepository, mongoComponent)
-
-  // Test suite elapsed time is significantly reduced with this overridden `PatienceConfig`
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = scaled(Span(1000, Millis)), interval = scaled(Span(50, Millis)))
 
   "DeploymentConfigSnapshotRepository" should {
 

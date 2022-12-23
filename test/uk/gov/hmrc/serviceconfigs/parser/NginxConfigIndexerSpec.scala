@@ -19,6 +19,8 @@ package uk.gov.hmrc.serviceconfigs.parser
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import uk.gov.hmrc.serviceconfigs.model.Environment
+
 class NginxConfigIndexerSpec
   extends AnyWordSpec
      with Matchers {
@@ -58,23 +60,23 @@ class NginxConfigIndexerSpec
   "URL Generator" should {
     "return none if path is not indexed" in {
       val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-      NginxConfigIndexer.generateUrl(fileName, "HEAD", "prod", "/nothing", indexes) shouldBe None
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", Environment.Production, "/nothing", indexes) shouldBe None
     }
 
     "return a url to the correct file and line in github" in {
       val indexes = Map("/test123" -> 55, "/someurl" -> 4)
-      NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L55")
-      NginxConfigIndexer.generateUrl(fileName, "HEAD", "development", "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L4")
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", Environment.Production, "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L55")
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", Environment.Development, "/someurl", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L4")
     }
 
     "return a url for a regex path" in {
       val res = NginxConfigIndexer.index(config)
-      NginxConfigIndexer.generateUrl(fileName, "HEAD", "production", "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L35")
+      NginxConfigIndexer.generateUrl(fileName, "HEAD", Environment.Production, "^/gateway/((((infobip|nexmo)/(text|voice)/)?delivery)|(reports/count))", res) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/frontend-proxy-application-rules.conf#L35")
     }
 
     "use the fileName passed in the URL" in {
       val indexes = Map("/test123" -> 55)
-      NginxConfigIndexer.generateUrl("anotherfile.conf", "HEAD", "production", "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/anotherfile.conf#L55")
+      NginxConfigIndexer.generateUrl("anotherfile.conf", "HEAD", Environment.Production, "/test123", indexes) shouldBe Some("https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/production/anotherfile.conf#L55")
     }
   }
 

@@ -26,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.io.FileInputStream
-import java.net.URL
 import java.util.zip.ZipInputStream
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}

@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.parser
 
 import scala.io.Source
+import uk.gov.hmrc.serviceconfigs.model.Environment
 
 /**
   * NginxConfigIndexer takes nginx config files and returns a map containing
@@ -38,8 +39,8 @@ object NginxConfigIndexer {
 
   private val baseURL = "https://github.com/hmrc/mdtp-frontend-routes/blob"
 
-  def generateUrl(fileName: String, branch: String, env: String, frontendPath: String, indexes: Map[String, Int]) : Option[String] = {
-    indexes.get(frontendPath).map( idx => s"$baseURL/$branch/$env/$fileName#L$idx")
+  def generateUrl(fileName: String, branch: String, env: Environment, frontendPath: String, indexes: Map[String, Int]) : Option[String] = {
+    indexes.get(frontendPath).map( idx => s"$baseURL/$branch/${env.asString}/$fileName#L$idx")
   }
 
 
