@@ -53,7 +53,7 @@ class WebhookController @Inject()(
     )(Push.apply _)
 
   def processGithubWebhook() =
-    Action.async(parse.json[Push]) { implicit request =>
+    Action.apply(parse.json[Push]) { implicit request =>
       (request.body match {
         case Push(s"app-config-$x",       "main") => EitherT.right[Unit](Environment.parse(x).traverse(deploymentConfigService.update))
         case Push("build-jobs",           "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
@@ -63,13 +63,10 @@ class WebhookController @Inject()(
         case Push("admin-frontend-proxy", "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
         case _                                    => EitherT.left[Unit](Future.unit)
       }).fold(
-        _ => { logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
-               Ok(details("Push processed - no change required"))
-             },
-        _ => { logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")
-               Ok(details("Push processed"))
-             }
+        _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
+      , _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")
       )
+      Accepted(details("Push accepted"))
     }
 
   private def details(msg: String) =
