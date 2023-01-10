@@ -28,9 +28,9 @@ import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Routes")
-class RoutesConfigController @Inject()(
-  db: AdminFrontendRouteRepository,
+@Api("Admin Frontend Routes")
+class AdminRoutesConfigController @Inject()(
+  db : AdminFrontendRouteRepository,
   mcc: MessagesControllerComponents
 )(implicit
   ec: ExecutionContext
@@ -48,6 +48,17 @@ class RoutesConfigController @Inject()(
     Action.async {
       db.findByService(serviceName)
         .map(routes => Json.toJson(routes))
+        .map(Ok(_))
+    }
+
+  @ApiOperation(
+    value = "Retrieves list of admin frontend services",
+    notes = "YAML config is extracted from the admin-frontend-proxy repo"
+  )
+  def allAdminFrontendServices(): Action[AnyContent] =
+    Action.async {
+      db.findAllAdminFrontendServices()
+        .map(services => Json.toJson(services))
         .map(Ok(_))
     }
 }

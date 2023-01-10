@@ -57,4 +57,9 @@ class AdminFrontendRouteRepository @Inject()(
         r <- collection.insertMany(session, routes).toFuture()
       } yield r.getInsertedIds.size
     }
+
+  def findAllAdminFrontendServices(): Future[Seq[String]] =
+    collection
+      .distinct[String]("service")
+      .toFuture()
 }

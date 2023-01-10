@@ -134,10 +134,8 @@ class FrontendRouteRepository @Inject()(
       } yield ()
     }
 
-  val serviceNameCollection: MongoCollection[String] = mongoComponent.database.getCollection[String]("frontendRoutes")
-
   def findAllFrontendServices(): Future[Seq[String]] =
-    serviceNameCollection
+    collection
       .distinct[String]("service")
       .toFuture()
 }

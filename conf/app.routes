@@ -9,7 +9,8 @@ GET     /frontend-route-by-env/:environment             @uk.gov.hmrc.serviceconf
 GET     /frontend-route/:serviceName                    @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
 GET     /frontend-services                              @uk.gov.hmrc.serviceconfigs.controller.NginxController.allFrontendServices()
 
-GET     /admin-frontend-route/:serviceName              @uk.gov.hmrc.serviceconfigs.controller.RoutesConfigController.searchByServiceName(serviceName)
+GET     /admin-frontend-route/:serviceName              @uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName)
+GET     /admin-frontend-services                        @uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
 
 GET     /bobby/rules                                    @uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
 GET     /alert-configs                                  @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
