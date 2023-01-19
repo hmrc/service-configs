@@ -100,8 +100,8 @@ class ConfigService @Inject()(
       bootstrapConf      =  referenceConfigs
                               .flatMap(_.configs)
                               .collect {
-                                case ("frontend.conf", v) if optBootstrapFile.exists(_ == "frontend.conf") => "bootstrapFrontendConf" -> ConfigParser.parseConfString(v)
-                                case ("backend.conf", v)  if optBootstrapFile.exists(_ == "backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
+                                case ("frontend.conf", v) if optBootstrapFile.contains("frontend.conf") => "bootstrapFrontendConf" -> ConfigParser.parseConfString(v)
+                                case ("backend.conf", v)  if optBootstrapFile.contains("backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
                               }
                               .toMap
       includeConfs       =  referenceConfigs
@@ -243,12 +243,22 @@ class ConfigService @Inject()(
 
   def appConfig(serviceName: String)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     for {
-      optSlugInfo <- slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.Latest)
-      (applicationConf, bootstrapConf)
-                  <- lookupApplicationConf(serviceName, Nil, optSlugInfo)
+      optSlugInfo          <- slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.Latest)
+      (applicationConf, _) <- lookupApplicationConf(serviceName, Nil, optSlugInfo)
     } yield toConfigSourceEntries(
-      ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
-      Nil
+      Seq(
+        ConfigSourceConfig("applicationConf", applicationConf, Map.empty)
+      )
+    )
+
+  def appConfig(slugInfo: SlugInfo)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
+    for {
+      dc      <- lookupDependencyConfigs(Some(slugInfo))
+      (ac, _) <- lookupApplicationConf(slugInfo.name, dc, Some(slugInfo))
+    } yield toConfigSourceEntries(
+      Seq(
+        ConfigSourceConfig("applicationConf", ac, Map.empty)
+      )
     )
 }
 
