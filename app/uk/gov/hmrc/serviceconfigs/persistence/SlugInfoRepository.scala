@@ -42,7 +42,7 @@ class SlugInfoRepository @Inject()(
 ) with Logging
   with Transactions {
 
-  private implicit val tc = TransactionConfiguration.strict
+  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def add(slugInfo: SlugInfo): Future[Unit] =
     collection
@@ -90,6 +90,9 @@ class SlugInfoRepository @Inject()(
                                 )
                               ).toFuture()
     }
+
+  def getAllLatestSlugInfos: Future[Seq[SlugInfo]] =
+    collection.find(equal("latest", value = true)).toFuture()
 
   def getUniqueSlugNames: Future[Seq[String]] =
     collection.distinct[String]("name")

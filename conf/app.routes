@@ -1,30 +1,32 @@
 # microservice specific routes
 
-GET     /config-by-env/:serviceName                     @uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceConfig(serviceName)
-GET     /config-by-key/:serviceName                     @uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName)
-GET     /app-config/:serviceName                        @uk.gov.hmrc.serviceconfigs.controller.ConfigController.appConfig(serviceName)
+GET     /config-by-env/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceConfig(serviceName)
+GET     /config-by-key/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName)
+GET     /app-config/:serviceName                        uk.gov.hmrc.serviceconfigs.controller.ConfigController.appConfig(serviceName)
 
-GET     /frontend-route/search                          @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
-GET     /frontend-route-by-env/:environment             @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
-GET     /frontend-route/:serviceName                    @uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
-GET     /frontend-services                              @uk.gov.hmrc.serviceconfigs.controller.NginxController.allFrontendServices()
+GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
+GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
+GET     /frontend-route/:serviceName                    uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName)
+GET     /frontend-services                              uk.gov.hmrc.serviceconfigs.controller.NginxController.allFrontendServices()
 
-GET     /admin-frontend-route/:serviceName              @uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName)
-GET     /admin-frontend-services                        @uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
+GET     /admin-frontend-route/:serviceName              uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName)
+GET     /admin-frontend-services                        uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
 
-GET     /bobby/rules                                    @uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
-GET     /alert-configs                                  @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
-GET     /alert-configs/:serviceName                     @uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: String)
+GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
+GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
+GET     /alert-configs/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: String)
 
-GET     /deployment-config                              @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigAll
-GET     /deployment-config/:environment                 @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForEnv(environment)
-GET     /deployment-config/:environment/:name           @uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment, name)
+GET     /deployment-config                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigAll
+GET     /deployment-config/:environment                 uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForEnv(environment)
+GET     /deployment-config/:environment/:name           uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment, name)
 
-GET     /resource-usage/services/:serviceName/snapshots @uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.resourceUsageSnapshotsForService(serviceName)
+GET     /resource-usage/services/:serviceName/snapshots uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.resourceUsageSnapshotsForService(serviceName)
 
-GET     /grafana-dashboards/:serviceName                @uk.gov.hmrc.serviceconfigs.controller.DashboardController.grafana(serviceName)
-GET     /kibana-dashboards/:serviceName                 @uk.gov.hmrc.serviceconfigs.controller.DashboardController.kibana(serviceName)
+GET     /grafana-dashboards/:serviceName                uk.gov.hmrc.serviceconfigs.controller.DashboardController.grafana(serviceName)
+GET     /kibana-dashboards/:serviceName                 uk.gov.hmrc.serviceconfigs.controller.DashboardController.kibana(serviceName)
 
-GET     /build-jobs/:serviceName                        @uk.gov.hmrc.serviceconfigs.controller.BuildJobController.buildJob(serviceName)
+GET     /build-jobs/:serviceName                        uk.gov.hmrc.serviceconfigs.controller.BuildJobController.buildJob(serviceName)
+
+GET     /service-relationships/:serviceName             uk.gov.hmrc.serviceconfigs.controller.ServiceRelationshipController.serviceRelationships(serviceName)
 
 POST    /webhook                                        uk.gov.hmrc.serviceconfigs.controller.WebhookController.processGithubWebhook()
