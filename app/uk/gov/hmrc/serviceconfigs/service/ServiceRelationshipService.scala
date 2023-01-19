@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, SlugInfo}
+import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, ServiceRelationships, SlugInfo}
 import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlugInfoRepository}
 
 import javax.inject.{Inject, Singleton}
@@ -36,6 +36,12 @@ class ServiceRelationshipService @Inject()(
 ) {
 
   private val logger: Logger = Logger(getClass)
+
+  def getServiceRelationships(service: String): Future[ServiceRelationships] =
+    for {
+      inbound  <- serviceRelationshipsRepository.getInboundServices(service)
+      outbound <- serviceRelationshipsRepository.getOutboundServices(service)
+    } yield ServiceRelationships(inbound, outbound)
 
   def updateServiceRelationships(): Future[Unit] =
     for {

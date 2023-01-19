@@ -30,3 +30,15 @@ object ServiceRelationship {
     ~ (__ \ "target").format[String]
     )(ServiceRelationship.apply, unlift(ServiceRelationship.unapply))
 }
+
+case class ServiceRelationships(
+  inboundServices : Seq[String],
+  outboundServices: Seq[String]
+)
+
+object ServiceRelationships {
+  val writes: OWrites[ServiceRelationships] =
+    ( (__ \ "inboundServices").write[Seq[String]]
+    ~ (__ \ "outboundServices").write[Seq[String]]
+    )(unlift(ServiceRelationships.unapply))
+}

@@ -21,7 +21,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, SlugDependency, SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, ServiceRelationships, SlugDependency, SlugInfo, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceEntries
 
@@ -36,7 +36,25 @@ class ServiceRelationshipServiceSpec
   with MockitoSugar {
 
   private val mockConfigService = mock[ConfigService]
-  private val service = new ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mock[ServiceRelationshipRepository])
+  private val mockRelationshipRepo = mock[ServiceRelationshipRepository]
+  private val service = new ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mockRelationshipRepo)
+
+  "serviceRelationships" should {
+    "return inbound and outbound services for a given service" in {
+      when(mockRelationshipRepo.getInboundServices(any[String])).thenReturn(Future.successful(Seq("service-b", "service-c")))
+      when(mockRelationshipRepo.getOutboundServices(any[String])).thenReturn(Future.successful(Seq("service-d", "service-e")))
+
+      val expected = ServiceRelationships(
+        inboundServices  = Seq("service-b", "service-c"),
+        outboundServices = Seq("service-d", "service-e")
+      )
+
+      val result = service.getServiceRelationships("service-a").futureValue
+
+      result.inboundServices should contain theSameElementsAs expected.inboundServices
+      result.outboundServices should contain theSameElementsAs expected.outboundServices
+    }
+  }
 
   private def dummySlugInfo(name: String = "service-a", appConf: String = "not empty"): SlugInfo =
     SlugInfo(
