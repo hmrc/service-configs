@@ -104,9 +104,7 @@ class ConfigService @Inject()(
                                 case ("backend.conf", v)  if optBootstrapFile.contains("backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
                               }
                               .toMap
-      includeConfs       =  referenceConfigs
-                              .map(x => x.copy(configs = optBootstrapFile.foldLeft(x.configs)((c, y) => c + (y -> ""))))
-      applicationConf    =  ConfigParser.parseConfString(applicationConfRaw, ConfigParser.toIncludeCandidates(includeConfs))
+      applicationConf    =  ConfigParser.parseConfString(applicationConfRaw, ConfigParser.toIncludeCandidates(referenceConfigs))
     } yield
       (applicationConf, bootstrapConf)
 
@@ -240,16 +238,6 @@ class ConfigService @Inject()(
       .map { map =>
         scala.collection.immutable.ListMap(map.toSeq.sortBy(_._1): _*)
       }
-
-  def appConfig(serviceName: String)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
-    for {
-      optSlugInfo          <- slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.Latest)
-      (applicationConf, _) <- lookupApplicationConf(serviceName, Nil, optSlugInfo)
-    } yield toConfigSourceEntries(
-      Seq(
-        ConfigSourceConfig("applicationConf", applicationConf, Map.empty)
-      )
-    )
 
   def appConfig(slugInfo: SlugInfo)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     for {
