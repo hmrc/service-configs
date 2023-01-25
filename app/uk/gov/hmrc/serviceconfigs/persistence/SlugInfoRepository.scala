@@ -17,12 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.BasicDBObject
+
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.ClientSession
-import org.mongodb.scala.model.Filters.{equal, and}
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Projections.include
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
-import org.mongodb.scala.model.Updates.set
+import org.mongodb.scala.model.Updates._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -116,6 +118,17 @@ class SlugInfoRepository @Inject()(
              )
            .toFuture()
    } yield ()
+
+  def clearFlags(flags: List[SlugInfoFlag], names: List[String]): Future[Unit] = {
+    logger.debug(s"Clearing ${flags.size} flags on ${names.size} services")
+    collection
+      .updateMany(
+        filter = in("name", names: _ *),
+        update = combine(flags.map(flag => set(flag.asString, false)): _ *)
+      )
+      .toFuture()
+      .map(_ => ())
+  }
 
   def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
     withSessionAndTransaction { session =>
