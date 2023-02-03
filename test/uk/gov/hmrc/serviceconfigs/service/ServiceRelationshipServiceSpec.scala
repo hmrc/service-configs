@@ -56,22 +56,24 @@ class ServiceRelationshipServiceSpec
     }
   }
 
-  private def dummySlugInfo(name: String = "service-a", appConf: String = "not empty"): SlugInfo =
+  private val dummyServiceName = "service"
+
+  private def dummySlugInfo(appConf: String = "not empty", baseConf: String = ""): SlugInfo =
     SlugInfo(
       uri = "",
       created = Instant.now(),
-      name = name,
+      name = dummyServiceName,
       version = Version("0.0.1"),
       classpath = "",
       dependencies = List.empty[SlugDependency],
       applicationConfig = appConf,
       loggerConfig = "",
-      slugConfig = ""
+      slugConfig = baseConf
     )
 
   "serviceRelationshipsFromSlugInfo" should {
     "return an empty sequence when applicationConfig is empty" in {
-      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(appConf = "")).futureValue shouldBe Seq.empty[ServiceRelationship]
+      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(appConf = ""), Seq.empty).futureValue shouldBe Seq.empty[ServiceRelationship]
     }
 
     "produce a ServiceRelationship for each downstream that's defined in config under microservice.services" in {
@@ -79,57 +81,132 @@ class ServiceRelationshipServiceSpec
         source = "applicationConf",
         entries = Map(
           "microservice.services.artefact-processor.host"     -> "localhost",
-          "microservice.services.artefact-processor.port"     -> "port",
           "microservice.services.auth.host"                   -> "localhost",
-          "microservice.services.auth.port"                   -> "port",
           "microservice.services.service-dependencies.host"   -> "localhost",
-          "microservice.services.service-dependencies.port"   -> "port",
           "microservice.services.releases-api.host"           -> "localhost",
-          "microservice.services.releases-api.port"           -> "port",
           "microservice.services.teams-and-repositories.host" -> "localhost",
-          "microservice.services.teams-and-repositories.port" -> "port",
         )
       )
 
       when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
 
-      val expected = Seq(
-        ServiceRelationship("service-a", "artefact-processor"),
-        ServiceRelationship("service-a", "auth"),
-        ServiceRelationship("service-a", "service-dependencies"),
-        ServiceRelationship("service-a", "releases-api"),
-        ServiceRelationship("service-a", "teams-and-repositories")
+      val knownServices = Seq(
+        "artefact-processor",
+        "auth",
+        "service-dependencies",
+        "releases-api",
+        "teams-and-repositories"
       )
 
-      service.serviceRelationshipsFromSlugInfo(dummySlugInfo()).futureValue should contain theSameElementsAs expected
+      val expected = Seq(
+        ServiceRelationship(dummyServiceName, "artefact-processor"),
+        ServiceRelationship(dummyServiceName, "auth"),
+        ServiceRelationship(dummyServiceName, "service-dependencies"),
+        ServiceRelationship(dummyServiceName, "releases-api"),
+        ServiceRelationship(dummyServiceName, "teams-and-repositories")
+      )
+
+      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(), knownServices).futureValue should contain theSameElementsAs expected
     }
 
-    "ignore config that does not have host and port" in {
+    "extract the value from slugInfo.slugConfig if the value from appConf key isn't recognised" in {
       val mockedConfig = ConfigSourceEntries(
         source = "applicationConf",
         entries = Map(
-          "microservice.services.artefact-processor.url"      -> "ignore me",
-          "microservice.services.auth.host"                   -> "localhost",
-          "microservice.services.auth.port"                   -> "port",
-          "microservice.services.service-dependencies.host"   -> "localhost",
-          "microservice.services.service-dependencies.port"   -> "port",
-          "microservice.services.releases-api.host"           -> "localhost",
-          "microservice.services.releases-api.port"           -> "port",
-          "microservice.services.teams-and-repositories.host" -> "localhost",
-          "microservice.services.teams-and-repositories.port" -> "port",
+          "microservice.services.auth.host"                    -> "localhost",
+          "microservice.services.cacheable.session-cache.host" -> "localhost"
         )
       )
 
       when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
 
+      val knownServices = Seq("auth", "key-store")
+      val baseConf =
+        """
+          |microservice {
+          |  services {
+          |    cacheable {
+          |      session-cache {
+          |        protocol = "https"
+          |        host = key-store.public.mdtp
+          |        port = 443
+          |        domain = keystore
+          |      }
+          |    }
+          |  }
+          |}
+          |""".stripMargin
+
       val expected = Seq(
-        ServiceRelationship("service-a", "auth"),
-        ServiceRelationship("service-a", "service-dependencies"),
-        ServiceRelationship("service-a", "releases-api"),
-        ServiceRelationship("service-a", "teams-and-repositories")
+        ServiceRelationship(dummyServiceName, "auth"),
+        ServiceRelationship(dummyServiceName, "key-store")
       )
 
-      service.serviceRelationshipsFromSlugInfo(dummySlugInfo()).futureValue should contain theSameElementsAs expected
+      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
+    }
+
+    "use the value from appConf key if the value found in baseConf is unrecognised" in {
+      val mockedConfig = ConfigSourceEntries(
+        source = "applicationConf",
+        entries = Map(
+          "microservice.services.auth.host" -> "localhost",
+          "microservice.services.des.host"  -> "localhost"
+        )
+      )
+
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+
+      val knownServices = Seq("auth")
+      val baseConf =
+        """
+          |microservice {
+          |  services {
+          |    des {
+          |      host = des.ws.hmrc.gov.uk
+          |      port = 443
+          |      protocol = https
+          |    }
+          |  }
+          |}
+          |""".stripMargin
+
+      val expected = Seq(
+        ServiceRelationship(dummyServiceName, "auth"),
+        ServiceRelationship(dummyServiceName, "des")
+      )
+
+      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
+    }
+
+    "ignore stub/stubs hosts in baseConf and use the value from appConf key instead" in {
+      val mockedConfig = ConfigSourceEntries(
+        source = "applicationConf",
+        entries = Map(
+          "microservice.services.auth.host" -> "localhost",
+          "microservice.services.des.host" -> "localhost"
+        )
+      )
+
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+
+      val knownServices = Seq("auth")
+      val baseConf =
+        """
+          |microservice {
+          |  services {
+          |    des {
+          |      host = test-stub.protected.mdtp
+          |    }
+          |  }
+          |}
+          |""".stripMargin
+
+      val expected = Seq(
+        ServiceRelationship(dummyServiceName, "auth"),
+        ServiceRelationship(dummyServiceName, "des")
+      )
+
+      service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
     }
 
   }

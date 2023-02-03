@@ -20,6 +20,7 @@ import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, ServiceRelationships, SlugInfo}
+import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlugInfoRepository}
 
 import javax.inject.{Inject, Singleton}
@@ -47,7 +48,7 @@ class ServiceRelationshipService @Inject()(
     for {
       slugInfos       <- slugInfoRepository.getAllLatestSlugInfos
       (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[String])]( slugInfo =>
-                           serviceRelationshipsFromSlugInfo(slugInfo)
+                           serviceRelationshipsFromSlugInfo(slugInfo, knownServices = slugInfos.map(_.name))
                              .map { res => (res.toList, List.empty[String]) }
                              .recover { case NonFatal(e) =>
                                logger.warn(s"Error encountered when getting service relationships for ${slugInfo.name}", e)
@@ -62,24 +63,35 @@ class ServiceRelationshipService @Inject()(
                          else ()
     } yield ()
 
-  private[service] def serviceRelationshipsFromSlugInfo(slugInfo: SlugInfo): Future[Seq[ServiceRelationship]] =
+  private val ServiceNameFromHost = "(.*)(?<!stub|stubs)\\.(?:public|protected)\\.mdtp".r
+  private val ServiceNameFromKey  = "microservice\\.services\\.(.*)\\.host".r
+
+  private[service] def serviceRelationshipsFromSlugInfo(slugInfo: SlugInfo, knownServices: Seq[String]): Future[Seq[ServiceRelationship]] =
     if(slugInfo.applicationConfig.isEmpty) Future.successful(Seq.empty[ServiceRelationship])
     else {
       implicit val hc: HeaderCarrier = HeaderCarrier()
 
-      val config: Future[Seq[ConfigService.ConfigSourceEntries]] = configService.appConfig(slugInfo)
+      val appConfig: Future[Seq[ConfigService.ConfigSourceEntries]] = configService.appConfig(slugInfo)
 
-      config.map(
+      val appConfBase: Map[String, String] = ConfigParser.flattenConfigToDotNotation(
+        ConfigParser.parseConfString(
+          slugInfo.slugConfig.replace("include \"application.conf\"", "")
+        )
+      )
+
+      appConfig.map(
         _.flatMap(_.entries)
-          .filter { case (k, _) => k.startsWith("microservice.services") }
-          .groupBy { case (k, _) => k.split('.').lift(2).getOrElse("") }
-          .toSeq
-          .flatMap { case (downstreamService, innerConfig) =>
-            val keys = innerConfig.map(_._1)
-            if (keys.exists(_.endsWith("host")) && keys.exists(_.endsWith("port")))
-              Seq(ServiceRelationship(slugInfo.name, downstreamService))
-            else
-              Seq.empty[ServiceRelationship]
+          .collect { case (k @ ServiceNameFromKey(service), _) => (k, service) }
+          .flatMap {
+            case (_, serviceFromKey) if knownServices.contains(serviceFromKey) =>
+              Seq(ServiceRelationship(slugInfo.name, serviceFromKey))
+            case (key, serviceFromKey) =>
+                appConfBase.get(key) match {
+                  case Some(ServiceNameFromHost(serviceFromHost)) if knownServices.contains(serviceFromHost) =>
+                    Seq(ServiceRelationship(slugInfo.name, serviceFromHost))
+                  case _ =>
+                    Seq(ServiceRelationship(slugInfo.name, serviceFromKey))
+                }
           }
       )
     }
