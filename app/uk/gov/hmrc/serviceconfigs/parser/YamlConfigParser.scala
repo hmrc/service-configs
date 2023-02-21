@@ -28,19 +28,19 @@ import javax.inject.{Inject, Singleton}
 
 object YamlConfigParser {
 
-  private[parser] final case class LocationConfig(
+  private final case class LocationConfig(
     path        : String,
     shutterable : Boolean
   )
 
-  object LocationConfig {
+  private object LocationConfig {
     val reads: Reads[LocationConfig] =
       ( (__ \ "path"       ).read[String]
       ~ (__ \ "shutterable").readWithDefault[Boolean](true)
       )(apply _)
   }
 
-  private[parser] final case class YamlConfig(
+  private final case class YamlConfig(
     service                   : String,
     development               : Seq[LocationConfig],
     integration               : Seq[LocationConfig],
@@ -61,7 +61,7 @@ object YamlConfigParser {
     )
   }
 
-  private[parser] def yamlConfigReads(key: String): Reads[YamlConfig] = {
+  private def yamlConfigReads(key: String): Reads[YamlConfig] = {
     implicit val lcR: Reads[LocationConfig] = LocationConfig.reads
 
     ( Reads.pure(key)
