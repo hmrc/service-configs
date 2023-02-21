@@ -54,8 +54,7 @@ class AlertConfigSchedulerService @Inject()(
       locations      = ZipUtil.findRepos(codeZip, repos, regex, blob)
       _              = codeZip.close()
       alertHandlers  = AlertConfigSchedulerService.toAlertEnvironmentHandler(sensuConfig, locations)
-      _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.deleteAll())
-      _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.insert(alertHandlers))
+      _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.putAll(alertHandlers))
       _             <- EitherT.right[Unit](alertHashStringRepository.update(hash))
     } yield ()).merge
 }

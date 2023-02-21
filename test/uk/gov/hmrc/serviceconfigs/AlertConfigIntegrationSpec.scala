@@ -64,7 +64,7 @@ class AlertConfigIntegrationSpec
         AlertEnvironmentHandler("testNameOne", true, "L1")
       )
 
-      repository.insert(testData)
+      repository.collection.insertMany(testData).toFuture().futureValue
 
       val expectedResultOne = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
       val expectedResultTwo = """{"serviceName":"testNameTwo","production":true,"location":"L2"}"""
@@ -85,7 +85,7 @@ class AlertConfigIntegrationSpec
           AlertEnvironmentHandler("testNameTwo", true, "L2")
         )
 
-      repository.insert(testData)
+      repository.collection.insertMany(testData).toFuture().futureValue
 
       val expectedResult = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
 
@@ -104,7 +104,7 @@ class AlertConfigIntegrationSpec
           AlertEnvironmentHandler("testNameTwo", true, "")
         )
 
-      repository.insert(testData)
+      repository.collection.insertMany(testData).toFuture().futureValue
 
       eventually {
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs/testNameNonExisting").get().futureValue

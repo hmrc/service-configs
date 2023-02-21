@@ -18,10 +18,9 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import java.time.Instant
 
-import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext
@@ -29,9 +28,7 @@ import scala.concurrent.ExecutionContext
 class SlugVersionRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with PlayMongoRepositorySupport[Version]
-     with CleanMongoCollectionSupport
-     with IntegrationPatience {
+     with DefaultPlayMongoRepositorySupport[Version] {
 
   import ExecutionContext.Implicits.global
 

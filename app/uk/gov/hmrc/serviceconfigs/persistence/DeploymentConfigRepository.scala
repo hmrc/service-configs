@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
-import com.mongodb.BasicDBObject
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model._
@@ -86,7 +85,7 @@ class DeploymentConfigRepository @Inject()(
   // Test only
   def deleteAll(): Future[Unit] =
     collection
-      .deleteMany(new BasicDBObject())
+      .deleteMany(BsonDocument())
       .toFuture()
       .map(_ => ())
 }

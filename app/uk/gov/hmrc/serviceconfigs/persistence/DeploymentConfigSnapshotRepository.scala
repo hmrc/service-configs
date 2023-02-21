@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
-import com.mongodb.BasicDBObject
 import org.mongodb.scala.ClientSession
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.Indexes._
+import org.mongodb.scala.model.Indexes
 import org.mongodb.scala.model.Updates.set
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import play.api.Logging
@@ -31,23 +31,26 @@ import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnaps
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
-  deploymentConfigRepository: DeploymentConfigRepository,
-  final val mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+  deploymentConfigRepository : DeploymentConfigRepository,
+  override val mongoComponent: MongoComponent
+)(implicit
+  ec: ExecutionContext
 )
   extends PlayMongoRepository(
     mongoComponent = mongoComponent,
     collectionName = "deploymentConfigSnapshots",
     domainFormat   = DeploymentConfigSnapshot.mongoFormat,
     indexes        = Seq(
-                       IndexModel(hashed("latest"), IndexOptions().background(true)),
-                       IndexModel(hashed("deploymentConfig.name"), IndexOptions().background(true)),
-                       IndexModel(hashed("deploymentConfig.environment"), IndexOptions().background(true))
+                       IndexModel(Indexes.hashed("latest"), IndexOptions().background(true)),
+                       IndexModel(Indexes.hashed("deploymentConfig.name"), IndexOptions().background(true)),
+                       IndexModel(Indexes.hashed("deploymentConfig.environment"), IndexOptions().background(true)),
+                       IndexModel(Indexes.ascending("date"), IndexOptions().expireAfter(7 * 365, TimeUnit.DAYS).background(true))
                      )
   ) with Transactions with Logging {
 
@@ -81,24 +84,25 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .toFutureOption()
       .map(_ => ())
 
+  // Test only
   def deleteAll(): Future[Unit] =
     collection
-      .deleteMany(new BasicDBObject())
+      .deleteMany(BsonDocument())
       .toFuture()
       .map(_ => ())
 
   private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(
     environment: Environment,
-    session: ClientSession
+    session    : ClientSession
   ): Future[Unit] =
     collection
       .updateMany(
         session,
         filter = and(
-          equal("deploymentConfig.environment", environment.asString),
-          equal("latest", true),
-          equal("deleted", false),
-        ),
+                   equal("deploymentConfig.environment", environment.asString),
+                   equal("latest"                      , true),
+                   equal("deleted"                     , false)
+                 ),
         update = set("latest", false)
       )
       .toFuture()
@@ -107,15 +111,16 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private [persistence] def removeLatestFlagForServiceInEnvironment(
     serviceName: String,
     environment: Environment,
-    session: ClientSession
+    session    : ClientSession
   ): Future[Unit] =
     collection
       .updateMany(
         session,
         filter = and(
-          equal("latest", true),
-          equal("deploymentConfig.name", serviceName),
-          equal("deploymentConfig.environment", environment.asString)),
+                   equal("latest"                      , true),
+                   equal("deploymentConfig.name"       , serviceName),
+                   equal("deploymentConfig.environment", environment.asString)
+                 ),
         update = set("latest", false)
       )
       .toFuture()
@@ -141,7 +146,9 @@ class DeploymentConfigSnapshotRepository @Inject()(
     def bulkInsertSnapshots(snapshots: List[DeploymentConfigSnapshot]) =
       withSessionAndTransaction { session =>
         for {
-          _ <- if (snapshots.nonEmpty) removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session) else Future.unit
+          _ <- if (snapshots.nonEmpty)
+                 removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session)
+               else Future.unit
           _ <- collection.insertMany(session, snapshots).toFuture()
         } yield ()
       }
@@ -151,10 +158,10 @@ class DeploymentConfigSnapshotRepository @Inject()(
       withSessionAndTransaction { session =>
         for {
           _ <- removeLatestFlagForServiceInEnvironment(
-            deploymentConfigSnapshot.deploymentConfig.name,
-            deploymentConfigSnapshot.deploymentConfig.environment,
-            session
-          )
+                 deploymentConfigSnapshot.deploymentConfig.name,
+                 deploymentConfigSnapshot.deploymentConfig.environment,
+                 session
+               )
           _ <- collection.insertOne(session, deploymentConfigSnapshot).toFuture()
         } yield ()
       }
@@ -172,16 +179,16 @@ class DeploymentConfigSnapshotRepository @Inject()(
 object DeploymentConfigSnapshotRepository {
 
   final case class PlanOfWork(
-    snapshots: List[DeploymentConfigSnapshot],
+    snapshots                     : List[DeploymentConfigSnapshot],
     snapshotServiceReintroductions: List[DeploymentConfigSnapshot]
   )
 
   object PlanOfWork {
 
     def fromLatestSnapshotsAndCurrentDeploymentConfigs(
-      latestSnapshots: List[DeploymentConfigSnapshot],
+      latestSnapshots         : List[DeploymentConfigSnapshot],
       currentDeploymentConfigs: List[DeploymentConfig],
-      date: Instant
+      date                    : Instant
     ): PlanOfWork = {
       val latestSnapshotsByNameAndEnv =
         latestSnapshots
@@ -216,12 +223,12 @@ object DeploymentConfigSnapshotRepository {
 
     private def synthesiseDeletedDeploymentConfigSnapshot(
       deploymentConfigSnapshot: DeploymentConfigSnapshot,
-      date: Instant
+      date                    : Instant
     ): DeploymentConfigSnapshot =
       deploymentConfigSnapshot.copy(
-        date = date,
-        latest = true,
-        deleted = true,
+        date             = date,
+        latest           = true,
+        deleted          = true,
         deploymentConfig = deploymentConfigSnapshot.deploymentConfig.copy(slots = 0, instances = 0)
       )
   }

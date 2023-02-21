@@ -25,8 +25,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class ServiceRelationshipRepositorySpec
   extends AnyWordSpec
-  with Matchers
-  with DefaultPlayMongoRepositorySupport[ServiceRelationship] {
+     with Matchers
+     with DefaultPlayMongoRepositorySupport[ServiceRelationship] {
 
   override lazy val repository = new ServiceRelationshipRepository(mongoComponent)
 

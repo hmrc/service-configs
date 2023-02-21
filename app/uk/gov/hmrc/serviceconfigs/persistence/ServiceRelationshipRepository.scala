@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.mongodb.BasicDBObject
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
@@ -30,15 +30,21 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ServiceRelationshipRepository @Inject()(
   override val mongoComponent: MongoComponent,
-)(implicit ec: ExecutionContext
+)(implicit
+  ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
-  collectionName = ServiceRelationshipRepository.collectionName,
+  collectionName = "serviceRelationships",
   domainFormat   = ServiceRelationship.serviceRelationshipFormat,
-  indexes        = ServiceRelationshipRepository.indexes
+  indexes        = Seq(
+                     IndexModel(Indexes.ascending("source"), IndexOptions().name("srSourceIdx")),
+                     IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))
+                   )
 ) with Logging
   with Transactions
 {
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
@@ -46,30 +52,19 @@ class ServiceRelationshipRepository @Inject()(
     collection
       .find(Filters.equal("target", service))
       .toFuture()
-      .map(srs => srs.map(_.source))
+      .map(_.map(_.source))
 
   def getOutboundServices(service: String): Future[Seq[String]] =
     collection
       .find(Filters.equal("source", service))
       .toFuture()
-      .map(srs => srs.map(_.target))
+      .map(_.map(_.target))
 
   def putAll(srs: Seq[ServiceRelationship]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, new BasicDBObject()).toFuture()
+        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         _ <- collection.insertMany(session, srs).toFuture()
       } yield ()
     }
-
-}
-
-object ServiceRelationshipRepository {
-  val collectionName: String = "serviceRelationships"
-
-  val indexes: Seq[IndexModel] =
-    Seq(
-      IndexModel(Indexes.ascending("source"), IndexOptions().name("srSourceIdx")),
-      IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))
-    )
 }

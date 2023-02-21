@@ -33,10 +33,14 @@ class AlertEnvironmentHandlerRepositorySpec
   override protected val repository = new AlertEnvironmentHandlerRepository(mongoComponent)
 
   "AlertEnvironmentHandlerRepository" should {
-    "insert correctly" in {
-      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true, location = "")
-      repository.insert(Seq(alertEnvironmentHandler)).futureValue
-      repository.findAll().futureValue should contain(alertEnvironmentHandler)
+    "putAll correctly" in {
+      val alertEnvironmentHandler1 = AlertEnvironmentHandler("testNameOne", production = true, location = "")
+      repository.putAll(Seq(alertEnvironmentHandler1)).futureValue
+      repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler1)
+
+      val alertEnvironmentHandler2 = AlertEnvironmentHandler("testNameTwo", production = false, location = "2")
+      repository.putAll(Seq(alertEnvironmentHandler2)).futureValue
+      repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler2)
     }
 
     "find one by matching service name" in {
@@ -44,22 +48,8 @@ class AlertEnvironmentHandlerRepositorySpec
         AlertEnvironmentHandler("testNameOne", production = true, location = ""),
         AlertEnvironmentHandler("testNameTwo", production = true, location = "")
       )
-      val expectedResult = Option(AlertEnvironmentHandler("testNameOne", production = true, location = ""))
-      repository.insert(alertEnvironmentHandlers).futureValue
-      repository.findOne("testNameOne").futureValue shouldBe expectedResult
-    }
-
-    "delete all correctly" in {
-      val alertEnvironmentHandler = AlertEnvironmentHandler("testName", production = true, location = "")
-      (for {
-          _          <- repository.insert(Seq(alertEnvironmentHandler))
-          preDelete  <- repository.findAll()
-          _          =  preDelete should contain(alertEnvironmentHandler)
-          _          <- repository.deleteAll()
-          postDelete <- repository.findAll()
-          _          =  postDelete shouldBe empty
-        } yield ()
-      ).futureValue shouldBe (())
+      repository.putAll(alertEnvironmentHandlers).futureValue
+      repository.findOne("testNameOne").futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == "testNameOne")
     }
   }
 }
