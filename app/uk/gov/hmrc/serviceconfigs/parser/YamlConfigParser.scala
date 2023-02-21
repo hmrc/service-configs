@@ -28,7 +28,7 @@ import javax.inject.{Inject, Singleton}
 
 object YamlConfigParser {
 
-  final case class LocationConfig(
+  private[parser] final case class LocationConfig(
     path        : String,
     shutterable : Boolean
   )
@@ -40,52 +40,39 @@ object YamlConfigParser {
       )(apply _)
   }
 
-  final case class EnvironmentConfig(
-    development  : Option[Seq[LocationConfig]],
-    integration  : Option[Seq[LocationConfig]],
-    qa           : Option[Seq[LocationConfig]],
-    staging      : Option[Seq[LocationConfig]],
-    externaltest : Option[Seq[LocationConfig]],
-    production   : Option[Seq[LocationConfig]]
-  ) {
-    val asMap: Map[Environment, Seq[LocationConfig]] = Seq(
-      development.map(  locations => Environment.Development  -> locations),
-      integration.map(  locations => Environment.Integration  -> locations),
-      qa.map(           locations => Environment.QA           -> locations),
-      staging.map(      locations => Environment.Staging      -> locations),
-      externaltest.map( locations => Environment.ExternalTest -> locations),
-      production.map(   locations => Environment.Production   -> locations),
-    ).flatten.toMap
-  }
-
-  object EnvironmentConfig {
-    val reads: Reads[EnvironmentConfig] = {
-      implicit val lcR: Reads[LocationConfig] = LocationConfig.reads
-
-      ( (__ \ "development" ).readNullable[Seq[LocationConfig]]
-      ~ (__ \ "integration" ).readNullable[Seq[LocationConfig]]
-      ~ (__ \ "qa"          ).readNullable[Seq[LocationConfig]]
-      ~ (__ \ "staging"     ).readNullable[Seq[LocationConfig]]
-      ~ (__ \ "externaltest").readNullable[Seq[LocationConfig]]
-      ~ (__ \ "production"  ).readNullable[Seq[LocationConfig]]
-      )(apply _)
-    }
-  }
-
-  final case class YamlConfig(
+  private[parser] final case class YamlConfig(
     service                   : String,
-    environments              : EnvironmentConfig,
+    development               : Seq[LocationConfig],
+    integration               : Seq[LocationConfig],
+    qa                        : Seq[LocationConfig],
+    staging                   : Seq[LocationConfig],
+    externaltest              : Seq[LocationConfig],
+    production                : Seq[LocationConfig],
     zone                      : String,
     platformShutteringEnabled : Boolean
-  )
+  ) {
+    val environments: Map[Environment, Seq[LocationConfig]] = Map(
+      Environment.Development  -> development,
+      Environment.Integration  -> integration,
+      Environment.QA           -> qa,
+      Environment.Staging      -> staging,
+      Environment.ExternalTest -> externaltest,
+      Environment.Production   -> production
+    )
+  }
 
-  def yamlConfigReads(key: String): Reads[YamlConfig] = {
-    implicit val ecR: Reads[EnvironmentConfig] = EnvironmentConfig.reads
+  private[parser] def yamlConfigReads(key: String): Reads[YamlConfig] = {
+    implicit val lcR: Reads[LocationConfig] = LocationConfig.reads
 
     ( Reads.pure(key)
-    ~ (__ \ "environments"       ).read[EnvironmentConfig]
-    ~ (__ \ "zone"               ).readWithDefault[String]("public")
-    ~ (__ \ "platform-off-switch").readWithDefault[Boolean](true)
+    ~ (__ \ "environments" \ "development" ).readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "environments" \ "integration" ).readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "environments" \ "qa"          ).readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "environments" \ "staging"     ).readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "environments" \ "externaltest").readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "environments" \ "production"  ).readWithDefault[Seq[LocationConfig]](Seq.empty)
+    ~ (__ \ "zone"                         ).readWithDefault[String]("public")
+    ~ (__ \ "platform-off-switch"          ).readWithDefault[Boolean](true)
     )(YamlConfig.apply _)
   }
 }
@@ -101,7 +88,7 @@ class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
         conf        <- fromYaml[Map[String, JsValue]](config.content)
                          .map { case (k, v) => v.as[YamlConfig](yamlConfigReads(k)) }
         lines       =  config.content.linesIterator.toList
-        (env, locs) <- conf.environments.asMap
+        (env, locs) <- conf.environments
         loc         <- locs
       } yield
         MongoFrontendRoute(
