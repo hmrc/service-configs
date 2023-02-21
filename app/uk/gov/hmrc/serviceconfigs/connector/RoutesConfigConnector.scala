@@ -18,12 +18,14 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
+import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.http.StringContextOps
 import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -62,19 +64,9 @@ class RoutesConfigConnector @Inject()(
       }
       .map { body =>
         val lines = body.linesIterator.toList.map(_.replaceAll(" ", ""))
-        yamlToJson(body)
-          .as[Map[String, play.api.libs.json.JsValue]]
+        fromYaml[Map[String, JsValue]](body)
           .map { case (k, v) => v.as[AdminFrontendRoute](readsAdminFrontendRoute(k, lines)) }
           .toSeq
       }
-  }
-
-  import play.api.libs.json.{Json, JsValue}
-  import com.fasterxml.jackson.databind.ObjectMapper
-  import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-  def yamlToJson(yaml: String): JsValue = {
-    val yamlReader = new ObjectMapper(new YAMLFactory())
-    val jsonWriter = new ObjectMapper()
-    Json.parse(jsonWriter.writeValueAsString(yamlReader.readValue(yaml, classOf[Object])))
   }
 }
