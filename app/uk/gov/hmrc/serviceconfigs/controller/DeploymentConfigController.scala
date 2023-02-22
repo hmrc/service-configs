@@ -41,7 +41,7 @@ class DeploymentConfigController @Inject()(
 
   def deploymentConfigAll: Action[AnyContent] =
     Action.async {
-     deploymentConfigService.findAll.map(res => Ok(Json.toJson(res)))
+     deploymentConfigService.findAll().map(res => Ok(Json.toJson(res)))
     }
 
   def deploymentConfigForEnv(environment: String): Action[AnyContent] =

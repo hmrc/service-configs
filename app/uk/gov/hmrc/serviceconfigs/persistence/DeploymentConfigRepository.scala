@@ -30,13 +30,20 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeploymentConfigRepository @Inject()(
   override val mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext)
-  extends PlayMongoRepository(
-    mongoComponent = mongoComponent,
-    collectionName = "deploymentConfig",
-    domainFormat   = DeploymentConfig.mongoFormat,
-    indexes        = Seq(IndexModel(Indexes.ascending("name", "environment")))
+)(implicit
+  ec: ExecutionContext
+) extends PlayMongoRepository(
+  mongoComponent = mongoComponent,
+  collectionName = "deploymentConfig",
+  domainFormat   = DeploymentConfig.mongoFormat,
+  indexes        = Seq(
+                     IndexModel(Indexes.ascending("name", "environment")),
+                     IndexModel(Indexes.ascending("environment"))
+                   )
 ) with Transactions {
+
+  // we replace all the data for each call to replaceEnv
+  override lazy val requiresTtlIndex = false
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
@@ -46,17 +53,18 @@ class DeploymentConfigRepository @Inject()(
         _ <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
         r <- mongoComponent.database.getCollection[BsonDocument](collectionName)
                 .insertMany(session, configs).toFuture()
-      } yield r.getInsertedIds().size
+      } yield r.getInsertedIds.size
     }
 
-  def findAll: Future[Seq[DeploymentConfig]] =
+  def findAll(): Future[Seq[DeploymentConfig]] =
     collection
       .find()
       .toFuture()
 
   def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
-    collection.find(equal("environment", environment.asString)).toFuture()
-
+    collection
+      .find(equal("environment", environment.asString))
+      .toFuture()
 
   def findByName(environment: Environment, name: String): Future[Option[DeploymentConfig]] =
     collection

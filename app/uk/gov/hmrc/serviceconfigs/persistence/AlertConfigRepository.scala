@@ -56,7 +56,7 @@ class AlertEnvironmentHandlerRepository @Inject()(
       } yield ()
     }
 
-  def findOne(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+  def findByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
     collection
       .find(equal("serviceName", serviceName))
       .headOption()

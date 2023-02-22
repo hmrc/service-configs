@@ -46,8 +46,8 @@ class AlertConfigController @Inject()(
   def getAlertConfigForService(serviceName: String): Action[AnyContent] =
     Action.async {
       for {
-        config <- alertConfigService.findOneConfig(serviceName)
-        result =  config.map(c => Ok(Json.toJson(c)(AlertEnvironmentHandler.mongoFormats))).getOrElse(NotFound)
+        config <- alertConfigService.findConfigByServiceName(serviceName)
+        result =  config.fold(NotFound(""))(c => Ok(Json.toJson(c)(AlertEnvironmentHandler.mongoFormats)))
       } yield result
     }
 }

@@ -49,7 +49,7 @@ class AlertEnvironmentHandlerRepositorySpec
         AlertEnvironmentHandler("testNameTwo", production = true, location = "")
       )
       repository.putAll(alertEnvironmentHandlers).futureValue
-      repository.findOne("testNameOne").futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == "testNameOne")
+      repository.findByServiceName("testNameOne").futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == "testNameOne")
     }
   }
 }

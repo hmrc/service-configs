@@ -28,6 +28,6 @@ class AlertConfigService @Inject()(
   def findConfigs(): Future[Seq[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findAll()
 
-  def findOneConfig(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
-    alertEnvironmentHandlerRepository.findOne(serviceName)
+  def findConfigByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+    alertEnvironmentHandlerRepository.findByServiceName(serviceName)
 }

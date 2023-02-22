@@ -20,9 +20,9 @@ import cats.implicits._
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, PlayMongoRepositorySupport}
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -31,14 +31,16 @@ import scala.concurrent.{ExecutionContext, Future}
 class FrontendRouteRepositoryMongoSpec
   extends AnyWordSpec
      with Matchers
-     // not using DefaultPlayMongoRepositorySupport since we run unindexed queries
-     with PlayMongoRepositorySupport[MongoFrontendRoute]
-     with CleanMongoCollectionSupport
+     with DefaultPlayMongoRepositorySupport[MongoFrontendRoute]
      with IntegrationPatience {
 
   import ExecutionContext.Implicits.global
 
   override lazy val repository = new FrontendRouteRepository(mongoComponent)
+
+  override protected val checkIndexedQueries: Boolean =
+    // we run unindexed queries
+    false
 
   "FrontendRouteRepository.update" should {
     "add new route" in {
