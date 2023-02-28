@@ -28,14 +28,14 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ArtefactProcessorConnector @Inject()(
-  httpClientV2 : HttpClientV2,
-  serviceConfig: ServicesConfig,
+  httpClientV2  : HttpClientV2,
+  servicesConfig: ServicesConfig,
 )(implicit ec: ExecutionContext
 ) {
   import HttpReads.Implicits._
 
   private val artefactProcessorUrl: URL =
-    url"${serviceConfig.baseUrl("artefact-processor")}"
+    url"${servicesConfig.baseUrl("artefact-processor")}"
 
   def getDependencyConfigs(slugName: String, version: Version)(implicit hc: HeaderCarrier): Future[Option[Seq[DependencyConfig]]] = {
     implicit val maf = ApiSlugInfoFormats.dependencyConfigFormat
