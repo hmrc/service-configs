@@ -21,39 +21,33 @@ import java.time.Instant
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.mockito.MockitoSugar
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.http.test.WireMockSupport
+import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugInfo, Version}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class ArtefactProcessorConnectorSpec
   extends AnyWordSpec
      with Matchers
      with ScalaFutures
      with IntegrationPatience
-     with BeforeAndAfterAll
-     with GuiceOneAppPerSuite
      with MockitoSugar
-     with WireMockSupport {
+     with WireMockSupport
+     with HttpClientV2Support {
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  override def fakeApplication(): Application =
-    new GuiceApplicationBuilder()
-      .configure(
-        "microservice.services.artefact-processor.host" -> wireMockHost,
-        "microservice.services.artefact-processor.port" -> wireMockPort,
-        "play.http.requestHandler"                      -> "play.api.http.DefaultHttpRequestHandler",
-        "metrics.jvm"                                   -> false
-      )
-      .build()
+  private val servicesConfig = new ServicesConfig(Configuration(
+    "microservice.services.artefact-processor.host" -> wireMockHost,
+    "microservice.services.artefact-processor.port" -> wireMockPort,
+  ))
 
-  private val connector = app.injector.instanceOf[ArtefactProcessorConnector]
+  private val connector = new ArtefactProcessorConnector(httpClientV2, servicesConfig)
 
   "ArtefactProcessorConnector.getSlugInfo" should {
     "correctly parse json response" in {
