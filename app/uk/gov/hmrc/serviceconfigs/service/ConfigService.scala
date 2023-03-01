@@ -104,7 +104,7 @@ class ConfigService @Inject()(
                                 case ("backend.conf", v)  if optBootstrapFile.contains("backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
                               }
                               .toMap
-      applicationConfWithoutIncludes = ConfigParser.parseConfString(applicationConfRaw, Map.empty)
+      applicationConfWithoutIncludes = ConfigParser.parseConfString(applicationConfRaw, Map.empty, logMissing = false)
       applicationConf = // collecting the config without includes helps `delta` identify what was explicitly included in application.conf
                         // however, in the rare case that a substitution refers to something in bootstrapConf, we will need to consider it to resolve,
                         // but it will lead to thinking that all bootstrapConf entries also exist explicitly in applicationConf
