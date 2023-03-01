@@ -42,7 +42,7 @@ class ServiceRelationshipService @Inject()(
     for {
       inbound  <- serviceRelationshipsRepository.getInboundServices(service)
       outbound <- serviceRelationshipsRepository.getOutboundServices(service)
-    } yield ServiceRelationships(inbound, outbound)
+    } yield ServiceRelationships(inbound.toSet, outbound.toSet)
 
   def updateServiceRelationships(): Future[Unit] =
     for {
