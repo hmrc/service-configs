@@ -43,6 +43,9 @@ class AdminFrontendRouteRepository @Inject()(
                    ),
 ) with Transactions {
 
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
+
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(service: String): Future[Seq[AdminFrontendRoute]] =
@@ -50,7 +53,7 @@ class AdminFrontendRouteRepository @Inject()(
       .find(equal("service", service))
       .toFuture()
 
-  def replaceAll(routes: Seq[AdminFrontendRoute]): Future[Int] =
+  def putAll(routes: Seq[AdminFrontendRoute]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()

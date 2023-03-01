@@ -29,7 +29,8 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DependencyConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(implicit
+  ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "dependencyConfigs",
@@ -40,6 +41,8 @@ class DependencyConfigRepository @Inject()(
                        IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
                    )
 ) {
+
+  // TODO We don't specify a TTL index - we should consider how to remove unused configuration
 
   def add(dependencyConfig: DependencyConfig): Future[Unit] =
     collection
@@ -55,10 +58,11 @@ class DependencyConfigRepository @Inject()(
       .toFutureOption()
       .map(_ => ())
 
-  def getAllEntries: Future[Seq[DependencyConfig]] =
+  def getAllEntries(): Future[Seq[DependencyConfig]] =
     collection.find().toFuture()
 
-  def clearAllData: Future[Unit] =
+  /** test only */
+  def clearAllData(): Future[Unit] =
     collection.deleteMany(BsonDocument())
       .toFuture()
       .map(_ => ())

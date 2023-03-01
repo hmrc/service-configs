@@ -46,7 +46,7 @@ class DashboardService @Inject()(
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
-      count  <- grafanaDashboardRepo.replaceAll(items)
+      count  <- grafanaDashboardRepo.putAll(items)
       _       = logger.info(s"Inserted $count Grafana Dashboards into mongo")
     } yield ()
 
@@ -62,7 +62,7 @@ class DashboardService @Inject()(
                   .map { case (repo, location) => Dashboard(service = repo.name, location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")
-      count  <- kibanaDashboardRepo.replaceAll(items)
+      count  <- kibanaDashboardRepo.putAll(items)
       _       = logger.info(s"Inserted $count Kibana Dashboards into mongo")
     } yield ()
   }

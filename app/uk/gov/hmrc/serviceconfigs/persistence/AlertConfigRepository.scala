@@ -18,20 +18,22 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.ReplaceOptions
 import org.mongodb.scala.bson.BsonDocument
-import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
 import org.mongodb.scala.model.Filters.{equal, exists}
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AlertEnvironmentHandlerRepository @Inject()(
-  mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+  override val mongoComponent: MongoComponent
+)(implicit
+  ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "alertEnvironmentHandlers",
@@ -39,24 +41,22 @@ class AlertEnvironmentHandlerRepository @Inject()(
   indexes        = Seq(
                      IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
                    )
-) {
+) with Transactions {
 
-  def insert(alertEnvironmentHandlers: Seq[AlertEnvironmentHandler]): Future[Unit] =
-    collection.
-      insertMany(
-        alertEnvironmentHandlers
-      )
-      .toFuture()
-      .map(_ => ())
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
 
-  def deleteAll(): Future[Unit] =
-    collection
-      .deleteMany(BsonDocument())
-      .toFuture()
-      .map(_ => ())
+  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
+  def putAll(alertEnvironmentHandlers: Seq[AlertEnvironmentHandler]): Future[Unit] =
+    withSessionAndTransaction { session =>
+      for {
+        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
+        _ <- collection.insertMany(session, alertEnvironmentHandlers).toFuture()
+      } yield ()
+    }
 
-  def findOne(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+  def findByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
     collection
       .find(equal("serviceName", serviceName))
       .headOption()

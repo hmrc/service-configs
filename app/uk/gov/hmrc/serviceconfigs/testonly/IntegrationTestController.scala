@@ -79,7 +79,7 @@ class IntegrationTestController @Inject()(
 
   def deleteSlugDependencyConfigs(): Action[AnyContent] =
     Action.async {
-      dependencyConfigRepo.clearAllData.map(_ => Ok("Done"))
+      dependencyConfigRepo.clearAllData().map(_ => Ok("Done"))
     }
 
   def addSlugs(): Action[List[SlugInfoWithFlags]] =

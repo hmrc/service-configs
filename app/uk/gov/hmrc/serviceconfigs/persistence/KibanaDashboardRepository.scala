@@ -32,7 +32,8 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class KibanaDashboardRepository @Inject()(
   override val mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(implicit
+  ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "kibanaDashboards",
@@ -42,6 +43,9 @@ class KibanaDashboardRepository @Inject()(
                    ),
 ) with Transactions {
 
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
+
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(service: String): Future[Option[Dashboard]] =
@@ -49,7 +53,7 @@ class KibanaDashboardRepository @Inject()(
       .find(equal("service", service))
       .headOption()
 
-  def replaceAll(dashboards: Seq[Dashboard]): Future[Int] =
+  def putAll(dashboards: Seq[Dashboard]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()

@@ -38,8 +38,8 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(any)).thenReturn(Future.successful(None))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
-      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.successful(()))
+      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
 
@@ -53,8 +53,8 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv1.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
-      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.successful(()))
+      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv2).futureValue
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
@@ -68,7 +68,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
+      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
 
@@ -82,7 +82,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.successful(()))
+      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
 

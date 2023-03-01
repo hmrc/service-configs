@@ -47,18 +47,18 @@ class ServiceRelationshipService @Inject()(
   def updateServiceRelationships(): Future[Unit] =
     for {
       slugInfos       <- slugInfoRepository.getAllLatestSlugInfos
-      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[String])]( slugInfo =>
+      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[String])](slugInfo =>
                            serviceRelationshipsFromSlugInfo(slugInfo, knownServices = slugInfos.map(_.name))
-                             .map { res => (res.toList, List.empty[String]) }
+                             .map(res => (res.toList, List.empty[String]))
                              .recover { case NonFatal(e) =>
                                logger.warn(s"Error encountered when getting service relationships for ${slugInfo.name}", e)
                                (List.empty[ServiceRelationship], List(slugInfo.name))
                              }
                          )
-      _               <- if(srs.nonEmpty)
+      _               <- if (srs.nonEmpty)
                            serviceRelationshipsRepository.putAll(srs)
-                         else Future.successful(())
-      _               =  if(failures.nonEmpty)
+                         else Future.unit
+      _               =  if (failures.nonEmpty)
                            logger.warn(s"Failed to update service relationships for ${failures.mkString(", ")}")
                          else ()
     } yield ()

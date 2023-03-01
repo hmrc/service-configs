@@ -16,12 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import com.mongodb.BasicDBObject
-
-import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.ClientSession
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.Projections.include
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
 import org.mongodb.scala.model.Updates._
@@ -30,6 +27,7 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, Version}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -43,6 +41,9 @@ class SlugInfoRepository @Inject()(
   indexes        = SlugInfoRepository.indexes
 ) with Logging
   with Transactions {
+
+  // we delete explicitly when we get a delete notification
+  override lazy val requiresTtlIndex = false
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
@@ -69,7 +70,7 @@ class SlugInfoRepository @Inject()(
 
   def clearAll(): Future[Unit] =
     collection
-      .deleteMany(new BasicDBObject())
+      .deleteMany(BsonDocument())
       .toFuture()
       .map(_ => ())
 

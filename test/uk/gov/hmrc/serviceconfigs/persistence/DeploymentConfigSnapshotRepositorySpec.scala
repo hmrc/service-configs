@@ -18,10 +18,9 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
-import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.mongo.test.{CleanMongoCollectionSupport, DefaultPlayMongoRepositorySupport}
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
@@ -34,9 +33,7 @@ class DeploymentConfigSnapshotRepositorySpec
   extends AnyWordSpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
-     with CleanMongoCollectionSupport
-     with MockitoSugar
-     with IntegrationPatience {
+     with MockitoSugar {
 
   private val stubDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]
@@ -47,7 +44,6 @@ class DeploymentConfigSnapshotRepositorySpec
   "DeploymentConfigSnapshotRepository" should {
 
     "Persist and retrieve `DeploymentConfigSnapshot`s" in {
-
       (for {
         before <- repository.snapshotsForService("A")
         _      <- repository.add(deploymentConfigSnapshotA1)
@@ -67,7 +63,6 @@ class DeploymentConfigSnapshotRepositorySpec
     }
 
     "Retrieve snapshots sorted by date, ascending" in {
-
       (for {
         _         <- repository.add(deploymentConfigSnapshotB2)
         _         <- repository.add(deploymentConfigSnapshotB1)
@@ -79,7 +74,6 @@ class DeploymentConfigSnapshotRepositorySpec
     }
 
     "Delete all documents in the collection" in  {
-
       (for {
         _       <- repository.add(deploymentConfigSnapshotA1)
         _       <- repository.add(deploymentConfigSnapshotB1)

@@ -31,12 +31,15 @@ class SlugVersionRepository @Inject()(
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository(
-    mongoComponent = mongoComponent,
-    collectionName = SlugInfoRepository.collectionName,
-    domainFormat   = Version.mongoVersionRepositoryFormat,
-    indexes        = SlugInfoRepository.indexes,
-    replaceIndexes = false
-  ) {
+  mongoComponent = mongoComponent,
+  collectionName = SlugInfoRepository.collectionName,
+  domainFormat   = Version.mongoVersionRepositoryFormat,
+  indexes        = SlugInfoRepository.indexes,
+  replaceIndexes = false
+) {
+
+  // we delete explicitly when we get a delete notification
+  override lazy val requiresTtlIndex = false
 
   def getMaxVersion(name: String) : Future[Option[Version]] =
     collection

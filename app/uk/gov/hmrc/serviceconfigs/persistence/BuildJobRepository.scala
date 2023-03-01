@@ -42,6 +42,9 @@ class BuildJobRepository @Inject()(
                    ),
 ) with Transactions {
 
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
+
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(service: String): Future[Option[BuildJob]] =
@@ -49,7 +52,7 @@ class BuildJobRepository @Inject()(
       .find(equal("service", service))
       .headOption()
 
-  def replaceAll(jobs: Seq[BuildJob]): Future[Int] =
+  def putAll(jobs: Seq[BuildJob]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()

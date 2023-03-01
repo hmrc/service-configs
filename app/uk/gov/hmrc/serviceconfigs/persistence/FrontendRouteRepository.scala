@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import cats.instances.all._
 import cats.syntax.all._
 import com.mongodb.client.model.Indexes
-import org.mongodb.scala.MongoCollection
 
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
@@ -50,6 +49,8 @@ class FrontendRouteRepository @Inject()(
                    ),
 ) with Transactions {
 
+  // we replace all the data for each call to replaceEnv
+  override lazy val requiresTtlIndex = false
 
   private val logger = Logger(this.getClass)
 

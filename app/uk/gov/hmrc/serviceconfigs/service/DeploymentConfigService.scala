@@ -53,8 +53,8 @@ class DeploymentConfigService @Inject()(
       _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
-  def findAll: Future[Seq[DeploymentConfig]] =
-    deploymentConfigRepository.findAll
+  def findAll(): Future[Seq[DeploymentConfig]] =
+    deploymentConfigRepository.findAll()
 
   def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
     deploymentConfigRepository.findAllForEnv(environment)
