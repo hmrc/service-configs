@@ -32,13 +32,13 @@ object ServiceRelationship {
 }
 
 case class ServiceRelationships(
-  inboundServices : Seq[String],
-  outboundServices: Seq[String]
+  inboundServices : Set[String],
+  outboundServices: Set[String]
 )
 
 object ServiceRelationships {
   val writes: OWrites[ServiceRelationships] =
-    ( (__ \ "inboundServices").write[Seq[String]]
-    ~ (__ \ "outboundServices").write[Seq[String]]
+    ( (__ \ "inboundServices").write[Set[String]]
+    ~ (__ \ "outboundServices").write[Set[String]]
     )(unlift(ServiceRelationships.unapply))
 }

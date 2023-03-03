@@ -45,8 +45,8 @@ class ServiceRelationshipServiceSpec
       when(mockRelationshipRepo.getOutboundServices(any[String])).thenReturn(Future.successful(Seq("service-d", "service-e")))
 
       val expected = ServiceRelationships(
-        inboundServices  = Seq("service-b", "service-c"),
-        outboundServices = Seq("service-d", "service-e")
+        inboundServices  = Set("service-b", "service-c"),
+        outboundServices = Set("service-d", "service-e")
       )
 
       val result = service.getServiceRelationships("service-a").futureValue
