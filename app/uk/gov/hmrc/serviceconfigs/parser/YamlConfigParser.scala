@@ -106,7 +106,7 @@ class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
                                    statusCode = Some(503),
                                    errorPage = Some(s"/shuttered$$LANG/${conf.service}")
                                  )).filter(_ => loc.shutterable),
-          ruleConfigurationUrl = s"${config.blobUrl}#${lines.indexWhere(_.contains(s"${conf.service}:")) + 1}",
+          ruleConfigurationUrl = s"${config.blobUrl}#L${lines.indexWhere(_.contains(s"${conf.service}:")) + 1}",
           isRegex = isRegex(loc.path) // https://nginx.org/en/docs/http/ngx_http_core_module.html#location
         )
       ).toSet
