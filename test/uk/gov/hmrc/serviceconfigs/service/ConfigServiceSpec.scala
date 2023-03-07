@@ -82,6 +82,7 @@ class ConfigServiceSpec
       , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
       , dependencies      = Nil
       , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
+      , includedAppConfig = Map.empty
       , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
       , slugConfig        = ""
       )

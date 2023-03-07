@@ -104,14 +104,17 @@ class ConfigService @Inject()(
                                 case ("backend.conf", v)  if optBootstrapFile.contains("backend.conf")  => "bootstrapBackendConf"  -> ConfigParser.parseConfString(v)
                               }
                               .toMap
-      applicationConfWithoutIncludes = ConfigParser.parseConfString(applicationConfRaw, Map.empty, logMissing = false)
-      applicationConf = // collecting the config without includes helps `delta` identify what was explicitly included in application.conf
-                        // however, in the rare case that a substitution refers to something in bootstrapConf, we will need to consider it to resolve,
-                        // but it will lead to thinking that all bootstrapConf entries also exist explicitly in applicationConf
-                        if (Try(applicationConfWithoutIncludes.resolve()).isFailure)
-                          ConfigParser.parseConfString(applicationConfRaw, ConfigParser.toIncludeCandidates(referenceConfigs))
-                        else
-                          applicationConfWithoutIncludes
+      includedAppConfig  =  optSlugInfo.fold(Map.empty[String, String])(_.includedAppConfig) // combine any local config split out from application.conf
+      applicationConfWithoutDependencyConfig = ConfigParser.parseConfString(applicationConfRaw, includedAppConfig, logMissing = false)
+      applicationConf    =  // collecting the config without dependency configs helps `delta` identify what was explicitly included in application.conf
+                            // however, in the rare case that a substitution refers to something in bootstrapConf, we will need to consider it to resolve,
+                            // but it will lead to thinking that all bootstrapConf entries also exist explicitly in applicationConf
+                            Try(applicationConfWithoutDependencyConfig.resolve())
+                              .toEither
+                              .fold(
+                                _ => ConfigParser.parseConfString(applicationConfRaw, includedAppConfig ++ ConfigParser.toIncludeCandidates(referenceConfigs))
+                              , _ => applicationConfWithoutDependencyConfig // Note: should not be the `.resolve()` config
+                              )
     } yield
       (applicationConf, bootstrapConf)
 

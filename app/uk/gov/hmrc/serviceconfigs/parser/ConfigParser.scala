@@ -54,7 +54,7 @@ trait ConfigParser extends Logging {
         } match {
           case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
           case None         => if (logMissing)
-                                 logger.warn(s"Could not find $what to include in $includeCandidates")
+                                 logger.warn(s"Could not find $what to include in ${includeCandidates.keys}")
                                ConfigFactory.empty.root
         }
     }

@@ -65,6 +65,7 @@ class ArtefactProcessorConnectorSpec
           classpath            = "some-classpath",
           dependencies         = List.empty,
           applicationConfig    = "some-application-config",
+          includedAppConfig    = Map.empty,
           loggerConfig         = "some-logger-config",
           slugConfig           = "some-slug-config"
         )

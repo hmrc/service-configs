@@ -118,6 +118,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
       classpath         = "",
       dependencies      = List.empty,
       applicationConfig = "",
+      includedAppConfig = Map.empty,
       loggerConfig      = "",
       slugConfig        = ""
     )

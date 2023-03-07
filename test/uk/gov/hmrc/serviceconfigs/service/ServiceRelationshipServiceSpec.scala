@@ -61,14 +61,15 @@ class ServiceRelationshipServiceSpec
   private def dummySlugInfo(appConf: String = "not empty", baseConf: String = ""): SlugInfo =
     SlugInfo(
       uri = "",
-      created = Instant.now(),
-      name = dummyServiceName,
-      version = Version("0.0.1"),
-      classpath = "",
-      dependencies = List.empty[SlugDependency],
+      created           = Instant.now(),
+      name              = dummyServiceName,
+      version           = Version("0.0.1"),
+      classpath         = "",
+      dependencies      = List.empty[SlugDependency],
       applicationConfig = appConf,
-      loggerConfig = "",
-      slugConfig = baseConf
+      includedAppConfig = Map.empty,
+      loggerConfig      = "",
+      slugConfig        = baseConf
     )
 
   "serviceRelationshipsFromSlugInfo" should {
