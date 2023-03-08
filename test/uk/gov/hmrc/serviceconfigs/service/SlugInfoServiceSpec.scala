@@ -142,7 +142,7 @@ class SlugInfoServiceSpec
       verify(boot.mockedSlugInfoRepository).setFlag(SlugInfoFlag.Latest, missingLatest, maxVersion)
     }
   }
-  
+
   case class Boot(
     mockedSlugInfoRepository     : SlugInfoRepository
   , mockedSlugVersionRepository  : SlugVersionRepository
@@ -151,7 +151,7 @@ class SlugInfoServiceSpec
   , mockedGithubRawConnector     : GithubRawConnector
   , service                      : SlugInfoService
   )
-  
+
   object Boot {
     def init: Boot = {
       val mockedSlugInfoRepository     = mock[SlugInfoRepository]
@@ -159,7 +159,7 @@ class SlugInfoServiceSpec
       val mockedReleasesApiConnector   = mock[ReleasesApiConnector]
       val mockedTeamsAndReposConnector = mock[TeamsAndRepositoriesConnector]
       val mockedGithubRawConnector     = mock[GithubRawConnector]
-      
+
       val service = new SlugInfoService(
                           mockedSlugInfoRepository
                         , mockedSlugVersionRepository
@@ -181,14 +181,15 @@ class SlugInfoServiceSpec
     def toSlugInfo(name: String): SlugInfo =
       SlugInfo(
         uri = ""
-        , created = Instant.now
-        , name = name
-        , version = Version("0.0.0")
-        , classpath = ""
-        , dependencies = List.empty
+        , created           = Instant.now
+        , name              = name
+        , version           = Version("0.0.0")
+        , classpath         = ""
+        , dependencies      = List.empty
         , applicationConfig = ""
-        , loggerConfig = ""
-        , slugConfig = ""
+        , includedAppConfig = Map.empty
+        , loggerConfig      = ""
+        , slugConfig        = ""
       )
   }
 

@@ -50,6 +50,7 @@ case class SlugInfo(
   classpath         : String,  // not stored in Mongo - used to order dependencies before storing
   dependencies      : List[SlugDependency],
   applicationConfig : String,
+  includedAppConfig : Map[String, String],
   loggerConfig      : String,
   slugConfig        : String
 )
@@ -81,9 +82,14 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "version"          ).format[Version](Version.format)
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
-    ~ (__ \ "applicationConfig").formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
-    ~ (__ \ "loggerConfig"     ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
-    ~ (__ \ "slugConfig"       ).formatNullable[String].inmap[String](_.getOrElse(""), Option.apply)
+    ~ (__ \ "applicationConfig").formatNullable[String]
+                                .inmap[String](_.getOrElse(""), Option.apply)
+    ~ (__ \ "includedAppConfig").formatNullable[Map[String, String]]
+                                .inmap[Map[String, String]](_.getOrElse(Map.empty), Option.apply)
+    ~ (__ \ "loggerConfig"     ).formatNullable[String]
+                                .inmap[String](_.getOrElse(""), Option.apply)
+    ~ (__ \ "slugConfig"       ).formatNullable[String]
+                                .inmap[String](_.getOrElse(""), Option.apply)
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
   }
 
@@ -93,9 +99,9 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
                        .inmap[Map[String, String]](
-                           _.map { case (k, v) => (k.replaceAll("_DOT_", "."    ), v) }  // for mongo < 3.6 compatibility - '.' and '$'' not permitted in keys
-                         , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
-                         )
+                         _.map { case (k, v) => (k.replaceAll("_DOT_", "."    ), v) }  // for mongo < 3.6 compatibility - '.' and '$'' not permitted in keys
+                       , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
+                       )
     )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
 }
 
@@ -119,6 +125,8 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "classpath"        ).format[String]
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
     ~ (__ \ "applicationConfig").format[String]
+    ~ (__ \ "includedAppConfig").formatNullable[Map[String, String]]
+                                .inmap[Map[String, String]](_.getOrElse(Map.empty), Option.apply)
     ~ (__ \ "loggerConfig"     ).format[String]
     ~ (__ \ "slugConfig"       ).format[String]
     )(SlugInfo.apply, unlift(SlugInfo.unapply))
