@@ -143,6 +143,7 @@ class ConfigService @Inject()(
       }
       val suppressed = (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
                         .map { case (k, _) => k -> s"<<SUPPRESSED>>" }
+                        .filterNot { case (k, _) => k.startsWith("logger.") && k != "logger.resource" } // This assumes that logging was defined in system.properties or the key was quoted
       (acc :+ ConfigSourceEntries(entry.name, entries ++ suppressed), Some(nextConfig))
     }
     // ApplicationLoader in bootstrap will decode any ".base64" keys and replace the keys without the .base64 extension
