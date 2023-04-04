@@ -21,13 +21,14 @@ import org.scalatest.EitherValues
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
-import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, YamlRoutesFile}
+import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig, NginxShutterConfig}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
 import uk.gov.hmrc.serviceconfigs.parser.{NginxConfigParser, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
 
+import java.util.zip.ZipInputStream
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -48,6 +49,14 @@ class NginxServiceSpec
 
   when(nginxConfig.shutterConfig)
     .thenReturn(shutterConfig)
+
+  val githubConfig: GithubConfig = mock[GithubConfig]
+
+  when(githubConfig.githubApiUrl)
+    .thenReturn("https://api.github.com")
+
+  when(githubConfig.githubRawUrl)
+    .thenReturn("https://raw.githubusercontent.com")
 
   private val testConfig =
     """location /test/assets {
@@ -74,21 +83,6 @@ class NginxServiceSpec
       |  proxy_pass http://testservice;
       |}""".stripMargin
 
-  private val testYamlConfig =
-    """
-      |a-service:
-      |  environments:
-      |  - production
-      |  locations:
-      |  - /hello
-      |
-      |b-service:
-      |  environments:
-      |  - production
-      |  locations:
-      |  - /goodbye
-      |""".stripMargin
-
   "NginxService.urlToService" should {
     "extract the service name from url" in {
       val url = "https://test-service.public.local"
@@ -110,20 +104,21 @@ class NginxServiceSpec
     "parse configs and save result" in {
       val repo = mock[FrontendRouteRepository]
 
-      val parser     = new NginxConfigParser(nginxConfig)
-      val yamlParser = new YamlConfigParser(nginxConfig)
-      val connector  = mock[NginxConfigConnector]
+      val parser          = new NginxConfigParser(nginxConfig)
+      val yamlParser      = spy(new YamlConfigParser(nginxConfig))
+      val nginxConnector  = mock[NginxConfigConnector]
+      val cacConnector    = mock[ConfigAsCodeConnector]
 
-      val service = new NginxService(repo, parser, yamlParser, connector, nginxConfig)
+      val service = new NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
 
-      when(connector.getNginxRoutesFile("some-file", Environment.Production))
+      when(nginxConnector.getNginxRoutesFile("some-file", Environment.Production))
         .thenReturn(Future.successful(
           NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
         ))
 
-      when(connector.getYamlRoutesFile())
+      when(cacConnector.streamFrontendRoutes())
         .thenReturn(Future.successful(
-          YamlRoutesFile("", "", "", "")
+          new ZipInputStream(this.getClass.getResource("/empty-mdtp-frontend-routes.zip").openStream())
         ))
 
       when(repo.replaceEnv(any, any))
@@ -133,32 +128,29 @@ class NginxServiceSpec
       service.update(envs).futureValue
 
       verify(repo, times(1)).replaceEnv(any, any)
-      verify(connector, times(envs.length)).getNginxRoutesFile(any, any)
-      verify(connector, times(1)).getYamlRoutesFile()
+      verify(nginxConnector, times(envs.length)).getNginxRoutesFile(any, any)
+      verify(cacConnector, times(1)).streamFrontendRoutes()
+      verify(yamlParser, times(0)).parseConfig(any)
     }
 
     "parse configs from nginx and yaml and save the result" in {
       val repo = mock[FrontendRouteRepository]
 
-      val parser = new NginxConfigParser(nginxConfig)
-      val yamlParser = new YamlConfigParser(nginxConfig)
-      val connector = mock[NginxConfigConnector]
+      val parser         = new NginxConfigParser(nginxConfig)
+      val yamlParser     = spy(new YamlConfigParser(nginxConfig))
+      val nginxConnector = mock[NginxConfigConnector]
+      val cacConnector   = mock[ConfigAsCodeConnector]
 
-      val service = new NginxService(repo, parser, yamlParser, connector, nginxConfig)
+      val service = new NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
 
-      when(connector.getNginxRoutesFile("some-file", Environment.Production))
+      when(nginxConnector.getNginxRoutesFile("some-file", Environment.Production))
         .thenReturn(Future.successful(
           NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
         ))
 
-      when(connector.getYamlRoutesFile())
+      when(cacConnector.streamFrontendRoutes())
         .thenReturn(Future.successful(
-          YamlRoutesFile(
-            "https://test.com/config/routes.yaml",
-            "https://test.com/blob/config/routes.yaml",
-            testYamlConfig,
-            "HEAD"
-          )
+          new ZipInputStream(this.getClass.getResource("/mdtp-frontend-routes.zip").openStream())
         ))
 
       when(repo.replaceEnv(any, any))
@@ -167,8 +159,9 @@ class NginxServiceSpec
       service.update(List(Environment.Production)).futureValue
 
       verify(repo, times(1)).replaceEnv(any, any)
-      verify(connector, times(1)).getNginxRoutesFile(any, any)
-      verify(connector, times(1)).getYamlRoutesFile()
+      verify(nginxConnector, times(1)).getNginxRoutesFile(any, any)
+      verify(cacConnector, times(1)).streamFrontendRoutes()
+      verify(yamlParser, times(3)).parseConfig(any) // there's 3 yaml files in mdtp-frontend-routes.zip
     }
   }
 
