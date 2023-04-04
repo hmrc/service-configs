@@ -22,7 +22,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, YamlRoutesFile}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
 import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,7 +35,7 @@ class NginxConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   def getNginxRoutesFile(fileName: String, environment: Environment): Future[NginxConfigFile] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/${environment.asString}/$fileName"
@@ -53,21 +53,4 @@ class NginxConfigConnector @Inject()(
       }
   }
 
-  def getYamlRoutesFile(): Future[YamlRoutesFile] = {
-    val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/config/routes.yaml"
-    val blobUrl = s"https://github.com/hmrc/${nginxConfig.configRepo}/blob/${nginxConfig.configRepoBranch}/config/routes.yaml"
-
-    httpClientV2
-      .get(url)
-      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
-      .withProxy
-      .execute[HttpResponse]
-      .map {
-        case response if response.status != 200 =>
-          sys.error(s"Failed to download yaml config from $url, server returned ${response.status}")
-        case response =>
-          logger.info(s"Retrieved Yaml routes file at $url")
-          YamlRoutesFile(url.toString, blobUrl, response.body, branch = nginxConfig.configRepoBranch)
-      }
-  }
 }

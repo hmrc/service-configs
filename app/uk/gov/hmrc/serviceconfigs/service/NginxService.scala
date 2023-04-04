@@ -22,33 +22,35 @@ import cats.syntax.all._
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.connector.NginxConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
+import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, YamlRoutesFile}
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
+import java.util.zip.ZipInputStream
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
 import scala.util.Try
-
-case class SearchRequest(path: String)
-case class SearchResults(env: String, path: String, url: String)
+import scala.util.matching.Regex
 
 @Singleton
 class NginxService @Inject()(
   frontendRouteRepo: FrontendRouteRepository,
-  parser           : FrontendRouteParser,
-  yamlParser       : YamlConfigParser,
-  nginxConnector   : NginxConfigConnector,
-  nginxConfig      : NginxConfig
+  parser                : FrontendRouteParser,
+  yamlParser            : YamlConfigParser,
+  nginxConnector        : NginxConfigConnector,
+  configAsCodeConnector : ConfigAsCodeConnector,
+  nginxConfig           : NginxConfig,
+  githubConfig          : GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
   def update(environments: List[Environment]): Future[Unit] =
     for {
       _          <- Future.successful(logger.info(s"Update started..."))
-      yamlConfig <- nginxConnector.getYamlRoutesFile().map(yamlParser.parseConfig)
+      yamlConfig <- configAsCodeConnector.streamFrontendRoutes().map(getYamlRoutesFromZip)
       _          <- environments.traverse { environment =>
                       val yamlRoutes = yamlConfig.filter(_.environment == environment)
                       updateNginxRoutesForEnv(environment, yamlRoutes)
@@ -56,6 +58,26 @@ class NginxService @Inject()(
                     }
       _          =  logger.info(s"Update complete...")
     } yield ()
+
+  private def getYamlRoutesFromZip(zip: ZipInputStream): Set[MongoFrontendRoute] = {
+    val yamlRegex: Regex = """config/(.*).yaml""".r
+
+    Iterator
+      .continually(zip.getNextEntry)
+      .takeWhile(_ != null)
+      .foldLeft(Set.empty[MongoFrontendRoute]){ (acc, entry) =>
+        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+        path match {
+          case yamlRegex(_) =>
+            val branch  = "main"
+            val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
+            val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
+            val content = Source.fromInputStream(zip).mkString
+            acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch))
+          case _ => acc
+        }
+      }
+  }
 
   private def updateNginxRoutesForEnv(environment: Environment, yamlRoutes: Set[MongoFrontendRoute]): Future[List[MongoFrontendRoute]] =
     for {

@@ -41,7 +41,7 @@ class ConfigAsCodeConnector @Inject()(
   mat: Materializer
 ) extends Logging {
 
-  implicit private val hc = HeaderCarrier()
+  implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def streamBuildJobs(): Future[ZipInputStream] =
     stream(url"${githubConfig.githubApiUrl}/repos/hmrc/build-jobs/zipball/HEAD")
@@ -54,6 +54,9 @@ class ConfigAsCodeConnector @Inject()(
 
   def streamAlertConfig(): Future[ZipInputStream] =
     stream(url"${githubConfig.githubApiUrl}/repos/hmrc/alert-config/zipball/HEAD")
+
+  def streamFrontendRoutes(): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/mdtp-frontend-routes/zipball/HEAD")
 
   private def stream(url: java.net.URL): Future[ZipInputStream] =
     httpClientV2

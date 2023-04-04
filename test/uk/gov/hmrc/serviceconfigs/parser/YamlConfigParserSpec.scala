@@ -20,6 +20,7 @@ import org.mockito.scalatest.MockitoSugar
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import play.api.libs.json.JsResultException
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.YamlRoutesFile
 
@@ -131,6 +132,18 @@ class YamlConfigParserSpec
       result.size shouldBe 2
 
       result.map(_.frontendPath) should contain theSameElementsAs Seq("/my-service", "/hello-world")
+    }
+
+    "throw an exception given bad yaml" in {
+      val content =
+        """
+          |foo
+          |bar
+          |fizz
+          |bang
+          |""".stripMargin
+
+      a[JsResultException] should be thrownBy parser.parseConfig(fileWithContent(content))
     }
   }
 
