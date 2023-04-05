@@ -43,7 +43,7 @@ class ConfigConnectorSpec
   private val githubConfig = new GithubConfig(Configuration(
     "github.open.api.apiurl" -> s"$wireMockUrl/api",
     "github.open.api.rawurl" -> s"$wireMockUrl/raw",
-    "github.open.api.key"    -> token
+    "github.open.api.token"  -> token
   ))
 
   private val connector = new ConfigConnector(httpClientV2, githubConfig)
