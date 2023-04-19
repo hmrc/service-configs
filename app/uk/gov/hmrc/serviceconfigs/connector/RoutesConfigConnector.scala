@@ -18,7 +18,8 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsValue, Reads, __}
+import play.api.libs.functional.syntax._
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
@@ -29,27 +30,20 @@ import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object RoutesConfigConnector {
-  import play.api.libs.functional.syntax._
-  import play.api.libs.json._
-
-  def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] =
-    ( (__ \ "microservice").read[String]
-    ~ Reads.pure(route)
-    ~ (__ \ "allow").read[Map[String, List[String]]]
-    ~ Reads.pure(s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}")
-    )(AdminFrontendRoute.apply _)
-}
-
 @Singleton
 class RoutesConfigConnector @Inject()(
   httpClientV2: HttpClientV2
 , githubConfig: GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
-  import RoutesConfigConnector._
-
   private implicit val hc = HeaderCarrier()
+
+  private def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] =
+    ( (__ \ "microservice").read[String]
+    ~ Reads.pure(route)
+    ~ (__ \ "allow").read[Map[String, List[String]]]
+    ~ Reads.pure(s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}")
+    )(AdminFrontendRoute.apply _)
 
   def allAdminFrontendRoutes(): Future[Seq[AdminFrontendRoute]] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/admin-frontend-proxy/HEAD/config/routes.yaml"
