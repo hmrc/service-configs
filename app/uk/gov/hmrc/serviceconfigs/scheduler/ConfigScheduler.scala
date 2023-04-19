@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
@@ -42,10 +42,10 @@ class ConfigScheduler @Inject()(
   ec                  : ExecutionContext
 ) extends SchedulerUtils with Logging {
 
-  scheduleWithLock(
+  scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = LockService(mongoLockRepository, "config-scheduler", 10.minutes)
+    lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", schedulerConfigs.configScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating config")
     for {

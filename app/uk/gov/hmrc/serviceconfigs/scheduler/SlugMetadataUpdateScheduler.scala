@@ -21,7 +21,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, LockService}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
@@ -39,13 +39,12 @@ class SlugMetadataUpdateScheduler @Inject()(
   ec                  : ExecutionContext
 ) extends SchedulerUtils
   with Logging {
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
-
-  scheduleWithLock(
+  scheduleWithTimePeriodLock(
     label           = "SlugMetadataUpdateScheduler",
     schedulerConfig = schedulerConfigs.slugMetadataScheduler,
-    lock            = LockService(mongoLockRepository, "slug-metadata-scheduler", 1.hour)
+    lock            = TimePeriodLockService(mongoLockRepository, "slug-metadata-scheduler", schedulerConfigs.slugMetadataScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating slug metadata")
     for {
