@@ -23,22 +23,21 @@ import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AlertEnvironmentHandlerRepository @Inject()(
+class AppConfigCommonRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[AlertEnvironmentHandler](
+) extends PlayMongoRepository[(String, String)](
   mongoComponent = mongoComponent,
-  collectionName = "alertEnvironmentHandlers",
-  domainFormat   = AlertEnvironmentHandler.format,
+  collectionName = "appConfigCommon",
+  domainFormat   = AppConfigCommonRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
+                     IndexModel(hashed("fileName"), IndexOptions().name("fileNameIdx"))
                    )
 ) with Transactions {
 
@@ -47,23 +46,27 @@ class AlertEnvironmentHandlerRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(alertEnvironmentHandlers: Seq[AlertEnvironmentHandler]): Future[Unit] =
+  def putAll(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, alertEnvironmentHandlers).toFuture()
+        _ <- collection.insertMany(session, config.toSeq).toFuture()
       } yield ()
     }
 
-  def findByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+  def findByFileName(fileName: String): Future[Option[String]] =
     collection
-      .find(equal("serviceName", serviceName))
+      .find(equal("fileName", fileName))
       .headOption()
+      .map(_.map(_._2))
+}
 
+object AppConfigCommonRepository {
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.{Format, __}
 
-  def findAll(): Future[Seq[AlertEnvironmentHandler]] =
-    collection
-      .find()
-      .toFuture()
-      .map(_.toList)
+  val mongoFormats: Format[(String, String)] =
+     ( (__ \ "fileName").format[String]
+     ~ (__ \ "content" ).format[String]
+     ).tupled
 }

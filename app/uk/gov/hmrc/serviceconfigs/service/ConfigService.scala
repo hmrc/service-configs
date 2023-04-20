@@ -25,6 +25,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.service.AppConfigCommonService
 
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,7 +36,8 @@ import scala.util.Try
 class ConfigService @Inject()(
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
-  dependencyConfigRepository: DependencyConfigRepository
+  dependencyConfigRepository: DependencyConfigRepository,
+  appConfigCommonService    : AppConfigCommonService
 )(implicit ec: ExecutionContext) {
 
   import ConfigService._
@@ -201,7 +203,7 @@ class ConfigService @Inject()(
 
       baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-      optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
+      optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigCommonService.serviceCommonConfigYaml(environment.slugInfoFlag, st))
                                        .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
       (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)

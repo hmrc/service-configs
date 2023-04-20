@@ -21,9 +21,9 @@ import akka.util.ByteString
 import akka.stream.Materializer
 import akka.stream.scaladsl.StreamConverters
 import play.api.Logging
-
+import play.api.libs.json.{Reads, __}
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 
@@ -40,6 +40,7 @@ class ConfigAsCodeConnector @Inject()(
   ec : ExecutionContext,
   mat: Materializer
 ) extends Logging {
+  import HttpReads.Implicits._
 
   implicit private val hc: HeaderCarrier = HeaderCarrier()
 
@@ -58,6 +59,18 @@ class ConfigAsCodeConnector @Inject()(
   def streamFrontendRoutes(): Future[ZipInputStream] =
     stream(url"${githubConfig.githubApiUrl}/repos/hmrc/mdtp-frontend-routes/zipball/HEAD")
 
+  def streamGithub(repo: String): Future[ZipInputStream] =
+    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/zipball/HEAD")
+
+  def getLatestCommitId(repo: String): Future[CommitId] = {
+    implicit val cir = CommitId.reads
+    httpClientV2
+      .get(url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/commits/HEAD")
+      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .withProxy
+      .execute[CommitId]
+  }
+
   private def stream(url: java.net.URL): Future[ZipInputStream] =
     httpClientV2
       .get(url)
@@ -73,4 +86,11 @@ class ConfigAsCodeConnector @Inject()(
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
       }
+}
+
+case class CommitId(value: String)
+
+object CommitId {
+  val reads: Reads[CommitId] =
+    Reads.at[String]((__ \ "sha")).map(CommitId.apply)
 }

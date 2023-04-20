@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
+import akka.actor.ActorSystem
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
@@ -24,11 +25,10 @@ import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.{Environment, SlugInfoFlag}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class ConfigConnectorSpec
+class ConfigAsCodeConnectorSpec
   extends AnyWordSpec
      with Matchers
      with ScalaFutures
@@ -36,9 +36,9 @@ class ConfigConnectorSpec
      with WireMockSupport
      with HttpClientV2Support {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
-
   private val token = "TOKEN"
+
+  private implicit val system = ActorSystem()
 
   private val githubConfig = new GithubConfig(Configuration(
     "github.open.api.apiurl" -> s"$wireMockUrl/api",
@@ -46,37 +46,45 @@ class ConfigConnectorSpec
     "github.open.api.token"  -> token
   ))
 
-  private val connector = new ConfigConnector(httpClientV2, githubConfig)
+  private val connector = new ConfigAsCodeConnector(githubConfig, httpClientV2)
 
-  "ConfigConnector.serviceCommonConfigYaml" should {
-    "return config" in {
+  "ConfigAsCode.streamGithub" should {
+    "return stream" in {
       stubFor(
-        get(urlEqualTo(s"/raw/hmrc/app-config-common/HEAD/production-frontend-common.yaml"))
-          .willReturn(aResponse().withBody("config body"))
+        get(urlEqualTo(s"/api/repos/hmrc/app-config-common/zipball/HEAD"))
+          .willReturn(aResponse().withBodyFile("test.zip"))
       )
 
-      connector.serviceCommonConfigYaml(SlugInfoFlag.ForEnvironment(Environment.Production), serviceType = "frontend").futureValue shouldBe Some(
-        "config body"
-      )
+      val is = connector.streamGithub("app-config-common").futureValue
+      // convert to Map(name -> content)
+      Iterator
+        .continually(is.getNextEntry)
+        .takeWhile(_ != null)
+        .foldLeft(Map.empty[String, String]){ (acc, entry) =>
+          val name    = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          val content = scala.io.Source.fromInputStream(is).mkString
+          acc + (name -> content)
+        } shouldBe Map("test.txt" -> "TEST\n")
+
 
       wireMockServer.verify(
-        getRequestedFor(urlPathEqualTo("/raw/hmrc/app-config-common/HEAD/production-frontend-common.yaml"))
+        getRequestedFor(urlPathEqualTo("/api/repos/hmrc/app-config-common/zipball/HEAD"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
     }
+  }
 
-    "handle api-microservice" in {
+  "ConfigAsCode.getLatestCommitId" should {
+    "return commitId" in {
       stubFor(
-        get(urlEqualTo(s"/raw/hmrc/app-config-common/HEAD/production-microservice-common.yaml"))
-          .willReturn(aResponse().withBody("config body"))
+        get(urlEqualTo(s"/api/repos/hmrc/app-config-common/commits/HEAD"))
+          .willReturn(aResponse().withBody("""{"sha":"27a469be69c988822b2bda722833b24301afb691"}"""))
       )
 
-      connector.serviceCommonConfigYaml(SlugInfoFlag.ForEnvironment(Environment.Production), serviceType = "api-microservice").futureValue shouldBe Some(
-        "config body"
-      )
+      connector.getLatestCommitId("app-config-common").futureValue shouldBe CommitId("27a469be69c988822b2bda722833b24301afb691")
 
       wireMockServer.verify(
-        getRequestedFor(urlPathEqualTo("/raw/hmrc/app-config-common/HEAD/production-microservice-common.yaml"))
+        getRequestedFor(urlPathEqualTo("/api/repos/hmrc/app-config-common/commits/HEAD"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
     }

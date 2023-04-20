@@ -41,14 +41,6 @@ class ConfigConnector @Inject()(
   def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf")
 
-  def serviceCommonConfigYaml(env: SlugInfoFlag, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val st = serviceType match {
-      case "api-microservice" => "microservice"
-      case other              => other
-    }
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/${env.asString}-$st-common.yaml")
-  }
-
   def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/HEAD/conf/application.conf")
 
