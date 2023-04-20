@@ -19,9 +19,11 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
-case class LastHash(hash: String)
+case class LastHash(key: String, hash: String)
 
 object LastHash {
   val formats: Format[LastHash] =
-    Format.at[String](__ \ "hash").inmap(LastHash.apply, unlift(LastHash.unapply))
+    ( (__ \ "key" ).format[String]
+    ~ (__ \ "hash").format[String]
+    )(LastHash.apply, unlift(LastHash.unapply))
 }

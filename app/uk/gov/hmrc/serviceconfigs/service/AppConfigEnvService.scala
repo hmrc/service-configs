@@ -38,22 +38,22 @@ class AppConfigEnvService @Inject()(
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
-  private val hashKey = "app-config-env"
 
   def update(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateEnvironment(env))
 
   private def updateEnvironment(env: Environment): Future[Unit] =
     (for {
-      _             <- EitherT.pure[Future, Unit](logger.info(s"Starting $env"))
-      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(s"app-config-${env.asString}").map(_.value))
-      previousHash  <- EitherT.right[Unit](lastHashRepository.findOne(hashKey).map(_.map(_.hash)))
-      oHash         =  Option.when(currentHash != previousHash)(currentHash)
-      hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
-      is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub(s"app-config-${env.asString}"))
-      config        =  try { extractConfig(is) } finally { is.close() }
-      _             <- EitherT.right[Unit](appConfigEnvRepository.putAll(env, config))
-      _             <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
+      _            <- EitherT.pure[Future, Unit](logger.info(s"Starting $env"))
+      hashKey      =  s"app-config-${env.asString}"
+      currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(s"app-config-${env.asString}").map(_.value))
+      previousHash <- EitherT.right[Unit](lastHashRepository.getHash(hashKey))
+      oHash        =  Option.when(Some(currentHash) != previousHash)(currentHash)
+      hash         <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
+      is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(s"app-config-${env.asString}"))
+      config       =  try { extractConfig(is) } finally { is.close() }
+      _            <- EitherT.right[Unit](appConfigEnvRepository.putAll(env, config))
+      _            <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
      } yield ()
     ).merge
 

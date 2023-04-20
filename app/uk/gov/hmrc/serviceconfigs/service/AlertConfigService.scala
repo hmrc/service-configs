@@ -46,7 +46,7 @@ class AlertConfigService @Inject()(
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))
-      previousHash  <- EitherT.right[Unit](lastHashRepository.findOne(hashKey).map(_.map(_.hash).getOrElse("")))
+      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey).map(_.getOrElse("")))
       oHash         =  Option.when(currentHash != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())

@@ -43,8 +43,8 @@ class AppConfigCommonService @Inject()(
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId("app-config-common").map(_.value))
-      previousHash  <- EitherT.right[Unit](lastHashRepository.findOne(hashKey).map(_.map(_.hash)))
-      oHash         =  Option.when(currentHash != previousHash)(currentHash)
+      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey))
+      oHash         =  Option.when(Some(currentHash) != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub("app-config-common"))
       config        =  try { extractConfig(is) } finally { is.close() }

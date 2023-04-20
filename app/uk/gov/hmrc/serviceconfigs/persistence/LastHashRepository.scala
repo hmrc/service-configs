@@ -17,20 +17,18 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.ReplaceOptions
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{equal, exists}
+import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
+import uk.gov.hmrc.serviceconfigs.model.LastHash
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 
-// TODO script to migrate this (or just wipe)
+// TODO drop collection before deploying
 @Singleton
 class LastHashRepository @Inject()(
   mongoComponent: MongoComponent
@@ -40,23 +38,24 @@ class LastHashRepository @Inject()(
   collectionName = "lastHashString",
   domainFormat   = LastHash.formats,
   indexes        = Seq(
-                     IndexModel(ascending("key", "hash"), IndexOptions().unique(true).name("hashUniqIdx2"))// TODO delete old index - or drop collection
+                     IndexModel(ascending("key"), IndexOptions().unique(true))
                    )
 ) {
 
   def update(key: String, hash: String): Future[Unit] =
     collection
       .replaceOne(
-        filter      = exists("hash"),
-        replacement = LastHash(hash),
+        filter      = equal("key", key),
+        replacement = LastHash(key, hash),
         options     = new ReplaceOptions().upsert(true)
       )
       .toFuture()
       .map(_ => ())
 
-    def findOne(key: String): Future[Option[LastHash]] =
+    def getHash(key: String): Future[Option[String]] =
       collection
-        .find()
+        .find(equal("key", key))
         .toFuture()
         .map(_.headOption)
+        .map(_.map(_.hash))
   }

@@ -41,7 +41,7 @@ class AlertConfigServiceSpec
   "AlertConfigService.updateConfigs" should {
     "update configs when run for the first time" in new Setup {
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test1")))
-      when(mockLastHashRepository.findOne("alert-config")        ).thenReturn(Future.successful(None))
+      when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(None))
       when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
@@ -50,14 +50,14 @@ class AlertConfigServiceSpec
       alertConfigService.updateConfigs().futureValue
 
       verify(mockArtifactoryConnector             , times(1)).getLatestHash()
-      verify(mockLastHashRepository               , times(1)).findOne("alert-config")
+      verify(mockLastHashRepository               , times(1)).getHash("alert-config")
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockLastHashRepository               , times(1)).update("alert-config", "Test1")
     }
 
     "update configs when Artifactory returns a new Hash" in new Setup {
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test2")))
-      when(mockLastHashRepository.findOne("alert-config")        ).thenReturn(Future.successful(Some(LastHash("Test1"))))
+      when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(Some("Test1")))
       when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
@@ -71,7 +71,7 @@ class AlertConfigServiceSpec
 
     "return successful when Artifactory has no updated Hash" in new Setup {
       when(mockArtifactoryConnector.getLatestHash()      ).thenReturn(Future.successful(Some("Test3")))
-      when(mockLastHashRepository.findOne("alert-config")).thenReturn(Future.successful(Some(LastHash("Test3"))))
+      when(mockLastHashRepository.getHash("alert-config")).thenReturn(Future.successful(Some("Test3")))
 
       alertConfigService.updateConfigs().futureValue
     }
