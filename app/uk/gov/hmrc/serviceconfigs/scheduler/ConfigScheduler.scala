@@ -21,7 +21,7 @@ import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, AppConfigCommonService}
+import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, AppConfigCommonService, AppConfigEnvService}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import javax.inject.{Inject, Singleton}
@@ -37,6 +37,7 @@ class ConfigScheduler @Inject()(
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
   alertConfigService                : AlertConfigService,
   appConfigCommonService            : AppConfigCommonService,
+  appConfigEnvService               : AppConfigEnvService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -53,6 +54,7 @@ class ConfigScheduler @Inject()(
       _ <- run("snapshot Deployments"  , deploymentConfigSnapshotRepository.populate(Instant.now()))
       _ <- run("update Alert Handlers" , alertConfigService.updateConfigs())
       _ <- run("AppConfigCommonUpdater", appConfigCommonService.update())
+      _ <- run("AppConfigEnvUpdater"   , appConfigEnvService.update())
     } yield logger.info("Finished updating config")
   }
 

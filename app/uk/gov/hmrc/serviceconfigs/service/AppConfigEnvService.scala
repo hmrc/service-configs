@@ -17,10 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import cats.data.EitherT
+import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
 import uk.gov.hmrc.serviceconfigs.model.Environment
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigCommonRepository, LastHashRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigEnvRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
@@ -28,31 +29,33 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 
 @Singleton
-class AppConfigCommonService @Inject()(
-  appConfigCommonRepository: AppConfigCommonRepository,
-  lastHashRepository       : LastHashRepository,
-  artifactoryConnector     : ArtifactoryConnector,
-  configAsCodeConnector    : ConfigAsCodeConnector
+class AppConfigEnvService @Inject()(
+  appConfigEnvRepository: AppConfigEnvRepository,
+  lastHashRepository    : LastHashRepository,
+  artifactoryConnector  : ArtifactoryConnector,
+  configAsCodeConnector : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
-  private val hashKey = "app-config-common"
+  private val hashKey = "app-config-env"
 
   def update(): Future[Unit] =
+    Environment.values.foldLeftM(())((_, env) => updateEnvironment(env))
+
+  private def updateEnvironment(env: Environment): Future[Unit] =
     (for {
-      _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
-      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId("app-config-common").map(_.value))
+      _             <- EitherT.pure[Future, Unit](logger.info(s"Starting $env"))
+      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(s"app-config-${env.asString}").map(_.value))
       previousHash  <- EitherT.right[Unit](lastHashRepository.findOne(hashKey).map(_.map(_.hash)))
       oHash         =  Option.when(currentHash != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
-      is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub("app-config-common"))
+      is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub(s"app-config-${env.asString}"))
       config        =  try { extractConfig(is) } finally { is.close() }
-      _             <- EitherT.right[Unit](appConfigCommonRepository.putAll(config))
+      _             <- EitherT.right[Unit](appConfigEnvRepository.putAll(env, config))
       _             <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
      } yield ()
     ).merge
-
 
   private def extractConfig(zip: ZipInputStream): Map[String, String] =
     Iterator
@@ -66,12 +69,6 @@ class AppConfigCommonService @Inject()(
         } else acc
       }
 
-  def serviceCommonConfigYaml(environment: Environment, serviceType: String): Future[Option[String]] = {
-    // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
-    val st = serviceType match {
-      case "api-microservice" => "microservice"
-      case other              => other
-    }
-    appConfigCommonRepository.findByFileName(s"${environment.asString}-$st-common.yaml")
-  }
+  def serviceConfigYaml(env: Environment, service: String): Future[Option[String]] =
+    appConfigEnvRepository.find(env, s"$service.yaml")
 }
