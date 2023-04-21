@@ -28,17 +28,19 @@ import uk.gov.hmrc.http.StringContextOps
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BobbyConnector @Inject()(
+class BobbyRulesConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
-  bobbyConfig : BobbyConfig
+  config      : Configuration
 )( implicit ec: ExecutionContext
 ) extends Logging {
 
   private implicit val hc = HeaderCarrier()
 
+  private val bobbyRulesUrl: String = config.get[String]("bobby.url")
+
   def findAllRules(): Future[String] = {
-    val url = url"${bobbyConfig.url}"
+    val url = url"$bobbyRulesUrl"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
@@ -51,9 +53,4 @@ class BobbyConnector @Inject()(
       }
 
   }
-}
-
-@Singleton
-class BobbyConfig @Inject()(config: Configuration) {
-  val url: String = config.get[String]("bobby.url")
 }

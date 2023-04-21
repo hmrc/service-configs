@@ -20,15 +20,18 @@ import io.swagger.annotations.{Api, ApiOperation}
 import javax.inject.{Inject, Singleton}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.service.BobbyService
+import uk.gov.hmrc.serviceconfigs.service.BobbyRulesService
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Bobby Rules")
-class BobbyController @Inject()(bobbyService: BobbyService, mcc: MessagesControllerComponents)(
-  implicit ec: ExecutionContext)
-    extends BackendController(mcc) {
+class BobbyRulesController @Inject()(
+  bobbyRulesService: BobbyRulesService,
+  mcc              : MessagesControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(mcc) {
 
   @ApiOperation(
     value = "Retrieve the current set of bobby rules",
@@ -36,7 +39,7 @@ class BobbyController @Inject()(bobbyService: BobbyService, mcc: MessagesControl
   )
   def allRules(): Action[AnyContent] =
     Action.async {
-      bobbyService.findAllRules().map { e =>
+      bobbyRulesService.findAllRules().map { e =>
         Ok(e).as("application/json")
       }
     }

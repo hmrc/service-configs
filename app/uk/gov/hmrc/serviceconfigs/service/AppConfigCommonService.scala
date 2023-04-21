@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.data.EitherT
 import play.api.Logger
-import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
+import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigCommonRepository, LastHashRepository}
 
@@ -31,7 +31,6 @@ import scala.io.Source
 class AppConfigCommonService @Inject()(
   appConfigCommonRepository: AppConfigCommonRepository,
   lastHashRepository       : LastHashRepository,
-  artifactoryConnector     : ArtifactoryConnector,
   configAsCodeConnector    : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
