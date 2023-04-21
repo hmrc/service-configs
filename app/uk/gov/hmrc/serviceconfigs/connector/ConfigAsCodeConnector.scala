@@ -45,22 +45,19 @@ class ConfigAsCodeConnector @Inject()(
   implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def streamBuildJobs(): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/build-jobs/zipball/HEAD")
+    streamGithub("build-jobs")
 
   def streamGrafana(): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/grafana-dashboards/zipball/HEAD")
+    streamGithub("grafana-dashboards")
 
   def streamKibana(): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/kibana-dashboards/zipball/HEAD")
+    streamGithub("kibana-dashboards")
 
   def streamAlertConfig(): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/alert-config/zipball/HEAD")
+    streamGithub("alert-config")
 
   def streamFrontendRoutes(): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/mdtp-frontend-routes/zipball/HEAD")
-
-  def streamGithub(repo: String): Future[ZipInputStream] =
-    stream(url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/zipball/HEAD")
+    streamGithub("mdtp-frontend-routes")
 
   def getLatestCommitId(repo: String): Future[CommitId] = {
     implicit val cir = CommitId.reads
@@ -71,7 +68,8 @@ class ConfigAsCodeConnector @Inject()(
       .execute[CommitId]
   }
 
-  private def stream(url: java.net.URL): Future[ZipInputStream] =
+  def streamGithub(repo: String): Future[ZipInputStream] = {
+    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/zipball/HEAD"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
@@ -86,6 +84,7 @@ class ConfigAsCodeConnector @Inject()(
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
       }
+  }
 }
 
 case class CommitId(value: String)

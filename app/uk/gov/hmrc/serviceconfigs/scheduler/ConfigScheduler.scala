@@ -17,28 +17,24 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
-import play.api.{Configuration, Logging}
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, AppConfigCommonService, AppConfigEnvService, BobbyRulesService}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
+import uk.gov.hmrc.serviceconfigs.service.AlertConfigService
 
-import javax.inject.{Inject, Singleton}
 import java.time.Instant
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 @Singleton
 class ConfigScheduler @Inject()(
-  configuration                     : Configuration,
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
   alertConfigService                : AlertConfigService,
-  appConfigCommonService            : AppConfigCommonService,
-  appConfigEnvService               : AppConfigEnvService,
-  bobbyRulesService                 : BobbyRulesService
+  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -52,12 +48,9 @@ class ConfigScheduler @Inject()(
   ) {
     logger.info("Updating config")
     for {
-      _ <- run("snapshot Deployments"  , deploymentConfigSnapshotRepository.populate(Instant.now()))
-      _ <- run("update Alert Handlers" , alertConfigService.updateConfigs())
-      _ <- run("AppConfigCommonUpdater", appConfigCommonService.update())
-      _ <- run("AppConfigEnvUpdater"   , appConfigEnvService.update())
-      _ <- run("BobbyRulesUpdater"     , bobbyRulesService.update())
-    } yield logger.info("Finished updating config")
+      _ <- run("snapshot Deployments", deploymentConfigSnapshotRepository.populate(Instant.now()))
+      _ <- run("AlertConfigUpdater"  , alertConfigService.update())
+    } yield logger.info("Finished updating encase of missed webhook event")
   }
 
   private def run(name: String, f: Future[Unit]) = {

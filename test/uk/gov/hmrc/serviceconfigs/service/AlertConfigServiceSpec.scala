@@ -38,7 +38,7 @@ class AlertConfigServiceSpec
 
   import AlertConfigService._
 
-  "AlertConfigService.updateConfigs" should {
+  "AlertConfigService.update" should {
     "update configs when run for the first time" in new Setup {
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test1")))
       when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(None))
@@ -47,7 +47,7 @@ class AlertConfigServiceSpec
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test1")).thenReturn(Future.unit)
 
-      alertConfigService.updateConfigs().futureValue
+      alertConfigService.update().futureValue
 
       verify(mockArtifactoryConnector             , times(1)).getLatestHash()
       verify(mockLastHashRepository               , times(1)).getHash("alert-config")
@@ -63,7 +63,7 @@ class AlertConfigServiceSpec
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test2")).thenReturn(Future.unit)
 
-      alertConfigService.updateConfigs().futureValue
+      alertConfigService.update().futureValue
 
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockLastHashRepository               , times(1)).update("alert-config", "Test2")
@@ -73,7 +73,7 @@ class AlertConfigServiceSpec
       when(mockArtifactoryConnector.getLatestHash()      ).thenReturn(Future.successful(Some("Test3")))
       when(mockLastHashRepository.getHash("alert-config")).thenReturn(Future.successful(Some("Test3")))
 
-      alertConfigService.updateConfigs().futureValue
+      alertConfigService.update().futureValue
     }
   }
 

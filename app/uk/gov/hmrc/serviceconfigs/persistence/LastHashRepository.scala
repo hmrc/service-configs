@@ -52,10 +52,10 @@ class LastHashRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-    def getHash(key: String): Future[Option[String]] =
-      collection
-        .find(equal("key", key))
-        .toFuture()
-        .map(_.headOption)
-        .map(_.map(_.hash))
-  }
+  def getHash(key: String): Future[Option[String]] =
+    collection
+      .find(equal("key", key))
+      .toFuture()
+      .map(_.headOption)
+      .map(_.map(_.hash))
+}

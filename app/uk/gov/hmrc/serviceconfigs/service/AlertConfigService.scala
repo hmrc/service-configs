@@ -42,7 +42,7 @@ class AlertConfigService @Inject()(
   private val logger = Logger(this.getClass)
   private val hashKey = "alert-config"
 
-  def updateConfigs(): Future[Unit] =
+  def update(): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))

@@ -32,9 +32,6 @@ class BobbyRulesService @Inject()(
 ) {
   private val logger = Logger(this.getClass)
 
-  // println(s">>>>>>>>>>>>>>>>>>>>HERE")
-  // update().map { _ => println(s"<<<<<<<<<<<<<<<<<<HERE") }.recover { case t => println(s"FAILED: ${t.getMessage}"); throw t }
-
   def update(): Future[Unit] =
     for {
       _      <- Future.successful(logger.info("Starting"))

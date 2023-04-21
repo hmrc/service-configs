@@ -41,7 +41,7 @@ class AppConfigEnvService @Inject()(
   def update(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateEnvironment(env))
 
-  private def updateEnvironment(env: Environment): Future[Unit] =
+  def updateEnvironment(env: Environment): Future[Unit] =
     (for {
       _            <- EitherT.pure[Future, Unit](logger.info(s"Starting $env"))
       hashKey      =  s"app-config-${env.asString}"
