@@ -1,3 +1,9 @@
+# Migration to 0.157.0
+
+```javascript
+db.getCollection("lastHashString").drop()
+```
+
 # Migration to 0.100.0
 
 ```javascript

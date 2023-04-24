@@ -22,14 +22,15 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{JsError, Json, Reads}
 import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class IntegrationTestController @Inject()(
+  bobbyRulesRepository         : BobbyRulesRepository,
   routeRepo                    : FrontendRouteRepository,
   dependencyConfigRepo         : DependencyConfigRepository,
   slugInfoRepo                 : SlugInfoRepository,
@@ -39,30 +40,19 @@ class IntegrationTestController @Inject()(
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  import MongoFrontendRoute.formats
-
-  implicit val dependencyConfigReads: Reads[DependencyConfig] =
-    Json.using[Json.WithDefaultValues].reads[DependencyConfig]
-
-  implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
-
-  implicit val deploymentConfigReads: Reads[DeploymentConfig] =
-    DeploymentConfig.apiFormat
-
-  implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] =
-    DeploymentConfigSnapshot.apiFormat
-
   def validateJson[A: Reads]: BodyParser[A] =
     parse.json.validate(
       _.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e)))
     )
 
-  def addRoutes(): Action[List[MongoFrontendRoute]] =
+  def addRoutes(): Action[List[MongoFrontendRoute]] = {
+    implicit val mfr = MongoFrontendRoute.formats
     Action.async(validateJson[List[MongoFrontendRoute]]) { implicit request =>
       request.body
         .traverse(routeRepo.update)
         .map(_ => Ok("Ok"))
     }
+  }
 
   def clearRoutes(): Action[AnyContent] =
     Action.async {
@@ -70,19 +60,37 @@ class IntegrationTestController @Inject()(
         .map(_ => Ok("done"))
     }
 
-  def addSlugDependencyConfigs(): Action[List[DependencyConfig]] =
+  def addBobbyRules(): Action[BobbyRules] = {
+    implicit val brf = BobbyRules.apiFormat
+    Action.async(validateJson[BobbyRules]) { implicit request =>
+      bobbyRulesRepository.putAll(request.body)
+        .map(_ => Ok("Ok"))
+    }
+  }
+
+  def clearBobbyRules(): Action[AnyContent] =
+    Action.async {
+      routeRepo.clearAll()
+        .map(_ => Ok("done"))
+    }
+
+  def addSlugDependencyConfigs(): Action[List[DependencyConfig]] = {
+    implicit val dependencyConfigReads: Reads[DependencyConfig] =
+      Json.using[Json.WithDefaultValues].reads[DependencyConfig]
     Action.async(validateJson[List[DependencyConfig]]) { implicit request =>
       request.body
         .traverse(dependencyConfigRepo.add)
         .map(_ => Ok("Done"))
     }
+  }
 
   def deleteSlugDependencyConfigs(): Action[AnyContent] =
     Action.async {
       dependencyConfigRepo.clearAllData().map(_ => Ok("Done"))
     }
 
-  def addSlugs(): Action[List[SlugInfoWithFlags]] =
+  def addSlugs(): Action[List[SlugInfoWithFlags]] = {
+    implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
     Action.async(validateJson[List[SlugInfoWithFlags]]) { implicit request =>
       request.body.traverse { slugInfoWithFlag =>
         def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
@@ -102,30 +110,35 @@ class IntegrationTestController @Inject()(
         } yield ()
       }.map(_ => Ok("Done"))
     }
+  }
 
   def deleteSlugs(): Action[AnyContent] =
     Action.async {
       slugInfoRepo.clearAll().map(_ => Ok("Done"))
     }
 
-  def addDeploymentConfigs(): Action[List[DeploymentConfig]] =
+  def addDeploymentConfigs(): Action[List[DeploymentConfig]] = {
+    implicit val deploymentConfigReads: Reads[DeploymentConfig] = DeploymentConfig.apiFormat
     Action.async(validateJson[List[DeploymentConfig]]) { implicit request =>
       request.body
         .traverse(deploymentConfigRepo.add)
         .map(_ => Ok("Done"))
     }
+  }
 
   def deleteDeploymentConfigs(): Action[AnyContent] =
     Action.async {
       deploymentConfigRepo.deleteAll().map(_ => Ok("Done"))
     }
 
-  def addDeploymentConfigHistories(): Action[List[DeploymentConfigSnapshot]] =
+  def addDeploymentConfigHistories(): Action[List[DeploymentConfigSnapshot]] = {
+    implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
     Action.async(validateJson[List[DeploymentConfigSnapshot]]) { implicit request =>
       request.body
         .traverse(deploymentConfigSnapshotRepo.add)
         .map(_ => Ok("Done"))
     }
+  }
 
   def deleteDeploymentConfigHistories(): Action[AnyContent] =
     Action.async {

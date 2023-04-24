@@ -44,10 +44,10 @@ case class MongoShutterSwitch(
 )
 
 object MongoFrontendRoute {
-  implicit val shutterSwitchFormat: Format[MongoShutterSwitch] =
+  private implicit val shutterSwitchFormat: Format[MongoShutterSwitch] =
     Json.format[MongoShutterSwitch]
 
-  implicit val formats: OFormat[MongoFrontendRoute] = {
+  val formats: OFormat[MongoFrontendRoute] = {
     implicit val dateFormat = MongoJavatimeFormats.instantFormat
     implicit val emvFormat  = Environment.format
     Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]

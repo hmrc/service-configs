@@ -48,8 +48,8 @@ class ConfigScheduler @Inject()(
   ) {
     logger.info("Updating config")
     for {
-      _ <- run("snapshot Deployments", deploymentConfigSnapshotRepository.populate(Instant.now()))
-      _ <- run("AlertConfigUpdater"  , alertConfigService.update())
+      _ <- run("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
+      _ <- run("update Alert Handlers", alertConfigService.update())
     } yield logger.info("Finished updating encase of missed webhook event")
   }
 
