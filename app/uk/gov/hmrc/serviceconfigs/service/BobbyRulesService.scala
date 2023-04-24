@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.BobbyRulesConnector
+import uk.gov.hmrc.serviceconfigs.model.BobbyRules
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyRulesRepository
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,6 +40,6 @@ class BobbyRulesService @Inject()(
       _      <- bobbyRulesRepository.putAll(config)
     } yield ()
 
-  def findAllRules(): Future[String] =
+  def findAllRules(): Future[BobbyRules] =
     bobbyRulesRepository.findAll()
 }

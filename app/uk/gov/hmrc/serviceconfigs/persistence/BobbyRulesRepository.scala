@@ -20,27 +20,27 @@ import com.mongodb.client.model.ReplaceOptions
 import org.mongodb.scala.bson.BsonDocument
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.serviceconfigs.model.BobbyRules
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-// TODO introduce BobbyRule model
 @Singleton
 class BobbyRulesRepository @Inject()(
   mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[String](
+) extends PlayMongoRepository[BobbyRules](
   mongoComponent = mongoComponent,
   collectionName = "bobbyRules",
-  domainFormat   = BobbyRulesRepository.format,
+  domainFormat   = BobbyRules.mongoFormat,
   indexes        = Seq.empty
 ) {
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def putAll(config: String): Future[Unit] =
+  def putAll(config: BobbyRules): Future[Unit] =
     collection
       .replaceOne(
         filter      = BsonDocument(),
@@ -50,15 +50,8 @@ class BobbyRulesRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def findAll(): Future[String] =
+  def findAll(): Future[BobbyRules] =
     collection
       .find()
       .head()
-}
-
-object BobbyRulesRepository {
-  import play.api.libs.json.{Format, __}
-
-  val format: Format[String] =
-    Format.at(__ \ "bobbyRules")
 }

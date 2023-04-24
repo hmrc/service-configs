@@ -20,43 +20,60 @@ import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 
+import java.time.LocalDate
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class BobbyRulesRepositorySpec
   extends AnyWordSpec
      with Matchers
      with MockitoSugar
-     with DefaultPlayMongoRepositorySupport[String] {
+     with DefaultPlayMongoRepositorySupport[BobbyRules] {
 
   override protected val repository = new BobbyRulesRepository(mongoComponent)
 
   "BobbyRulesRepository" should {
     "putAll correctly" in {
       locally {
-        val config = """[
-          {
-            "organisation": "uk.gov.hmrc",
-            "name"        : "name1",
-            "range"       : "(,3.2.0)",
-            "reason"      : "reason1",
-            "from"        : "2015-11-16"
-          }
-        ]"""
+        val config = BobbyRules(
+          libraries = Seq(BobbyRule(
+            organisation = "uk.gov.hmrc",
+            name         = "name1",
+            range        = "(,3.1.0)",
+            reason       = "reason1",
+            from         = LocalDate.parse("2015-11-01")
+          )),
+          plugins   = Seq(BobbyRule(
+            organisation = "uk.gov.hmrc",
+            name         = "name2",
+            range        = "(,3.2.0)",
+            reason       = "reason2",
+            from         = LocalDate.parse("2015-11-02")
+          ))
+        )
         repository.putAll(config).futureValue
         repository.findAll().futureValue shouldBe config
       }
 
       locally {
-        val config = """[
-          {
-            "organisation": "uk.gov.hmrc",
-            "name"        : "name2",
-            "range"       : "(,3.2.0)",
-            "reason"      : "reason2",
-            "from"        : "2015-11-16"
-          }
-        ]"""
+        val config = BobbyRules(
+          libraries = Seq(BobbyRule(
+              organisation = "uk.gov.hmrc",
+              name         = "name3",
+              range        = "(,3.3.0)",
+              reason       = "reason3",
+              from         = LocalDate.parse("2015-11-03")
+            ),
+            BobbyRule(
+              organisation = "uk.gov.hmrc",
+              name         = "name4",
+              range        = "(,3.4.0)",
+              reason       = "reason4",
+              from         = LocalDate.parse("2015-11-04")
+            )),
+          plugins   = Seq.empty
+        )
         repository.putAll(config).futureValue
         repository.findAll().futureValue shouldBe config
       }
