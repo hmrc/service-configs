@@ -26,16 +26,9 @@ case class AlertEnvironmentHandler(
 )
 
 object AlertEnvironmentHandler {
-  implicit val mongoFormats: Format[AlertEnvironmentHandler] =
+  val format: Format[AlertEnvironmentHandler] =
     ( (__ \ "serviceName").format[String]
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
     )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
-}
-
-case class LastHash(hash: String)
-
-object LastHash {
-  val formats: Format[LastHash] =
-    Format.at[String](__ \ "hash").inmap(LastHash.apply, unlift(LastHash.unapply))
 }

@@ -11,7 +11,7 @@ GET     /frontend-services                              uk.gov.hmrc.serviceconfi
 GET     /admin-frontend-route/:serviceName              uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName)
 GET     /admin-frontend-services                        uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
 
-GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyController.allRules()
+GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyRulesController.allRules
 GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
 GET     /alert-configs/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: String)
 
@@ -28,4 +28,4 @@ GET     /build-jobs/:serviceName                        uk.gov.hmrc.serviceconfi
 
 GET     /service-relationships/:serviceName             uk.gov.hmrc.serviceconfigs.controller.ServiceRelationshipController.serviceRelationships(serviceName)
 
-POST    /webhook                                        uk.gov.hmrc.serviceconfigs.controller.WebhookController.processGithubWebhook()
+POST    /webhook                                        uk.gov.hmrc.serviceconfigs.controller.WebhookController.processGithubWebhook

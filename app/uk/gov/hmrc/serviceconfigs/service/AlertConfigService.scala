@@ -21,7 +21,7 @@ import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
-import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, AlertHashStringRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 import java.util.zip.ZipInputStream
@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AlertConfigService @Inject()(
   alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository,
-  alertHashStringRepository        : AlertHashStringRepository,
+  lastHashRepository               : LastHashRepository,
   artifactoryConnector             : ArtifactoryConnector,
   configAsCodeConnector            : ConfigAsCodeConnector
 )(implicit
@@ -40,12 +40,13 @@ class AlertConfigService @Inject()(
   import AlertConfigService._
 
   private val logger = Logger(this.getClass)
+  private val hashKey = "alert-config"
 
-  def updateConfigs(): Future[Unit] =
+  def update(): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))
-      previousHash  <- EitherT.right[Unit](alertHashStringRepository.findOne().map(_.map(_.hash).getOrElse("")))
+      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey).map(_.getOrElse("")))
       oHash         =  Option.when(currentHash != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())
@@ -59,7 +60,7 @@ class AlertConfigService @Inject()(
       _             =  codeZip.close()
       alertHandlers =  toAlertEnvironmentHandler(sensuConfig, locations)
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.putAll(alertHandlers))
-      _             <- EitherT.right[Unit](alertHashStringRepository.update(hash))
+      _             <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
      } yield ()
     ).merge
 

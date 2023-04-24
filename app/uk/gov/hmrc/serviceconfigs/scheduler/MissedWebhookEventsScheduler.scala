@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import akka.actor.ActorSystem
-import play.api.{Configuration, Logging}
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
@@ -30,14 +30,16 @@ import scala.concurrent.duration.DurationInt
 
 @Singleton
 class MissedWebhookEventsScheduler @Inject()(
-  configuration                     : Configuration,
-  schedulerConfigs                  : SchedulerConfigs,
-  mongoLockRepository               : MongoLockRepository,
-  deploymentConfigService           : DeploymentConfigService,
-  nginxService                      : NginxService,
-  routesConfigService               : RoutesConfigService,
-  buildJobService                   : BuildJobService,
-  dashboardService                  : DashboardService
+  schedulerConfigs        : SchedulerConfigs,
+  mongoLockRepository     : MongoLockRepository,
+  appConfigCommonService  : AppConfigCommonService,
+  appConfigEnvService     : AppConfigEnvService,
+  bobbyRulesService       : BobbyRulesService,
+  buildJobService         : BuildJobService,
+  dashboardService        : DashboardService,
+  deploymentConfigService : DeploymentConfigService,
+  nginxService            : NginxService,
+  routesConfigService     : RoutesConfigService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -49,15 +51,18 @@ class MissedWebhookEventsScheduler @Inject()(
     schedulerConfig = schedulerConfigs.missedWebhookEventsScheduler,
     lock            = TimePeriodLockService(mongoLockRepository, "missed-webhook-events", schedulerConfigs.missedWebhookEventsScheduler.interval.minus(1.minutes))
   ) {
-    logger.info("Updating encase of missed webhook event")
+    logger.info("Updating incase of missed webhook event")
     for {
-      _ <- run("update Deployments",            deploymentConfigService.updateAll())
-      _ <- run("update Build Jobs",             buildJobService.updateBuildJobs())
-      _ <- run("update Granfan Dashboards",     dashboardService.updateGrafanaDashboards())
-      _ <- run("update Kibana Dashdoards",      dashboardService.updateKibanaDashboards())
-      _ <- run("update Frontend Routes",        nginxService.update(Environment.values))
+      _ <- run("update Deployments"           , deploymentConfigService.updateAll())
+      _ <- run("update Build Jobs"            , buildJobService.updateBuildJobs())
+      _ <- run("update Granfan Dashboards"    , dashboardService.updateGrafanaDashboards())
+      _ <- run("update Kibana Dashdoards"     , dashboardService.updateKibanaDashboards())
+      _ <- run("update Frontend Routes"       , nginxService.update(Environment.values))
       _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
-    } yield logger.info("Finished updating encase of missed webhook event")
+      _ <- run("AppConfigCommonUpdater"       , appConfigCommonService.update())
+      _ <- run("AppConfigEnvUpdater"          , appConfigEnvService.update())
+      _ <- run("BobbyRulesUpdater"            , bobbyRulesService.update())
+    } yield logger.info("Finished updating incase of missed webhook event")
   }
 
   private def run(name: String, f: Future[Unit]) = {

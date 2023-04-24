@@ -19,41 +19,33 @@ package uk.gov.hmrc.serviceconfigs.connector
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.Configuration
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.BobbyRules
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BobbyConnector @Inject()(
+class BobbyRulesConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
-  bobbyConfig : BobbyConfig
+  config      : Configuration
 )( implicit ec: ExecutionContext
 ) extends Logging {
 
   private implicit val hc = HeaderCarrier()
 
-  def findAllRules(): Future[String] = {
-    val url = url"${bobbyConfig.url}"
+  private val bobbyRulesUrl: String = config.get[String]("bobby.url")
+
+  def findAllRules(): Future[BobbyRules] = {
+    implicit val brf = BobbyRules.apiFormat
     httpClientV2
-      .get(url)
+      .get(url"$bobbyRulesUrl")
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
-      .execute[HttpResponse]
-      .map {
-        case response if response.status != 200 =>
-          sys.error(s"Failed to download Bobby rules $url, server returned ${response.status}")
-        case response => response.body
-      }
-
+      .execute[BobbyRules]
   }
-}
-
-@Singleton
-class BobbyConfig @Inject()(config: Configuration) {
-  val url: String = config.get[String]("bobby.url")
 }

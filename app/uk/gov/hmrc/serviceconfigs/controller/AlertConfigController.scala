@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.json.{Json, Writes}
+import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
@@ -33,21 +33,21 @@ class AlertConfigController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(cc){
 
-  def getAlertConfigs(): Action[AnyContent] = {
-    implicit val writes: Writes[AlertEnvironmentHandler] = AlertEnvironmentHandler.mongoFormats
+  private implicit val aehf: Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
+
+  def getAlertConfigs(): Action[AnyContent] =
     Action.async {
       for {
         configs <- alertConfigService.findConfigs()
         result  =  Ok(Json.toJson(configs))
       } yield result
     }
-  }
 
   def getAlertConfigForService(serviceName: String): Action[AnyContent] =
     Action.async {
       for {
         config <- alertConfigService.findConfigByServiceName(serviceName)
-        result =  config.fold(NotFound(""))(c => Ok(Json.toJson(c)(AlertEnvironmentHandler.mongoFormats)))
+        result =  config.fold(NotFound(""))(c => Ok(Json.toJson(c)))
       } yield result
     }
 }

@@ -24,7 +24,6 @@ import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.SlugInfoFlag
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -35,19 +34,8 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def serviceConfigYaml(env: SlugInfoFlag, service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/HEAD/$service.yaml")
-
   def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf")
-
-  def serviceCommonConfigYaml(env: SlugInfoFlag, serviceType: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val st = serviceType match {
-      case "api-microservice" => "microservice"
-      case other              => other
-    }
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/HEAD/${env.asString}-$st-common.yaml")
-  }
 
   def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/HEAD/conf/application.conf")

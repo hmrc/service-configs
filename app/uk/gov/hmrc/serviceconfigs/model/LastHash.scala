@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.service
+package uk.gov.hmrc.serviceconfigs.model
 
-import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.serviceconfigs.connector.BobbyConnector
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{Format, __}
 
-import scala.concurrent.Future
+case class LastHash(key: String, hash: String)
 
-@Singleton
-class BobbyService @Inject()(
-  connector: BobbyConnector
-) {
-  def findAllRules(): Future[String] =
-    connector.findAllRules()
+object LastHash {
+  val formats: Format[LastHash] =
+    ( (__ \ "key" ).format[String]
+    ~ (__ \ "hash").format[String]
+    )(LastHash.apply, unlift(LastHash.unapply))
 }

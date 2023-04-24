@@ -31,7 +31,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
-import uk.gov.hmrc.serviceconfigs.persistence.SlugInfoRepository
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigEnvRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.model.MongoSlugInfoFormats
 
 import java.time.Instant
@@ -63,7 +63,9 @@ class ConfigServiceSpec
       .build()
 
   private val configService = app.injector.instanceOf[ConfigService]
-  private val slugInfoCollection = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
+
+  private val slugInfoCollection     = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
+  private val appConfigEnvCollection = mongoDatabase.getCollection(AppConfigEnvRepository.collectionName)
 
   implicit val slugInfoFormat = MongoSlugInfoFormats.slugInfoFormat
 
@@ -88,22 +90,16 @@ class ConfigServiceSpec
       )
 
       stubFor(get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf")).willReturn(aResponse.withStatus(404)))
-      stubFor(
-        get(urlEqualTo(s"/hmrc/app-config-development/HEAD/$service.yaml"))
-        .willReturn(aResponse.withBody("""
-          |hmrc_config.a: 3
-          |hmrc_config.b: 4
-          |hmrc_config.list.2: 3
-        """.stripMargin))
-      )
-      stubFor(
-        get(urlEqualTo(s"/hmrc/app-config-qa/HEAD/$service.yaml"))
-        .willReturn(aResponse.withBody("""
-          |hmrc_config.a.b: 6
-          |hmrc_config.d: 1
-          |hmrc_config.d.base64: Mg==
-        """.stripMargin))
-      )
+      withAppConfigEnv("development", service, """
+        |hmrc_config.a: 3
+        |hmrc_config.b: 4
+        |hmrc_config.list.2: 3
+        """.stripMargin)
+      withAppConfigEnv("qa", service, """
+        |hmrc_config.a.b: 6
+        |hmrc_config.d: 1
+        |hmrc_config.d.base64: Mg==
+        """.stripMargin)
       stubFor(get(urlEqualTo(s"/hmrc/app-config-staging/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
       stubFor(get(urlEqualTo(s"/hmrc/app-config-integration/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
       stubFor(get(urlEqualTo(s"/hmrc/app-config-externaltest/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
@@ -165,4 +161,13 @@ class ConfigServiceSpec
       """")
     }
   }
+
+  def withAppConfigEnv(env: String, service: String, content: String): Unit =
+    appConfigEnvCollection
+      .insertOne(Document(
+          "environment" -> env,
+           "fileName"   -> s"$service.yaml",
+           "content"    -> content
+      ))
+      .toFuture().futureValue
 }

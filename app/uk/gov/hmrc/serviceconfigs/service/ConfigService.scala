@@ -25,6 +25,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.service.AppConfigCommonService
 
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,7 +36,9 @@ import scala.util.Try
 class ConfigService @Inject()(
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
-  dependencyConfigRepository: DependencyConfigRepository
+  dependencyConfigRepository: DependencyConfigRepository,
+  appConfigCommonService    : AppConfigCommonService,
+  appConfigEnvService       : AppConfigEnvService
 )(implicit ec: ExecutionContext) {
 
   import ConfigService._
@@ -165,62 +168,64 @@ class ConfigService @Inject()(
   )(implicit
     hc: HeaderCarrier
   ): Future[Seq[ConfigSourceEntries]] =
-    if (environment.name == "local")
-      for {
-        optSlugInfo               <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+    environment.slugInfoFlag match {
+      case SlugInfoFlag.Latest =>
+        for {
+          optSlugInfo               <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
-        dependencyConfigs         <- lookupDependencyConfigs(optSlugInfo)
-        referenceConf             =  ConfigParser.reduceConfigs(dependencyConfigs)
+          dependencyConfigs         <- lookupDependencyConfigs(optSlugInfo)
+          referenceConf             =  ConfigParser.reduceConfigs(dependencyConfigs)
 
-        (applicationConf, bootstrapConf)
-                                  <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-      } yield toConfigSourceEntries(
-        ConfigSourceConfig("referenceConf"  , referenceConf  , Map.empty)               ::
-        bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList :::
-        ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
-        Nil
-      )
-    else
-    for {
-      optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+          (applicationConf, bootstrapConf)
+                                    <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
+        } yield toConfigSourceEntries(
+          ConfigSourceConfig("referenceConf"  , referenceConf  , Map.empty)               ::
+          bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList :::
+          ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
+          Nil
+        )
+      case  SlugInfoFlag.ForEnvironment(env) =>
+        for {
+          optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
-      loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
+          loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
-      dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
-      referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
+          dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
+          referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
 
-      (applicationConf, bootstrapConf)
-                                  <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
+          (applicationConf, bootstrapConf)
+                                      <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
-      optAppConfigEnvRaw          <- configConnector.serviceConfigYaml(environment.slugInfoFlag, serviceName)
-      appConfigEnvEntriesAll      =  ConfigParser
-                                       .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
-      serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-      (appConfigEnvironment, appConfigEnvironmentSuppressed)
-                                  =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+          optAppConfigEnvRaw          <- appConfigEnvService.serviceConfigYaml(env, serviceName)
+          appConfigEnvEntriesAll      =  ConfigParser
+                                          .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+          serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+          (appConfigEnvironment, appConfigEnvironmentSuppressed)
+                                      =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
-      baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
+          baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-      optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => configConnector.serviceCommonConfigYaml(environment.slugInfoFlag, st))
-                                       .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
+          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigCommonService.serviceCommonConfigYaml(env, st))
+                                          .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
-      (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
+          (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
+                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
 
-      (appConfigCommonFixed, appConfigCommonFixedSuppressed)
-                                  =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
-    } yield
-      ConfigSourceEntries("loggerConf"                 , loggerConfMap) +:
-      toConfigSourceEntries(
-        ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty)                             ::
-        bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList                                      :::
-        ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty)                             ::
-        ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty)                             ::
-        ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
-        ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
-        ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
-        Nil
-      )
+          (appConfigCommonFixed, appConfigCommonFixedSuppressed)
+                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
+        } yield
+          ConfigSourceEntries("loggerConf"                 , loggerConfMap) +:
+          toConfigSourceEntries(
+            ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty)                             ::
+            bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList                                      :::
+            ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty)                             ::
+            ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty)                             ::
+            ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
+            ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
+            ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
+            Nil
+          )
+    }
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
     environments.toList.foldLeftM[Future, ConfigByEnvironment](Map.empty) { (map, e) =>
