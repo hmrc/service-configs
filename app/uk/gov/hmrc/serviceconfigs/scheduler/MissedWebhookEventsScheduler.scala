@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
@@ -44,10 +44,10 @@ class MissedWebhookEventsScheduler @Inject()(
   ec                  : ExecutionContext
 ) extends SchedulerUtils with Logging {
 
-  scheduleWithLock(
+  scheduleWithTimePeriodLock(
     label           = "MissedWebhookEventsScheduler",
     schedulerConfig = schedulerConfigs.missedWebhookEventsScheduler,
-    lock            = LockService(mongoLockRepository, "missed-webhook-events", 20.minutes)
+    lock            = TimePeriodLockService(mongoLockRepository, "missed-webhook-events", schedulerConfigs.missedWebhookEventsScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating encase of missed webhook event")
     for {

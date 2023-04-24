@@ -29,16 +29,16 @@ import java.util.zip.ZipInputStream
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class AlertConfigSchedulerServiceSpec
+class AlertConfigServiceSpec
   extends AnyWordSpec
-    with Matchers
-    with ScalaFutures
-    with IntegrationPatience
-    with MockitoSugar {
+     with Matchers
+     with ScalaFutures
+     with IntegrationPatience
+     with MockitoSugar {
 
-    import AlertConfigSchedulerService._
+  import AlertConfigService._
 
-  "AlertConfigSchedulerService.updateConfigs" should {
+  "AlertConfigService.updateConfigs" should {
     "update configs when run for the first time" in new Setup {
       when(mockArtifactoryConnector.getLatestHash()         ).thenReturn(Future.successful(Some("Test1")))
       when(mockAlertHashRepository.findOne()                ).thenReturn(Future.successful(None))
@@ -47,7 +47,7 @@ class AlertConfigSchedulerServiceSpec
       when(mockAlertEnvironmentHandlerRepository.putAll(any)).thenReturn(Future.unit)
       when(mockAlertHashRepository.update(eqTo("Test1"))    ).thenReturn(Future.unit)
 
-      alertConfigSchedulerService.updateConfigs().futureValue
+      alertConfigService.updateConfigs().futureValue
 
       verify(mockArtifactoryConnector             , times(1)).getLatestHash()
       verify(mockAlertHashRepository              , times(1)).findOne()
@@ -63,7 +63,7 @@ class AlertConfigSchedulerServiceSpec
       when(mockAlertEnvironmentHandlerRepository.putAll(any)).thenReturn(Future.unit)
       when(mockAlertHashRepository.update(eqTo("Test2"))    ).thenReturn(Future.unit)
 
-      alertConfigSchedulerService.updateConfigs().futureValue
+      alertConfigService.updateConfigs().futureValue
 
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockAlertHashRepository              , times(1)).update(eqTo("Test2"))
@@ -73,11 +73,11 @@ class AlertConfigSchedulerServiceSpec
       when(mockArtifactoryConnector.getLatestHash()).thenReturn(Future.successful(Some("Test3")))
       when(mockAlertHashRepository.findOne()       ).thenReturn(Future.successful(Some(LastHash("Test3"))))
 
-      alertConfigSchedulerService.updateConfigs().futureValue
+      alertConfigService.updateConfigs().futureValue
     }
   }
 
-  "AlertConfigSchedulerService.processZip" should {
+  "AlertConfigService.processZip" should {
     "produce a SensuConfig that contains app name and handler name" in {
       val zip = new ZipInputStream(new FileInputStream("./test/resources/happy-output.zip"))
       val file = processZip(zip)
@@ -101,7 +101,7 @@ class AlertConfigSchedulerServiceSpec
     }
   }
 
-  "AlertConfigSchedulerService.toAlertEnvironmentHandler" should {
+  "AlertConfigService.toAlertEnvironmentHandler" should {
     val locations = Seq(TeamsAndRepositoriesConnector.Repo("test") -> "line1")
     "produce an AlertEnvironmentHandler for a service that has alert config enabled" in {
       val sensuConfig = SensuConfig(
@@ -153,7 +153,7 @@ class AlertConfigSchedulerServiceSpec
     lazy val mockArtifactoryConnector              = mock[ArtifactoryConnector]
     lazy val mockConfigAsCodeConnector             = mock[ConfigAsCodeConnector]
 
-    val alertConfigSchedulerService = new AlertConfigSchedulerService(
+    val alertConfigService = new AlertConfigService(
       mockAlertEnvironmentHandlerRepository,
       mockAlertHashRepository,
       mockArtifactoryConnector,

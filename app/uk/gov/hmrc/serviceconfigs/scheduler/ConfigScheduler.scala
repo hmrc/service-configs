@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
@@ -35,22 +35,22 @@ class ConfigScheduler @Inject()(
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
-  alertConfigSchedulerService       : AlertConfigSchedulerService,
+  alertConfigService                : AlertConfigService,
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
 ) extends SchedulerUtils with Logging {
 
-  scheduleWithLock(
+  scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = LockService(mongoLockRepository, "config-scheduler", 10.minutes)
+    lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", schedulerConfigs.configScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating config")
     for {
       _ <- run("snapshot Deployments",  deploymentConfigSnapshotRepository.populate(Instant.now()))
-      _ <- run("update Alert Handlers", alertConfigSchedulerService.updateConfigs())
+      _ <- run("update Alert Handlers", alertConfigService.updateConfigs())
     } yield logger.info("Finished updating config")
   }
 
