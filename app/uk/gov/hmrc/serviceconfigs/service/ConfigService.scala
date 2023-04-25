@@ -25,7 +25,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
-import uk.gov.hmrc.serviceconfigs.service.AppConfigCommonService
+import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
@@ -37,8 +37,7 @@ class ConfigService @Inject()(
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository,
-  appConfigCommonService    : AppConfigCommonService,
-  appConfigEnvService       : AppConfigEnvService
+  appConfigService          : AppConfigService
 )(implicit ec: ExecutionContext) {
 
   import ConfigService._
@@ -196,7 +195,7 @@ class ConfigService @Inject()(
           (applicationConf, bootstrapConf)
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
-          optAppConfigEnvRaw          <- appConfigEnvService.serviceConfigYaml(env, serviceName)
+          optAppConfigEnvRaw          <- appConfigService.serviceConfigYaml(env, serviceName)
           appConfigEnvEntriesAll      =  ConfigParser
                                           .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
           serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
@@ -205,7 +204,7 @@ class ConfigService @Inject()(
 
           baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigCommonService.serviceCommonConfigYaml(env, st))
+          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.serviceCommonConfigYaml(env, st))
                                           .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
           (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)

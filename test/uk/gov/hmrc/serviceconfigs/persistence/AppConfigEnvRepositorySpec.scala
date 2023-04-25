@@ -36,7 +36,7 @@ class AppConfigEnvRepositorySpec
     "putAll correctly" in {
       repository.putAll(Environment.QA, Map("file1" -> "content1", "file2" -> "content2")).futureValue
       repository.putAll(Environment.Production, Map("file1" -> "content3", "file2" -> "content4", "file3" -> "content5")).futureValue
-      //repository.
+
       repository.find(Environment.QA        , "file1").futureValue shouldBe Some("content1")
       repository.find(Environment.QA        , "file2").futureValue shouldBe Some("content2")
       repository.find(Environment.QA        , "file3").futureValue shouldBe None
