@@ -17,10 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import cats.data.EitherT
+import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.Environment
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigCommonRepository, LastHashRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigBaseRepository, AppConfigCommonRepository, AppConfigEnvRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
@@ -28,42 +29,58 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 
 @Singleton
-class AppConfigCommonService @Inject()(
+class AppConfigService @Inject()(
+  appConfigBaseRepository  : AppConfigBaseRepository,
   appConfigCommonRepository: AppConfigCommonRepository,
+  appConfigEnvRepository   : AppConfigEnvRepository,
   lastHashRepository       : LastHashRepository,
   configAsCodeConnector    : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
-  private val hashKey = "app-config-common"
 
-  def update(): Future[Unit] =
+  def updateAppConfigBase(): Future[Unit] =
+    update("app-config-base", _.endsWith(".conf"), appConfigBaseRepository.putAll)
+
+  def updateAppConfigCommon(): Future[Unit] =
+    update("app-config-common", _.endsWith(".yaml"), appConfigCommonRepository.putAll)
+
+  def updateAllAppConfigEnv(): Future[Unit] =
+    Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
+
+  def updateAppConfigEnv(env: Environment): Future[Unit] =
+    update(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigEnvRepository.putAll(env, _))
+
+  private def update(repoName: String, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
-      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId("app-config-common").map(_.value))
-      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey))
+      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.value))
+      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(repoName))
       oHash         =  Option.when(Some(currentHash) != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
-      is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub("app-config-common"))
-      config        =  try { extractConfig(is) } finally { is.close() }
-      _             <- EitherT.right[Unit](appConfigCommonRepository.putAll(config))
-      _             <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
+      is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
+      config        =  try { extractConfig(is, filter) } finally { is.close() }
+      _             <- EitherT.right[Unit](store(config))
+      _             <- EitherT.right[Unit](lastHashRepository.update(repoName, hash))
      } yield ()
     ).merge
 
-
-  private def extractConfig(zip: ZipInputStream): Map[String, String] =
+  private def extractConfig(zip: ZipInputStream, filter: String => Boolean): Map[String, String] =
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
       .foldLeft(Map.empty[String, String]){ (acc, entry) =>
         val name = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        if (name.endsWith(".yaml")) {
+        if (filter(name)) {
           val content = Source.fromInputStream(zip).mkString
           acc + (name -> content)
         } else acc
       }
+
+  def serviceConfigBaseConf(serviceName: String): Future[Option[String]] =
+    appConfigBaseRepository.findByFileName(s"$serviceName.conf")
+
 
   def serviceCommonConfigYaml(environment: Environment, serviceType: String): Future[Option[String]] = {
     // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
@@ -73,4 +90,7 @@ class AppConfigCommonService @Inject()(
     }
     appConfigCommonRepository.findByFileName(s"${environment.asString}-$st-common.yaml")
   }
+
+  def serviceConfigYaml(env: Environment, serviceName: String): Future[Option[String]] =
+    appConfigEnvRepository.find(env, s"$serviceName.yaml")
 }
