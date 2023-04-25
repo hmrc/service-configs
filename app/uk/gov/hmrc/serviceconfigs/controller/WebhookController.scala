@@ -33,6 +33,7 @@ class WebhookController @Inject()(
   config                  : Configuration,
   nginxConfig             : NginxConfig,
   alertConfigService      : AlertConfigService,
+  appConfigBaseService    : AppConfigBaseService,
   appConfigCommonService  : AppConfigCommonService,
   appConfigEnvService     : AppConfigEnvService,
   bobbyRulesService       : BobbyRulesService,
@@ -61,6 +62,7 @@ class WebhookController @Inject()(
     Action(parse.json[Push]){ implicit request =>
       (request.body match {
         case Push("alert-config"        , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
+        case Push("app-config-base"     , "main") => EitherT.right[Unit](appConfigBaseService.update())
         case Push("app-config-common"   , "main") => EitherT.right[Unit](appConfigCommonService.update())
         case Push(s"app-config-$x"      , "main") => EitherT.right[Unit](Environment.parse(x).traverse { env =>
                                                        for {

@@ -48,6 +48,17 @@ class WebhookControllerSpec
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
     }
 
+    "update app-config-base" in new Setup {
+      when(mockAppConfigBaseService.update()).thenReturn(Future.unit)
+
+      val response = postWebhook(repository = "app-config-base", branch = "main")
+
+      status(response) shouldBe 202
+      contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
+
+      verify(mockAppConfigBaseService, times(1)).update()
+    }
+
     "update app-config-env" in new Setup {
       when(mockDeploymentConfigService.update(Environment.Production)).thenReturn(Future.unit)
       when(mockAppConfigEnvService.updateEnvironment(Environment.Production)).thenReturn(Future.unit)
@@ -135,6 +146,7 @@ class WebhookControllerSpec
     val mockConfiguration           = mock[Configuration          ]
     val mockNginxConfig             = mock[NginxConfig            ]
     val mockAlertConfigService      = mock[AlertConfigService     ]
+    val mockAppConfigBaseService    = mock[AppConfigBaseService   ]
     val mockAppConfigCommonService  = mock[AppConfigCommonService ]
     val mockAppConfigEnvService     = mock[AppConfigEnvService    ]
     val mockBobbyRulesService       = mock[BobbyRulesService      ]
@@ -148,6 +160,7 @@ class WebhookControllerSpec
       config                  = mockConfiguration,
       nginxConfig             = mockNginxConfig,
       alertConfigService      = mockAlertConfigService,
+      appConfigBaseService    = mockAppConfigBaseService,
       appConfigCommonService  = mockAppConfigCommonService,
       appConfigEnvService     = mockAppConfigEnvService,
       bobbyRulesService       = mockBobbyRulesService,

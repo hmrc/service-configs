@@ -23,15 +23,15 @@ import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class AppConfigCommonRepositorySpec
+class AppConfigBaseRepositorySpec
   extends AnyWordSpec
      with Matchers
      with MockitoSugar
      with DefaultPlayMongoRepositorySupport[(String, String)] {
 
-  override protected val repository = new AppConfigCommonRepository(mongoComponent)
+  override protected val repository = new AppConfigBaseRepository(mongoComponent)
 
-  "AppConfigCommonRepository" should {
+  "AppConfigBaseRepository" should {
     "putAll correctly" in {
       repository.putAll(Map("file1" -> "content1", "file2" -> "content2")).futureValue
 

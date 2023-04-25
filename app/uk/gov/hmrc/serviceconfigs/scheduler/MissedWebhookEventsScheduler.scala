@@ -32,6 +32,7 @@ import scala.concurrent.duration.DurationInt
 class MissedWebhookEventsScheduler @Inject()(
   schedulerConfigs        : SchedulerConfigs,
   mongoLockRepository     : MongoLockRepository,
+  appConfigBaseService    : AppConfigBaseService,
   appConfigCommonService  : AppConfigCommonService,
   appConfigEnvService     : AppConfigEnvService,
   bobbyRulesService       : BobbyRulesService,
@@ -59,6 +60,7 @@ class MissedWebhookEventsScheduler @Inject()(
       _ <- run("update Kibana Dashdoards"     , dashboardService.updateKibanaDashboards())
       _ <- run("update Frontend Routes"       , nginxService.update(Environment.values))
       _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
+      _ <- run("AppConfigBaseUpdater"         , appConfigBaseService.update())
       _ <- run("AppConfigCommonUpdater"       , appConfigCommonService.update())
       _ <- run("AppConfigEnvUpdater"          , appConfigEnvService.update())
       _ <- run("BobbyRulesUpdater"            , bobbyRulesService.update())
