@@ -29,3 +29,5 @@ GET     /build-jobs/:serviceName                        uk.gov.hmrc.serviceconfi
 GET     /service-relationships/:serviceName             uk.gov.hmrc.serviceconfigs.controller.ServiceRelationshipController.serviceRelationships(serviceName)
 
 POST    /webhook                                        uk.gov.hmrc.serviceconfigs.controller.WebhookController.processGithubWebhook
+
+GET     /outage-pages/:serviceName                      uk.gov.hmrc.serviceconfigs.controller.OutagePageController.searchByServiceName(serviceName)
