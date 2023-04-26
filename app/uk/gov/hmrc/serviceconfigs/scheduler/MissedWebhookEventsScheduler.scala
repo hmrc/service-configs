@@ -38,7 +38,8 @@ class MissedWebhookEventsScheduler @Inject()(
   dashboardService        : DashboardService,
   deploymentConfigService : DeploymentConfigService,
   nginxService            : NginxService,
-  routesConfigService     : RoutesConfigService
+  routesConfigService     : RoutesConfigService,
+  outagePageService       : OutagePageService,
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -62,6 +63,7 @@ class MissedWebhookEventsScheduler @Inject()(
       _ <- run("AppConfigCommonUpdater"       , appConfigService.updateAppConfigCommon())
       _ <- run("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
       _ <- run("BobbyRulesUpdater"            , bobbyRulesService.update())
+      _ <- run("OutagePageUpdater"            , outagePageService.update())      
     } yield logger.info("Finished updating incase of missed webhook event")
   }
 
