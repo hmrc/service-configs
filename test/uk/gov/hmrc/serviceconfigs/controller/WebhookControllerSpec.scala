@@ -153,6 +153,7 @@ class WebhookControllerSpec
     val mockRoutesConfigService     = mock[RoutesConfigService    ]
     val mockBuildJobService         = mock[BuildJobService        ]
     val mockDashboardService        = mock[DashboardService       ]
+    val mockOutagePageService       = mock[OutagePageService      ]
 
     val controller = new WebhookController(
       config                  = mockConfiguration,
@@ -165,6 +166,7 @@ class WebhookControllerSpec
       routesConfigService     = mockRoutesConfigService,
       buildJobService         = mockBuildJobService,
       dashboardService        = mockDashboardService,
+      outagePageService       = mockOutagePageService,
       cc                      = stubControllerComponents()
     )
 
