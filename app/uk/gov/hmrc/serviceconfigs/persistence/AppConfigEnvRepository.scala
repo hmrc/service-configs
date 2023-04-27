@@ -17,8 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.IndexModel
+import org.mongodb.scala.model.{Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -32,13 +31,13 @@ class AppConfigEnvRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(Environment, String, String)](
+) extends PlayMongoRepository[(Environment, String, String, String)](
   mongoComponent = mongoComponent,
   collectionName = AppConfigEnvRepository.collectionName,
   domainFormat   = AppConfigEnvRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(hashed("environment")),
-                     IndexModel(hashed("environment, fileName"))
+                     IndexModel(Indexes.hashed("environment")),
+                     IndexModel(Indexes.ascending("environment", "commitId", "fileName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
 ) with Transactions {
@@ -48,17 +47,23 @@ class AppConfigEnvRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(environment: Environment, config: Map[String, String]): Future[Unit] =
+  def putAll(environment: Environment, config: Map[(String, String), String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case (filename, content) => (environment, filename, content) }).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case ((filename, commitId), content) => (environment, filename, commitId, content) }).toFuture()
       } yield ()
     }
 
-  def find(environment: Environment, fileName: String): Future[Option[String]] =
+  def find(environment: Environment, fileName: String, commitId: String): Future[Option[String]] =
     collection
-      .find(and(equal("environment", environment), equal("fileName", fileName)))
+      .find(
+        and(
+          equal("environment", environment),
+          equal("fileName"   , fileName),
+          equal("commitId"   , commitId)
+        )
+      )
       .headOption()
       .map(_.map(_._3))
 }
@@ -69,10 +74,11 @@ object AppConfigEnvRepository {
 
   val collectionName = "appConfigEnv"
 
-  val mongoFormats: Format[(Environment, String, String)] = {
+  val mongoFormats: Format[(Environment, String, String, String)] = {
     implicit val ef = Environment.format
      ( (__ \ "environment").format[Environment]
      ~ (__ \ "fileName"   ).format[String]
+     ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "content"    ).format[String]
      ).tupled
   }

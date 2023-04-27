@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -32,7 +32,7 @@ class AppConfigCommonRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(String, String)](
+) extends PlayMongoRepository[(String, String, String)](
   mongoComponent = mongoComponent,
   collectionName = "appConfigCommon",
   domainFormat   = AppConfigCommonRepository.mongoFormats,
@@ -46,17 +46,22 @@ class AppConfigCommonRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(config: Map[String, String]): Future[Unit] =
+  def putAll(config: Map[(String, String), String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, config.toSeq).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case ((a, b), c) => (a, b, c) }).toFuture()
       } yield ()
     }
 
-  def findByFileName(fileName: String): Future[Option[String]] =
+  def findByFileName(fileName: String, commitId: String): Future[Option[String]] =
     collection
-      .find(equal("fileName", fileName))
+      .find(
+        and(
+          equal("fileName", fileName),
+          equal("commitId", commitId)
+        )
+      )
       .headOption()
       .map(_.map(_._2))
 }
@@ -65,8 +70,9 @@ object AppConfigCommonRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val mongoFormats: Format[(String, String)] =
+  val mongoFormats: Format[(String, String, String)] =
      ( (__ \ "fileName").format[String]
+     ~ (__ \ "commitId").format[String]
      ~ (__ \ "content" ).format[String]
      ).tupled
 }

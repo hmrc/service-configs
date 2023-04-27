@@ -37,7 +37,7 @@ class GithubRawConnector @Inject()(
   ec: ExecutionContext
 ) {
 
-  def decommissionedServices(implicit hc: HeaderCarrier): Future[List[String]] = {
+  def decommissionedServices()(implicit hc: HeaderCarrier): Future[List[String]] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/decommissioning/main/decommissioned-microservices.yaml"
     httpClientV2
       .get(url)

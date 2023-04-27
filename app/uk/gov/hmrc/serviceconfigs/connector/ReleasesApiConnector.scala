@@ -40,7 +40,7 @@ class ReleasesApiConnector @Inject()(
 
   implicit val sdir = ServiceDeploymentInformation.reads
 
-  def getWhatIsRunningWhere(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
+  def getWhatIsRunningWhere()(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
     httpClientV2
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]

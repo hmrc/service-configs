@@ -41,14 +41,15 @@ class SlugInfoService @Inject()(
 
   private val logger = Logger(getClass)
 
+  // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
-      serviceNames           <- slugInfoRepository.getUniqueSlugNames
-      serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere
+      serviceNames           <- slugInfoRepository.getUniqueSlugNames()
+      serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(_.name))
-      decommissionedServices <- githubRawConnector.decommissionedServices
-      latestServices         <- slugInfoRepository.getAllLatestSlugInfos
+      decommissionedServices <- githubRawConnector.decommissionedServices()
+      latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
       inactiveServices       =  latestServices.diff(activeRepos)
       allServiceDeployments  =  serviceNames.map { serviceName =>

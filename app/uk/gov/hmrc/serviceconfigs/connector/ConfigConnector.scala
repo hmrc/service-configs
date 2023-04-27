@@ -24,6 +24,7 @@ import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,11 +35,14 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def serviceConfigBaseConf(service: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/HEAD/$service.conf")
+  def serviceConfigBaseConf(service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/$commitId/$service.conf")
 
-  def serviceApplicationConfigFile(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/HEAD/conf/application.conf")
+  def serviceCommonConfigYaml(env: Environment, serviceType: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/$commitId/${env.asString}-$serviceType-common.yaml")
+
+  def serviceApplicationConfigFile(serviceName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/$commitId/conf/application.conf")
 
   private def doCall(url: URL)(implicit hc: HeaderCarrier) =
     httpClientV2

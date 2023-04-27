@@ -45,13 +45,12 @@ class SlugConfigurationService @Inject()(
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
       _        <- slugInfoRepository.add(slug)
       isLatest <- slugVersionRepository.getMaxVersion(name = slug.name)
-        .map {
-          case None             => true
-          case Some(maxVersion) => val isLatest = maxVersion == slug.version
-            logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (latest is: $maxVersion)")
-            isLatest
-        }
-
+                    .map {
+                      case None             => true
+                      case Some(maxVersion) => val isLatest = maxVersion == slug.version
+                        logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (latest is: $maxVersion)")
+                        isLatest
+                    }
       _        <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future.unit
     } yield ()
   }

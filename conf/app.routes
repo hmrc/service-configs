@@ -1,7 +1,7 @@
 # microservice specific routes
 
-GET     /config-by-env/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceConfig(serviceName)
-GET     /config-by-key/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName)
+GET     /config-by-env/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceConfig(serviceName, latest: Boolean ?= true)
+GET     /config-by-key/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName, latest: Boolean ?= true)
 
 GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
 GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment)
