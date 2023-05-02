@@ -42,7 +42,7 @@ class ServiceRelationshipController @Inject()(
   )
   def serviceRelationships(
     @ApiParam(value = "The service name of the given service") service: String
-  ): Action[AnyContent] = Action.async { implicit request =>
+  ): Action[AnyContent] = Action.async {
     implicit val serviceRelationshipWrites: OWrites[ServiceRelationships] = ServiceRelationships.writes
     serviceRelationshipService.getServiceRelationships(service).map { res =>
       Ok(Json.toJson(res))

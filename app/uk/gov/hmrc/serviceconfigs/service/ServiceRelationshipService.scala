@@ -67,7 +67,8 @@ class ServiceRelationshipService @Inject()(
   private val ServiceNameFromKey  = "microservice\\.services\\.(.*)\\.host".r
 
   private[service] def serviceRelationshipsFromSlugInfo(slugInfo: SlugInfo, knownServices: Seq[String]): Future[Seq[ServiceRelationship]] =
-    if(slugInfo.applicationConfig.isEmpty) Future.successful(Seq.empty[ServiceRelationship])
+    if (slugInfo.applicationConfig.isEmpty)
+      Future.successful(Seq.empty[ServiceRelationship])
     else {
       implicit val hc: HeaderCarrier = HeaderCarrier()
 

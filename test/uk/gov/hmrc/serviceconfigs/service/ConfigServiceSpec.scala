@@ -74,7 +74,7 @@ class ConfigServiceSpec
   }
 
   "ConfigService.configByKey" should {
-    "shows config changes per key for each environment" in {
+    "show config changes per key for each environment" in {
       val service = "test-service"
       val slugInfo = SlugInfo(
         uri               = "some/uri"
@@ -121,43 +121,60 @@ class ConfigServiceSpec
           r <- configService.configByKey(service)
         } yield r
 
-      Json.toJson(configByKey.futureValue) shouldBe Json.parse("""
-        { "a": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                               ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"}             ],
-            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}]
-          },
-          "a.b": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
-          },
-          "b": {
-            "local":        [{"source": "applicationConf", "value": "2"}                                                  ],
-            "development":  [{"source": "applicationConf", "value": "2"}, {"source": "appConfigEnvironment", "value": "4"}],
-            "qa":           [{"source": "applicationConf", "value": "2"}                                                  ]
-          },
-          "c": {
-            "local":        [{"source": "applicationConf", "value": "1"}                                                               ],
-            "development":  [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "3"             }],
-            "qa":           [{"source": "applicationConf", "value": "1"}, {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}]
-          },
-          "c.b": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "6"}]
-          },
-          "d": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}, {"source": "base64", "value": "2"}]
-          },
-          "d.base64": {
-            "qa":           [                                             {"source": "appConfigEnvironment", "value": "Mg=="}]
-          },
-          "list": {
-            "local":        [{"source": "applicationConf", "value": "[1,2]"}                                                               ],
-            "development":  [{"source": "applicationConf", "value": "[1,2]"}, {"source": "appConfigEnvironment", "value": "<<SUPPRESSED>>"}],
-            "qa":           [{"source": "applicationConf", "value": "[1,2]"}                                                               ]
-          },
-          "list.2": {
-            "development": [                                                  {"source": "appConfigEnvironment", "value": "3" }]
-          }
+      val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
+      def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
+      Json.toJson(configByKey.futureValue) shouldBe Json.parse(s"""
+        {
+        "a": {
+          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
+          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }
+                         ],
+          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
+                         ]
+        },
+        "a.b": {
+          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" } ]
+        },
+        "b": {
+          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" } ],
+          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" },
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "4" }
+                         ],
+          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" }]
+        },
+        "c": {
+          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
+          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1"},
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3"}
+                         ],
+          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
+                         ]
+        },
+        "c.b": {
+          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" }]
+        },
+        "d": {
+          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" },
+                          { "source": "base64"                                                           , "value": "2" }
+                         ]
+        },
+        "d.base64": {
+          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "Mg=="}]
+        },
+        "list": {
+          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }],
+          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" },
+                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "<<SUPPRESSED>>" }
+                         ],
+          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }]
+        },
+        "list.2": {
+          "development": [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }]
         }
+      }
       """")
     }
   }

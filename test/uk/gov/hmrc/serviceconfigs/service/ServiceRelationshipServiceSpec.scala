@@ -35,9 +35,9 @@ class ServiceRelationshipServiceSpec
   with ScalaFutures
   with MockitoSugar {
 
-  private val mockConfigService = mock[ConfigService]
+  private val mockConfigService    = mock[ConfigService]
   private val mockRelationshipRepo = mock[ServiceRelationshipRepository]
-  private val service = new ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mockRelationshipRepo)
+  private val service              = new ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mockRelationshipRepo)
 
   "serviceRelationships" should {
     "return inbound and outbound services for a given service" in {
@@ -78,18 +78,16 @@ class ServiceRelationshipServiceSpec
     }
 
     "produce a ServiceRelationship for each downstream that's defined in config under microservice.services" in {
-      val mockedConfig = ConfigSourceEntries(
-        source = "applicationConf",
-        entries = Map(
-          "microservice.services.artefact-processor.host"     -> "localhost",
-          "microservice.services.auth.host"                   -> "localhost",
-          "microservice.services.service-dependencies.host"   -> "localhost",
-          "microservice.services.releases-api.host"           -> "localhost",
-          "microservice.services.teams-and-repositories.host" -> "localhost",
-        )
-      )
+      val config = configSourceEntries(Map(
+        "microservice.services.artefact-processor.host"     -> "localhost",
+        "microservice.services.auth.host"                   -> "localhost",
+        "microservice.services.service-dependencies.host"   -> "localhost",
+        "microservice.services.releases-api.host"           -> "localhost",
+        "microservice.services.teams-and-repositories.host" -> "localhost",
+      ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq(
         "artefact-processor",
@@ -111,15 +109,13 @@ class ServiceRelationshipServiceSpec
     }
 
     "extract the value from slugInfo.slugConfig if the value from appConf key isn't recognised" in {
-      val mockedConfig = ConfigSourceEntries(
-        source = "applicationConf",
-        entries = Map(
-          "microservice.services.auth.host"                    -> "localhost",
-          "microservice.services.cacheable.session-cache.host" -> "localhost"
-        )
-      )
+      val config = configSourceEntries(Map(
+        "microservice.services.auth.host"                    -> "localhost",
+        "microservice.services.cacheable.session-cache.host" -> "localhost"
+      ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth", "key-store")
       val baseConf =
@@ -147,15 +143,13 @@ class ServiceRelationshipServiceSpec
     }
 
     "use the value from appConf key if the value found in baseConf is unrecognised" in {
-      val mockedConfig = ConfigSourceEntries(
-        source = "applicationConf",
-        entries = Map(
-          "microservice.services.auth.host" -> "localhost",
-          "microservice.services.des.host"  -> "localhost"
-        )
-      )
+      val config = configSourceEntries(Map(
+        "microservice.services.auth.host" -> "localhost",
+        "microservice.services.des.host"  -> "localhost"
+      ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth")
       val baseConf =
@@ -180,15 +174,13 @@ class ServiceRelationshipServiceSpec
     }
 
     "ignore stub/stubs hosts in baseConf and use the value from appConf key instead" in {
-      val mockedConfig = ConfigSourceEntries(
-        source = "applicationConf",
-        entries = Map(
-          "microservice.services.auth.host" -> "localhost",
-          "microservice.services.des.host" -> "localhost"
-        )
-      )
+      val config = configSourceEntries(Map(
+        "microservice.services.auth.host" -> "localhost",
+        "microservice.services.des.host" -> "localhost"
+      ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier])).thenReturn(Future.successful(Seq(mockedConfig)))
+      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth")
       val baseConf =
@@ -212,4 +204,10 @@ class ServiceRelationshipServiceSpec
 
   }
 
+  def configSourceEntries(entries: Map[String, String]): ConfigSourceEntries =
+    ConfigSourceEntries(
+      source    = "applicationConf",
+      sourceUrl = None,
+      entries   = entries
+    )
 }

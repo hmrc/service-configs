@@ -71,10 +71,10 @@ class AppConfigService @Inject()(
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
       .foldLeft(Map.empty[String, String]){ (acc, entry) =>
-        val name = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        if (filter(name)) {
+        val fileName = entry.getName.drop(entry.getName.indexOf('/') + 1)
+        if (filter(fileName)) {
           val content = Source.fromInputStream(zip).mkString
-          acc + (name -> content)
+          acc + (fileName -> content)
         } else acc
       }
 

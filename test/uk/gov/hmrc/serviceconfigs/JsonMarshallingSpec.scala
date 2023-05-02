@@ -28,11 +28,18 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
     "unmarshal" in {
       val cbe: ConfigByEnvironment = Map(
         "environmentName" -> Seq(
-          ConfigSourceEntries("baseConfig", Map(
-            "entry1" -> "configEntry-1",
-            "entry2" -> "configEntry-2"
-          )),
-          ConfigSourceEntries("appConfig", Map(
+          ConfigSourceEntries(
+            "baseConfig",
+            sourceUrl  =  None,
+            Map(
+              "entry1" -> "configEntry-1",
+              "entry2" -> "configEntry-2"
+            )
+          ),
+          ConfigSourceEntries(
+            "appConfig",
+            Some("https://github.com/hmrc/appConfig"),
+            Map(
             "entry3" -> "configEntry-3"
           ))
         )
@@ -50,6 +57,7 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
             },
             {
               "source": "appConfig",
+              "sourceUrl": "https://github.com/hmrc/appConfig",
               "entries": {
                 "entry3": "configEntry-3"
               }
@@ -66,8 +74,8 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val configByKey = Map("key1" ->
         Map("environmentName" ->
           Seq(
-            ConfigService.ConfigSourceValue("baseConfig", "configEntry1"),
-            ConfigService.ConfigSourceValue("appConfig" , "configEntry2")
+            ConfigService.ConfigSourceValue("baseConfig", sourceUrl = None                         , "configEntry1"),
+            ConfigService.ConfigSourceValue("appConfig" , Some("https://github.com/hmrc/appConfig"), "configEntry2")
           )
         )
       )
@@ -82,6 +90,7 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
               },
               {
                 "source": "appConfig",
+                "sourceUrl": "https://github.com/hmrc/appConfig",
                 "value": "configEntry2"
               }
             ]
