@@ -146,7 +146,7 @@ class ConfigService @Inject()(
       val suppressed = (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
                         .map { case (k, _) => k -> s"<<SUPPRESSED>>" }
                         .filterNot { case (k, _) => k.startsWith("logger.") && k != "logger.resource" } // This assumes that logging was defined in system.properties or the key was quoted
-      (acc :+ ConfigSourceEntries(entry.name, entries ++ suppressed), Some(nextConfig))
+      (acc :+ ConfigSourceEntries(entry.name, entry.sourceUrl, entries ++ suppressed), Some(nextConfig))
     }
     // ApplicationLoader in bootstrap will decode any ".base64" keys and replace the keys without the .base64 extension
     lastConfig match {
@@ -155,7 +155,7 @@ class ConfigService @Inject()(
           case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> Try(new String(Base64.getDecoder.decode(v), "UTF-8")).getOrElse("<<Invalid base64>>"))
           case _                               => Map.empty
         }
-        cses :+ ConfigSourceEntries("base64", base64)
+        cses :+ ConfigSourceEntries("base64", sourceUrl = None, base64)
       case None =>
         cses
     }
@@ -178,12 +178,12 @@ class ConfigService @Inject()(
           (applicationConf, bootstrapConf)
                                     <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
         } yield toConfigSourceEntries(
-          ConfigSourceConfig("referenceConf"  , referenceConf  , Map.empty)               ::
-          bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList :::
-          ConfigSourceConfig("applicationConf", applicationConf, Map.empty) ::
+          ConfigSourceConfig.referenceConf(referenceConf, Map.empty) ::
+          bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList :::
+          ConfigSourceConfig.applicationConf(serviceName)(applicationConf, Map.empty) ::
           Nil
         )
-      case  SlugInfoFlag.ForEnvironment(env) =>
+      case SlugInfoFlag.ForEnvironment(env) =>
         for {
           optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
 
@@ -213,15 +213,19 @@ class ConfigService @Inject()(
           (appConfigCommonFixed, appConfigCommonFixedSuppressed)
                                       =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
         } yield
-          ConfigSourceEntries("loggerConf"                 , loggerConfMap) +:
+          ConfigSourceEntries(
+            "loggerConf",
+            sourceUrl = Some(s"https://github.com/hmrc/$serviceName/blob/main/conf/application-json-logger.xml"),
+            loggerConfMap
+          ) +:
           toConfigSourceEntries(
-            ConfigSourceConfig("referenceConf"             , referenceConf              , Map.empty)                             ::
-            bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, v, Map.empty) }.toList                                      :::
-            ConfigSourceConfig("applicationConf"           , applicationConf            , Map.empty)                             ::
-            ConfigSourceConfig("baseConfig"                , baseConf                   , Map.empty)                             ::
-            ConfigSourceConfig("appConfigCommonOverridable", appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
-            ConfigSourceConfig("appConfigEnvironment"      , appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
-            ConfigSourceConfig("appConfigCommonFixed"      , appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
+            ConfigSourceConfig.referenceConf(                               referenceConf              , Map.empty)                             ::
+            bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList                                   :::
+            ConfigSourceConfig.applicationConf(serviceName                )(applicationConf            , Map.empty)                             ::
+            ConfigSourceConfig.baseConfig(serviceName                     )(baseConf                   , Map.empty)                             ::
+            ConfigSourceConfig.appConfigCommonOverridable(env, serviceType)(appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
+            ConfigSourceConfig.appConfigEnvironment(env, serviceName      )(appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
+            ConfigSourceConfig.appConfigCommonFixed(env, serviceType      )(appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
             Nil
           )
     }
@@ -243,7 +247,7 @@ class ConfigService @Inject()(
                   case (key, value) =>
                     val envMap = subMap.getOrElse(key, Map.empty)
                     val values = envMap.getOrElse(e.name, Seq.empty)
-                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, value))))
+                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value))))
                 }
             }
           }
@@ -257,11 +261,10 @@ class ConfigService @Inject()(
     for {
       dc      <- lookupDependencyConfigs(Some(slugInfo))
       (ac, _) <- lookupApplicationConf(slugInfo.name, dc, Some(slugInfo))
-    } yield toConfigSourceEntries(
-      Seq(
-        ConfigSourceConfig("applicationConf", ac, Map.empty)
-      )
-    )
+    } yield
+      toConfigSourceEntries(Seq(
+        ConfigSourceConfig.applicationConf(slugInfo.name)(ac, Map.empty)
+      ))
 }
 
 object ConfigService {
@@ -273,17 +276,70 @@ object ConfigService {
 
   case class ConfigSourceConfig(
     name         : String,
+    sourceUrl    : Option[String],
     config       : Config,
     suppressed   : Map[String, String]
   )
 
+  object ConfigSourceConfig {
+    def referenceConf(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "referenceConf",
+        sourceUrl  = None,
+        config     = config,
+        suppressed = suppressed
+      )
+
+    def applicationConf(serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "applicationConf",
+        sourceUrl  = Some(s"https://github.com/hmrc/$serviceName/blob/main/conf/application.conf"),
+        config     = config,
+        suppressed = suppressed
+      )
+
+    def baseConfig(serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "baseConfig",
+        sourceUrl  = Some(s"https://github.com/hmrc/app-config-base/blob/main/$serviceName.conf"),
+        config     = config,
+        suppressed = suppressed
+      )
+
+    def appConfigCommonOverridable(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "appConfigCommonOverridable",
+        sourceUrl  = serviceType.map(st => s"https://github.com/hmrc/app-config-common/blob/main/${environment.asString}-$st-common.yaml"),
+        config     = config,
+        suppressed = suppressed
+      )
+
+    def appConfigEnvironment(environment: Environment, serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "appConfigEnvironment",
+        sourceUrl  = Some(s"https://github.com/hmrc/app-config-${environment.asString}/blob/main/$serviceName.yaml"),
+        config     = config,
+        suppressed = suppressed
+      )
+
+    def appConfigCommonFixed(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+      ConfigSourceConfig(
+        "appConfigCommonFixed",
+        sourceUrl  = serviceType.map(st => s"https://github.com/hmrc/app-config-common/blob/main/${environment.asString}-$st-common.yaml"),
+        config     = config,
+        suppressed = suppressed
+      )
+  }
+
   case class ConfigSourceEntries(
     source    : String,
+    sourceUrl : Option[String],
     entries   : Map[KeyName, String]
   )
 
   case class ConfigSourceValue(
     source    : String,
+    sourceUrl : Option[String],
     value     : String
   )
 

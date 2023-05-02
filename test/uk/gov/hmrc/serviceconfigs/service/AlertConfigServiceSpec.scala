@@ -21,7 +21,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, LastHash}
+import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 
 import java.io.FileInputStream
