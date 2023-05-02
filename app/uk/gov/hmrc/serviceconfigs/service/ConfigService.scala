@@ -227,10 +227,9 @@ class ConfigService @Inject()(
     }
 
   def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
-    environments.toList.foldLeftM[Future, ConfigByEnvironment](Map.empty) { (map, e) =>
-      configSourceEntries(e, serviceName)
-        .map(cse => map + (e.name -> cse))
-    }
+    environments.toList.map(e =>
+      configSourceEntries(e, serviceName).map(e.name -> _)
+    ).sequence.map(_.toMap)
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
   def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] =

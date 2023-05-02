@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{Environment, OutagePage}
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service.OutagePageService
 
 import javax.inject.{Inject, Singleton}
@@ -39,7 +39,7 @@ class OutagePageController @Inject()(
     Action.async {
       for {
         optEnvironments <- outagePageService.findByServiceName(serviceName)
-        result          =  optEnvironments.fold(NotFound(""))(e =>Ok(Json.toJson(e)))
+        result          =  optEnvironments.fold(NotFound(""))(e => Ok(Json.toJson(e)))
       } yield result
     }
 }
