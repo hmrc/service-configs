@@ -16,10 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.{IndexModel, IndexOptions, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -46,11 +45,25 @@ class AppConfigCommonRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(config: Map[(String, String), String]): Future[Unit] =
+  def put(fileName: String, commitId: String, content: String): Future[Unit] =
+    // TODO how to clean up unreferenced versions?
+    // TODO we only really need to replace if commitId is the same (e.g. "HEAD")
+    collection.replaceOne(
+      and(
+        equal("fileName", fileName),
+        equal("commitId", commitId)
+      ),
+      (fileName, commitId, content),
+      ReplaceOptions().upsert(true)
+    )
+      .toFuture()
+      .map(_ => ())
+
+  def putAllHEAD(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case ((a, b), c) => (a, b, c) }).toFuture()
+        _ <- collection.deleteMany(session, equal("commiId", "HEAD")).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (a, b) => (a, "HEAD", b) }).toFuture()
       } yield ()
     }
 

@@ -43,18 +43,18 @@ class AppConfigService @Inject()(
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
-    updateLatest("app-config-base", _.endsWith(".conf"), appConfigBaseRepository.putAll)
+    updateLatest("app-config-base", _.endsWith(".conf"), appConfigBaseRepository.putAllHEAD)
 
   def updateAppConfigCommon(): Future[Unit] =
-    updateLatest("app-config-common", _.endsWith(".yaml"), appConfigCommonRepository.putAll)
+    updateLatest("app-config-common", _.endsWith(".yaml"), appConfigCommonRepository.putAllHEAD)
 
   def updateAllAppConfigEnv(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigEnvRepository.putAll(env, _))
+    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigEnvRepository.putAllHEAD(env, _))
 
-  private def updateLatest(repoName: String, filter: String => Boolean, store: Map[(String, String), String] => Future[Unit]): Future[Unit] =
+  private def updateLatest(repoName: String, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.value))
@@ -63,7 +63,7 @@ class AppConfigService @Inject()(
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
       config        =  try { extractConfig(is, filter) } finally { is.close() }
-      _             <- EitherT.right[Unit](store(config.map { case (filename, content) => ((filename, "HEAD"), content)}.toMap))
+      _             <- EitherT.right[Unit](store(config))
       _             <- EitherT.right[Unit](lastHashRepository.update(repoName, hash))
      } yield ()
     ).merge

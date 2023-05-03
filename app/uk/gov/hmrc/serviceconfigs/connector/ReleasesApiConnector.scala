@@ -51,8 +51,9 @@ object ReleasesApiConnector {
       JsPath.read[String].map(Environment.parse)
 
   case class Deployment(
-      optEnvironment: Option[Environment]
+      optEnvironment: Option[Environment] // TODO why is Environment optional?
     , version       : Version
+    , config        : Map[String, String]
     )
 
   object Deployment {
@@ -61,6 +62,7 @@ object ReleasesApiConnector {
       implicit val vf = Version.format
       ( (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "config"       ).read[Map[String, String]]
       )(Deployment.apply _)
     }
   }

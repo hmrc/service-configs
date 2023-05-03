@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.Filters.{and, equal, notEqual}
 import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.{IndexModel, IndexOptions, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -32,13 +32,14 @@ class AppConfigBaseRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(String, String, String)](
+) extends PlayMongoRepository[(String, Option[Environment], String, String)](
   mongoComponent = mongoComponent,
   collectionName = "appConfigBase",
   domainFormat   = AppConfigBaseRepository.mongoFormats,
   indexes        = Seq(
                      IndexModel(hashed("fileName"), IndexOptions().name("fileNameIdx"))
-                   )
+                   ),
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
 ) with Transactions {
 
   // we replace all the data for each call to putAll
@@ -46,11 +47,27 @@ class AppConfigBaseRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(config: Map[(String, String), String]): Future[Unit] =
+  // @param environment helps us ensure we only keep one commitId per environment
+  // Note, we don't need environment when HEAD (TODO model this better)
+  def put(fileName: String, environment: Environment, commitId: String, content: String): Future[Unit] =
+    collection
+      .replaceOne(
+        and(
+          equal("environment", environment),
+          notEqual("commitId", "HEAD"),
+          equal("fileName", fileName)
+        ),
+        (fileName, Some(environment), commitId, content),
+        ReplaceOptions().upsert(true)
+      )
+      .toFuture()
+      .map(_ => ())
+
+  def putAllHEAD(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case ((a, b), c) => (a, b, c) }).toFuture()
+        _ <- collection.deleteMany(session, equal("commitId", "HEAD")).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) => (fileName, None, "HEAD", content) }).toFuture()
       } yield ()
     }
 
@@ -63,16 +80,19 @@ class AppConfigBaseRepository @Inject()(
         )
       )
       .headOption()
-      .map(_.map(_._2))
+      .map(_.map(_._4))
 }
 
 object AppConfigBaseRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val mongoFormats: Format[(String, String, String)] =
-     ( (__ \ "fileName").format[String]
-     ~ (__ \ "commitId").format[String]
-     ~ (__ \ "content" ).format[String]
+  val mongoFormats: Format[(String, Option[Environment], String, String)] = {
+    implicit val ef = Environment.format
+     ( (__ \ "fileName"   ).format[String]
+     ~ (__ \ "environment").formatNullable[Environment]
+     ~ (__ \ "commitId"   ).format[String]
+     ~ (__ \ "content"    ).format[String]
      ).tupled
+  }
 }

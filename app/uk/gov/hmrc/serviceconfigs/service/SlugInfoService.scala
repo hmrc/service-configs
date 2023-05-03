@@ -22,19 +22,23 @@ import play.api.Logger
 
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.{SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigBaseRepository, AppConfigCommonRepository, AppConfigEnvRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugInfoService @Inject()(
-  slugInfoRepository     : SlugInfoRepository
-, slugVersionRepository  : SlugVersionRepository
-, releasesApiConnector   : ReleasesApiConnector
-, teamsAndReposConnector : TeamsAndRepositoriesConnector
-, githubRawConnector     : GithubRawConnector
+  slugInfoRepository       : SlugInfoRepository
+, slugVersionRepository    : SlugVersionRepository
+, appConfigBaseRepository  : AppConfigBaseRepository
+, appConfigCommonRepository: AppConfigCommonRepository
+, appConfigEnvRepository   : AppConfigEnvRepository
+, releasesApiConnector     : ReleasesApiConnector
+, teamsAndReposConnector   : TeamsAndRepositoriesConnector
+, githubRawConnector       : GithubRawConnector
+, configConnector          : ConfigConnector
 )(implicit
   ec: ExecutionContext
 ) {
@@ -53,22 +57,51 @@ class SlugInfoService @Inject()(
                                   .map(_.map(_.name))
       inactiveServices       =  latestServices.diff(activeRepos)
       allServiceDeployments  =  serviceNames.map { serviceName =>
-                                  val deployments       = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
-                                  val deploymentsByFlag = Environment.values
-                                                            .map { env =>
-                                                               ( SlugInfoFlag.ForEnvironment(env)
-                                                               , deployments.flatMap(
-                                                                     _.find(_.optEnvironment.contains(env))
-                                                                      .map(_.version)
-                                                                   )
+                                  val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
+                                  val deploymentsByEnv = Environment.values
+                                                            .map(env =>
+                                                               ( env
+                                                               , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
                                                                )
-                                                             }
-                                  (serviceName, deploymentsByFlag)
+                                                             )
+                                  (serviceName, deploymentsByEnv)
                                 }
       _                      <- allServiceDeployments.toList.foldLeftM(()) { case (_, (serviceName, deployments)) =>
                                   deployments.foldLeftM(()) {
-                                    case (_, (flag, None         )) => slugInfoRepository.clearFlag(flag, serviceName)
-                                    case (_, (flag, Some(version))) => slugInfoRepository.setFlag(flag, serviceName, version)
+                                    case (_, (env, None            )) => slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName) // TODO should we clear up config here too?
+                                    case (_, (env, Some(deployment))) => for {
+                                                                            _ <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
+                                                                            _ <- deployment.config.toList.traverse {
+                                                                                   case (s"app-config-${_}", commitId) =>
+                                                                                     for {
+                                                                                       optAppConfigEnv <- configConnector.serviceConfigYaml(env, serviceName, commitId)
+                                                                                       _               <- optAppConfigEnv match {
+                                                                                                            case Some(appConfigEnv) => appConfigEnvRepository.put(env, s"$serviceName.yaml", commitId, appConfigEnv)
+                                                                                                            case None               => Future.successful(logger.warn(s"No app-config-env found for $serviceName $commitId"))
+                                                                                                          }
+                                                                                     } yield ()
+                                                                                   case (s"app-config-common", commitId) =>
+                                                                                     for {
+                                                                                       serviceType        <- Future.successful("") // TODO this requires looking in app-configEnv
+                                                                                                                                   // can we get this added to deploymentEvent?
+                                                                                       optAppConfigCommon <- configConnector.serviceCommonConfigYaml(env, serviceType, commitId)
+                                                                                       _                  <- optAppConfigCommon match {
+                                                                                                               case Some(appConfigCommon) => // TODO fileName requires serviceType mapping. Move this since the logic is replicated
+                                                                                                                                             appConfigCommonRepository.put(s"${env.asString}-$serviceType-common.yaml", commitId, appConfigCommon)
+                                                                                                               case None                  => Future.successful(logger.warn(s"No app-config-common found for ${env.asString}, $serviceType $commitId"))
+                                                                                                             }
+                                                                                     } yield ()
+                                                                                   case ("app-config-base", commitId) =>
+                                                                                     for {
+                                                                                      optAppConfigBase <- configConnector.serviceConfigBaseConf(serviceName, commitId)
+                                                                                       _               <- optAppConfigBase match {
+                                                                                                            case Some(appConfigBase) => appConfigBaseRepository.put(s"$serviceName.conf", env, commitId, appConfigBase)
+                                                                                                            case None                => Future.successful(logger.warn(s"No app-config-base found for $serviceName, $commitId"))
+                                                                                                          }
+                                                                                     } yield ()
+                                                                                   case (other, _) => Future.successful(logger.warn(s"Received commitId for unexpected repo $other"))
+                                                                                 }
+                                                                          } yield ()
                                   }
                                 }
       _                      <- slugInfoRepository.clearFlags(SlugInfoFlag.values, decommissionedServices)

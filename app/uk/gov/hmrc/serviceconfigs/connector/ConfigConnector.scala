@@ -35,6 +35,10 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
+  // TODO rename these to appConfigXXX
+  def serviceConfigYaml(env: Environment, service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/$commitId/$service.yaml")
+
   def serviceConfigBaseConf(service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/$commitId/$service.conf")
 

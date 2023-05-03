@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{Indexes, IndexModel}
+import org.mongodb.scala.model.Filters.{and, equal, notEqual}
+import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -47,11 +47,26 @@ class AppConfigEnvRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(environment: Environment, config: Map[(String, String), String]): Future[Unit] =
+  def put(environment: Environment, fileName: String, commitId: String, content: String): Future[Unit] =
+    collection
+      .replaceOne(
+        and(
+          equal("environment", environment),
+          notEqual("commitId", "HEAD"),
+          equal("fileName", fileName)
+        ),
+        (environment, fileName, commitId, content),
+        ReplaceOptions().upsert(true)
+      )
+      .toFuture()
+      .map(_ => ())
+
+  def putAllHEAD(environment: Environment, config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case ((filename, commitId), content) => (environment, filename, commitId, content) }).toFuture()
+        _ <- collection.deleteMany(session, and(equal("environment", environment), equal("commitId", "HEAD"))).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (filename, content) => (environment, filename, "HEAD", content) }).toFuture()
+        // if there are any non HEAD that are not being inserted here, should they be removed? i.e. if no file at HEAD, then it's been decomissioned?
       } yield ()
     }
 
