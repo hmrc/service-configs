@@ -83,15 +83,12 @@ class AppConfigService @Inject()(
   def serviceConfigBaseConf(serviceName: String, commitId: String): Future[Option[String]] =
     appConfigBaseRepository.findByFileName(s"$serviceName.conf", commitId)
 
-  def serviceCommonConfigYaml(environment: Environment, serviceType: String, commitId: String): Future[Option[String]] = {
-    // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
-    val st = serviceType match {
-      case "api-microservice" => "microservice"
-      case other              => other
-    }
-    appConfigCommonRepository.findByFileName(s"${environment.asString}-$st-common.yaml", commitId)
-  }
+  def serviceCommonConfigYaml(environment: Environment, serviceName: String, serviceType: String, latest: Boolean): Future[Option[String]] =
+    if (latest)
+      appConfigCommonRepository.findForLatest(environment, serviceType)
+    else
+      appConfigCommonRepository.findForDeployed(environment, serviceName): Future[Option[String]]
 
-  def serviceConfigYaml(environment: Environment, serviceName: String, commitId: String): Future[Option[String]] =
-    appConfigEnvRepository.find(environment, s"$serviceName.yaml", commitId)
+  def serviceConfigYaml(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
+    appConfigEnvRepository.find(environment, s"$serviceName.yaml", latest)
 }

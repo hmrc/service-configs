@@ -188,7 +188,7 @@ class ConfigService @Inject()(
         for {
           optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
           //deploymentConfigs           <- slugInfoRepository.getDeploymentConfigs(serviceName, environment.slugInfoFlag)
-          appConfigCommonCommitId     =  if (latest) "main" else "7e4d7c78bbc0dc04e94b5fff39b066dd4b9d68b8"
+          /*appConfigCommonCommitId     =  if (latest) "main" else "7e4d7c78bbc0dc04e94b5fff39b066dd4b9d68b8"
           appConfigEnvCommitId        =  if (latest) "main" else
                                            env match {
                                              case Environment.Development   => "8c4f3bce2476d218aabbd5a0bce9218aa833e2c8"
@@ -197,7 +197,7 @@ class ConfigService @Inject()(
                                              case Environment.Production    => "58a69dd659292e07546c34ea2a0d9dc7a07e1861"
                                              case Environment.Integration   => "2b8a65e116f1f4debd9b31c23113e52d6a06a2d6"
                                              case Environment.ExternalTest  => "4006cdb8f785ab716d04681afa72109537eb4a8d"
-                                           }
+                                           }*/
           loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
           dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
@@ -206,7 +206,7 @@ class ConfigService @Inject()(
           (applicationConf, bootstrapConf)
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
-          optAppConfigEnvRaw          <- appConfigService.serviceConfigYaml(env, serviceName, appConfigEnvCommitId)
+          optAppConfigEnvRaw          <- appConfigService.serviceConfigYaml(env, serviceName, latest)
 
           appConfigEnvEntriesAll      =  ConfigParser
                                           .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
@@ -216,7 +216,7 @@ class ConfigService @Inject()(
 
           baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.serviceCommonConfigYaml(env, st, appConfigCommonCommitId))
+          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.serviceCommonConfigYaml(env, serviceName, st, latest))
                                           .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
           (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)

@@ -32,7 +32,7 @@ class AppConfigBaseRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(String, Option[Environment], String, String)](
+) extends PlayMongoRepository[AppConfigBaseRepository.AppConfigBase](
   mongoComponent = mongoComponent,
   collectionName = "appConfigBase",
   domainFormat   = AppConfigBaseRepository.mongoFormats,
@@ -48,16 +48,24 @@ class AppConfigBaseRepository @Inject()(
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   // @param environment helps us ensure we only keep one commitId per environment
+  // @param serviceName for consistency (not strictly necessary here since we only store one file per serviceName)
   // Note, we don't need environment when HEAD (TODO model this better)
-  def put(fileName: String, environment: Environment, commitId: String, content: String): Future[Unit] =
+  def put(serviceName: String, fileName: String, environment: Environment, commitId: String, content: String): Future[Unit] =
     collection
       .replaceOne(
         and(
+          equal("serviceName", serviceName),
           equal("environment", environment),
           notEqual("commitId", "HEAD"),
           equal("fileName", fileName)
         ),
-        (fileName, Some(environment), commitId, content),
+        AppConfigBaseRepository.AppConfigBase(
+          serviceName = serviceName,
+          fileName    = fileName,
+          environment = Some(environment),
+          commitId    = commitId,
+          content     = content
+        ),
         ReplaceOptions().upsert(true)
       )
       .toFuture()
@@ -67,7 +75,15 @@ class AppConfigBaseRepository @Inject()(
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, equal("commitId", "HEAD")).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) => (fileName, None, "HEAD", content) }).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
+               AppConfigBaseRepository.AppConfigBase(
+                 serviceName = fileName.stripSuffix(".conf"),
+                 fileName    = fileName,
+                 environment = None,
+                 commitId    = "HEAD",
+                 content     = content
+               )
+             }).toFuture()
       } yield ()
     }
 
@@ -80,19 +96,28 @@ class AppConfigBaseRepository @Inject()(
         )
       )
       .headOption()
-      .map(_.map(_._4))
+      .map(_.map(_.content))
 }
 
 object AppConfigBaseRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val mongoFormats: Format[(String, Option[Environment], String, String)] = {
+  case class AppConfigBase(
+    serviceName : String,
+    fileName    : String,
+    environment : Option[Environment],
+    commitId    : String,
+    content     : String
+  )
+
+  val mongoFormats: Format[AppConfigBase] = {
     implicit val ef = Environment.format
-     ( (__ \ "fileName"   ).format[String]
+     ( (__ \ "serviceName").format[String]
+     ~ (__ \ "fileName"   ).format[String]
      ~ (__ \ "environment").formatNullable[Environment]
      ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "content"    ).format[String]
-     ).tupled
+     )(AppConfigBase.apply, unlift(AppConfigBase.unapply))
   }
 }

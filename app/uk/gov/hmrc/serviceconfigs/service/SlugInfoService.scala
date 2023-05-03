@@ -76,7 +76,7 @@ class SlugInfoService @Inject()(
                                                                                      for {
                                                                                        optAppConfigEnv <- configConnector.serviceConfigYaml(env, serviceName, commitId)
                                                                                        _               <- optAppConfigEnv match {
-                                                                                                            case Some(appConfigEnv) => appConfigEnvRepository.put(env, s"$serviceName.yaml", commitId, appConfigEnv)
+                                                                                                            case Some(appConfigEnv) => appConfigEnvRepository.put(serviceName, env, s"$serviceName.yaml", commitId, appConfigEnv)
                                                                                                             case None               => Future.successful(logger.warn(s"No app-config-env found for $serviceName $commitId"))
                                                                                                           }
                                                                                      } yield ()
@@ -87,7 +87,8 @@ class SlugInfoService @Inject()(
                                                                                        optAppConfigCommon <- configConnector.serviceCommonConfigYaml(env, serviceType, commitId)
                                                                                        _                  <- optAppConfigCommon match {
                                                                                                                case Some(appConfigCommon) => // TODO fileName requires serviceType mapping. Move this since the logic is replicated
-                                                                                                                                             appConfigCommonRepository.put(s"${env.asString}-$serviceType-common.yaml", commitId, appConfigCommon)
+                                                                                                                                             appConfigCommonRepository.put(serviceName, env, s"${env.asString}-$serviceType-common.yaml", commitId, appConfigCommon)
+                                                                                                                                             // TODO we need to store this commitId somewhere so when looking up config for a particular service we can follow it back
                                                                                                                case None                  => Future.successful(logger.warn(s"No app-config-common found for ${env.asString}, $serviceType $commitId"))
                                                                                                              }
                                                                                      } yield ()
@@ -95,7 +96,7 @@ class SlugInfoService @Inject()(
                                                                                      for {
                                                                                       optAppConfigBase <- configConnector.serviceConfigBaseConf(serviceName, commitId)
                                                                                        _               <- optAppConfigBase match {
-                                                                                                            case Some(appConfigBase) => appConfigBaseRepository.put(s"$serviceName.conf", env, commitId, appConfigBase)
+                                                                                                            case Some(appConfigBase) => appConfigBaseRepository.put(serviceName, s"$serviceName.conf", env, commitId, appConfigBase)
                                                                                                             case None                => Future.successful(logger.warn(s"No app-config-base found for $serviceName, $commitId"))
                                                                                                           }
                                                                                      } yield ()

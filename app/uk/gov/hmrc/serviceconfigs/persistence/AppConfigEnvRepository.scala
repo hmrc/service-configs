@@ -31,7 +31,7 @@ class AppConfigEnvRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(Environment, String, String, String)](
+) extends PlayMongoRepository[AppConfigEnvRepository.AppConfigEnv](
   mongoComponent = mongoComponent,
   collectionName = AppConfigEnvRepository.collectionName,
   domainFormat   = AppConfigEnvRepository.mongoFormats,
@@ -47,15 +47,21 @@ class AppConfigEnvRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(environment: Environment, fileName: String, commitId: String, content: String): Future[Unit] =
+  def put(serviceName: String, environment: Environment, fileName: String, commitId: String, content: String): Future[Unit] =
     collection
       .replaceOne(
         and(
+          equal("serviceName", serviceName),
           equal("environment", environment),
-          notEqual("commitId", "HEAD"),
-          equal("fileName", fileName)
+          notEqual("commitId", "HEAD")
         ),
-        (environment, fileName, commitId, content),
+        AppConfigEnvRepository.AppConfigEnv(
+          serviceName = serviceName,
+          environment = environment,
+          fileName    = fileName,
+          commitId    = commitId,
+          content     = content
+        ),
         ReplaceOptions().upsert(true)
       )
       .toFuture()
@@ -65,22 +71,33 @@ class AppConfigEnvRepository @Inject()(
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, and(equal("environment", environment), equal("commitId", "HEAD"))).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case (filename, content) => (environment, filename, "HEAD", content) }).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
+               AppConfigEnvRepository.AppConfigEnv(
+                 serviceName = fileName.stripSuffix(".yaml"),
+                 environment = environment,
+                 fileName    = fileName,
+                 commitId    = "HEAD",
+                 content     = content
+               )
+             }).toFuture()
         // if there are any non HEAD that are not being inserted here, should they be removed? i.e. if no file at HEAD, then it's been decomissioned?
       } yield ()
     }
 
-  def find(environment: Environment, fileName: String, commitId: String): Future[Option[String]] =
+  def find(environment: Environment, fileName: String, latest: Boolean): Future[Option[String]] =
     collection
       .find(
         and(
           equal("environment", environment),
           equal("fileName"   , fileName),
-          equal("commitId"   , commitId)
+          if (latest)
+            equal("commitId", "HEAD")
+          else
+            notEqual("commitId", "HEAD")
         )
       )
       .headOption()
-      .map(_.map(_._3))
+      .map(_.map(_.content))
 }
 
 object AppConfigEnvRepository {
@@ -89,12 +106,21 @@ object AppConfigEnvRepository {
 
   val collectionName = "appConfigEnv"
 
-  val mongoFormats: Format[(Environment, String, String, String)] = {
+  case class AppConfigEnv(
+    serviceName : String,
+    environment : Environment,
+    fileName    : String,
+    commitId    : String,
+    content     : String
+  )
+
+  val mongoFormats: Format[AppConfigEnv] = {
     implicit val ef = Environment.format
-     ( (__ \ "environment").format[Environment]
+     ( (__ \ "serviceName").format[String]
+     ~ (__ \ "environment").format[Environment]
      ~ (__ \ "fileName"   ).format[String]
      ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "content"    ).format[String]
-     ).tupled
+     )(AppConfigEnv. apply, unlift(AppConfigEnv.unapply))
   }
 }
