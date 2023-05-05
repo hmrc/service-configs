@@ -21,7 +21,7 @@ import cats.implicits._
 import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
 import uk.gov.hmrc.serviceconfigs.model.Environment
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigBaseRepository, AppConfigCommonRepository, AppConfigEnvRepository, LastHashRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, AppConfigCommonRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
@@ -30,9 +30,8 @@ import scala.io.Source
 
 @Singleton
 class AppConfigService @Inject()(
-  appConfigBaseRepository  : AppConfigBaseRepository,
+  appConfigRepository      : AppConfigRepository,
   appConfigCommonRepository: AppConfigCommonRepository,
-  appConfigEnvRepository   : AppConfigEnvRepository,
   lastHashRepository       : LastHashRepository,
   configAsCodeConnector    : ConfigAsCodeConnector,
   config                   : Configuration,
@@ -43,7 +42,7 @@ class AppConfigService @Inject()(
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
-    updateLatest("app-config-base", _.endsWith(".conf"), appConfigBaseRepository.putAllHEAD)
+    updateLatest("app-config-base", _.endsWith(".conf"), appConfigRepository.putAllHEAD("app-config-base"))
 
   def updateAppConfigCommon(): Future[Unit] =
     updateLatest("app-config-common", _.endsWith(".yaml"), appConfigCommonRepository.putAllHEAD)
@@ -52,7 +51,7 @@ class AppConfigService @Inject()(
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigEnvRepository.putAllHEAD(env, _))
+    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigRepository.putAllHEAD(s"app-config-${env.asString}"))
 
   private def updateLatest(repoName: String, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
@@ -80,15 +79,62 @@ class AppConfigService @Inject()(
         } else acc
       }
 
-  def serviceConfigBaseConf(serviceName: String, commitId: String): Future[Option[String]] =
-    appConfigBaseRepository.findByFileName(s"$serviceName.conf", commitId)
+  def appConfigBaseConf(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
+    appConfigRepository.find(
+      repoName    = "app-config-base",
+      environment = Option(environment).filterNot(_ => latest),
+      fileName    = s"$serviceName.conf"
+    )
 
-  def serviceCommonConfigYaml(environment: Environment, serviceName: String, serviceType: String, latest: Boolean): Future[Option[String]] =
+  def putAppConfigBase(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
+    appConfigRepository.put(AppConfigRepository.AppConfig(
+      repoName    = "app-config-base",
+      fileName    = s"$serviceName.conf",
+      environment = Some(environment),
+      commitId    = commitId,
+      content     = content
+    ))
+
+  def appConfigEnvYaml(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
+    appConfigRepository.find(
+      repoName    = s"app-config-${environment.asString}",
+      environment = Option(environment).filterNot(_ => latest),
+      fileName    = s"$serviceName.yaml"
+    )
+
+  def putAppConfigEnv(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
+    appConfigRepository.put(AppConfigRepository.AppConfig(
+      repoName    = s"app-config-${environment.asString}",
+      fileName    = s"$serviceName.yaml",
+      environment = Some(environment),
+      commitId    = commitId,
+      content     = content
+    ))
+
+  def appConfigCommonYaml(environment: Environment, serviceName: String, serviceType: String, latest: Boolean): Future[Option[String]] = {
+    val appConfigCommonFileName = {
+      // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
+      val st = serviceType match {
+        case "api-microservice" => "microservice"
+        case other              => other
+      }
+      s"${environment.asString}-$st-common.yaml"
+    }
+
     if (latest)
-      appConfigCommonRepository.findForLatest(environment, serviceType)
+      appConfigCommonRepository.findHEAD(appConfigCommonFileName)
     else
-      appConfigCommonRepository.findForDeployed(environment, serviceName): Future[Option[String]]
+      appConfigCommonRepository.find(
+        serviceName = serviceName,
+        fileName    = appConfigCommonFileName
+      )
+  }
 
-  def serviceConfigYaml(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
-    appConfigEnvRepository.find(environment, s"$serviceName.yaml", latest)
+  def putAppConfigCommon(serviceName: String, fileName: String, commitId: String, content: String): Future[Unit] =
+    appConfigCommonRepository.put(AppConfigCommonRepository.AppConfigCommon(
+      serviceName = Some(serviceName),
+      fileName    = fileName,
+      commitId    = commitId,
+      content     = content
+    ))
 }

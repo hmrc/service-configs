@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.{and, equal, notEqual}
+import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
+import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -26,15 +27,18 @@ import uk.gov.hmrc.serviceconfigs.model.Environment
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
+/** This applies to config where there is one file per service - i.e app-config-base and app-config-$env.
+  * The config is identified by either the environment it applies to, or commitId HEAD - which is the config that will apply on next deployment.
+  */
 @Singleton
-class AppConfigEnvRepository @Inject()(
+class AppConfigRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[AppConfigEnvRepository.AppConfigEnv](
+) extends PlayMongoRepository[AppConfigRepository.AppConfig](
   mongoComponent = mongoComponent,
-  collectionName = AppConfigEnvRepository.collectionName,
-  domainFormat   = AppConfigEnvRepository.mongoFormats,
+  collectionName = AppConfigRepository.collectionName,
+  domainFormat   = AppConfigRepository.mongoFormats,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("environment")),
                      IndexModel(Indexes.ascending("environment", "commitId", "fileName"))
@@ -47,34 +51,37 @@ class AppConfigEnvRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(serviceName: String, environment: Environment, fileName: String, commitId: String, content: String): Future[Unit] =
-    collection
-      .replaceOne(
-        and(
-          equal("serviceName", serviceName),
-          equal("environment", environment),
-          notEqual("commitId", "HEAD")
-        ),
-        AppConfigEnvRepository.AppConfigEnv(
-          serviceName = serviceName,
-          environment = environment,
-          fileName    = fileName,
-          commitId    = commitId,
-          content     = content
-        ),
-        ReplaceOptions().upsert(true)
-      )
-      .toFuture()
-      .map(_ => ())
+  private val logger = Logger(getClass)
 
-  def putAllHEAD(environment: Environment, config: Map[String, String]): Future[Unit] =
+  def put(appConfig: AppConfigRepository.AppConfig): Future[Unit] =
+    appConfig.environment match {
+      case Some(env) =>
+        collection
+          .replaceOne(
+            and(
+              equal("repoName"   , appConfig.repoName),
+              equal("fileName"   , appConfig.fileName),
+              equal("environment", env)
+            ),
+            appConfig,
+            ReplaceOptions().upsert(true)
+          )
+          .toFuture()
+          .map(_ => ())
+      case None =>
+        logger.warn(s"Skipping store of appConfig since no environment specified - should be stored with putAllHEAD")
+        // or we just support storing with HEAD instead?
+        Future.unit
+    }
+
+  def putAllHEAD(repoName: String)(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, and(equal("environment", environment), equal("commitId", "HEAD"))).toFuture()
+        _ <- collection.deleteMany(session, and(equal("repoName", repoName), equal("commitId", "HEAD"))).toFuture()
         _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
-               AppConfigEnvRepository.AppConfigEnv(
-                 serviceName = fileName.stripSuffix(".yaml"),
-                 environment = environment,
+               AppConfigRepository.AppConfig(
+                 environment = None,
+                 repoName    = repoName,
                  fileName    = fileName,
                  commitId    = "HEAD",
                  content     = content
@@ -84,43 +91,44 @@ class AppConfigEnvRepository @Inject()(
       } yield ()
     }
 
-  def find(environment: Environment, fileName: String, latest: Boolean): Future[Option[String]] =
+  def find(repoName: String, environment: Option[Environment], fileName: String): Future[Option[String]] =
     collection
       .find(
         and(
-          equal("environment", environment),
-          equal("fileName"   , fileName),
-          if (latest)
-            equal("commitId", "HEAD")
-          else
-            notEqual("commitId", "HEAD")
+          equal("repoName", repoName),
+          equal("fileName", fileName),
+          environment match {
+            case Some(env) => equal("environment", env)
+            case None      => equal("commitId", "HEAD")
+          }
         )
       )
       .headOption()
       .map(_.map(_.content))
 }
 
-object AppConfigEnvRepository {
+object AppConfigRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val collectionName = "appConfigEnv"
+  val collectionName = "appConfig"
 
-  case class AppConfigEnv(
-    serviceName : String,
-    environment : Environment,
+  // For each fileName, we either store environment + commitId *or* commitId HEAD
+  case class AppConfig(
+    environment : Option[Environment],
+    repoName    : String,
     fileName    : String,
     commitId    : String,
     content     : String
   )
 
-  val mongoFormats: Format[AppConfigEnv] = {
+  val mongoFormats: Format[AppConfig] = {
     implicit val ef = Environment.format
-     ( (__ \ "serviceName").format[String]
-     ~ (__ \ "environment").format[Environment]
+     ( (__ \ "environment").formatNullable[Environment]
+     ~ (__ \ "repoName"   ).format[String]
      ~ (__ \ "fileName"   ).format[String]
      ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "content"    ).format[String]
-     )(AppConfigEnv. apply, unlift(AppConfigEnv.unapply))
+     )(AppConfig. apply, unlift(AppConfig.unapply))
   }
 }

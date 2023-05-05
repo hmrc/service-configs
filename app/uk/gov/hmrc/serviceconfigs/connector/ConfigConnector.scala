@@ -35,17 +35,16 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  // TODO rename these to appConfigXXX
-  def serviceConfigYaml(env: Environment, service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+  def appConfigEnvYaml(env: Environment, service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/$commitId/$service.yaml")
 
-  def serviceConfigBaseConf(service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+  def appConfigBaseConf(service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/$commitId/$service.conf")
 
-  def serviceCommonConfigYaml(env: Environment, serviceType: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/$commitId/${env.asString}-$serviceType-common.yaml")
+  def appConfigCommonYaml(env: Environment, fileName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/$commitId/$fileName")
 
-  def serviceApplicationConfigFile(serviceName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+  def applicationConf(serviceName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/$commitId/conf/application.conf")
 
   private def doCall(url: URL)(implicit hc: HeaderCarrier) =

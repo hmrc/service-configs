@@ -16,13 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.{and, equal, notEqual}
+import org.mongodb.scala.bson.BsonDocument
+import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions, ReplaceOptions}
+import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -46,69 +47,60 @@ class AppConfigCommonRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(serviceName: String, environment: Environment, fileName: String, commitId: String, content: String): Future[Unit] =
-    // TODO how to clean up unreferenced versions?
-    // TODO we only really need to replace if commitId is the same (e.g. "HEAD")
-    collection.replaceOne(
-      and(
-        equal("serviceName", serviceName),
-        equal("environment", environment)
-      ),
-      AppConfigCommonRepository.AppConfigCommon(
-        serviceName = Some(serviceName),
-        environment = environment,
-        fileName    = fileName,
-        commitId    = commitId,
-        content     = content
-      ),
-      ReplaceOptions().upsert(true)
-    )
-      .toFuture()
-      .map(_ => ())
+  private val logger = Logger(getClass)
+
+  def put(appConfig: AppConfigCommonRepository.AppConfigCommon): Future[Unit] =
+    appConfig.serviceName match {
+      case Some(serviceName) =>
+        collection
+          .replaceOne(
+            and(
+              equal("serviceName", serviceName),
+              equal("fileName"   , appConfig.fileName)
+            ),
+            appConfig,
+            ReplaceOptions().upsert(true)
+          )
+          .toFuture()
+          .map(_ => ())
+      case None =>
+        logger.warn(s"Skipping store of appConfig since no environment specified - should be stored with putAllHEAD")
+        // or we just support storing with HEAD instead?
+        Future.unit
+    }
 
   def putAllHEAD(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, equal("commiId", "HEAD")).toFuture()
+        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
-               val environment = Environment.parse(fileName.takeWhile(_ != '-')).getOrElse {
-                                   sys.error(s"Could not extract environment from $fileName")// TODO handle better
-                                 }
                AppConfigCommonRepository.AppConfigCommon(
                  serviceName = None,
-                 environment = environment,
-                 fileName    = fileName,
                  commitId    = "HEAD",
+                 fileName    = fileName,
                  content     = content
                )
              }).toFuture()
       } yield ()
     }
 
-  def findForLatest(environment: Environment, serviceType: String): Future[Option[String]] = {
-    // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
-    val st = serviceType match {
-      case "api-microservice" => "microservice"
-      case other              => other
-    }
+  def find(serviceName: String, fileName: String): Future[Option[String]] =
     collection
       .find(
         and(
-          equal("fileName", s"${environment.asString}-$st-common.yaml"),
-          equal("commitId", "HEAD")
+          equal("serviceName", serviceName),
+          equal("fileName"   , fileName)
         )
       )
       .headOption()
       .map(_.map(_.content))
-  }
 
-  def findForDeployed(environment: Environment, serviceName: String): Future[Option[String]] =
+  def findHEAD(fileName: String): Future[Option[String]] =
     collection
       .find(
-        // we don't need filename, as there should only be one file used per serviceName/environment
         and(
-          equal("serviceName", serviceName),
-          equal("environment", environment)
+          equal("fileName", fileName),
+          equal("commitId", "HEAD")
         )
       )
       .headOption()
@@ -120,20 +112,16 @@ object AppConfigCommonRepository {
   import play.api.libs.json.{Format, __}
 
   case class AppConfigCommon(
-    serviceName: Option[String],
-    environment: Environment,
-    fileName   : String,
+    serviceName: Option[String], // only applies to non-HEAD
     commitId   : String,
+    fileName   : String,
     content    : String
   )
 
-  val mongoFormats: Format[AppConfigCommon] = {
-    implicit val ef = Environment.format
+  val mongoFormats: Format[AppConfigCommon] =
      ( (__ \ "serviceName").formatNullable[String]
-     ~ (__ \ "environment").format[Environment]
-     ~ (__ \ "fileName"   ).format[String]
      ~ (__ \ "commitId"   ).format[String]
+     ~ (__ \ "fileName"   ).format[String]
      ~ (__ \ "content"    ).format[String]
      )(AppConfigCommon.apply, unlift(AppConfigCommon.unapply))
-  }
 }
