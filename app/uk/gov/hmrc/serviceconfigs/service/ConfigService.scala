@@ -120,20 +120,6 @@ class ConfigService @Inject()(
     } yield
       (applicationConf, bootstrapConf)
 
-  private def lookupBaseConf(
-    serviceName: String,
-    optSlugInfo: Option[SlugInfo]
-  )(implicit hc: HeaderCarrier): Future[Config] =
-    for {
-      optBaseConfRaw <- optSlugInfo match {
-                          // if no slug config (e.g. java apps) get from github
-                          case Some(x) if x.slugConfig == "" => configConnector.appConfigBaseConf(serviceName, "HEAD")
-                          case Some(x)                       => Future.successful(Some(x.slugConfig))
-                          case None                          => Future.successful(None)
-                        }
-    } yield
-      ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
-
   /** Converts the unresolved configurations for each level into a
     * list of the effective configs
     */
@@ -203,7 +189,8 @@ class ConfigService @Inject()(
           (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
-          baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
+
+          baseConf                    =  ConfigParser.parseConfString(optSlugInfo.fold("")(_.slugConfig), logMissing = false) // ignoring includes, since we know this is applicationConf
 
           optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.appConfigCommonYaml(env, serviceName, st, latest))
                                           .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
