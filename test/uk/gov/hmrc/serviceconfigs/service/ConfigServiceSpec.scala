@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import com.github.tomakehurst.wiremock.client.WireMock._
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -25,13 +25,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
-import org.mongodb.scala.bson.collection.immutable.Document
-
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigEnvRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.model.MongoSlugInfoFormats
 
 import java.time.Instant
@@ -64,8 +62,8 @@ class ConfigServiceSpec
 
   private val configService = app.injector.instanceOf[ConfigService]
 
-  private val slugInfoCollection     = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
-  private val appConfigEnvCollection = mongoDatabase.getCollection(AppConfigEnvRepository.collectionName)
+  private val slugInfoCollection  = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
+  private val appConfigCollection = mongoDatabase.getCollection(AppConfigRepository.collectionName)
 
   implicit val slugInfoFormat = MongoSlugInfoFormats.slugInfoFormat
 
@@ -89,7 +87,6 @@ class ConfigServiceSpec
       , slugConfig        = ""
       )
 
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf")).willReturn(aResponse.withStatus(404)))
       withAppConfigEnv("development", service, """
         |hmrc_config.a: 3
         |hmrc_config.b: 4
@@ -100,10 +97,6 @@ class ConfigServiceSpec
         |hmrc_config.d: 1
         |hmrc_config.d.base64: Mg==
         """.stripMargin)
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-staging/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-integration/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-externaltest/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-production/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
 
       val configByKey =
         for {
@@ -118,7 +111,7 @@ class ConfigServiceSpec
                     )
                   Document(json.toString)
                 }.toFuture()
-          r <- configService.configByKey(service)
+          r <- configService.configByKey(service, latest = true)
         } yield r
 
       val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
@@ -180,11 +173,12 @@ class ConfigServiceSpec
   }
 
   def withAppConfigEnv(env: String, service: String, content: String): Unit =
-    appConfigEnvCollection
+    appConfigCollection
       .insertOne(Document(
-          "environment" -> env,
-           "fileName"   -> s"$service.yaml",
-           "content"    -> content
+        "repoName" -> s"app-config-$env",
+        "commitId" -> "HEAD",
+        "fileName" -> s"$service.yaml",
+        "content"  -> content
       ))
       .toFuture().futureValue
 }

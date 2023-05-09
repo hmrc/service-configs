@@ -21,12 +21,14 @@ import cats.implicits._
 import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
 import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, AppConfigCommonRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 
 @Singleton
 class AppConfigService @Inject()(
@@ -87,13 +89,20 @@ class AppConfigService @Inject()(
     )
 
   def putAppConfigBase(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
-    appConfigRepository.put(AppConfigRepository.AppConfig(
+    appConfigRepository.put(
       repoName    = "app-config-base",
       fileName    = s"$serviceName.conf",
-      environment = Some(environment),
+      environment = environment,
       commitId    = commitId,
       content     = content
-    ))
+    )
+
+  def deleteAppConfigBase(environment: Environment, serviceName: String): Future[Unit] =
+    appConfigRepository.delete(
+      repoName    = "app-config-base",
+      fileName    = s"$serviceName.conf",
+      environment = environment
+    )
 
   def appConfigEnvYaml(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
     appConfigRepository.find(
@@ -102,24 +111,36 @@ class AppConfigService @Inject()(
       fileName    = s"$serviceName.yaml"
     )
 
+  def serviceType(environment: Environment, serviceName: String): Future[Option[String]] =
+    appConfigEnvYaml(environment, serviceName, latest = true)
+      .map { optAppConfigEnvRaw =>
+        val appConfigEnvEntriesAll = ConfigParser.parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+        val optServiceType = appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+        // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
+        optServiceType.map {
+          case "api-microservice" => "microservice"
+          case other              => other
+        }
+      }
+
   def putAppConfigEnv(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
-    appConfigRepository.put(AppConfigRepository.AppConfig(
+    appConfigRepository.put(
       repoName    = s"app-config-${environment.asString}",
       fileName    = s"$serviceName.yaml",
-      environment = Some(environment),
+      environment = environment,
       commitId    = commitId,
       content     = content
-    ))
+    )
+
+  def deleteAppConfigEnv(environment: Environment, serviceName: String): Future[Unit] =
+    appConfigRepository.delete(
+      repoName    = s"app-config-${environment.asString}",
+      fileName    = s"$serviceName.yaml",
+      environment = environment
+    )
 
   def appConfigCommonYaml(environment: Environment, serviceName: String, serviceType: String, latest: Boolean): Future[Option[String]] = {
-    val appConfigCommonFileName = {
-      // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
-      val st = serviceType match {
-        case "api-microservice" => "microservice"
-        case other              => other
-      }
-      s"${environment.asString}-$st-common.yaml"
-    }
+    val appConfigCommonFileName = s"${environment.asString}-$serviceType-common.yaml"
 
     if (latest)
       appConfigCommonRepository.findHEAD(appConfigCommonFileName)
@@ -131,10 +152,16 @@ class AppConfigService @Inject()(
   }
 
   def putAppConfigCommon(serviceName: String, fileName: String, commitId: String, content: String): Future[Unit] =
-    appConfigCommonRepository.put(AppConfigCommonRepository.AppConfigCommon(
-      serviceName = Some(serviceName),
+    appConfigCommonRepository.put(
+      serviceName = serviceName,
       fileName    = fileName,
       commitId    = commitId,
       content     = content
-    ))
+    )
+
+    def deleteAppConfigCommon(environment: Environment, serviceName: String, serviceType: String): Future[Unit] =
+      appConfigCommonRepository.deleteNonHEAD(
+        serviceName = serviceName,
+        fileName    = s"${environment.asString}-$serviceType-common.yaml"
+      )
 }

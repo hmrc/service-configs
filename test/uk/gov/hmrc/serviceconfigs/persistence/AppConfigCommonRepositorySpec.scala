@@ -27,20 +27,34 @@ class AppConfigCommonRepositorySpec
   extends AnyWordSpec
      with Matchers
      with MockitoSugar
-     with DefaultPlayMongoRepositorySupport[(String, String)] {
+     with DefaultPlayMongoRepositorySupport[AppConfigCommonRepository.AppConfigCommon] {
 
   override protected val repository = new AppConfigCommonRepository(mongoComponent)
 
   "AppConfigCommonRepository" should {
-    "putAll correctly" in {
-      repository.putAll(Map("file1" -> "content1", "file2" -> "content2")).futureValue
+    "putAllHEAD correctly" in {
+      repository.putAllHEAD(Map("file1" -> "content1", "file2" -> "content2")).futureValue
+      repository.put(serviceName = "service1", fileName = "file3", commitId = "1234", content = "content3")
 
-      repository.findByFileName("file1").futureValue shouldBe Some("content1")
-      repository.findByFileName("file2").futureValue shouldBe Some("content2")
+      repository.findHEAD("file1").futureValue shouldBe Some("content1")
+      repository.findHEAD("file2").futureValue shouldBe Some("content2")
+      repository.find("service1", "file3").futureValue shouldBe Some("content3")
 
-      repository.putAll(Map("file1" -> "content3")).futureValue
-      repository.findByFileName("file1").futureValue shouldBe Some("content3")
-      repository.findByFileName("file2").futureValue shouldBe None
+      repository.putAllHEAD(Map("file1" -> "content3")).futureValue
+      //putAllHEAD will replace all content without a serviceName, but not affect those associated with a serviceName
+      repository.findHEAD("file1").futureValue shouldBe Some("content3")
+      repository.findHEAD("file2").futureValue shouldBe None
+      // it will also not affect those associated with a service-name
+      repository.find("service1", "file3").futureValue shouldBe Some("content3")
+    }
+
+    "put correctly" in {
+      repository.put(serviceName = "service1", fileName = "file1", commitId = "1234", content = "content1")
+      repository.put(serviceName = "service2", fileName = "file2", commitId = "5678", content = "content2")
+
+      repository.find(serviceName = "service1", fileName= "file1").futureValue shouldBe Some("content1")
+      repository.find(serviceName = "service2", fileName= "file2").futureValue shouldBe Some("content2")
+      repository.find(serviceName = "service1", fileName= "file2").futureValue shouldBe None
     }
   }
 }

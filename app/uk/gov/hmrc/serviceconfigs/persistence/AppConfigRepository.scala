@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
-import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -40,8 +39,7 @@ class AppConfigRepository @Inject()(
   collectionName = AppConfigRepository.collectionName,
   domainFormat   = AppConfigRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("environment")),
-                     IndexModel(Indexes.ascending("environment", "commitId", "fileName"))
+                     IndexModel(Indexes.ascending("repoName", "fileName", "environment", "commitId"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
 ) with Transactions {
@@ -51,28 +49,25 @@ class AppConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  private val logger = Logger(getClass)
-
-  def put(appConfig: AppConfigRepository.AppConfig): Future[Unit] =
-    appConfig.environment match {
-      case Some(env) =>
-        collection
-          .replaceOne(
-            and(
-              equal("repoName"   , appConfig.repoName),
-              equal("fileName"   , appConfig.fileName),
-              equal("environment", env)
-            ),
-            appConfig,
-            ReplaceOptions().upsert(true)
-          )
-          .toFuture()
-          .map(_ => ())
-      case None =>
-        logger.warn(s"Skipping store of appConfig since no environment specified - should be stored with putAllHEAD")
-        // or we just support storing with HEAD instead?
-        Future.unit
-    }
+  def put(repoName: String, fileName: String, environment: Environment, commitId: String, content: String): Future[Unit] =
+    collection
+      .replaceOne(
+        filter      = and(
+                        equal("repoName"   , repoName),
+                        equal("fileName"   , fileName),
+                        equal("environment", environment)
+                      ),
+        replacement = AppConfigRepository.AppConfig(
+                        environment = Some(environment),
+                        repoName    = repoName,
+                        fileName    = fileName,
+                        commitId    = commitId,
+                        content     = content
+                      ),
+        options     = ReplaceOptions().upsert(true)
+      )
+      .toFuture()
+      .map(_ => ())
 
   def putAllHEAD(repoName: String)(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
@@ -87,7 +82,6 @@ class AppConfigRepository @Inject()(
                  content     = content
                )
              }).toFuture()
-        // if there are any non HEAD that are not being inserted here, should they be removed? i.e. if no file at HEAD, then it's been decomissioned?
       } yield ()
     }
 
@@ -105,6 +99,16 @@ class AppConfigRepository @Inject()(
       )
       .headOption()
       .map(_.map(_.content))
+
+  def delete(repoName: String, environment: Environment, fileName: String): Future[Unit] =
+    collection.deleteOne(
+      and(
+        equal("repoName", repoName),
+        equal("fileName", fileName),
+        equal("environment", environment)
+      )
+    ).toFuture()
+     .map(_ => ())
 }
 
 object AppConfigRepository {

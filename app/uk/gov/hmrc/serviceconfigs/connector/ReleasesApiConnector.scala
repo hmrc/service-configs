@@ -65,7 +65,7 @@ object ReleasesApiConnector {
   }
 
   case class Deployment(
-      optEnvironment: Option[Environment] // TODO why is Environment optional?
+      optEnvironment: Option[Environment]
     , version       : Version
     , config        : Seq[DeploymentConfigFile]
     )

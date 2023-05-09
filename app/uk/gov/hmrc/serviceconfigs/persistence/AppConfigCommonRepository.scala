@@ -16,11 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions, ReplaceOptions}
-import play.api.Logger
+import org.mongodb.scala.model.Filters.{and, equal, notEqual}
+import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -38,7 +35,8 @@ class AppConfigCommonRepository @Inject()(
   collectionName = "appConfigCommon",
   domainFormat   = AppConfigCommonRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(hashed("fileName"), IndexOptions().name("fileNameIdx"))
+                     IndexModel(Indexes.ascending("serviceName", "fileName", "commitId")),
+                     IndexModel(Indexes.ascending("commitId"))
                    )
 ) with Transactions {
 
@@ -47,37 +45,33 @@ class AppConfigCommonRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  private val logger = Logger(getClass)
-
-  def put(appConfig: AppConfigCommonRepository.AppConfigCommon): Future[Unit] =
-    appConfig.serviceName match {
-      case Some(serviceName) =>
-        collection
-          .replaceOne(
-            and(
-              equal("serviceName", serviceName),
-              equal("fileName"   , appConfig.fileName)
-            ),
-            appConfig,
-            ReplaceOptions().upsert(true)
-          )
-          .toFuture()
-          .map(_ => ())
-      case None =>
-        logger.warn(s"Skipping store of appConfig since no environment specified - should be stored with putAllHEAD")
-        // or we just support storing with HEAD instead?
-        Future.unit
-    }
+  def put(serviceName: String, fileName: String, commitId: String, content: String): Future[Unit] =
+    collection
+      .replaceOne(
+        filter      = and(
+                        equal("serviceName", serviceName),
+                        equal("fileName"   , fileName)
+                      ),
+        replacement = AppConfigCommonRepository.AppConfigCommon(
+                        serviceName = Some(serviceName),
+                        fileName    = fileName,
+                        commitId    = commitId,
+                        content     = content
+                      ),
+        options     = ReplaceOptions().upsert(true)
+      )
+      .toFuture()
+      .map(_ => ())
 
   def putAllHEAD(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
+        _ <- collection.deleteMany(session, equal("commitId", "HEAD")).toFuture()
         _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
                AppConfigCommonRepository.AppConfigCommon(
                  serviceName = None,
-                 commitId    = "HEAD",
                  fileName    = fileName,
+                 commitId    = "HEAD",
                  content     = content
                )
              }).toFuture()
@@ -105,6 +99,16 @@ class AppConfigCommonRepository @Inject()(
       )
       .headOption()
       .map(_.map(_.content))
+
+  def deleteNonHEAD(serviceName: String, fileName: String): Future[Unit] =
+    collection.deleteOne(
+      and(
+        equal("serviceName", serviceName),
+        equal("fileName", fileName),
+        notEqual("comitId", "HEAD")
+      )
+    ).toFuture()
+     .map(_ => ())
 }
 
 object AppConfigCommonRepository {
@@ -113,15 +117,15 @@ object AppConfigCommonRepository {
 
   case class AppConfigCommon(
     serviceName: Option[String], // only applies to non-HEAD
-    commitId   : String,
     fileName   : String,
+    commitId   : String,
     content    : String
   )
 
   val mongoFormats: Format[AppConfigCommon] =
      ( (__ \ "serviceName").formatNullable[String]
-     ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "fileName"   ).format[String]
+     ~ (__ \ "commitId"   ).format[String]
      ~ (__ \ "content"    ).format[String]
      )(AppConfigCommon.apply, unlift(AppConfigCommon.unapply))
 }

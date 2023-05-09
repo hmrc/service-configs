@@ -22,8 +22,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.connector.{GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{SlugInfoRepository, SlugVersionRepository}
 
 import java.time.Instant
@@ -32,155 +32,157 @@ import scala.concurrent.Future
 
 class SlugInfoServiceSpec
   extends AnyWordSpec
-    with Matchers
-    with ScalaFutures
-    with MockitoSugar
-    with IntegrationPatience {
+     with Matchers
+     with ScalaFutures
+     with MockitoSugar
+     with IntegrationPatience {
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   "SlugInfoService.updateMetadata" should {
-    "clear flags of decommissioned services" in {
-      val boot = Boot.init
-
+    "clear flags of decommissioned services" in new Setup {
       val decommissionedServices = List("service1")
 
-      when(boot.mockedSlugInfoRepository.getUniqueSlugNames())
+      when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(Seq.empty))
 
-      when(boot.mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(boot.mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
         .thenReturn(Future.successful(Seq.empty))
 
-      when(boot.mockedGithubRawConnector.decommissionedServices())
+      when(mockedGithubRawConnector.decommissionedServices())
         .thenReturn(Future.successful(decommissionedServices))
 
-      when(boot.mockedSlugInfoRepository.getAllLatestSlugInfos())
+      when(mockedSlugInfoRepository.getAllLatestSlugInfos())
         .thenReturn(Future.successful(Seq.empty))
 
-      when(boot.mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
         .thenReturn(Future.unit)
 
-      boot.service.updateMetadata().futureValue
+      service.updateMetadata().futureValue
 
-      verify(boot.mockedSlugInfoRepository).clearFlags(SlugInfoFlag.values, decommissionedServices)
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.values, decommissionedServices)
     }
 
-    "clear latest flag for services that have been deleted/archived" in {
-      val boot = Boot.init
-
+    "clear latest flag for services that have been deleted/archived" in new Setup {
       val knownServices  = List("service1", "service2", "service3")
       val activeServices = List("service1", "service3").map(Repo.apply)
       val archived       = List("service2")
 
-      when(boot.mockedSlugInfoRepository.getUniqueSlugNames())
+      when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(boot.mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(boot.mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
         .thenReturn(Future.successful(activeServices))
 
-      when(boot.mockedGithubRawConnector.decommissionedServices())
+      when(mockedGithubRawConnector.decommissionedServices())
         .thenReturn(Future.successful(List.empty))
 
-      when(boot.mockedSlugInfoRepository.getAllLatestSlugInfos())
-        .thenReturn(Future.successful(knownServices.map(Boot.toSlugInfo)))
+      when(mockedSlugInfoRepository.getAllLatestSlugInfos())
+        .thenReturn(Future.successful(knownServices.map(toSlugInfo)))
 
-      when(boot.mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(boot.mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedAppConfigService.serviceType(any[Environment], any[String]))
+        .thenReturn(Future.successful(Some("microservice")))
+
+      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
         .thenReturn(Future.unit)
 
-      boot.service.updateMetadata().futureValue
+      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
+        .thenReturn(Future.unit)
 
-      verify(boot.mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), archived)
+      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+        .thenReturn(Future.unit)
+
+      service.updateMetadata().futureValue
+
+      verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), archived)
     }
 
-    "detect any services that do not have a 'latest' flag and set based on maxVersion" in {
-      val boot = Boot.init
-
+    "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
       val knownServices  = List("service1", "service2", "service3")
       val activeServices = List("service1", "service2", "service3").map(Repo.apply)
       val latestServices = List("service1", "service3")
       val missingLatest  = "service2"
       val maxVersion     = Version("1.0.0")
 
-      when(boot.mockedSlugInfoRepository.getUniqueSlugNames())
+      when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(boot.mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(boot.mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
         .thenReturn(Future.successful(activeServices))
 
-      when(boot.mockedGithubRawConnector.decommissionedServices())
+      when(mockedGithubRawConnector.decommissionedServices())
         .thenReturn(Future.successful(List.empty))
 
-      when(boot.mockedSlugInfoRepository.getAllLatestSlugInfos())
-        .thenReturn(Future.successful(latestServices.map(Boot.toSlugInfo)))
+      when(mockedSlugInfoRepository.getAllLatestSlugInfos())
+        .thenReturn(Future.successful(latestServices.map(toSlugInfo)))
 
-      when(boot.mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(boot.mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedAppConfigService.serviceType(any[Environment], any[String]))
+        .thenReturn(Future.successful(Some("microservice")))
+
+      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
         .thenReturn(Future.unit)
 
-      when(boot.mockedSlugVersionRepository.getMaxVersion(any[String]))
+      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
+      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+        .thenReturn(Future.unit)
+
+      when(mockedSlugVersionRepository.getMaxVersion(any[String]))
         .thenReturn(Future.successful(Some(maxVersion)))
 
-      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[String], any[Version]))
+      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[String], any[Version]))
         .thenReturn(Future.unit)
 
-      boot.service.updateMetadata().futureValue
+      service.updateMetadata().futureValue
 
-      verify(boot.mockedSlugInfoRepository).setFlag(SlugInfoFlag.Latest, missingLatest, maxVersion)
+      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.Latest, missingLatest, maxVersion)
     }
   }
 
-  case class Boot(
-    mockedSlugInfoRepository     : SlugInfoRepository
-  , mockedSlugVersionRepository  : SlugVersionRepository
-  , mockedReleasesApiConnector   : ReleasesApiConnector
-  , mockedTeamsAndReposConnector : TeamsAndRepositoriesConnector
-  , mockedGithubRawConnector     : GithubRawConnector
-  , service                      : SlugInfoService
-  )
+  trait Setup {
+    val mockedSlugInfoRepository     = mock[SlugInfoRepository]
+    val mockedSlugVersionRepository  = mock[SlugVersionRepository]
+    val mockedAppConfigService       = mock[AppConfigService]
+    val mockedReleasesApiConnector   = mock[ReleasesApiConnector]
+    val mockedTeamsAndReposConnector = mock[TeamsAndRepositoriesConnector]
+    val mockedGithubRawConnector     = mock[GithubRawConnector]
+    val mockedConfigConnector        = mock[ConfigConnector]
 
-  object Boot {
-    def init: Boot = {
-      val mockedSlugInfoRepository     = mock[SlugInfoRepository]
-      val mockedSlugVersionRepository  = mock[SlugVersionRepository]
-      val mockedReleasesApiConnector   = mock[ReleasesApiConnector]
-      val mockedTeamsAndReposConnector = mock[TeamsAndRepositoriesConnector]
-      val mockedGithubRawConnector     = mock[GithubRawConnector]
-
-      val service = new SlugInfoService(
-                          mockedSlugInfoRepository
-                        , mockedSlugVersionRepository
-                        , mockedReleasesApiConnector
-                        , mockedTeamsAndReposConnector
-                        , mockedGithubRawConnector
-                        )
-
-      Boot(
-        mockedSlugInfoRepository
-      , mockedSlugVersionRepository
-      , mockedReleasesApiConnector
-      , mockedTeamsAndReposConnector
-      , mockedGithubRawConnector
-      , service
-      )
-    }
+    val service = new SlugInfoService(
+                        mockedSlugInfoRepository
+                      , mockedSlugVersionRepository
+                      , mockedAppConfigService
+                      , mockedReleasesApiConnector
+                      , mockedTeamsAndReposConnector
+                      , mockedGithubRawConnector
+                      , mockedConfigConnector
+                      )
 
     def toSlugInfo(name: String): SlugInfo =
       SlugInfo(
-        uri = ""
+          uri               = ""
         , created           = Instant.now
         , name              = name
         , version           = Version("0.0.0")
@@ -192,5 +194,4 @@ class SlugInfoServiceSpec
         , slugConfig        = ""
       )
   }
-
 }

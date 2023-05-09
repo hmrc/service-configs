@@ -66,54 +66,8 @@ class SlugInfoService @Inject()(
                                 }
       _                      <- allServiceDeployments.toList.foldLeftM(()) { case (_, (serviceName, deployments)) =>
                                   deployments.foldLeftM(()) {
-                                    case (_, (env, None            )) => slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName) // TODO should we clear up config here too?
-                                    case (_, (env, Some(deployment))) => for {
-                                                                            _ <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-                                                                            _ <- deployment.config.toList.traverse { config =>
-                                                                                   config.repoName match {
-                                                                                     case s"app-config-common" =>
-                                                                                       for {
-                                                                                         optAppConfigCommon <- configConnector.appConfigCommonYaml(env, config.fileName, config.commitId)
-                                                                                         _                  <- optAppConfigCommon match {
-                                                                                                                 case Some(appConfigCommon) => appConfigService.putAppConfigCommon(
-                                                                                                                                                 serviceName = serviceName,
-                                                                                                                                                 fileName    = config.fileName,
-                                                                                                                                                 commitId    = config.commitId,
-                                                                                                                                                 content     = appConfigCommon
-                                                                                                                                               )
-                                                                                                                 case None                  => Future.successful(logger.warn(s"No app-config-common found for ${env.asString}, ${config.fileName} ${config.commitId}"))
-                                                                                                               }
-                                                                                       } yield ()
-                                                                                     case "app-config-base" =>
-                                                                                       for {
-                                                                                         optAppConfigBase <- configConnector.appConfigBaseConf(serviceName, config.commitId)
-                                                                                         _                <- optAppConfigBase match {
-                                                                                                                case Some(appConfigBase) => appConfigService.putAppConfigBase(
-                                                                                                                                              environment = env,
-                                                                                                                                              serviceName = serviceName,
-                                                                                                                                              commitId    = config.commitId,
-                                                                                                                                              content     = appConfigBase
-                                                                                                                                            )
-                                                                                                                case None                => Future.successful(logger.warn(s"No app-config-base found for $serviceName, ${config.commitId}"))
-                                                                                                              }
-                                                                                       } yield ()
-                                                                                     case s"app-config-${_}" =>
-                                                                                       for {
-                                                                                         optAppConfigEnv <- configConnector.appConfigEnvYaml(env, serviceName, config.commitId)
-                                                                                         _               <- optAppConfigEnv match {
-                                                                                                               case Some(appConfigEnv) => appConfigService.putAppConfigEnv(
-                                                                                                                                           environment = env,
-                                                                                                                                           serviceName = serviceName,
-                                                                                                                                           commitId    = config.commitId,
-                                                                                                                                           content     = appConfigEnv
-                                                                                                                                         )
-                                                                                                               case None               => Future.successful(logger.warn(s"No app-config-env found for $serviceName ${config.commitId}"))
-                                                                                                             }
-                                                                                       } yield ()
-                                                                                     case other => Future.successful(logger.warn(s"Received commitId for unexpected repo $other"))
-                                                                                   }
-                                                                                 }
-                                                                          } yield ()
+                                    case (_, (env, None            )) => cleanUpDeployment(env, serviceName)
+                                    case (_, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
                                   }
                                 }
       _                      <- slugInfoRepository.clearFlags(SlugInfoFlag.values, decommissionedServices)
@@ -135,4 +89,81 @@ class SlugInfoService @Inject()(
                                   }
                                 } else Future.unit
     } yield ()
+
+    private def cleanUpDeployment(env: Environment, serviceName: String): Future[Unit] =
+      for {
+        _           <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
+        serviceType <- appConfigService.serviceType(env, serviceName)
+        _           <- serviceType match {
+                         case Some(st) => appConfigService.deleteAppConfigCommon(
+                                            environment = env,
+                                            serviceName = serviceName,
+                                            serviceType = st
+                                          )
+                         case None     => Future.unit
+                       }
+        _           <- appConfigService.deleteAppConfigBase(
+                         environment = env,
+                         serviceName = serviceName
+                       )
+        _           <- appConfigService.deleteAppConfigEnv(
+                         environment = env,
+                         serviceName = serviceName
+                       )
+      } yield ()
+
+    private def updateDeployment(
+      env        : Environment,
+      serviceName: String,
+      deployment : ReleasesApiConnector.Deployment
+    )(implicit
+      hc: HeaderCarrier
+    ): Future[Unit] =
+      for {
+        _ <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
+        _ <- deployment.config.toList.traverse { config =>
+               config.repoName match {
+                 case "app-config-common" =>
+                   for {
+                     optAppConfigCommon <- configConnector.appConfigCommonYaml(env, config.fileName, config.commitId)
+                     _                  <- optAppConfigCommon match {
+                                             case Some(appConfigCommon) => appConfigService.putAppConfigCommon(
+                                                                             serviceName = serviceName,
+                                                                             fileName    = config.fileName,
+                                                                             commitId    = config.commitId,
+                                                                             content     = appConfigCommon
+                                                                           )
+                                             case None                  => Future.successful(logger.warn(s"No app-config-common found for ${env.asString}, ${config.fileName} ${config.commitId}"))
+                                           }
+                   } yield ()
+                 case "app-config-base" =>
+                   for {
+                     optAppConfigBase <- configConnector.appConfigBaseConf(serviceName, config.commitId)
+                     _                <- optAppConfigBase match {
+                                            case Some(appConfigBase) => appConfigService.putAppConfigBase(
+                                                                          environment = env,
+                                                                          serviceName = serviceName,
+                                                                          commitId    = config.commitId,
+                                                                          content     = appConfigBase
+                                                                        )
+                                            case None                => Future.successful(logger.warn(s"No app-config-base found for $serviceName, ${config.commitId}"))
+                                          }
+                   } yield ()
+                 case s"app-config-${_}" =>
+                   for {
+                     optAppConfigEnv <- configConnector.appConfigEnvYaml(env, serviceName, config.commitId)
+                     _               <- optAppConfigEnv match {
+                                           case Some(appConfigEnv) => appConfigService.putAppConfigEnv(
+                                                                       environment = env,
+                                                                       serviceName = serviceName,
+                                                                       commitId    = config.commitId,
+                                                                       content     = appConfigEnv
+                                                                     )
+                                           case None               => Future.successful(logger.warn(s"No app-config-env found for $serviceName ${config.commitId}"))
+                                         }
+                   } yield ()
+                 case other => Future.successful(logger.warn(s"Received commitId for unexpected repo $other"))
+               }
+             }
+      } yield ()
 }
