@@ -190,7 +190,11 @@ class ConfigService @Inject()(
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
 
-          baseConf                    =  ConfigParser.parseConfString(optSlugInfo.fold("")(_.slugConfig), logMissing = false) // ignoring includes, since we know this is applicationConf
+          optAppConfigBase            <- appConfigService.appConfigBaseConf(env, serviceName, latest)
+          appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
+                                         // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
+                                         optAppConfigBase.getOrElse(optSlugInfo.fold("")(_.slugConfig))
+          baseConf                    =  ConfigParser.parseConfString(appConfigBase, logMissing = false) // ignoring includes, since we know this is applicationConf
 
           optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.appConfigCommonYaml(env, serviceName, st, latest))
                                           .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
