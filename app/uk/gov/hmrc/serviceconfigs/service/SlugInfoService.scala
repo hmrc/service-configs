@@ -57,20 +57,23 @@ class SlugInfoService @Inject()(
       allServiceDeployments  =  serviceNames.map { serviceName =>
                                   val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
                                   val deploymentsByEnv = Environment.values
-                                                            .map(env =>
-                                                               ( env
-                                                               , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
-                                                               )
+                                                           .map(env =>
+                                                             ( env
+                                                             , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
                                                              )
+                                                           )
                                   (serviceName, deploymentsByEnv)
-                                }
+                                } ++
+                                  // map decomissioned services to No deployment in all environments in order to clean up
+                                  decommissionedServices.map( _ -> Environment.values.map(_ -> None))
       _                      <- allServiceDeployments.toList.foldLeftM(()) { case (_, (serviceName, deployments)) =>
                                   deployments.foldLeftM(()) {
                                     case (_, (env, None            )) => cleanUpDeployment(env, serviceName)
                                     case (_, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
                                   }
                                 }
-      _                      <- slugInfoRepository.clearFlags(SlugInfoFlag.values, decommissionedServices)
+      _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
+                                slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
                                   slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), inactiveServices.toList)
@@ -78,7 +81,7 @@ class SlugInfoService @Inject()(
       missingLatestFlag      =  serviceNames.intersect(activeRepos).diff(decommissionedServices).diff(latestServices)
       _                      <- if (missingLatestFlag.nonEmpty) {
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
-                                  missingLatestFlag.foldLeftM(()) { (_, serviceName) =>
+                                  missingLatestFlag.foldLeftM(())((_, serviceName) =>
                                     for {
                                       optVersion <- slugVersionRepository.getMaxVersion(serviceName)
                                       _          <- optVersion match {
@@ -86,7 +89,7 @@ class SlugInfoService @Inject()(
                                                       case None          => logger.warn(s"No max version found for $serviceName"); Future.unit
                                                     }
                                     } yield ()
-                                  }
+                                  )
                                 } else Future.unit
     } yield ()
 
