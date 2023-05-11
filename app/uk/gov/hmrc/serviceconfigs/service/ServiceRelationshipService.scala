@@ -46,7 +46,7 @@ class ServiceRelationshipService @Inject()(
 
   def updateServiceRelationships(): Future[Unit] =
     for {
-      slugInfos       <- slugInfoRepository.getAllLatestSlugInfos
+      slugInfos       <- slugInfoRepository.getAllLatestSlugInfos()
       (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[String])](slugInfo =>
                            serviceRelationshipsFromSlugInfo(slugInfo, knownServices = slugInfos.map(_.name))
                              .map(res => (res.toList, List.empty[String]))

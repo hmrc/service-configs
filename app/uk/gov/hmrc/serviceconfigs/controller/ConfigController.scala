@@ -41,9 +41,10 @@ class ConfigController @Inject()(
     notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
   )
   def serviceConfig(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: String,
+    @ApiParam(value = "Latest or As Deployed") latest: Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName).map { e =>
+    configService.configByEnvironment(serviceName, latest).map { e =>
       Ok(Json.toJson(e))
     }
   }
@@ -53,9 +54,10 @@ class ConfigController @Inject()(
     notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
   )
   def configByKey(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: String,
+    @ApiParam(value = "Latest or As Deployed") latest: Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByKey(serviceName).map { k =>
+    configService.configByKey(serviceName, latest).map { k =>
       Ok(Json.toJson(k))
     }
   }

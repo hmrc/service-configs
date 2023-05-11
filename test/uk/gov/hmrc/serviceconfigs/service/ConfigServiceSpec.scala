@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import com.github.tomakehurst.wiremock.client.WireMock._
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -25,13 +25,11 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
-import org.mongodb.scala.bson.collection.immutable.Document
-
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigEnvRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.model.MongoSlugInfoFormats
 
 import java.time.Instant
@@ -64,8 +62,8 @@ class ConfigServiceSpec
 
   private val configService = app.injector.instanceOf[ConfigService]
 
-  private val slugInfoCollection     = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
-  private val appConfigEnvCollection = mongoDatabase.getCollection(AppConfigEnvRepository.collectionName)
+  private val slugInfoCollection  = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
+  private val appConfigCollection = mongoDatabase.getCollection(AppConfigRepository.collectionName)
 
   implicit val slugInfoFormat = MongoSlugInfoFormats.slugInfoFormat
 
@@ -74,117 +72,135 @@ class ConfigServiceSpec
   }
 
   "ConfigService.configByKey" should {
-    "show config changes per key for each environment" in {
-      val service = "test-service"
-      val slugInfo = SlugInfo(
-        uri               = "some/uri"
-      , created           = Instant.now
-      , name              = service
-      , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
-      , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
-      , dependencies      = Nil
-      , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
-      , includedAppConfig = Map.empty
-      , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
-      , slugConfig        = ""
-      )
+    List(true, false).foreach { latest =>
+      s"show config changes per key for each environment for latest $latest" in {
+        val latest = true
+        val service = "test-service"
+        val slugInfo = SlugInfo(
+          uri               = "some/uri"
+        , created           = Instant.now
+        , name              = service
+        , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
+        , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
+        , dependencies      = Nil
+        , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
+        , includedAppConfig = Map.empty
+        , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
+        , slugConfig        = ""
+        )
 
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-base/HEAD/$service.conf")).willReturn(aResponse.withStatus(404)))
-      withAppConfigEnv("development", service, """
-        |hmrc_config.a: 3
-        |hmrc_config.b: 4
-        |hmrc_config.list.2: 3
-        """.stripMargin)
-      withAppConfigEnv("qa", service, """
-        |hmrc_config.a.b: 6
-        |hmrc_config.d: 1
-        |hmrc_config.d.base64: Mg==
-        """.stripMargin)
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-staging/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-integration/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-externaltest/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-      stubFor(get(urlEqualTo(s"/hmrc/app-config-production/HEAD/$service.yaml")).willReturn(aResponse.withStatus(404)))
-
-      val configByKey =
-        for {
-          _ <- slugInfoCollection
-                .insertOne {
-                  val json =
-                    Json.toJson(slugInfo).as[JsObject] ++
-                    Json.obj(
-                      "latest"       -> JsBoolean(true)
-                    , "development"  -> JsBoolean(true)
-                    , "qa"           -> JsBoolean(true)
-                    )
-                  Document(json.toString)
-                }.toFuture()
-          r <- configService.configByKey(service)
-        } yield r
-
-      val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
-      def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
-      Json.toJson(configByKey.futureValue) shouldBe Json.parse(s"""
-        {
-        "a": {
-          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
-          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }
-                         ],
-          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
-                         ]
-        },
-        "a.b": {
-          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" } ]
-        },
-        "b": {
-          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" } ],
-          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" },
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "4" }
-                         ],
-          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" }]
-        },
-        "c": {
-          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
-          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1"},
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3"}
-                         ],
-          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
-                         ]
-        },
-        "c.b": {
-          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" }]
-        },
-        "d": {
-          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" },
-                          { "source": "base64"                                                           , "value": "2" }
-                         ]
-        },
-        "d.base64": {
-          "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "Mg=="}]
-        },
-        "list": {
-          "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }],
-          "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" },
-                          { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "<<SUPPRESSED>>" }
-                         ],
-          "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }]
-        },
-        "list.2": {
-          "development": [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }]
+        val appConfigDev =
+          """
+            |hmrc_config.a: 3
+            |hmrc_config.b: 4
+            |hmrc_config.list.2: 3
+          """.stripMargin
+        val appConfigQa = """
+          |hmrc_config.a.b: 6
+          |hmrc_config.d: 1
+          |hmrc_config.d.base64: Mg==
+          """.stripMargin
+        if (latest) {
+          withAppConfigEnvForHEAD("development", service, appConfigDev)
+          withAppConfigEnvForHEAD("qa"         , service, appConfigQa)
+        } else {
+          withAppConfigEnvForDeployment("development", service, appConfigDev)
+          withAppConfigEnvForDeployment("qa"         , service, appConfigQa)
         }
+
+        val configByKey =
+          for {
+            _ <- slugInfoCollection
+                  .insertOne {
+                    val json =
+                      Json.toJson(slugInfo).as[JsObject] ++
+                      Json.obj(
+                        "latest"       -> JsBoolean(true)
+                      , "development"  -> JsBoolean(true)
+                      , "qa"           -> JsBoolean(true)
+                      )
+                    Document(json.toString)
+                  }.toFuture()
+            r <- configService.configByKey(service, latest = latest)
+          } yield r
+
+        val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
+        def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
+        Json.toJson(configByKey.futureValue) shouldBe Json.parse(s"""
+          {
+          "a": {
+            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
+            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }
+                          ],
+            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
+                          ]
+          },
+          "a.b": {
+            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" } ]
+          },
+          "b": {
+            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" } ],
+            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" },
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "4" }
+                          ],
+            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" }]
+          },
+          "c": {
+            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
+            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1"},
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3"}
+                          ],
+            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
+                          ]
+          },
+          "c.b": {
+            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" }]
+          },
+          "d": {
+            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" },
+                            { "source": "base64"                                                           , "value": "2" }
+                          ]
+          },
+          "d.base64": {
+            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "Mg=="}]
+          },
+          "list": {
+            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }],
+            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" },
+                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "<<SUPPRESSED>>" }
+                          ],
+            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }]
+          },
+          "list.2": {
+            "development": [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }]
+          }
+        }
+        """")
       }
-      """")
     }
   }
 
-  def withAppConfigEnv(env: String, service: String, content: String): Unit =
-    appConfigEnvCollection
+  def withAppConfigEnvForHEAD(env: String, service: String, content: String): Unit =
+    appConfigCollection
       .insertOne(Document(
-          "environment" -> env,
-           "fileName"   -> s"$service.yaml",
-           "content"    -> content
+        "repoName" -> s"app-config-$env",
+        "fileName" -> s"$service.yaml",
+        "commitId" -> "HEAD",
+        "content"  -> content
+      ))
+      .toFuture().futureValue
+
+  def withAppConfigEnvForDeployment(env: String, service: String, content: String): Unit =
+    appConfigCollection
+      .insertOne(Document(
+        "repoName"    -> s"app-config-$env",
+        "fileName"    -> s"$service.yaml",
+        "environment" -> env,
+        "commitId"    -> "1234",
+        "content"     -> content
       ))
       .toFuture().futureValue
 }

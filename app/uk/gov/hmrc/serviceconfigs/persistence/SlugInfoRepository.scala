@@ -94,10 +94,10 @@ class SlugInfoRepository @Inject()(
                               ).toFuture()
     }
 
-  def getAllLatestSlugInfos: Future[Seq[SlugInfo]] =
+  def getAllLatestSlugInfos(): Future[Seq[SlugInfo]] =
     collection.find(equal("latest", value = true)).toFuture()
 
-  def getUniqueSlugNames: Future[Seq[String]] =
+  def getUniqueSlugNames(): Future[Seq[String]] =
     collection.distinct[String]("name")
       .toFuture()
 

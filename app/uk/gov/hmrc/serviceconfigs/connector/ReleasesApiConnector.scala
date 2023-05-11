@@ -40,7 +40,7 @@ class ReleasesApiConnector @Inject()(
 
   implicit val sdir = ServiceDeploymentInformation.reads
 
-  def getWhatIsRunningWhere(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
+  def getWhatIsRunningWhere()(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
     httpClientV2
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]
@@ -50,17 +50,34 @@ object ReleasesApiConnector {
   val environmentReads: Reads[Option[Environment]] =
       JsPath.read[String].map(Environment.parse)
 
+  case class DeploymentConfigFile(
+    repoName: String,
+    fileName: String,
+    commitId: String
+  )
+
+  object DeploymentConfigFile {
+    val reads: Reads[DeploymentConfigFile] =
+      ( (__ \ "repoName").read[String]
+      ~ (__ \ "fileName").read[String]
+      ~ (__ \ "commitId").read[String]
+      )(DeploymentConfigFile.apply _)
+  }
+
   case class Deployment(
       optEnvironment: Option[Environment]
     , version       : Version
+    , config        : Seq[DeploymentConfigFile]
     )
 
   object Deployment {
     val reads: Reads[Deployment] = {
       implicit val er = environmentReads
       implicit val vf = Version.format
+      implicit val dcf = DeploymentConfigFile.reads
       ( (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
     }
   }

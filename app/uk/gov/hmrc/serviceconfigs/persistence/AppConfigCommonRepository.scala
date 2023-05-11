@@ -16,10 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.Filters.{and, equal, notEqual}
+import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -32,12 +30,13 @@ class AppConfigCommonRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository[(String, String)](
+) extends PlayMongoRepository[AppConfigCommonRepository.AppConfigCommon](
   mongoComponent = mongoComponent,
   collectionName = "appConfigCommon",
   domainFormat   = AppConfigCommonRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(hashed("fileName"), IndexOptions().name("fileNameIdx"))
+                     IndexModel(Indexes.ascending("serviceName", "fileName", "commitId")),
+                     IndexModel(Indexes.ascending("commitId"))
                    )
 ) with Transactions {
 
@@ -46,27 +45,87 @@ class AppConfigCommonRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def putAll(config: Map[String, String]): Future[Unit] =
+  def put(serviceName: String, fileName: String, commitId: String, content: String): Future[Unit] =
+    collection
+      .replaceOne(
+        filter      = and(
+                        equal("serviceName", serviceName),
+                        equal("fileName"   , fileName)
+                      ),
+        replacement = AppConfigCommonRepository.AppConfigCommon(
+                        serviceName = Some(serviceName),
+                        fileName    = fileName,
+                        commitId    = commitId,
+                        content     = content
+                      ),
+        options     = ReplaceOptions().upsert(true)
+      )
+      .toFuture()
+      .map(_ => ())
+
+  def putAllHEAD(config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, config.toSeq).toFuture()
+        _ <- collection.deleteMany(session, equal("commitId", "HEAD")).toFuture()
+        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
+               AppConfigCommonRepository.AppConfigCommon(
+                 serviceName = None,
+                 fileName    = fileName,
+                 commitId    = "HEAD",
+                 content     = content
+               )
+             }).toFuture()
       } yield ()
     }
 
-  def findByFileName(fileName: String): Future[Option[String]] =
+  def find(serviceName: String, fileName: String): Future[Option[String]] =
     collection
-      .find(equal("fileName", fileName))
+      .find(
+        and(
+          equal("serviceName", serviceName),
+          equal("fileName"   , fileName)
+        )
+      )
       .headOption()
-      .map(_.map(_._2))
+      .map(_.map(_.content))
+
+  def findHEAD(fileName: String): Future[Option[String]] =
+    collection
+      .find(
+        and(
+          equal("fileName", fileName),
+          equal("commitId", "HEAD")
+        )
+      )
+      .headOption()
+      .map(_.map(_.content))
+
+  def deleteNonHEAD(serviceName: String, fileName: String): Future[Unit] =
+    collection.deleteOne(
+      and(
+        equal("serviceName", serviceName),
+        equal("fileName", fileName),
+        notEqual("comitId", "HEAD")
+      )
+    ).toFuture()
+     .map(_ => ())
 }
 
 object AppConfigCommonRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val mongoFormats: Format[(String, String)] =
-     ( (__ \ "fileName").format[String]
-     ~ (__ \ "content" ).format[String]
-     ).tupled
+  case class AppConfigCommon(
+    serviceName: Option[String], // only applies to non-HEAD
+    fileName   : String,
+    commitId   : String,
+    content    : String
+  )
+
+  val mongoFormats: Format[AppConfigCommon] =
+     ( (__ \ "serviceName").formatNullable[String]
+     ~ (__ \ "fileName"   ).format[String]
+     ~ (__ \ "commitId"   ).format[String]
+     ~ (__ \ "content"    ).format[String]
+     )(AppConfigCommon.apply, unlift(AppConfigCommon.unapply))
 }

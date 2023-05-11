@@ -87,7 +87,7 @@ class ConfigService @Inject()(
     for {
       applicationConfRaw <- optSlugInfo.traverse {
                               // if no slug info (e.g. java apps) get from github
-                              case x if x.applicationConfig == "" => configConnector.serviceApplicationConfigFile(serviceName)
+                              case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, "HEAD")
                               case x                              => Future.successful(Some(x.applicationConfig))
                             }.map(_.flatten.getOrElse(""))
       regex              =  """^include\s+["'](frontend.conf|backend.conf)["']""".r.unanchored
@@ -120,20 +120,6 @@ class ConfigService @Inject()(
     } yield
       (applicationConf, bootstrapConf)
 
-  private def lookupBaseConf(
-    serviceName: String,
-    optSlugInfo: Option[SlugInfo]
-  )(implicit hc: HeaderCarrier): Future[Config] =
-    for {
-      optBaseConfRaw <- optSlugInfo match {
-                          // if no slug config (e.g. java apps) get from github
-                          case Some(x) if x.slugConfig == "" => configConnector.serviceConfigBaseConf(serviceName)
-                          case Some(x)                       => Future.successful(Some(x.slugConfig))
-                          case None                          => Future.successful(None)
-                        }
-    } yield
-      ConfigParser.parseConfString(optBaseConfRaw.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
-
   /** Converts the unresolved configurations for each level into a
     * list of the effective configs
     */
@@ -163,7 +149,8 @@ class ConfigService @Inject()(
 
   private def configSourceEntries(
     environment: EnvironmentMapping,
-    serviceName: String
+    serviceName: String,
+    latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
     hc: HeaderCarrier
   ): Future[Seq[ConfigSourceEntries]] =
@@ -186,7 +173,6 @@ class ConfigService @Inject()(
       case SlugInfoFlag.ForEnvironment(env) =>
         for {
           optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
-
           loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
           dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
@@ -195,16 +181,22 @@ class ConfigService @Inject()(
           (applicationConf, bootstrapConf)
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
-          optAppConfigEnvRaw          <- appConfigService.serviceConfigYaml(env, serviceName)
+          optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName, latest)
+
           appConfigEnvEntriesAll      =  ConfigParser
                                           .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
           serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
           (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
-          baseConf                    <- lookupBaseConf(serviceName, optSlugInfo)
 
-          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.serviceCommonConfigYaml(env, st))
+          optAppConfigBase            <- appConfigService.appConfigBaseConf(env, serviceName, latest)
+          appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
+                                         // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
+                                         optAppConfigBase.getOrElse(optSlugInfo.fold("")(_.slugConfig))
+          baseConf                    =  ConfigParser.parseConfString(appConfigBase, logMissing = false) // ignoring includes, since we know this is applicationConf
+
+          optAppConfigCommonRaw       <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.appConfigCommonYaml(env, serviceName, st, latest))
                                           .map(optRaw => ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse("")))
 
           (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
@@ -230,17 +222,17 @@ class ConfigService @Inject()(
           )
     }
 
-  def configByEnvironment(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
+  def configByEnvironment(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
     environments.toList.map(e =>
-      configSourceEntries(e, serviceName).map(e.name -> _)
+      configSourceEntries(e, serviceName, latest).map(e.name -> _)
     ).sequence.map(_.toMap)
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
-  def configByKey(serviceName: String)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
+  def configByKey(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
     environments.toList
       .foldLeftM[Future, ConfigByKey](Map.empty) {
         case (map, e) =>
-          configSourceEntries(e, serviceName).map { cses =>
+          configSourceEntries(e, serviceName, latest).map { cses =>
             cses.foldLeft(map) {
               case (subMap, cse) =>
                 subMap ++ cse.entries.map {
