@@ -20,6 +20,7 @@ import cats.instances.all._
 import cats.syntax.all._
 import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
@@ -34,6 +35,7 @@ import scala.util.Try
 
 @Singleton
 class ConfigService @Inject()(
+  configuration             : Configuration,
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository,
@@ -189,8 +191,10 @@ class ConfigService @Inject()(
           (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
 
-
-          optAppConfigBase            <- appConfigService.appConfigBaseConf(env, serviceName, latest)
+          optAppConfigBase            <- if (configuration.get[Boolean](s"app-config-base-in-slug.${env.asString}"))
+                                            Future.successful(None)
+                                         else
+                                           appConfigService.appConfigBaseConf(env, serviceName, latest)
           appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
                                          // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
                                          optAppConfigBase.getOrElse(optSlugInfo.fold("")(_.slugConfig))
