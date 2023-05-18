@@ -44,16 +44,6 @@ class ConfigService @Inject()(
 
   import ConfigService._
 
-  val environments: Seq[EnvironmentMapping] = Seq(
-    EnvironmentMapping("local"       , SlugInfoFlag.Latest                                  ),
-    EnvironmentMapping("development" , SlugInfoFlag.ForEnvironment(Environment.Development )),
-    EnvironmentMapping("qa"          , SlugInfoFlag.ForEnvironment(Environment.QA          )),
-    EnvironmentMapping("staging"     , SlugInfoFlag.ForEnvironment(Environment.Staging     )),
-    EnvironmentMapping("integration" , SlugInfoFlag.ForEnvironment(Environment.Integration )),
-    EnvironmentMapping("externaltest", SlugInfoFlag.ForEnvironment(Environment.ExternalTest)),
-    EnvironmentMapping("production"  , SlugInfoFlag.ForEnvironment(Environment.Production  ))
-  )
-
   private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Map[String, String] =
     optSlugInfo match {
       // LoggerModule was added for this version
@@ -150,7 +140,7 @@ class ConfigService @Inject()(
   }
 
   private def configSourceEntries(
-    environment: EnvironmentMapping,
+    environment: ConfigEnvironment,
     serviceName: String,
     latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
@@ -227,13 +217,29 @@ class ConfigService @Inject()(
     }
 
   def configByEnvironment(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
-    environments.toList.map(e =>
+    ConfigEnvironment.values.map(e =>
       configSourceEntries(e, serviceName, latest).map(e.name -> _)
     ).sequence.map(_.toMap)
 
+  def resultingConfig(
+    environment: ConfigEnvironment,
+    serviceName: String,
+    latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
+  )(implicit
+    hc: HeaderCarrier
+  ): Future[Map[String, String]] =
+    configSourceEntries(environment, serviceName, latest)
+      .map(
+        _.flatMap(_.entries.toSeq)
+         .groupBy(_._1)
+         .map { case (k, vs) => k -> vs.lastOption.map(_._2) }
+         .collect { case (k, Some(v)) => k -> v }
+      )
+
+
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
   def configByKey(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
-    environments.toList
+    ConfigEnvironment.values.toList
       .foldLeftM[Future, ConfigByKey](Map.empty) {
         case (map, e) =>
           configSourceEntries(e, serviceName, latest).map { cses =>
@@ -339,8 +345,16 @@ object ConfigService {
     value     : String
   )
 
-  case class EnvironmentMapping(
-    name         : String,
-    slugInfoFlag : SlugInfoFlag
-  )
+  sealed trait ConfigEnvironment {
+    def name         : String
+    def slugInfoFlag : SlugInfoFlag
+  }
+
+  object ConfigEnvironment {
+    case object Local                           extends ConfigEnvironment{ override def name = "local"     ; override def slugInfoFlag = SlugInfoFlag.Latest              }
+    case class ForEnvironment(env: Environment) extends ConfigEnvironment{ override def name = env.asString; override def slugInfoFlag = SlugInfoFlag.ForEnvironment(env) }
+
+    val values: List[ConfigEnvironment] =
+      Local :: Environment.values.map(ForEnvironment.apply)
+  }
 }

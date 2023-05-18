@@ -30,10 +30,9 @@ import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
 import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, SlugInfoRepository}
-import uk.gov.hmrc.serviceconfigs.model.MongoSlugInfoFormats
+import uk.gov.hmrc.serviceconfigs.model.{Environment, MongoSlugInfoFormats}
 
 import java.time.Instant
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class ConfigServiceSpec
   extends AnyWordSpec
@@ -45,6 +44,7 @@ class ConfigServiceSpec
      with WireMockSupport
      with MongoSupport
      with uk.gov.hmrc.serviceconfigs.ConfigJson {
+  import ConfigService._
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
@@ -74,55 +74,10 @@ class ConfigServiceSpec
   "ConfigService.configByKey" should {
     List(true, false).foreach { latest =>
       s"show config changes per key for each environment for latest $latest" in {
-        val latest = true
-        val service = "test-service"
-        val slugInfo = SlugInfo(
-          uri               = "some/uri"
-        , created           = Instant.now
-        , name              = service
-        , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
-        , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
-        , dependencies      = Nil
-        , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
-        , includedAppConfig = Map.empty
-        , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
-        , slugConfig        = ""
-        )
+        val serviceName = "test-service"
+        setup(serviceName, latest)
 
-        val appConfigDev =
-          """
-            |hmrc_config.a: 3
-            |hmrc_config.b: 4
-            |hmrc_config.list.2: 3
-          """.stripMargin
-        val appConfigQa = """
-          |hmrc_config.a.b: 6
-          |hmrc_config.d: 1
-          |hmrc_config.d.base64: Mg==
-          """.stripMargin
-        if (latest) {
-          withAppConfigEnvForHEAD("development", service, appConfigDev)
-          withAppConfigEnvForHEAD("qa"         , service, appConfigQa)
-        } else {
-          withAppConfigEnvForDeployment("development", service, appConfigDev)
-          withAppConfigEnvForDeployment("qa"         , service, appConfigQa)
-        }
-
-        val configByKey =
-          for {
-            _ <- slugInfoCollection
-                  .insertOne {
-                    val json =
-                      Json.toJson(slugInfo).as[JsObject] ++
-                      Json.obj(
-                        "latest"       -> JsBoolean(true)
-                      , "development"  -> JsBoolean(true)
-                      , "qa"           -> JsBoolean(true)
-                      )
-                    Document(json.toString)
-                  }.toFuture()
-            r <- configService.configByKey(service, latest = latest)
-          } yield r
+        val configByKey = configService.configByKey(serviceName, latest = latest)
 
         val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
         def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
@@ -183,6 +138,34 @@ class ConfigServiceSpec
     }
   }
 
+  "ConfigService.configSourceEntries" should {
+    List(true, false).foreach { latest =>
+      s"show config changes per key for each environment for latest $latest" in {
+        val serviceName = "test-service"
+        setup(serviceName, latest)
+
+        configService.resultingConfig(ConfigEnvironment.ForEnvironment(Environment.Development), serviceName, latest = latest).futureValue shouldBe Map(
+          "list.2" -> "3",
+          "a"      -> "3",
+          "b"      -> "4",
+          "c"      -> "3",
+          "list"   -> "<<SUPPRESSED>>"
+        )
+
+        configService.resultingConfig(ConfigEnvironment.ForEnvironment(Environment.QA), serviceName, latest = latest).futureValue shouldBe Map(
+          "a"        -> "<<SUPPRESSED>>",
+          "c"        -> "<<SUPPRESSED>>",
+          "a.b"      -> "6",
+          "c.b"      -> "6",
+          "d.base64" -> "Mg==",
+          "b"        -> "2",
+          "list"     -> "[1,2]",
+          "d"        -> "2"
+        )
+      }
+    }
+  }
+
   def withAppConfigEnvForHEAD(env: String, service: String, content: String): Unit =
     appConfigCollection
       .insertOne(Document(
@@ -203,4 +186,51 @@ class ConfigServiceSpec
         "content"     -> content
       ))
       .toFuture().futureValue
+
+  def setup(serviceName: String, latest: Boolean): Unit = {
+    val slugInfo = SlugInfo(
+      uri               = "some/uri"
+    , created           = Instant.now
+    , name              = serviceName
+    , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
+    , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
+    , dependencies      = Nil
+    , applicationConfig = s"\na=1\nb=2\nc=$${a}\nlist=[1,2]\n"
+    , includedAppConfig = Map.empty
+    , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
+    , slugConfig        = ""
+    )
+
+    val appConfigDev =
+      """
+        |hmrc_config.a: 3
+        |hmrc_config.b: 4
+        |hmrc_config.list.2: 3
+      """.stripMargin
+    val appConfigQa = """
+      |hmrc_config.a.b: 6
+      |hmrc_config.d: 1
+      |hmrc_config.d.base64: Mg==
+      """.stripMargin
+    if (latest) {
+      withAppConfigEnvForHEAD("development", serviceName, appConfigDev)
+      withAppConfigEnvForHEAD("qa"         , serviceName, appConfigQa)
+    } else {
+      withAppConfigEnvForDeployment("development", serviceName, appConfigDev)
+      withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa)
+    }
+
+    slugInfoCollection
+      .insertOne {
+        val json =
+          Json.toJson(slugInfo).as[JsObject] ++
+          Json.obj(
+            "latest"       -> JsBoolean(true)
+          , "development"  -> JsBoolean(true)
+          , "qa"           -> JsBoolean(true)
+          )
+        Document(json.toString)
+      }.toFuture()
+        .futureValue
+  }
 }
