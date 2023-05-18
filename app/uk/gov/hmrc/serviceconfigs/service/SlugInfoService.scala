@@ -24,7 +24,7 @@ import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.{SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -32,11 +32,13 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugInfoService @Inject()(
   slugInfoRepository       : SlugInfoRepository
 , slugVersionRepository    : SlugVersionRepository
+, appliedConfigRepository  : AppliedConfigRepository
 , appConfigService         : AppConfigService
 , releasesApiConnector     : ReleasesApiConnector
 , teamsAndReposConnector   : TeamsAndRepositoriesConnector
 , githubRawConnector       : GithubRawConnector
 , configConnector          : ConfigConnector
+, configService            : ConfigService
 )(implicit
   ec: ExecutionContext
 ) {
@@ -113,6 +115,7 @@ class SlugInfoService @Inject()(
                          environment = env,
                          serviceName = serviceName
                        )
+        _           <- appliedConfigRepository.delete(env, serviceName)
       } yield ()
 
     private def updateDeployment(
@@ -168,5 +171,8 @@ class SlugInfoService @Inject()(
                  case other => Future.successful(logger.warn(s"Received commitId for unexpected repo $other"))
                }
              }
+        // now we have stored the deployment configs, we can calculate the resulting configs
+        deploymentConfig <- configService.resultingConfig(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false)
+        _                <- appliedConfigRepository.put(env, serviceName, deploymentConfig)
       } yield ()
 }

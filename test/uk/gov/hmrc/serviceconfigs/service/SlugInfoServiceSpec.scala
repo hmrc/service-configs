@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, SlugInfo, SlugInfoFlag, Version}
-import uk.gov.hmrc.serviceconfigs.persistence.{SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
 import java.time.Instant
@@ -303,22 +303,26 @@ class SlugInfoServiceSpec
   }
 
   trait Setup {
-    val mockedSlugInfoRepository     = mock[SlugInfoRepository]
-    val mockedSlugVersionRepository  = mock[SlugVersionRepository]
-    val mockedAppConfigService       = mock[AppConfigService]
-    val mockedReleasesApiConnector   = mock[ReleasesApiConnector]
-    val mockedTeamsAndReposConnector = mock[TeamsAndRepositoriesConnector]
-    val mockedGithubRawConnector     = mock[GithubRawConnector]
-    val mockedConfigConnector        = mock[ConfigConnector]
+    val mockedSlugInfoRepository      = mock[SlugInfoRepository]
+    val mockedSlugVersionRepository   = mock[SlugVersionRepository]
+    val mockedAppliedConfigRepository = mock[AppliedConfigRepository]
+    val mockedAppConfigService        = mock[AppConfigService]
+    val mockedReleasesApiConnector    = mock[ReleasesApiConnector]
+    val mockedTeamsAndReposConnector  = mock[TeamsAndRepositoriesConnector]
+    val mockedGithubRawConnector      = mock[GithubRawConnector]
+    val mockedConfigConnector         = mock[ConfigConnector]
+    val mockedConfigService           = mock[ConfigService]
 
     val service = new SlugInfoService(
                         mockedSlugInfoRepository
                       , mockedSlugVersionRepository
+                      , mockedAppliedConfigRepository
                       , mockedAppConfigService
                       , mockedReleasesApiConnector
                       , mockedTeamsAndReposConnector
                       , mockedGithubRawConnector
                       , mockedConfigConnector
+                      , mockedConfigService
                       )
 
     def toSlugInfo(name: String): SlugInfo =

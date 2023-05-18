@@ -128,11 +128,11 @@ object AppConfigRepository {
 
   val mongoFormats: Format[AppConfig] = {
     implicit val ef = Environment.format
-     ( (__ \ "environment").formatNullable[Environment]
-     ~ (__ \ "repoName"   ).format[String]
-     ~ (__ \ "fileName"   ).format[String]
-     ~ (__ \ "commitId"   ).format[String]
-     ~ (__ \ "content"    ).format[String]
-     )(AppConfig. apply, unlift(AppConfig.unapply))
+    ( (__ \ "environment").formatNullable[Environment]
+    ~ (__ \ "repoName"   ).format[String]
+    ~ (__ \ "fileName"   ).format[String]
+    ~ (__ \ "commitId"   ).format[String]
+    ~ (__ \ "content"    ).format[String]
+    )(AppConfig. apply, unlift(AppConfig.unapply))
   }
 }
