@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.bson.conversions.Bson
+import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -34,9 +36,10 @@ class AppliedConfigRepository @Inject()(
 ) extends PlayMongoRepository[AppliedConfigRepository.AppliedConfig](
   mongoComponent = mongoComponent,
   collectionName = "appliedConfig",
-  domainFormat   = AppliedConfigRepository.mongoFormats,
+  domainFormat   = AppliedConfigRepository.AppliedConfig.format,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("environment", "serviceName", "key"))
+                     IndexModel(Indexes.ascending("environment", "serviceName", "key")),
+                     IndexModel(Indexes.ascending("key", "environment", "serviceName")) // look ups are key first
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
 ) with Transactions {
@@ -62,6 +65,19 @@ class AppliedConfigRepository @Inject()(
       } yield ()
     }
 
+  def find(
+    key        : String,
+    environment: Option[Environment],
+    serviceName: Option[String]
+  ): Future[Seq[AppliedConfig]] =
+    collection.find(
+      and(
+        equal("key", key),
+        environment.fold[Bson](BsonDocument())(e  => equal("environment", e)),
+        serviceName.fold[Bson](BsonDocument())(sn => equal("serviceName", sn))
+      )
+    ).toFuture()
+
   def delete(environment: Environment, serviceName: String): Future[Unit] =
     collection.deleteMany(
       and(
@@ -83,12 +99,14 @@ object AppliedConfigRepository {
     value      : String
   )
 
-  val mongoFormats: Format[AppliedConfig] = {
-    implicit val ef = Environment.format
-    ( (__ \ "environment").format[Environment]
-    ~ (__ \ "serviceName").format[String]
-    ~ (__ \ "key"        ).format[String]
-    ~ (__ \ "value"      ).format[String]
-    )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
+  object AppliedConfig {
+    val format: Format[AppliedConfig] = {
+      implicit val ef = Environment.format
+      ( (__ \ "environment").format[Environment]
+      ~ (__ \ "serviceName").format[String]
+      ~ (__ \ "key"        ).format[String]
+      ~ (__ \ "value"      ).format[String]
+      )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
+    }
   }
 }

@@ -25,7 +25,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import java.util.Base64
@@ -39,6 +39,7 @@ class ConfigService @Inject()(
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository,
+  appliedConfigRepository   : AppliedConfigRepository,
   appConfigService          : AppConfigService
 )(implicit ec: ExecutionContext) {
 
@@ -236,6 +237,16 @@ class ConfigService @Inject()(
          .collect { case (k, Some(v)) => k -> v }
       )
 
+  def find(
+    key        : String,
+    environment: Option[Environment],
+    serviceName: Option[String]
+  ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
+    appliedConfigRepository.find(
+      key,
+      environment,
+      serviceName
+    )
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
   def configByKey(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =

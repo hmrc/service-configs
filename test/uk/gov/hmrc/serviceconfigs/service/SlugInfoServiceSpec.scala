@@ -77,6 +77,9 @@ class SlugInfoServiceSpec
       when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
         .thenReturn(Future.unit)
 
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
         .thenReturn(Future.unit)
 
@@ -91,6 +94,8 @@ class SlugInfoServiceSpec
         verify(mockedAppConfigService).deleteAppConfigBase(env, "service2")
         verify(mockedAppConfigService).deleteAppConfigEnv(env, "service1")
         verify(mockedAppConfigService).deleteAppConfigEnv(env, "service2")
+        verify(mockedAppliedConfigRepository).delete(env, "service1")
+        verify(mockedAppliedConfigRepository).delete(env, "service2")
       }
       verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
     }
@@ -130,6 +135,9 @@ class SlugInfoServiceSpec
       when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
         .thenReturn(Future.unit)
 
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
         .thenReturn(Future.unit)
 
@@ -141,6 +149,7 @@ class SlugInfoServiceSpec
           verify(mockedAppConfigService).deleteAppConfigCommon(env, service, "microservice")
           verify(mockedAppConfigService).deleteAppConfigBase(env, service)
           verify(mockedAppConfigService).deleteAppConfigEnv(env, service)
+          verify(mockedAppliedConfigRepository).delete(env, service)
         }
       }
       verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), archived)
@@ -181,6 +190,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
@@ -252,6 +264,9 @@ class SlugInfoServiceSpec
       when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
         .thenReturn(Future.unit)
 
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+        .thenReturn(Future.unit)
+
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
         .thenReturn(Future.unit)
 
@@ -274,6 +289,12 @@ class SlugInfoServiceSpec
         .thenAnswer((environment: Environment, fileName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
 
       when(mockedAppConfigService.putAppConfigCommon(any[String], any[String], any[String], any[String]))
+        .thenReturn(Future.unit)
+
+      when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[String], any[Boolean])(any[HeaderCarrier]))
+        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: String, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.$serviceName" -> "v")))
+
+      when(mockedAppliedConfigRepository.put(any[Environment], any[String], any[Map[String, String]]))
         .thenReturn(Future.unit)
 
 
@@ -299,6 +320,10 @@ class SlugInfoServiceSpec
       verify(mockedAppConfigService).putAppConfigCommon("service1", "qa-microservice-common"        , "3", "content3")
       verify(mockedAppConfigService).putAppConfigCommon("service1", "production-microservice-common", "6", "content6")
       verify(mockedAppConfigService).putAppConfigCommon("service2", "qa-microservice-common"        , "9", "content9")
+
+      verify(mockedAppliedConfigRepository).put(Environment.QA        , "service1", Map("qa.service1"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(Environment.Production, "service1", Map("production.service1" -> "v"))
+      verify(mockedAppliedConfigRepository).put(Environment.QA        , "service2", Map("qa.service2"         -> "v"))
     }
   }
 

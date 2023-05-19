@@ -22,7 +22,9 @@ import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import scala.concurrent.ExecutionContext
 
@@ -42,7 +44,7 @@ class ConfigController @Inject()(
   )
   def serviceConfig(
     @ApiParam(value = "The service name to query") serviceName: String,
-    @ApiParam(value = "Latest or As Deployed") latest: Boolean
+    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
     configService.configByEnvironment(serviceName, latest).map { e =>
       Ok(Json.toJson(e))
@@ -55,9 +57,23 @@ class ConfigController @Inject()(
   )
   def configByKey(
     @ApiParam(value = "The service name to query") serviceName: String,
-    @ApiParam(value = "Latest or As Deployed") latest: Boolean
+    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
     configService.configByKey(serviceName, latest).map { k =>
+      Ok(Json.toJson(k))
+    }
+  }
+
+  @ApiOperation(
+    value = "Retrieves all uses of the config key, across all Environments and ServiceNames, unless filtered."
+  )
+  def search(
+    @ApiParam(value = "The key to query"  ) key        : String,
+    @ApiParam(value = "Environment filter") environment: Option[Environment],
+    @ApiParam(value = "ServiceName filter") serviceName: Option[String]
+  ): Action[AnyContent] = Action.async {
+    implicit val acf = AppliedConfigRepository.AppliedConfig.format
+    configService.find(key, environment, serviceName).map { k =>
       Ok(Json.toJson(k))
     }
   }
