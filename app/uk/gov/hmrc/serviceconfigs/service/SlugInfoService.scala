@@ -173,6 +173,9 @@ class SlugInfoService @Inject()(
              }
         // now we have stored the deployment configs, we can calculate the resulting configs
         deploymentConfig <- configService.resultingConfig(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false)
-        _                <- appliedConfigRepository.put(env, serviceName, deploymentConfig)
+        _                <- if (deploymentConfig.nonEmpty)
+                              appliedConfigRepository.put(env, serviceName, deploymentConfig)
+                            else
+                              Future.successful(logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()
 }
