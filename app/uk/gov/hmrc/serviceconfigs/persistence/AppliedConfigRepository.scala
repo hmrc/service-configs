@@ -105,7 +105,7 @@ object AppliedConfigRepository {
       ( (__ \ "environment").format[Environment]
       ~ (__ \ "serviceName").format[String]
       ~ (__ \ "key"        ).format[String]
-      ~ (__ \ "value"      ).format[String].inmap[String](s => if (s.startsWith("ENC[")) "ENC[...]" else s, s => s)
+      ~ (__ \ "value"      ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
     }
   }

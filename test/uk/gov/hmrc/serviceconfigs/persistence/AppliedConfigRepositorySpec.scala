@@ -17,12 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mockito.MockitoSugar
+import org.mongodb.scala.bson.{BsonDocument, BsonString}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import uk.gov.hmrc.serviceconfigs.model.Environment
+
 
 class AppliedConfigRepositorySpec
   extends AnyWordSpec
@@ -62,6 +64,12 @@ class AppliedConfigRepositorySpec
       )
     }
 
+    "store encrypted secrets simply" in {
+      val serviceName = "serviceName"
+      repository.put(Environment.Development, serviceName, Map("k" -> "ENC[1234]")).futureValue
+
+      mongoComponent.database.getCollection[BsonDocument]("appliedConfig").find().toFuture().futureValue.map(_.get("value")) shouldBe Seq(BsonString("ENC[...]"))
+    }
 
     "delete correctly" in {
       val serviceName1 = "serviceName1"
