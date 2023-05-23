@@ -67,6 +67,7 @@ object ReleasesApiConnector {
   case class Deployment(
       optEnvironment: Option[Environment]
     , version       : Version
+    , deploymentId  : String
     , config        : Seq[DeploymentConfigFile]
     )
 
@@ -77,6 +78,7 @@ object ReleasesApiConnector {
       implicit val dcf = DeploymentConfigFile.reads
       ( (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "deploymentId" ).read[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
     }

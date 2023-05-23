@@ -29,10 +29,11 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, MongoSlugInfoFormats}
 
 import java.time.Instant
+import uk.gov.hmrc.serviceconfigs.persistence.DeployedConfigRepository
 
 class ConfigServiceSpec
   extends AnyWordSpec
@@ -62,8 +63,9 @@ class ConfigServiceSpec
 
   private val configService = app.injector.instanceOf[ConfigService]
 
-  private val slugInfoCollection  = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
-  private val appConfigCollection = mongoDatabase.getCollection(AppConfigRepository.collectionName)
+  private val slugInfoCollection       = mongoDatabase.getCollection(SlugInfoRepository.collectionName)
+  private val latestConfigCollection   = mongoDatabase.getCollection(LatestConfigRepository.collectionName)
+  private val deployedConfigCollection = mongoDatabase.getCollection(DeployedConfigRepository.collectionName)
 
   implicit val slugInfoFormat = MongoSlugInfoFormats.slugInfoFormat
 
@@ -166,24 +168,24 @@ class ConfigServiceSpec
     }
   }
 
-  def withAppConfigEnvForHEAD(env: String, service: String, content: String): Unit =
-    appConfigCollection
+  def withAppConfigEnvForHEAD(env: String, serviceName: String, content: String): Unit =
+    latestConfigCollection
       .insertOne(Document(
         "repoName" -> s"app-config-$env",
-        "fileName" -> s"$service.yaml",
-        "commitId" -> "HEAD",
+        "fileName" -> s"$serviceName.yaml",
         "content"  -> content
       ))
       .toFuture().futureValue
 
-  def withAppConfigEnvForDeployment(env: String, service: String, content: String): Unit =
-    appConfigCollection
+  def withAppConfigEnvForDeployment(env: String, serviceName: String, content: String): Unit =
+    deployedConfigCollection
       .insertOne(Document(
-        "repoName"    -> s"app-config-$env",
-        "fileName"    -> s"$service.yaml",
-        "environment" -> env,
-        "commitId"    -> "1234",
-        "content"     -> content
+        "serviceName"     -> serviceName,
+        "environment"     -> env,
+        "deploymentId"    -> "deploymentId",
+        //"appConfigBase"   -> None,
+        //"appConfigCommon" -> None
+        "appConfigEnv"    -> content
       ))
       .toFuture().futureValue
 

@@ -1,3 +1,11 @@
+# Migration to 0.167.0
+
+```javascript
+db.getCollection("appConfig").drop()
+db.getCollection("appConfigCommon").drop()
+db.getCollection("lastHashString").drop()
+```
+
 # Migration to 0.162.0
 
 ```javascript
