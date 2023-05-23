@@ -184,19 +184,19 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation("service1", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+            Deployment(Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                , commitId = "1"),
               DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"       , commitId = "2"),
               DeploymentConfigFile(repoName = "app-config-qa"        , fileName = "service1.yaml"                , commitId = "3")
             )),
-            Deployment(Some(Environment.Production), Version("1.0.1"), deploymentId = "deploymentId2", config = Seq(
+            Deployment(Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                 , commitId = "4"),
               DeploymentConfigFile(repoName = "app-config-common"    , fileName = "production-microservice-common", commitId = "5"),
               DeploymentConfigFile(repoName = "app-config-production", fileName = "service1.yaml"                 , commitId = "6")
             ))
           )),
           ServiceDeploymentInformation("service2", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.2"), deploymentId = "deploymentId3", config = Seq(
+            Deployment(Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service2.conf"                 , commitId = "7"),
               DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"        , commitId = "8"),
               DeploymentConfigFile(repoName = "app-config-production", fileName = "service2.yaml"                 , commitId = "9")

@@ -50,7 +50,7 @@ class SlugInfoService @Inject()(
   // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
-      serviceNames           <- slugInfoRepository.getUniqueSlugNames()
+      serviceNames           <- slugInfoRepository.getUniqueSlugNames()//.map(_.filter(_ == "file-upload"))
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(_.name))
@@ -115,12 +115,17 @@ class SlugInfoService @Inject()(
     ): Future[Unit] =
       for {
         _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-        processed <- deployedConfigRepository.hasProcessed(deployment.deploymentId)  // TODO unfortunately we store this, before we calculate the resultingConfig, so it might not have actually been fully processed
-        _         <- if (!processed)
-                       updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId)
-                         .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
-                     else
-                       Future.unit
+        _         <- deployment.deploymentId match {
+                       case Some(deploymentId) => for {
+                                                    processed <- deployedConfigRepository.hasProcessed(deploymentId)  // TODO unfortunately we store this, before we calculate the resultingConfig, so it might not have actually been fully processed
+                                                    _         <- if (!processed)
+                                                                   updateDeployedConfig(env, serviceName, deployment, deploymentId)
+                                                                     .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                                                                 else
+                                                                   Future.unit
+                                                  } yield ()
+                       case None               => Future.unit
+                     }
       } yield ()
 
     private def updateDeployedConfig(
@@ -132,7 +137,7 @@ class SlugInfoService @Inject()(
       hc: HeaderCarrier
     ): EitherT[Future, String, Unit] =
       for {
-        deployedConfigMap <- deployment.config.toList.foldMapM[EitherT[Future,String, *], List[(String, String)]] { config =>
+        deployedConfigMap <- deployment.config.toList.foldMapM[EitherT[Future, String, *], List[(String, String)]] { config =>
                                 config.repoName match {
                                   case "app-config-common" =>
                                     for {
@@ -144,19 +149,19 @@ class SlugInfoService @Inject()(
                                     } yield List("app-config-common" -> appConfigCommon)
                                   case "app-config-base" =>
                                     for {
-                                      optAppConfigBase <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
-                                      appConfigBase    <- optAppConfigBase match {
+                                      optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
+                                      appConfigBase      <- optAppConfigBase match {
                                                               case Some(appConfigBase) => EitherT.pure[Future, String](appConfigBase)
                                                               case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
                                                             }
                                     } yield List("app-config-base" -> appConfigBase)
                                   case s"app-config-${_}" =>
                                     for {
-                                      optAppConfigEnv <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
-                                      appConfigEnv    <- optAppConfigEnv match {
-                                                            case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
-                                                            case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
-                                                          }
+                                      optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
+                                      appConfigEnv       <- optAppConfigEnv match {
+                                                              case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
+                                                              case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
+                                                            }
                                     } yield List(s"app-config-${env.asString}" -> appConfigEnv)
                                   case other => EitherT.pure[Future, String] { logger.warn(s"Received commitId for unexpected repo $other"); List.empty }
                                 }
