@@ -47,6 +47,12 @@ class SlugInfoService @Inject()(
 
   private val logger = Logger(getClass)
 
+  private case class Count(
+    skipped: Int,
+    removed: Int,
+    updated: Int
+  )
+
   // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
@@ -70,14 +76,18 @@ class SlugInfoService @Inject()(
                                 } ++
                                   // map decomissioned services to No deployment in all environments in order to clean up
                                   decommissionedServices.map( _ -> Environment.values.map(_ -> None))
-      _                      =  logger.info(s"Updating config: $allServiceDeployments")
-      _                      <- allServiceDeployments.toList.foldLeftM(()) { case (_, (serviceName, deployments)) =>
-                                  deployments.foldLeftM(()) {
-                                    case (_, (env, None            )) => cleanUpDeployment(env, serviceName)
-                                    case (_, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
+      _                      =  logger.info(s"Updating config")
+      count                  <- allServiceDeployments.toList.foldLeftM(Count(0, 0, 0)) { case (acc, (serviceName, deployments)) =>
+                                  deployments.foldLeftM(acc) {
+                                    case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
+                                                                             .map(_ => acc.copy(removed = acc.removed + 1))
+                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
+                                                                             .map(skipped => if (skipped)
+                                                                                               acc.copy(skipped = acc.skipped + 1)
+                                                                                             else acc.copy(updated = acc.updated + 1))
                                   }
                                 }
-      _                      =  logger.info(s"Config updated")
+      _                      =  logger.info(s"Config updated: $count")
       _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
                                 slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {
@@ -112,21 +122,19 @@ class SlugInfoService @Inject()(
       deployment : ReleasesApiConnector.Deployment
     )(implicit
       hc: HeaderCarrier
-    ): Future[Unit] =
+    ): Future[Boolean] =
       for {
         _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-        _         <- deployment.deploymentId match {
-                       case Some(deploymentId) => for {
-                                                    processed <- deployedConfigRepository.hasProcessed(deploymentId)  // TODO unfortunately we store this, before we calculate the resultingConfig, so it might not have actually been fully processed
-                                                    _         <- if (!processed)
-                                                                   updateDeployedConfig(env, serviceName, deployment, deploymentId)
-                                                                     .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
-                                                                 else
-                                                                   Future.unit
-                                                  } yield ()
-                       case None               => Future.unit
+        processed <- deployment.deploymentId match {
+                       case Some(deploymentId) => deployedConfigRepository.hasProcessed(deploymentId)  // TODO unfortunately we store this, before we calculate the resultingConfig, so it might not have actually been fully processed
+                       case None               => Future.successful(false)
                      }
-      } yield ()
+        _         <- if (!processed)
+                       updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
+                         .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                     else
+                       Future.unit
+      } yield processed
 
     private def updateDeployedConfig(
       env         : Environment,
