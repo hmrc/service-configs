@@ -16,10 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.bson.conversions.Bson
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{Indexes, IndexModel}
+import org.mongodb.scala.model.{Filters, Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -55,9 +53,9 @@ class AppliedConfigRepository @Inject()(
       for {
         _             <- collection.deleteMany(
                            session,
-                           and(
-                             equal("environment", environment),
-                             equal("serviceName", serviceName)
+                           Filters.and(
+                             Filters.equal("environment", environment),
+                             Filters.equal("serviceName", serviceName)
                            )
                          ).toFuture()
         configEntries =  config.map { case (k, v) => AppliedConfig(environment, serviceName = serviceName, key = k, value = v) }.toSeq
@@ -65,24 +63,31 @@ class AppliedConfigRepository @Inject()(
       } yield ()
     }
 
+  private val Quoted = """^\"(.*)\"$""".r
+
   def find(
     key        : String,
-    environment: Option[Environment],
-    serviceName: Option[String]
+    environment: Seq[Environment]
   ): Future[Seq[AppliedConfig]] =
     collection.find(
-      and(
-        equal("key", key),
-        environment.fold[Bson](BsonDocument())(e  => equal("environment", e)),
-        serviceName.fold[Bson](BsonDocument())(sn => equal("serviceName", sn))
+      Filters.and(
+        (key match {
+          case Quoted(k) => Filters.equal("key", k)
+          case _         => Filters.regex("key", key)
+        }),
+        (if (environment.isEmpty)
+           BsonDocument()
+         else
+          Filters.in("environment", environment: _*)
+        )
       )
     ).toFuture()
 
   def delete(environment: Environment, serviceName: String): Future[Unit] =
     collection.deleteMany(
-      and(
-        equal("environment", environment),
-        equal("serviceName", serviceName)
+      Filters.and(
+        Filters.equal("environment", environment),
+        Filters.equal("serviceName", serviceName)
       )
     ).toFuture()
      .map(_ => ())

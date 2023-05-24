@@ -258,13 +258,11 @@ class ConfigService @Inject()(
 
   def find(
     key        : String,
-    environment: Option[Environment],
-    serviceName: Option[String]
+    environment: Seq[Environment]
   ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
     appliedConfigRepository.find(
       key,
-      environment,
-      serviceName
+      environment
     )
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key

@@ -68,12 +68,11 @@ class ConfigController @Inject()(
     value = "Retrieves all uses of the config key, across all Environments and ServiceNames, unless filtered."
   )
   def search(
-    @ApiParam(value = "The key to query"  ) key        : String,
-    @ApiParam(value = "Environment filter") environment: Option[Environment],
-    @ApiParam(value = "ServiceName filter") serviceName: Option[String]
+    @ApiParam(value = "The key to query. Quotes required for an exact match") key        : String,
+    @ApiParam(value = "Environment filter"                                  ) environment: Seq[Environment]
   ): Action[AnyContent] = Action.async {
     implicit val acf = AppliedConfigRepository.AppliedConfig.format
-    configService.find(key, environment, serviceName).map { k =>
+    configService.find(key, environment).map { k =>
       Ok(Json.toJson(k))
     }
   }
