@@ -56,7 +56,7 @@ class SlugInfoService @Inject()(
   // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
-      serviceNames           <- slugInfoRepository.getUniqueSlugNames()//.map(_.filter(_ == "file-upload"))
+      serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(_.name))
@@ -126,7 +126,7 @@ class SlugInfoService @Inject()(
       for {
         _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
         processed <- deployment.deploymentId match {
-                       case Some(deploymentId) => deployedConfigRepository.hasProcessed(deploymentId)  // TODO unfortunately we store this, before we calculate the resultingConfig, so it might not have actually been fully processed
+                       case Some(deploymentId) => deployedConfigRepository.hasProcessed(deploymentId)
                        case None               => Future.successful(false)
                      }
         _         <- if (!processed)

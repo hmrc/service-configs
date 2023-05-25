@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.model.Environment
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-/** This applies to config where there is one file per service - i.e app-config-base and app-config-$env.
+/** This stores the latest (HEAD) files and their content against the repository name.
   */
 @Singleton
 class LatestConfigRepository @Inject()(

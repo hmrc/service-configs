@@ -176,42 +176,46 @@ class ConfigService @Inject()(
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
 
 
-          (appConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll) <- if (latest)
-            for {
-              optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName)
+          (optAppConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll) <-
+            if (latest)
+              for {
+                optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName)
 
-              appConfigEnvEntriesAll      =  ConfigParser
-                                              .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
-              serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+                appConfigEnvEntriesAll      =  ConfigParser
+                                                .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+                serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
 
-              optAppConfigBase            <- if (configuration.get[Boolean](s"app-config-base-in-slug.${env.asString}"))
-                                                Future.successful(None)
-                                             else
-                                               appConfigService.appConfigBaseConf(env, serviceName)
-              appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
-                                             // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
-                                             optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
+                optAppConfigBase            <- if (configuration.get[Boolean](s"app-config-base-in-slug.${env.asString}"))
+                                                  Future.successful(None)
+                                               else
+                                                 appConfigService.appConfigBaseConf(env, serviceName)
 
-              optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st => appConfigService.appConfigCommonYaml(env, serviceName, st))
+                optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st =>
+                                                 appConfigService.appConfigCommonYaml(env, serviceName, st)
+                                               )
 
-            } yield
-              ( appConfigBase
-              , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
-              , appConfigEnvEntriesAll: java.util.Properties
-              )
-          else
-            deployedConfigRepository
-              .find(serviceName, env)
-              .map(_.fold((Option.empty[String], new java.util.Properties, new java.util.Properties))(c => (
-                         c.appConfigBase
-                        , ConfigParser.parseYamlStringAsProperties(c.appConfigCommon.getOrElse(""))
-                        , ConfigParser.parseYamlStringAsProperties(c.appConfigEnv.getOrElse("")) : java.util.Properties
-                        )
-                   ))
+              } yield
+                ( optAppConfigBase
+                , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
+                , appConfigEnvEntriesAll: java.util.Properties
+                )
+            else
+              deployedConfigRepository
+                .find(serviceName, env)
+                .map(_.fold((Option.empty[String], new java.util.Properties, new java.util.Properties))(c =>
+                  ( c.appConfigBase
+                  , ConfigParser.parseYamlStringAsProperties(c.appConfigCommon.getOrElse(""))
+                  , ConfigParser.parseYamlStringAsProperties(c.appConfigEnv.getOrElse(""))
+                  )
+                ))
 
           serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
           (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+
+          appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
+                                         // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
+                                         optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
           baseConf                    =  ConfigParser.parseConfString(appConfigBase.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
 
           (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)

@@ -92,7 +92,7 @@ object DeployedConfigRepository {
     serviceName    : String,
     environment    : Environment,
     deploymentId   : String,
-    appConfigBase  : Option[String], // TODO also keep commitId?
+    appConfigBase  : Option[String],
     appConfigCommon: Option[String],
     appConfigEnv   : Option[String]
   )
