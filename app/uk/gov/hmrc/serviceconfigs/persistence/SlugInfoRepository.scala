@@ -68,12 +68,6 @@ class SlugInfoRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def clearAll(): Future[Unit] =
-    collection
-      .deleteMany(BsonDocument())
-      .toFuture()
-      .map(_ => ())
-
   def getSlugInfo(
     name: String,
     flag: SlugInfoFlag = SlugInfoFlag.Latest

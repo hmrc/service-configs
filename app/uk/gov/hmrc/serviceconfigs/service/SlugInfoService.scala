@@ -87,7 +87,7 @@ class SlugInfoService @Inject()(
                                                                                              else acc.copy(updated = acc.updated + 1))
                                   }
                                 }
-      _                      =  logger.info(s"Config updated: $count")
+      _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
       _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
                                 slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {

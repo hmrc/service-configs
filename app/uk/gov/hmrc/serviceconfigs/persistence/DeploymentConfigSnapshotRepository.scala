@@ -84,13 +84,6 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .toFutureOption()
       .map(_ => ())
 
-  // Test only
-  def deleteAll(): Future[Unit] =
-    collection
-      .deleteMany(BsonDocument())
-      .toFuture()
-      .map(_ => ())
-
   private [persistence] def removeLatestFlagForNonDeletedSnapshotsInEnvironment(
     environment: Environment,
     session    : ClientSession

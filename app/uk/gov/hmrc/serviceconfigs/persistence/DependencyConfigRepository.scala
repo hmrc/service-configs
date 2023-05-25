@@ -61,12 +61,6 @@ class DependencyConfigRepository @Inject()(
   def getAllEntries(): Future[Seq[DependencyConfig]] =
     collection.find().toFuture()
 
-  /** test only */
-  def clearAllData(): Future[Unit] =
-    collection.deleteMany(BsonDocument())
-      .toFuture()
-      .map(_ => ())
-
   def getDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     collection
       .find(and(

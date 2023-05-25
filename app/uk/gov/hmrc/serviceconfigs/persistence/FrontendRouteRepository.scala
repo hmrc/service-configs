@@ -119,12 +119,6 @@ class FrontendRouteRepository @Inject()(
   def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
     collection.find().toFuture()
 
-  def clearAll(): Future[Boolean] =
-    collection
-      .deleteMany(BsonDocument())
-      .toFuture()
-      .map(_.wasAcknowledged())
-
   def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
