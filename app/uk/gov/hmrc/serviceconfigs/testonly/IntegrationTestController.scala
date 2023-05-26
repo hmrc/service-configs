@@ -19,12 +19,13 @@ package uk.gov.hmrc.serviceconfigs.testonly
 import cats.implicits._
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{JsError, Json, Reads}
-import play.api.mvc.{Action, AnyContent, BodyParser, MessagesControllerComponents}
+import org.mongodb.scala.bson.BsonDocument
+import play.api.libs.json.{JsError, Json, JsObject, JsValue, Reads}
+import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,63 +37,57 @@ class IntegrationTestController @Inject()(
   slugInfoRepo                 : SlugInfoRepository,
   deploymentConfigRepo         : DeploymentConfigRepository,
   deploymentConfigSnapshotRepo : DeploymentConfigSnapshotRepository,
+  appliedConfigRepository      : AppliedConfigRepository,
   mcc                          : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  def validateJson[A: Reads]: BodyParser[A] =
-    parse.json.validate(
-      _.validate[A].asEither.left.map(e => BadRequest(JsError.toJson(e)))
-    )
-
-  def addRoutes(): Action[List[MongoFrontendRoute]] = {
-    implicit val mfr = MongoFrontendRoute.formats
-    Action.async(validateJson[List[MongoFrontendRoute]]) { implicit request =>
-      request.body
-        .traverse(routeRepo.update)
-        .map(_ => Ok("Ok"))
-    }
+  def delete(dataType: String): Action[AnyContent] = Action.async {
+    (dataType match {
+      case "routes"                    => routeRepo
+      case "bobbyRules"                => bobbyRulesRepository
+      case "slugDependencyConfigs"     => dependencyConfigRepo
+      case "sluginfos"                 => slugInfoRepo
+      case "deploymentConfigs"         => deploymentConfigRepo
+      case "deploymentConfigHistories" => deploymentConfigSnapshotRepo
+      case "appliedConfig"             => appliedConfigRepository
+    })
+    .collection.deleteMany(BsonDocument()).toFuture()
+    .map(_ => NoContent)
   }
 
-  def clearRoutes(): Action[AnyContent] =
-    Action.async {
-      routeRepo.clearAll()
-        .map(_ => Ok("done"))
-    }
-
-  def addBobbyRules(): Action[BobbyRules] = {
-    implicit val brf = BobbyRules.apiFormat
-    Action.async(validateJson[BobbyRules]) { implicit request =>
-      bobbyRulesRepository.putAll(request.body)
-        .map(_ => Ok("Ok"))
-    }
+  def post(dataType: String): Action[JsValue] = Action.async(parse.json) { request =>
+    val json = request.body
+    (dataType match {
+      case "routes"                    => addRoutes(json)
+      case "bobbyRules"                => addBobbyRules(json)
+      case "slugDependencyConfigs"     => addSlugDependencyConfigs(json)
+      case "sluginfos"                 => addSlugs(json)
+      case "deploymentConfigs"         => addDeploymentConfigs(json)
+      case "deploymentConfigHistories" => addDeploymentConfigHistories(json)
+      case "appliedConfig"             => addAppliedConfig(json)
+    }).map(_.fold(e => BadRequest(e), _ => NoContent))
   }
 
-  def clearBobbyRules(): Action[AnyContent] =
-    Action.async {
-      routeRepo.clearAll()
-        .map(_ => Ok("done"))
-    }
+  private def validateJson[A: Reads](json: JsValue): Either[JsObject, A] =
+    json.validate[A].asEither.left.map(JsError.toJson)
 
-  def addSlugDependencyConfigs(): Action[List[DependencyConfig]] = {
-    implicit val dependencyConfigReads: Reads[DependencyConfig] =
-      Json.using[Json.WithDefaultValues].reads[DependencyConfig]
-    Action.async(validateJson[List[DependencyConfig]]) { implicit request =>
-      request.body
-        .traverse(dependencyConfigRepo.add)
-        .map(_ => Ok("Done"))
-    }
-  }
+  private def addRoutes(json: JsValue): Future[Either[JsObject, Unit]] =
+    validateJson(json)(MongoFrontendRoute.formats)
+      .traverse(routeRepo.update)
 
-  def deleteSlugDependencyConfigs(): Action[AnyContent] =
-    Action.async {
-      dependencyConfigRepo.clearAllData().map(_ => Ok("Done"))
-    }
+  private def addBobbyRules(json: JsValue): Future[Either[JsObject, Unit]] =
+    validateJson(json)(BobbyRules.apiFormat)
+      .traverse(bobbyRulesRepository.putAll)
 
-  def addSlugs(): Action[List[SlugInfoWithFlags]] = {
+  private def addSlugDependencyConfigs(json: JsValue): Future[Either[JsObject, Unit]] =
+    validateJson(json)(Json.using[Json.WithDefaultValues].reads[DependencyConfig])
+      .traverse(dependencyConfigRepo.add)
+
+  private def addSlugs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
-    Action.async(validateJson[List[SlugInfoWithFlags]]) { implicit request =>
-      request.body.traverse { slugInfoWithFlag =>
+    validateJson(json)
+      .traverse { slugInfoWithFlag =>
         def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
           if (toSet(slugInfoWithFlag))
             slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
@@ -108,42 +103,26 @@ class IntegrationTestController @Inject()(
           _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.ExternalTest), _.externalTest)
           _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Integration ), _.integration )
         } yield ()
-      }.map(_ => Ok("Done"))
-    }
+      }
   }
 
-  def deleteSlugs(): Action[AnyContent] =
-    Action.async {
-      slugInfoRepo.clearAll().map(_ => Ok("Done"))
-    }
-
-  def addDeploymentConfigs(): Action[List[DeploymentConfig]] = {
+  private def addDeploymentConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val deploymentConfigReads: Reads[DeploymentConfig] = DeploymentConfig.apiFormat
-    Action.async(validateJson[List[DeploymentConfig]]) { implicit request =>
-      request.body
-        .traverse(deploymentConfigRepo.add)
-        .map(_ => Ok("Done"))
-    }
+    validateJson(json)
+      .traverse(deploymentConfigRepo.add)
   }
 
-  def deleteDeploymentConfigs(): Action[AnyContent] =
-    Action.async {
-      deploymentConfigRepo.deleteAll().map(_ => Ok("Done"))
-    }
-
-  def addDeploymentConfigHistories(): Action[List[DeploymentConfigSnapshot]] = {
+  private def addDeploymentConfigHistories(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
-    Action.async(validateJson[List[DeploymentConfigSnapshot]]) { implicit request =>
-      request.body
-        .traverse(deploymentConfigSnapshotRepo.add)
-        .map(_ => Ok("Done"))
-    }
+    validateJson(json)
+      .traverse(deploymentConfigSnapshotRepo.add)
   }
 
-  def deleteDeploymentConfigHistories(): Action[AnyContent] =
-    Action.async {
-      deploymentConfigSnapshotRepo.deleteAll().map(_ => Ok("Done"))
-    }
+  private def addAppliedConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
+    implicit val deploymentConfigSnapshotReads: Reads[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
+    validateJson[Seq[AppliedConfigRepository.AppliedConfig]](json)
+      .traverse[Future, JsObject, Unit](configEntries => appliedConfigRepository.collection.insertMany(configEntries).toFuture().map(_ => ()))
+  }
 
   case class SlugInfoWithFlags(
     slugInfo    : SlugInfo,

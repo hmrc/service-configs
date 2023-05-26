@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, SlugInfo, SlugInfoFlag, Version}
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
 import java.time.Instant
@@ -62,19 +62,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(mockedAppConfigService.serviceType(any[Environment], eqTo("service1")))
-        .thenReturn(Future.successful(Some("microservice")))
-
-      when(mockedAppConfigService.serviceType(any[Environment], eqTo("service2")))
-        .thenReturn(Future.successful(None)) // check we clean up what we can when we can't work out the service-type
-
-      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
@@ -88,12 +76,8 @@ class SlugInfoServiceSpec
       Environment.values.foreach { env =>
         verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), "service1")
         verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), "service2")
-        verify(mockedAppConfigService).deleteAppConfigCommon(env, "service1", "microservice")
-        verify(mockedAppConfigService, times(0)).deleteAppConfigCommon(eqTo(env), eqTo("service2"), any[String])
-        verify(mockedAppConfigService).deleteAppConfigBase(env, "service1")
-        verify(mockedAppConfigService).deleteAppConfigBase(env, "service2")
-        verify(mockedAppConfigService).deleteAppConfigEnv(env, "service1")
-        verify(mockedAppConfigService).deleteAppConfigEnv(env, "service2")
+        verify(mockedDeployedConfigRepository).delete("service1", env)
+        verify(mockedDeployedConfigRepository).delete("service2", env)
         verify(mockedAppliedConfigRepository).delete(env, "service1")
         verify(mockedAppliedConfigRepository).delete(env, "service2")
       }
@@ -123,16 +107,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(mockedAppConfigService.serviceType(any[Environment], any[String]))
-        .thenReturn(Future.successful(Some("microservice")))
-
-      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
@@ -146,9 +121,7 @@ class SlugInfoServiceSpec
       Environment.values.foreach { env =>
         archived.foreach { service =>
           verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), service)
-          verify(mockedAppConfigService).deleteAppConfigCommon(env, service, "microservice")
-          verify(mockedAppConfigService).deleteAppConfigBase(env, service)
-          verify(mockedAppConfigService).deleteAppConfigEnv(env, service)
+          verify(mockedDeployedConfigRepository).delete(service, env)
           verify(mockedAppliedConfigRepository).delete(env, service)
         }
       }
@@ -180,16 +153,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(mockedAppConfigService.serviceType(any[Environment], any[String]))
-        .thenReturn(Future.successful(Some("microservice")))
-
-      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
@@ -220,22 +184,22 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation("service1", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.0"), config = Seq(
+            Deployment(Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                , commitId = "1"),
-              DeploymentConfigFile(repoName = "app-config-qa"        , fileName = "service1.yaml"                , commitId = "2"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"       , commitId = "3")
+              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"       , commitId = "2"),
+              DeploymentConfigFile(repoName = "app-config-qa"        , fileName = "service1.yaml"                , commitId = "3")
             )),
-            Deployment(Some(Environment.Production), Version("1.0.1"), config = Seq(
+            Deployment(Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                 , commitId = "4"),
-              DeploymentConfigFile(repoName = "app-config-production", fileName = "service1.yaml"                 , commitId = "5"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "production-microservice-common", commitId = "6")
+              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "production-microservice-common", commitId = "5"),
+              DeploymentConfigFile(repoName = "app-config-production", fileName = "service1.yaml"                 , commitId = "6")
             ))
           )),
           ServiceDeploymentInformation("service2", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.2"), config = Seq(
+            Deployment(Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
               DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service2.conf"                 , commitId = "7"),
-              DeploymentConfigFile(repoName = "app-config-production", fileName = "service2.yaml"                 , commitId = "8"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"        , commitId = "9")
+              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"        , commitId = "8"),
+              DeploymentConfigFile(repoName = "app-config-production", fileName = "service2.yaml"                 , commitId = "9")
             ))
           ))
         )))
@@ -252,16 +216,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
         .thenReturn(Future.unit)
 
-      when(mockedAppConfigService.serviceType(any[Environment], any[String]))
-        .thenReturn(Future.successful(Some("microservice")))
-
-      when(mockedAppConfigService.deleteAppConfigCommon(any[Environment], any[String], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigBase(any[Environment], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedAppConfigService.deleteAppConfigEnv(any[Environment], any[String]))
+      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
@@ -273,22 +228,19 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[String], any[Version]))
         .thenReturn(Future.unit)
 
+      when(mockedDeployedConfigRepository.hasProcessed(any[String]))
+        .thenReturn(Future.successful(false))
+
       when(mockedConfigConnector.appConfigBaseConf(any[String], any[String])(any[HeaderCarrier]))
         .thenAnswer((serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
-
-      when(mockedAppConfigService.putAppConfigBase(any[Environment], any[String], any[String], any[String]))
-        .thenReturn(Future.unit)
-
-      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[String], any[String])(any[HeaderCarrier]))
-        .thenAnswer((environment: Environment, serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
-
-      when(mockedAppConfigService.putAppConfigEnv(any[Environment], any[String], any[String], any[String]))
-        .thenReturn(Future.unit)
 
       when(mockedConfigConnector.appConfigCommonYaml(any[Environment], any[String], any[String])(any[HeaderCarrier]))
         .thenAnswer((environment: Environment, fileName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
 
-      when(mockedAppConfigService.putAppConfigCommon(any[String], any[String], any[String], any[String]))
+      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[String], any[String])(any[HeaderCarrier]))
+        .thenAnswer((environment: Environment, serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
+
+      when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
         .thenReturn(Future.unit)
 
       when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[String], any[Boolean])(any[HeaderCarrier]))
@@ -309,17 +261,32 @@ class SlugInfoServiceSpec
       verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Staging   ), "service2")
       verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Production), "service2")
 
-      verify(mockedAppConfigService).putAppConfigBase(Environment.QA        , "service1", "1", "content1")
-      verify(mockedAppConfigService).putAppConfigBase(Environment.Production, "service1", "4", "content4")
-      verify(mockedAppConfigService).putAppConfigBase(Environment.QA        , "service2", "7", "content7")
+      verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
+        serviceName     = "service1",
+        environment     = Environment.QA,
+        deploymentId    = "deploymentId1",
+        appConfigBase   = Some("content1"),
+        appConfigCommon = Some("content2"),
+        appConfigEnv    = Some("content3")
+      ))
 
-      verify(mockedAppConfigService).putAppConfigEnv(Environment.QA        , "service1", "2", "content2")
-      verify(mockedAppConfigService).putAppConfigEnv(Environment.Production, "service1", "5", "content5")
-      verify(mockedAppConfigService).putAppConfigEnv(Environment.QA        , "service2", "8", "content8")
+      verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
+        serviceName     = "service1",
+        environment     = Environment.Production,
+        deploymentId    = "deploymentId2",
+        appConfigBase   = Some("content4"),
+        appConfigCommon = Some("content5"),
+        appConfigEnv    = Some("content6")
+      ))
 
-      verify(mockedAppConfigService).putAppConfigCommon("service1", "qa-microservice-common"        , "3", "content3")
-      verify(mockedAppConfigService).putAppConfigCommon("service1", "production-microservice-common", "6", "content6")
-      verify(mockedAppConfigService).putAppConfigCommon("service2", "qa-microservice-common"        , "9", "content9")
+      verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
+        serviceName     = "service2",
+        environment     = Environment.QA,
+        deploymentId    = "deploymentId3",
+        appConfigBase   = Some("content7"),
+        appConfigCommon = Some("content8"),
+        appConfigEnv    = Some("content9")
+      ))
 
       verify(mockedAppliedConfigRepository).put(Environment.QA        , "service1", Map("qa.service1"         -> "v"))
       verify(mockedAppliedConfigRepository).put(Environment.Production, "service1", Map("production.service1" -> "v"))
@@ -328,21 +295,23 @@ class SlugInfoServiceSpec
   }
 
   trait Setup {
-    val mockedSlugInfoRepository      = mock[SlugInfoRepository]
-    val mockedSlugVersionRepository   = mock[SlugVersionRepository]
-    val mockedAppliedConfigRepository = mock[AppliedConfigRepository]
-    val mockedAppConfigService        = mock[AppConfigService]
-    val mockedReleasesApiConnector    = mock[ReleasesApiConnector]
-    val mockedTeamsAndReposConnector  = mock[TeamsAndRepositoriesConnector]
-    val mockedGithubRawConnector      = mock[GithubRawConnector]
-    val mockedConfigConnector         = mock[ConfigConnector]
-    val mockedConfigService           = mock[ConfigService]
+    val mockedSlugInfoRepository       = mock[SlugInfoRepository]
+    val mockedSlugVersionRepository    = mock[SlugVersionRepository]
+    val mockedAppliedConfigRepository  = mock[AppliedConfigRepository]
+    val mockedAppConfigService         = mock[AppConfigService]
+    val mockedDeployedConfigRepository = mock[DeployedConfigRepository]
+    val mockedReleasesApiConnector     = mock[ReleasesApiConnector]
+    val mockedTeamsAndReposConnector   = mock[TeamsAndRepositoriesConnector]
+    val mockedGithubRawConnector       = mock[GithubRawConnector]
+    val mockedConfigConnector          = mock[ConfigConnector]
+    val mockedConfigService            = mock[ConfigService]
 
     val service = new SlugInfoService(
                         mockedSlugInfoRepository
                       , mockedSlugVersionRepository
                       , mockedAppliedConfigRepository
                       , mockedAppConfigService
+                      , mockedDeployedConfigRepository
                       , mockedReleasesApiConnector
                       , mockedTeamsAndReposConnector
                       , mockedGithubRawConnector

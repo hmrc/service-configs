@@ -82,7 +82,7 @@ class DeploymentConfigSnapshotRepositorySpec
         beforeA <- repository.snapshotsForService("A")
         beforeB <- repository.snapshotsForService("B")
         before   = beforeA ++ beforeB
-        _       <- repository.deleteAll()
+        _       <- deleteAll()
         afterA  <- repository.snapshotsForService("A")
         afterB  <- repository.snapshotsForService("B")
         after    = afterA ++ afterB

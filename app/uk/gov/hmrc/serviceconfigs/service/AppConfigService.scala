@@ -22,7 +22,7 @@ import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
-import uk.gov.hmrc.serviceconfigs.persistence.{AppConfigRepository, AppConfigCommonRepository, LastHashRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
@@ -32,28 +32,27 @@ import scala.jdk.CollectionConverters._
 
 @Singleton
 class AppConfigService @Inject()(
-  appConfigRepository      : AppConfigRepository,
-  appConfigCommonRepository: AppConfigCommonRepository,
-  lastHashRepository       : LastHashRepository,
-  configAsCodeConnector    : ConfigAsCodeConnector,
-  config                   : Configuration,
-  configConnector          : ConfigConnector
+  latestConfigRepository: LatestConfigRepository,
+  lastHashRepository    : LastHashRepository,
+  configAsCodeConnector : ConfigAsCodeConnector,
+  config                : Configuration,
+  configConnector       : ConfigConnector
 )(implicit
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
-    updateLatest("app-config-base", _.endsWith(".conf"), appConfigRepository.putAllHEAD("app-config-base"))
+    updateLatest("app-config-base", _.endsWith(".conf"), latestConfigRepository.put("app-config-base"))
 
   def updateAppConfigCommon(): Future[Unit] =
-    updateLatest("app-config-common", _.endsWith(".yaml"), appConfigCommonRepository.putAllHEAD)
+    updateLatest("app-config-common", _.endsWith(".yaml"), latestConfigRepository.put("app-config-common"))
 
   def updateAllAppConfigEnv(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), appConfigRepository.putAllHEAD(s"app-config-${env.asString}"))
+    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), latestConfigRepository.put(s"app-config-${env.asString}"))
 
   private def updateLatest(repoName: String, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
@@ -81,38 +80,20 @@ class AppConfigService @Inject()(
         } else acc
       }
 
-  def appConfigBaseConf(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
-    appConfigRepository.find(
+  def appConfigBaseConf(environment: Environment, serviceName: String): Future[Option[String]] =
+    latestConfigRepository.find(
       repoName    = "app-config-base",
-      environment = Option(environment).filterNot(_ => latest),
       fileName    = s"$serviceName.conf"
     )
 
-  def putAppConfigBase(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
-    appConfigRepository.put(
-      repoName    = "app-config-base",
-      fileName    = s"$serviceName.conf",
-      environment = environment,
-      commitId    = commitId,
-      content     = content
-    )
-
-  def deleteAppConfigBase(environment: Environment, serviceName: String): Future[Unit] =
-    appConfigRepository.delete(
-      repoName    = "app-config-base",
-      fileName    = s"$serviceName.conf",
-      environment = environment
-    )
-
-  def appConfigEnvYaml(environment: Environment, serviceName: String, latest: Boolean): Future[Option[String]] =
-    appConfigRepository.find(
+  def appConfigEnvYaml(environment: Environment, serviceName: String): Future[Option[String]] =
+    latestConfigRepository.find(
       repoName    = s"app-config-${environment.asString}",
-      environment = Option(environment).filterNot(_ => latest),
       fileName    = s"$serviceName.yaml"
     )
 
   def serviceType(environment: Environment, serviceName: String): Future[Option[String]] =
-    appConfigEnvYaml(environment, serviceName, latest = true)
+    appConfigEnvYaml(environment, serviceName)
       .map { optAppConfigEnvRaw =>
         val appConfigEnvEntriesAll = ConfigParser.parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
         val optServiceType = appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
@@ -123,45 +104,9 @@ class AppConfigService @Inject()(
         }
       }
 
-  def putAppConfigEnv(environment: Environment, serviceName: String, commitId: String, content: String): Future[Unit] =
-    appConfigRepository.put(
-      repoName    = s"app-config-${environment.asString}",
-      fileName    = s"$serviceName.yaml",
-      environment = environment,
-      commitId    = commitId,
-      content     = content
+  def appConfigCommonYaml(environment: Environment, serviceName: String, serviceType: String): Future[Option[String]] =
+    latestConfigRepository.find(
+      repoName = "app-config-common",
+      fileName = s"${environment.asString}-$serviceType-common.yaml"
     )
-
-  def deleteAppConfigEnv(environment: Environment, serviceName: String): Future[Unit] =
-    appConfigRepository.delete(
-      repoName    = s"app-config-${environment.asString}",
-      fileName    = s"$serviceName.yaml",
-      environment = environment
-    )
-
-  def appConfigCommonYaml(environment: Environment, serviceName: String, serviceType: String, latest: Boolean): Future[Option[String]] = {
-    val appConfigCommonFileName = s"${environment.asString}-$serviceType-common.yaml"
-
-    if (latest)
-      appConfigCommonRepository.findHEAD(appConfigCommonFileName)
-    else
-      appConfigCommonRepository.find(
-        serviceName = serviceName,
-        fileName    = appConfigCommonFileName
-      )
-  }
-
-  def putAppConfigCommon(serviceName: String, fileName: String, commitId: String, content: String): Future[Unit] =
-    appConfigCommonRepository.put(
-      serviceName = serviceName,
-      fileName    = fileName,
-      commitId    = commitId,
-      content     = content
-    )
-
-    def deleteAppConfigCommon(environment: Environment, serviceName: String, serviceType: String): Future[Unit] =
-      appConfigCommonRepository.deleteNonHEAD(
-        serviceName = serviceName,
-        fileName    = s"${environment.asString}-$serviceType-common.yaml"
-      )
 }

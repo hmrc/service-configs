@@ -4,13 +4,14 @@ import sbt._
 
 object AppDependencies {
 
-  val hmrcMongoVersion     = "1.1.0"
+  val hmrcMongoVersion     = "1.2.0"
   val bootstrapPlayVersion = "7.15.0"
-  val alpakkaVersion       = "2.0.2"
+  val alpakkaVersion       = "4.0.0"
   val jacksonVersion       = "2.12.6"
 
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"                      %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
+    "uk.gov.hmrc.mongo"                %% "hmrc-mongo-play-28"        % hmrcMongoVersion,
     "org.yaml"                         %  "snakeyaml"                 % "1.28",
     "org.typelevel"                    %% "cats-core"                 % "2.8.0",
     "org.typelevel"                    %% "alleycats-core"            % "2.1.1",
@@ -20,8 +21,7 @@ object AppDependencies {
     "com.typesafe.akka"                %% "akka-http"                 % PlayVersion.akkaHttpVersion,
     // using the fork of io.swagger:swagger-play2 from 'com.iterable' to get around ://github.com/swagger-api/swagger-play/issues/152
     "com.iterable"                     %% "swagger-play"              % "2.0.1",
-    "uk.gov.hmrc.mongo"                %% "hmrc-mongo-play-28"        % hmrcMongoVersion,
-    "com.fasterxml.jackson.module"     %% "jackson-module-scala"      % jacksonVersion,
+    "com.fasterxml.jackson.module"     %% "jackson-module-scala"      % jacksonVersion, // update deps provided by swagger
     "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
     ws
   )

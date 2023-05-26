@@ -89,11 +89,4 @@ class DeploymentConfigRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
-
-  // Test only
-  def deleteAll(): Future[Unit] =
-    collection
-      .deleteMany(BsonDocument())
-      .toFuture()
-      .map(_ => ())
 }
