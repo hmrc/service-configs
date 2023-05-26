@@ -76,4 +76,11 @@ class ConfigController @Inject()(
       Ok(Json.toJson(k))
     }
   }
+  @ApiOperation(
+    value = "Retrieves all config keys."
+  )
+  val configKeys: Action[AnyContent] = Action.async {
+    configService.findConfigKeys()
+      .map(res => Ok(Json.toJson(res)))
+  }
 }

@@ -152,4 +152,14 @@ class AppliedConfigRepositorySpec
       repository.find("\"k\"", environment = Seq(Environment.Development)).futureValue should contain theSameElementsAs Seq.empty
     }
   }
+
+  "return config keys" in {
+    val serviceName1 = "serviceName1"
+    repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+    repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+    val serviceName2 = "serviceName2"
+    repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+
+    repository.findConfigKeys().futureValue shouldBe Seq("k1", "k2", "k3", "k4")
+  }
 }

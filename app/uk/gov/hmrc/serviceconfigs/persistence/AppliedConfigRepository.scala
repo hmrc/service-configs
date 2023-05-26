@@ -83,6 +83,11 @@ class AppliedConfigRepository @Inject()(
       )
     ).toFuture()
 
+  def findConfigKeys(): Future[Seq[String]] =
+    collection.distinct[String]("key")
+      .toFuture()
+      .map(_.sorted)
+
   def delete(environment: Environment, serviceName: String): Future[Unit] =
     collection.deleteMany(
       Filters.and(
