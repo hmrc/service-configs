@@ -35,5 +35,18 @@ class ArtefactReceivingConfig @Inject()(
 
   lazy val sqsSlugQueue          : URL  = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo"
   lazy val sqsSlugDeadLetterQueue: URL  = url"$sqsQueueUrlPrefix/$sqsQueueSlugInfo-deadletter"
+
+  private lazy val sqsQueueDeploymentInfo =
+    configuration.get[String]("artefact.receiver.aws.sqs.queue-deployment")
+
+  lazy val sqsDeploymentQueue          : URL  = url"$sqsQueueUrlPrefix/$sqsQueueDeploymentInfo"
+  lazy val sqsDeploymentDeadLetterQueue: URL  = url"$sqsQueueUrlPrefix/$sqsQueueDeploymentInfo-deadletter"
+
+  lazy val sqsDeadLetterQueues: Set[URL] =
+    Set(
+      sqsSlugDeadLetterQueue,
+      sqsDeploymentDeadLetterQueue
+    )
+
   lazy val isEnabled             : Boolean = configuration.get[Boolean]("artefact.receiver.enabled")
 }
