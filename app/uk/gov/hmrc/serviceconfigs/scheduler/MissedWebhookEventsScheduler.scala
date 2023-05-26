@@ -25,7 +25,7 @@ import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 @Singleton
@@ -52,24 +52,20 @@ class MissedWebhookEventsScheduler @Inject()(
     lock            = TimePeriodLockService(mongoLockRepository, "missed-webhook-events", schedulerConfigs.missedWebhookEventsScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating incase of missed webhook event")
-    for {
-      _ <- run("update Deployments"           , deploymentConfigService.updateAll())
-      _ <- run("update Build Jobs"            , buildJobService.updateBuildJobs())
-      _ <- run("update Granfan Dashboards"    , dashboardService.updateGrafanaDashboards())
-      _ <- run("update Kibana Dashdoards"     , dashboardService.updateKibanaDashboards())
-      _ <- run("update Frontend Routes"       , nginxService.update(Environment.values))
-      _ <- run("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
-      _ <- run("AppConfigBaseUpdater"         , appConfigService.updateAppConfigBase())
-      _ <- run("AppConfigCommonUpdater"       , appConfigService.updateAppConfigCommon())
-      _ <- run("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
-      _ <- run("BobbyRulesUpdater"            , bobbyRulesService.update())
-      _ <- run("OutagePageUpdater"            , outagePageService.update())
-    } yield logger.info("Finished updating incase of missed webhook event")
-  }
-
-  private def run(name: String, f: Future[Unit]) = {
-    logger.info(s"Starting scheduled task: $name")
-    f.map { x => logger.info(s"Successfully run scheduled task: $name"); x }
-     .recover { case e => logger.error(s"Error running scheduled task $name", e) }
+    runAllAndFailWithFirstError(
+      for {
+        _ <- accumulateErrors("update Deployments"           , deploymentConfigService.updateAll())
+        _ <- accumulateErrors("update Build Jobs"            , buildJobService.updateBuildJobs())
+        _ <- accumulateErrors("update Granfan Dashboards"    , dashboardService.updateGrafanaDashboards())
+        _ <- accumulateErrors("update Kibana Dashdoards"     , dashboardService.updateKibanaDashboards())
+        _ <- accumulateErrors("update Frontend Routes"       , nginxService.update(Environment.values))
+        _ <- accumulateErrors("update Admin Frountend Routes", routesConfigService.updateAdminFrontendRoutes())
+        _ <- accumulateErrors("AppConfigBaseUpdater"         , appConfigService.updateAppConfigBase())
+        _ <- accumulateErrors("AppConfigCommonUpdater"       , appConfigService.updateAppConfigCommon())
+        _ <- accumulateErrors("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
+        _ <- accumulateErrors("BobbyRulesUpdater"            , bobbyRulesService.update())
+        _ <- accumulateErrors("OutagePageUpdater"            , outagePageService.update())
+      } yield logger.info("Finished updating incase of missed webhook event")
+    )
   }
 }

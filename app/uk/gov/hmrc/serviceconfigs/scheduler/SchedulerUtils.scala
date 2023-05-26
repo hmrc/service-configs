@@ -71,6 +71,24 @@ trait SchedulerUtils extends Logging {
         case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
       }
     }
+
+  import cats.data._
+  type ScheduledItem[A] = ReaderT[WriterT[Future, List[Throwable], *], Option[Throwable], A]
+
+  def runAllAndFailWithFirstError(k: ScheduledItem[Unit])(implicit ec: ExecutionContext) =
+    k.run(None)
+     .run
+     .flatMap(_._1.headOption.fold(Future.unit)(Future.failed))
+
+  def accumulateErrors(name: String, f: Future[Unit])(implicit ec: ExecutionContext): ScheduledItem[Unit] =
+    for {
+      _  <- ReaderT.pure(logger.info(s"Starting scheduled task: $name")): ScheduledItem[Unit]
+      op <- ReaderT.liftF(WriterT.liftF(
+             f.map { x => logger.info(s"Successfully run scheduled task: $name"); None }
+              .recover { case e => logger.error(s"Error running scheduled task $name", e); Some(e) }
+            )): ScheduledItem[Option[Throwable]]
+      re <- op.fold(ReaderT.pure(()): ScheduledItem[Unit])(ex => ReaderT.liftF(WriterT.tell(List(ex)))): ScheduledItem[Unit]
+    } yield re
 }
 
 object SchedulerUtils extends SchedulerUtils

@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.service.AlertConfigService
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 @Singleton
@@ -47,15 +47,11 @@ class ConfigScheduler @Inject()(
     lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", schedulerConfigs.configScheduler.interval.minus(1.minutes))
   ) {
     logger.info("Updating config")
-    for {
-      _ <- run("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
-      _ <- run("update Alert Handlers", alertConfigService.update())
-    } yield logger.info("Finished updating config")
-  }
-
-  private def run(name: String, f: Future[Unit]) = {
-    logger.info(s"Starting scheduled task: $name")
-    f.map { x => logger.info(s"Successfully run scheduled task: $name"); x }
-     .recover { case e => logger.error(s"Error running scheduled task $name", e) }
+    runAllAndFailWithFirstError(
+      for {
+        _ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
+        _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+      } yield logger.info("Finished updating config")
+    )
   }
 }
