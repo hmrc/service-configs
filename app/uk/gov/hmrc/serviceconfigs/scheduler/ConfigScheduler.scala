@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
+import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 import uk.gov.hmrc.serviceconfigs.service.AlertConfigService
@@ -34,7 +34,8 @@ class ConfigScheduler @Inject()(
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
   alertConfigService                : AlertConfigService,
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository
+  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
+  timestampSupport                  : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -44,7 +45,7 @@ class ConfigScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", schedulerConfigs.configScheduler.interval.minus(1.minutes))
+    lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval.plus(1.minutes))
   ) {
     logger.info("Updating config")
     runAllAndFailWithFirstError(

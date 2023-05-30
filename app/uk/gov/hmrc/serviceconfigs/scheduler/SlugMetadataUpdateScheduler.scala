@@ -21,8 +21,9 @@ import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
+import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
+import uk.gov.hmrc.serviceconfigs.scheduler.{MongoLockRepository, TimePeriodLockService}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
 import scala.concurrent.ExecutionContext
@@ -32,7 +33,8 @@ import scala.concurrent.duration.DurationInt
 class SlugMetadataUpdateScheduler @Inject()(
   schedulerConfigs    : SchedulerConfigs,
   slugInfoService     : SlugInfoService,
-  mongoLockRepository : MongoLockRepository
+  mongoLockRepository : MongoLockRepository,
+  timestampSupport    : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -44,7 +46,7 @@ class SlugMetadataUpdateScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "SlugMetadataUpdateScheduler",
     schedulerConfig = schedulerConfigs.slugMetadataScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "slug-metadata-scheduler", schedulerConfigs.slugMetadataScheduler.interval.minus(1.minutes))
+    lock            = TimePeriodLockService(mongoLockRepository, "slug-metadata-scheduler", timestampSupport, schedulerConfigs.slugMetadataScheduler.interval.plus(1.minutes))
   ) {
     logger.info("Updating slug metadata")
     for {

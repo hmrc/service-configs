@@ -269,6 +269,9 @@ class ConfigService @Inject()(
       environment
     )
 
+  def findConfigKeys(): Future[Seq[String]] =
+    appliedConfigRepository.findConfigKeys()
+
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
   def configByKey(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
     ConfigEnvironment.values.toList

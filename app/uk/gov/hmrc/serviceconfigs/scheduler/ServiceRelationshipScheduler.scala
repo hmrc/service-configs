@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
 import play.api.Logging
-import uk.gov.hmrc.mongo.lock.{MongoLockRepository, TimePeriodLockService}
+import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 
@@ -31,7 +31,8 @@ import scala.concurrent.ExecutionContext
 class ServiceRelationshipScheduler @Inject()(
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
-  serviceRelationshipService        : ServiceRelationshipService
+  serviceRelationshipService        : ServiceRelationshipService,
+  timestampSupport                  : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -41,7 +42,7 @@ class ServiceRelationshipScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "ServiceRelationshipScheduler",
     schedulerConfig = schedulerConfigs.serviceRelationshipScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "service-relationship-scheduler", schedulerConfigs.serviceRelationshipScheduler.interval.minus(1.minutes))
+    lock            = TimePeriodLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfigs.serviceRelationshipScheduler.interval.plus(1.minutes))
   ) {
     logger.info("Updating service relationships")
     for {
