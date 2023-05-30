@@ -68,7 +68,6 @@ class SlugConfigUpdateHandler @Inject()(
 
   if (config.isEnabled)
     SqsSource(queueUrl.toString, settings)(awsSqsClient)
-      .map(logMessage)
       .mapAsync(1)(processMessage)
       .withAttributes(ActorAttributes.supervisionStrategy {
         case NonFatal(e) => logger.error(s"Failed to process sqs messages: ${e.getMessage}", e); Supervision.Restart
@@ -77,13 +76,8 @@ class SlugConfigUpdateHandler @Inject()(
   else
     logger.warn("SlugConfigUpdateHandler is disabled.")
 
-  private def logMessage(message: Message): Message = {
-    logger.info(s"Starting processing message with ID '${message.messageId()}'")
-    message
-  }
-
   private def processMessage(message: Message): Future[MessageAction] = {
-    logger.debug(s"Starting processing SlugInfo message with ID '${message.messageId()}'")
+    logger.info(s"Starting processing SlugInfo message with ID '${message.messageId()}'")
     (for {
        payload <- EitherT.fromEither[Future](
                     Json.parse(message.body)

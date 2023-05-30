@@ -41,7 +41,6 @@ class DeadLetterHandler @Inject()(
   ec          : ExecutionContext
 ) extends Logging {
 
-  private lazy val queueUrl = config.sqsSlugDeadLetterQueue
   private lazy val settings = SqsSourceSettings()
 
   private lazy val awsSqsClient =
@@ -56,10 +55,12 @@ class DeadLetterHandler @Inject()(
     }.get
 
   if (config.isEnabled)
-    SqsSource(queueUrl.toString, settings)(awsSqsClient)
-      .mapAsync(10)(processMessage)
-      .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
-      .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
+    config.sqsDeadLetterQueues.foreach(queueUrl =>
+      SqsSource(queueUrl.toString, settings)(awsSqsClient)
+        .mapAsync(10)(processMessage)
+        .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
+        .recoverWith { case NonFatal(e) => logger.error(e.getMessage, e); Future.failed(e) }
+    )
   else
     logger.debug("DeadLetterHandler is disabled.")
 
