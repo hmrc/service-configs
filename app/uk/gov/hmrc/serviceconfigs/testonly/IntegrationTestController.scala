@@ -72,50 +72,57 @@ class IntegrationTestController @Inject()(
   private def validateJson[A: Reads](json: JsValue): Either[JsObject, A] =
     json.validate[A].asEither.left.map(JsError.toJson)
 
-  private def addRoutes(json: JsValue): Future[Either[JsObject, Unit]] =
-    validateJson(json)(MongoFrontendRoute.formats)
-      .traverse(routeRepo.update)
+  private def addRoutes(json: JsValue): Future[Either[JsObject, Unit]] = {
+    implicit val frf = MongoFrontendRoute.formats
+    validateJson[Seq[MongoFrontendRoute]](json)
+      .traverse(_.traverse_(routeRepo.update))
+  }
 
   private def addBobbyRules(json: JsValue): Future[Either[JsObject, Unit]] =
     validateJson(json)(BobbyRules.apiFormat)
       .traverse(bobbyRulesRepository.putAll)
 
-  private def addSlugDependencyConfigs(json: JsValue): Future[Either[JsObject, Unit]] =
-    validateJson(json)(Json.using[Json.WithDefaultValues].reads[DependencyConfig])
-      .traverse(dependencyConfigRepo.add)
+  private def addSlugDependencyConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
+    implicit val dcf = Json.using[Json.WithDefaultValues].reads[DependencyConfig]
+    validateJson[Seq[DependencyConfig]](json)
+      .traverse(_.traverse_(dependencyConfigRepo.add))
+  }
 
   private def addSlugs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
-    validateJson(json)
-      .traverse { slugInfoWithFlag =>
-        def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
-          if (toSet(slugInfoWithFlag))
-            slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
-          else
-            Future.unit
-        for {
-          _ <- slugInfoRepo.add(slugInfoWithFlag.slugInfo)
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Production  ), _.production  )
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.QA          ), _.qa          )
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Staging     ), _.staging     )
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Development ), _.development )
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.ExternalTest), _.externalTest)
-          _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Integration ), _.integration )
-        } yield ()
-      }
+    validateJson[Seq[SlugInfoWithFlags]](json)
+      .traverse(
+        _.traverse_ { slugInfoWithFlag =>
+          def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
+            if (toSet(slugInfoWithFlag))
+              slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
+            else
+              Future.unit
+
+          for {
+            _ <- slugInfoRepo.add(slugInfoWithFlag.slugInfo)
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Production  ), _.production  )
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.QA          ), _.qa          )
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Staging     ), _.staging     )
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Development ), _.development )
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.ExternalTest), _.externalTest)
+            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Integration ), _.integration )
+          } yield ()
+        }
+      )
   }
 
   private def addDeploymentConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val deploymentConfigReads: Reads[DeploymentConfig] = DeploymentConfig.apiFormat
-    validateJson(json)
-      .traverse(deploymentConfigRepo.add)
+    validateJson[Seq[DeploymentConfig]](json)
+      .traverse(_.traverse_(deploymentConfigRepo.add))
   }
 
   private def addDeploymentConfigHistories(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
-    validateJson(json)
-      .traverse(deploymentConfigSnapshotRepo.add)
+    validateJson[Seq[DeploymentConfigSnapshot]](json)
+      .traverse(_.traverse_(deploymentConfigSnapshotRepo.add))
   }
 
   private def addAppliedConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
