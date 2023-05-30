@@ -58,11 +58,13 @@ trait TimePeriodLockService {
                           // we only start the body if we've acquired a new lock. If we have refreshed, then we are currently running, and we don't want multiple runs in parallel
                           for {
                             res <- body
-                            _   <- if (timestampSupport.timestamp().toEpochMilli > lock.timeCreated.plus(JavaDuration.ofMillis(ttl.toMillis)).toEpochMilli)
+                            _   <- // if we have run longer than expected, release the lock, since another run is over-due
+                                   if (timestampSupport.timestamp().toEpochMilli > lock.timeCreated.plus(JavaDuration.ofMillis(ttl.toMillis)).toEpochMilli)
                                      lockRepository.releaseLock(lockId, ownerId)
                                    else
                                      // don't release the lock, let it timeout, so nothing else starts prematurely
-                                     Future.unit
+                                     // we remove our ownership so that we won't refresh it again, but just treat it as taken
+                                     lockRepository.abandonLock(lockId)
                           } yield Some(res)
                         case None =>
                           Future.successful(None)
