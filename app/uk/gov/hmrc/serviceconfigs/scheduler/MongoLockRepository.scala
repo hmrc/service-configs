@@ -37,6 +37,8 @@ trait LockRepository {
 
   def releaseLock(lockId: String, owner: String): Future[Unit]
 
+  def abandonLock(lockId: String): Future[Unit]
+
   def refreshExpiry(lockId: String, owner: String, ttl: Duration): Future[Boolean]
 
   def isLocked(lockId: String, owner: String): Future[Boolean]
@@ -102,6 +104,17 @@ class MongoLockRepository @Inject()(
            equal(Lock.owner, owner)
          )
        )
+      .toFuture()
+      .map(_ => ())
+  }
+
+  def abandonLock(lockId: String): Future[Unit] = {
+    logger.debug(s"Abandoning lock '$lockId'")
+    collection
+      .findOneAndUpdate(
+        filter = equal(Lock.id, lockId),
+        update = Updates.set(Lock.owner, "abandoned")
+      )
       .toFuture()
       .map(_ => ())
   }

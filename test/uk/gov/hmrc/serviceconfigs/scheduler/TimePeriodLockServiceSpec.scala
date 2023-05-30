@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.Promise
 
 class TimePeriodLockServiceSpec
   extends AnyWordSpecLike
@@ -53,23 +54,39 @@ class TimePeriodLockServiceSpec
     }
 
     "not execute the body if the lock for same serverId exists" in {
-      // TODO but confirm it has refreshed
       val counter = new AtomicInteger(0)
-      lockService.withRenewedLock {
-        Future.successful(counter.incrementAndGet())
-      }.futureValue
 
-      val lock = repository.collection.find[Lock](Filters.equal(Lock.id, lockId)).headOption().futureValue
+      val lockPromise = Promise[Lock]()
+      val endPromise  = Promise[Unit]()
 
-      lockService.withRenewedLock {
-        Future.successful(counter.incrementAndGet())
-      }.futureValue
+      // run task async
+      val f1 = lockService.withRenewedLock {
+        val lock = repository.collection.find[Lock](Filters.equal(Lock.id, lockId)).headOption().futureValue
+        lockPromise.success(lock.value)
+        counter.incrementAndGet()
+        endPromise.future
+      }
 
+      val lock = (
+        for {
+          l <- lockPromise.future
+          // start a second task once we've obtained the first lock state
+          _ <- lockService.withRenewedLock {
+                 Future.successful(counter.incrementAndGet())
+               }
+        } yield l
+      ).futureValue
+
+      // the second task should not have run
       counter.get() shouldBe 1
 
-      // expiryTime should have been increased
+      // we can finish the first task now
+      endPromise.success(())
+      f1.futureValue
+
+      // but the resulting expiryTime should have increased
       val lock2 = repository.collection.find[Lock](Filters.equal(Lock.id, lockId)).headOption().futureValue
-      lock2.value.expiryTime should not be lock.value.expiryTime
+      lock2.value.expiryTime should not be lock.expiryTime
     }
 
     "not execute the body and exit if the lock for another serverId exists" in {
@@ -118,6 +135,23 @@ class TimePeriodLockServiceSpec
       }.futureValue
       val lock = repository.collection.find[Lock](Filters.equal(Lock.id, lockId)).headOption().futureValue
       lock should not be defined
+    }
+
+    "not refresh the lock if the body has finished running" in {
+      val counter = new AtomicInteger(0)
+
+      lockService.withRenewedLock {
+        Future.successful(counter.incrementAndGet())
+      }.futureValue
+
+      val lock = repository.collection.find[Lock](Filters.equal(Lock.id, lockId)).headOption().futureValue
+      lock.value.owner should not be lockId
+
+      lockService.withRenewedLock {
+        Future.successful(counter.incrementAndGet())
+      }.futureValue
+
+      counter.get() shouldBe 1
     }
   }
 
