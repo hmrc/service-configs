@@ -183,6 +183,7 @@ class ConfigServiceSpec
         "serviceName"     -> serviceName,
         "environment"     -> env,
         "deploymentId"    -> "deploymentId",
+        "configId"        -> "configId",
         //"appConfigBase"   -> None,
         //"appConfigCommon" -> None
         "appConfigEnv"    -> content

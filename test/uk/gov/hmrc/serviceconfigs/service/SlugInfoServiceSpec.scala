@@ -265,6 +265,7 @@ class SlugInfoServiceSpec
         serviceName     = "service1",
         environment     = Environment.QA,
         deploymentId    = "deploymentId1",
+        configId        = "1.0.0_app-config-base_1_app-config-common_2_app-config-qa_3",
         appConfigBase   = Some("content1"),
         appConfigCommon = Some("content2"),
         appConfigEnv    = Some("content3")
@@ -274,6 +275,7 @@ class SlugInfoServiceSpec
         serviceName     = "service1",
         environment     = Environment.Production,
         deploymentId    = "deploymentId2",
+        configId        = "1.0.1_app-config-base_4_app-config-common_5_app-config-production_6",
         appConfigBase   = Some("content4"),
         appConfigCommon = Some("content5"),
         appConfigEnv    = Some("content6")
@@ -283,6 +285,7 @@ class SlugInfoServiceSpec
         serviceName     = "service2",
         environment     = Environment.QA,
         deploymentId    = "deploymentId3",
+        configId        = "1.0.2_app-config-base_7_app-config-common_8_app-config-production_9",
         appConfigBase   = Some("content7"),
         appConfigCommon = Some("content8"),
         appConfigEnv    = Some("content9")

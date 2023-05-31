@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
+import play.api.Logger
 import uk.gov.hmrc.mongo.TimestampSupport
 
 import java.time.{Duration => JavaDuration}
@@ -43,37 +44,45 @@ trait TimePeriodLockService {
 
   private val ownerId = UUID.randomUUID().toString
 
+  private val logger = Logger(getClass)
+
   /** Runs `body` if a lock can be taken or if the existing lock is owned by this service instance.
     * The lock is not released at the end of but task (unless it ends in failure), but is held onto until it expires.
     */
   def withRenewedLock[T](body: => Future[T])(implicit ec: ExecutionContext): Future[Option[T]] =
-      (for {
-         refreshed <- lockRepository.refreshExpiry(lockId, ownerId, ttl) // ensure our instance continues to have a valid lock in place
-         acquired  <- if (!refreshed)
-                        lockRepository.takeLock(lockId, ownerId, ttl)
-                      else
+    (for {
+       refreshed <- lockRepository.refreshExpiry(lockId, ownerId, ttl) // ensure our instance continues to have a valid lock in place
+       acquired  <- if (!refreshed)
+                      lockRepository.takeLock(lockId, ownerId, ttl)
+                    else {
+                      logger.info(s"Lock $lockId refreshed for $ownerId")
+                      Future.successful(None)
+                    }
+       result    <- acquired match {
+                      case Some(lock) =>
+                        logger.info(s"Lock $lockId acquired for $ownerId")
+                        // we only start the body if we've acquired a new lock. If we have refreshed, then we are currently running, and we don't want multiple runs in parallel
+                        for {
+                          res <- body
+                          _   <- // if we have run longer than expected, release the lock, since another run is over-due
+                                 if (timestampSupport.timestamp().toEpochMilli > lock.timeCreated.plus(JavaDuration.ofMillis(ttl.toMillis)).toEpochMilli) {
+                                   logger.info(s"Lock $lockId has been held by $ownerId longer than intended, releasing")
+                                   lockRepository.releaseLock(lockId, ownerId)
+                                 } else {
+                                   // don't release the lock, let it timeout, so nothing else starts prematurely
+                                   // we remove our ownership so that we won't refresh it again, but just treat it as taken
+                                   logger.info(s"Lock $lockId is being abandoned by $ownerId to expire naturally")
+                                   lockRepository.abandonLock(lockId)
+                                 }
+                        } yield Some(res)
+                      case None =>
                         Future.successful(None)
-         result    <- acquired match {
-                        case Some(lock) =>
-                          // we only start the body if we've acquired a new lock. If we have refreshed, then we are currently running, and we don't want multiple runs in parallel
-                          for {
-                            res <- body
-                            _   <- // if we have run longer than expected, release the lock, since another run is over-due
-                                   if (timestampSupport.timestamp().toEpochMilli > lock.timeCreated.plus(JavaDuration.ofMillis(ttl.toMillis)).toEpochMilli)
-                                     lockRepository.releaseLock(lockId, ownerId)
-                                   else
-                                     // don't release the lock, let it timeout, so nothing else starts prematurely
-                                     // we remove our ownership so that we won't refresh it again, but just treat it as taken
-                                     lockRepository.abandonLock(lockId)
-                          } yield Some(res)
-                        case None =>
-                          Future.successful(None)
-                      }
-       } yield result
-      ).recoverWith {
-        case ex => // if we fail with an error, release the lock so another run can start on the earliest opportunity
-                   lockRepository.releaseLock(lockId, ownerId).flatMap(_ => Future.failed(ex))
-      }
+                    }
+     } yield result
+    ).recoverWith {
+      case ex => // if we fail with an error, release the lock so another run can start on the earliest opportunity
+                 lockRepository.releaseLock(lockId, ownerId).flatMap(_ => Future.failed(ex))
+    }
 }
 
 object TimePeriodLockService {
