@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.implicits._
 import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, LastHashRepository}
 
@@ -43,28 +43,28 @@ class AppConfigService @Inject()(
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
-    updateLatest("app-config-base", _.endsWith(".conf"), latestConfigRepository.put("app-config-base"))
+    updateLatest(RepoName("app-config-base"), _.endsWith(".conf"), latestConfigRepository.put("app-config-base"))
 
   def updateAppConfigCommon(): Future[Unit] =
-    updateLatest("app-config-common", _.endsWith(".yaml"), latestConfigRepository.put("app-config-common"))
+    updateLatest(RepoName("app-config-common"), _.endsWith(".yaml"), latestConfigRepository.put("app-config-common"))
 
   def updateAllAppConfigEnv(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(s"app-config-${env.asString}", _.endsWith(".yaml"), latestConfigRepository.put(s"app-config-${env.asString}"))
+    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml"), latestConfigRepository.put(s"app-config-${env.asString}"))
 
-  private def updateLatest(repoName: String, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
+  private def updateLatest(repoName: RepoName, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
-      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.value))
-      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(repoName))
+      currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
+      previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
       oHash         =  Option.when(Some(currentHash) != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates"))
       is            <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
       config        =  try { extractConfig(is, filter) } finally { is.close() }
       _             <- EitherT.right[Unit](store(config))
-      _             <- EitherT.right[Unit](lastHashRepository.update(repoName, hash))
+      _             <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
      } yield ()
     ).merge
 

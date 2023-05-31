@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
@@ -185,21 +185,21 @@ class SlugInfoServiceSpec
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation("service1", Seq(
             Deployment(Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
-              DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                , commitId = "1"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"       , commitId = "2"),
-              DeploymentConfigFile(repoName = "app-config-qa"        , fileName = "service1.yaml"                , commitId = "3")
+              DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
+              DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
+              DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
             )),
             Deployment(Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
-              DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service1.conf"                 , commitId = "4"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "production-microservice-common", commitId = "5"),
-              DeploymentConfigFile(repoName = "app-config-production", fileName = "service1.yaml"                 , commitId = "6")
+              DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                 , commitId = CommitId("4")),
+              DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("production-microservice-common"), commitId = CommitId("5")),
+              DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service1.yaml")                 , commitId = CommitId("6"))
             ))
           )),
           ServiceDeploymentInformation("service2", Seq(
             Deployment(Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
-              DeploymentConfigFile(repoName = "app-config-base"      , fileName = "service2.conf"                 , commitId = "7"),
-              DeploymentConfigFile(repoName = "app-config-common"    , fileName = "qa-microservice-common"        , commitId = "8"),
-              DeploymentConfigFile(repoName = "app-config-production", fileName = "service2.yaml"                 , commitId = "9")
+              DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service2.conf")                 , commitId = CommitId("7")),
+              DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")        , commitId = CommitId("8")),
+              DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service2.yaml")                 , commitId = CommitId("9"))
             ))
           ))
         )))
@@ -231,13 +231,13 @@ class SlugInfoServiceSpec
       when(mockedDeployedConfigRepository.hasProcessed(any[String]))
         .thenReturn(Future.successful(false))
 
-      when(mockedConfigConnector.appConfigBaseConf(any[String], any[String])(any[HeaderCarrier]))
+      when(mockedConfigConnector.appConfigBaseConf(any[String], any[CommitId])(any[HeaderCarrier]))
         .thenAnswer((serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
 
-      when(mockedConfigConnector.appConfigCommonYaml(any[Environment], any[String], any[String])(any[HeaderCarrier]))
+      when(mockedConfigConnector.appConfigCommonYaml(any[Environment], any[FileName], any[CommitId])(any[HeaderCarrier]))
         .thenAnswer((environment: Environment, fileName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
 
-      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[String], any[String])(any[HeaderCarrier]))
+      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[String], any[CommitId])(any[HeaderCarrier]))
         .thenAnswer((environment: Environment, serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
 
       when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))

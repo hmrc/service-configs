@@ -26,6 +26,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
 
 import javax.inject.{Inject, Singleton}
 import java.util.zip.ZipInputStream
@@ -45,31 +46,31 @@ class ConfigAsCodeConnector @Inject()(
   implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def streamBuildJobs(): Future[ZipInputStream] =
-    streamGithub("build-jobs")
+    streamGithub(RepoName("build-jobs"))
 
   def streamGrafana(): Future[ZipInputStream] =
-    streamGithub("grafana-dashboards")
+    streamGithub(RepoName("grafana-dashboards"))
 
   def streamKibana(): Future[ZipInputStream] =
-    streamGithub("kibana-dashboards")
+    streamGithub(RepoName("kibana-dashboards"))
 
   def streamAlertConfig(): Future[ZipInputStream] =
-    streamGithub("alert-config")
+    streamGithub(RepoName("alert-config"))
 
   def streamFrontendRoutes(): Future[ZipInputStream] =
-    streamGithub("mdtp-frontend-routes")
+    streamGithub(RepoName("mdtp-frontend-routes"))
 
-  def getLatestCommitId(repo: String): Future[CommitId] = {
-    implicit val cir = CommitId.reads
+  def getLatestCommitId(repo: RepoName): Future[CommitId] = {
+    implicit val cir = Reads.at[String]((__ \ "sha")).map(CommitId.apply)
     httpClientV2
-      .get(url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/commits/HEAD")
+      .get(url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD")
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[CommitId]
   }
 
-  def streamGithub(repo: String): Future[ZipInputStream] = {
-    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/$repo/zipball/HEAD"
+  def streamGithub(repo: RepoName): Future[ZipInputStream] = {
+    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/HEAD"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
@@ -85,11 +86,4 @@ class ConfigAsCodeConnector @Inject()(
           throw error
       }
   }
-}
-
-case class CommitId(value: String)
-
-object CommitId {
-  val reads: Reads[CommitId] =
-    Reads.at[String]((__ \ "sha")).map(CommitId.apply)
 }

@@ -20,6 +20,7 @@ import akka.actor.ActorSystem
 import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import akka.stream.{ActorAttributes, Materializer, Supervision}
+import cats.Applicative
 import cats.data.EitherT
 import cats.implicits._
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
@@ -28,23 +29,32 @@ import play.api.Logging
 import play.api.libs.json.Json
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, Version}
+import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
+import scala.collection.immutable.TreeMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 @Singleton
 class DeploymentHandler @Inject()(
-  config: ArtefactReceivingConfig,
+  config         : ArtefactReceivingConfig,
+  slugInfoService: SlugInfoService
 )(implicit
   actorSystem : ActorSystem,
   materializer: Materializer,
   ec          : ExecutionContext
 ) extends Logging {
+  import DeploymentHandler._
 
   private lazy val queueUrl = config.sqsDeploymentQueue
   private lazy val settings = SqsSourceSettings()
+
+  private implicit val hc = HeaderCarrier()
 
   private lazy val awsSqsClient =
     Try {
@@ -61,9 +71,9 @@ class DeploymentHandler @Inject()(
 
   if (config.isEnabled)
     SqsSource(queueUrl.toString, settings)(awsSqsClient)
-      .mapAsync(1)(processMessage)
+      .mapAsync(10)(processMessage)
       .withAttributes(ActorAttributes.supervisionStrategy {
-        case NonFatal(e) => logger.error(s"Failed to process sqs messages: ${e.getMessage}", e); Supervision.Restart
+        case t: Throwable => logger.error(s"Failed to process sqs messages: ${t.getMessage}", t); Supervision.Restart
       })
       .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
   else
@@ -71,19 +81,109 @@ class DeploymentHandler @Inject()(
 
   private def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing Deployment message with ID '${message.messageId()}'")
-    (for {
-       payload <- EitherT.fromEither[Future](
-                    Json.parse(message.body)
-                      .validate(MessagePayload.reads)
-                      .asEither.left.map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString)
-                  )
-       _       =  logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
-       action  =  MessageAction.Delete(message)
-     } yield action
-    ).value.map {
-      case Left(error)   => logger.error(error)
-                            MessageAction.Ignore(message)
-      case Right(action) => action
+      (for {
+         payload <- EitherT.fromEither[Future](
+                      Json.parse(message.body)
+                        .validate(mdtpEventReads)
+                        .asEither.left.map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString)
+                    )
+         _       <- (payload.eventType, payload.optEnvironment) match {
+                      case ("deployment-complete", Some(environment)) =>
+                        EitherT.liftF[Future, String, Boolean](
+                          slugInfoService.updateDeployment(
+                            env         = environment,
+                            serviceName = payload.serviceName,
+                            deployment  = ReleasesApiConnector.Deployment(
+                                            optEnvironment = Some(environment)
+                                          , version        = payload.version
+                                          , deploymentId   = Some(payload.deploymentId)
+                                          , config         = payload.config
+                                          )
+                          )
+                        ).map { alreadProcessed =>
+                          if (alreadProcessed)
+                            logger.info(s"Event has already been processed (redeployment without config changes)")
+                        }
+                      case (_, None) =>
+                        logger.info(s"Not processing message with unrecognised environment")
+                        EitherT.pure[Future, String](())
+                      case (eventType, _) =>
+                        logger.info(s"Not processing message with event_type $eventType")
+                        EitherT.pure[Future, String](())
+                    }
+        } yield {
+          logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
+          MessageAction.Delete(message)
+        }
+      ).value.map {
+        case Left(error)   => logger.error(error)
+                              MessageAction.Ignore(message)
+        case Right(action) => action
+      }
+  }
+}
+
+object DeploymentHandler {
+
+  case class DeploymentEvent(
+    eventType     : String
+  , optEnvironment: Option[Environment]
+  , serviceName   : String
+  , version       : Version
+  , deploymentId  : String
+  , config        : Seq[ReleasesApiConnector.DeploymentConfigFile]
+  )
+
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json.{Reads, JsObject, __}
+
+   private implicit val appReads: Applicative[Reads] =
+    new Applicative[Reads] {
+      override def pure[A](a: A): Reads[A] =
+        Reads.pure(a)
+
+      override def ap[A, B](ff: Reads[A => B])(fa: Reads[A]): Reads[B] =
+        for {
+          f <- ff
+          a <- fa
+        } yield f(a)
     }
+
+  private val ConfigKey = ".*\\.(\\d+)\\.(\\w+)".r
+
+  lazy val mdtpEventReads: Reads[DeploymentEvent] =
+    implicitly[Reads[JsObject]]
+      .flatMap { jsObject =>
+        for {
+          config <- TreeMap(
+                      jsObject.fields
+                        .collect { case (ConfigKey(i, k), v) => (i.toInt, k, v.as[String]) }
+                        .groupBy(_._1)
+                        .toSeq: _*
+                      )
+                      .toList
+                      .traverse { case (i, s) =>
+                        for {
+                          repoName <- s.collectFirst { case (_, k, v) if k == "repoName" => Reads.pure(RepoName(v)) }.getOrElse(Reads.failed(s"config.$i missing repoName"))
+                          fileName <- s.collectFirst { case (_, k, v) if k == "fileName" => Reads.pure(FileName(v)) }.getOrElse(Reads.failed(s"config.$i missing fileName"))
+                          commitId <- s.collectFirst { case (_, k, v) if k == "gitSha"   => Reads.pure(CommitId(v)) }.getOrElse(Reads.failed(s"config.$i missing gitSha"))
+                        } yield ReleasesApiConnector.DeploymentConfigFile(repoName = repoName, fileName = fileName, commitId = commitId)
+                      }
+          res    <- deploymentEventReads1.map(_.copy(config = config))
+        } yield res
+      }
+
+  private lazy val deploymentEventReads1: Reads[DeploymentEvent] = {
+    implicit val er: Reads[Option[Environment]] =
+      _.validate[String].map(s => Environment.parse(s).map(Some.apply).getOrElse(None))
+    implicit val vf   = Version.format
+
+    ( (__ \ "event_type"          ).read[String]
+    ~ (__ \ "environment"         ).read[Option[Environment]]
+    ~ (__ \ "microservice"        ).read[String]
+    ~ (__ \ "microservice_version").read[Version]
+    ~ (__ \ "stack_id"            ).read[String]
+    ~ Reads.pure(Seq.empty) // config - to be added
+    )(DeploymentEvent.apply _)
   }
 }

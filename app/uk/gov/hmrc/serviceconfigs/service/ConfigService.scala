@@ -23,7 +23,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.AppConfigService
@@ -81,7 +81,7 @@ class ConfigService @Inject()(
     for {
       applicationConfRaw <- optSlugInfo.traverse {
                               // if no slug info (e.g. java apps) get from github
-                              case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, "HEAD")
+                              case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, CommitId("HEAD"))
                               case x                              => Future.successful(Some(x.applicationConfig))
                             }.map(_.flatten.getOrElse(""))
       regex              =  """^include\s+["'](frontend.conf|backend.conf)["']""".r.unanchored

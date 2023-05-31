@@ -38,15 +38,15 @@ class OutagePageService @Inject()(
   def update(): Future[Unit] =
     (for {
         _            <- EitherT.pure[Future, Unit](logger.info(s"Updating Outage Pages"))
-        repo         =  "outage-pages"
-        currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repo).map(_.value))
-        previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repo))
+        repoName     =  RepoName("outage-pages")
+        currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
+        previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
         oHash        =  Option.when(Some(currentHash) != previousHash)(currentHash)
         hash         <- EitherT.fromOption[Future](oHash, logger.info("No updates on outage-pages repository"))
-        is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repo))
+        is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
         outagePages  =  try { extractOutagePages(is) } finally { is.close() }
         _            <- EitherT.right[Unit](outagePageRepository.putAll(outagePages))
-        _            <- EitherT.right[Unit](lastHashRepository.update(repo, hash))
+        _            <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
       } yield ()
     ).merge
 

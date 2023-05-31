@@ -22,7 +22,7 @@ import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{Environment, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, Version}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
 import java.net.URL
@@ -50,17 +50,19 @@ object ReleasesApiConnector {
   val environmentReads: Reads[Option[Environment]] =
       JsPath.read[String].map(Environment.parse)
 
+
+
   case class DeploymentConfigFile(
-    repoName: String,
-    fileName: String,
-    commitId: String
+    repoName: RepoName,
+    fileName: FileName,
+    commitId: CommitId
   )
 
   object DeploymentConfigFile {
     val reads: Reads[DeploymentConfigFile] =
-      ( (__ \ "repoName").read[String]
-      ~ (__ \ "fileName").read[String]
-      ~ (__ \ "commitId").read[String]
+      ( (__ \ "repoName").read[String].map(RepoName.apply)
+      ~ (__ \ "fileName").read[String].map(FileName.apply)
+      ~ (__ \ "commitId").read[String].map(CommitId.apply)
       )(DeploymentConfigFile.apply _)
   }
 
@@ -71,7 +73,7 @@ object ReleasesApiConnector {
   , config        : Seq[DeploymentConfigFile]
   ) {
     lazy val configId =
-      config.sortBy(_.repoName).foldLeft(version.original)((acc, c) => acc + "_" + c.repoName + "_" + c.commitId.take(7))
+      config.foldLeft(version.original)((acc, c) => acc + "_" + c.repoName.asString + "_" + c.commitId.asString.take(7))
   }
 
   object Deployment {
