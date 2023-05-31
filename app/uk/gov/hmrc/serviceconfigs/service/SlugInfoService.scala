@@ -125,10 +125,7 @@ class SlugInfoService @Inject()(
     ): Future[Boolean] =
       for {
         _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-        processed <- deployment.deploymentId match {
-                       case Some(deploymentId) => deployedConfigRepository.hasProcessed(deploymentId)
-                       case None               => Future.successful(false)
-                     }
+        processed <- deployedConfigRepository.hasProcessed(deployment.configId)
         _         <- if (!processed)
                        updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
                          .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
@@ -178,6 +175,7 @@ class SlugInfoService @Inject()(
                                 serviceName     = serviceName,
                                 environment     = env,
                                 deploymentId    = deploymentId,
+                                configId        = deployment.configId,
                                 appConfigBase   = deployedConfigMap.get("app-config-base"),
                                 appConfigCommon = deployedConfigMap.get("app-config-common"),
                                 appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}")

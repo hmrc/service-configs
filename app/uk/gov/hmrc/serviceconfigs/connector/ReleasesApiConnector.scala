@@ -65,11 +65,14 @@ object ReleasesApiConnector {
   }
 
   case class Deployment(
-      optEnvironment: Option[Environment]
-    , version       : Version
-    , deploymentId  : Option[String]
-    , config        : Seq[DeploymentConfigFile]
-    )
+    optEnvironment: Option[Environment]
+  , version       : Version
+  , deploymentId  : Option[String]
+  , config        : Seq[DeploymentConfigFile]
+  ) {
+    lazy val configId =
+      config.sortBy(_.repoName).foldLeft(version.original)((acc, c) => acc + "_" + c.repoName + "_" + c.commitId.take(7))
+  }
 
   object Deployment {
     val reads: Reads[Deployment] = {

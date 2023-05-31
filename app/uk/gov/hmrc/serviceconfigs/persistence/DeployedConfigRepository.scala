@@ -36,7 +36,7 @@ class DeployedConfigRepository @Inject()(
   domainFormat   = DeployedConfigRepository.mongoFormats,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName", "environment")),
-                     IndexModel(Indexes.hashed("deploymentId"))
+                     IndexModel(Indexes.hashed("configId"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
 ) {
@@ -76,8 +76,8 @@ class DeployedConfigRepository @Inject()(
     ).toFuture()
      .map(_ => ())
 
-  def hasProcessed(deploymentId: String): Future[Boolean] =
-    collection.find(equal("deploymentId", deploymentId))
+  def hasProcessed(configId: String): Future[Boolean] =
+    collection.find(equal("configId", configId))
       .headOption()
       .map(_.isDefined)
 }
@@ -92,6 +92,7 @@ object DeployedConfigRepository {
     serviceName    : String,
     environment    : Environment,
     deploymentId   : String,
+    configId       : String,
     appConfigBase  : Option[String],
     appConfigCommon: Option[String],
     appConfigEnv   : Option[String]
@@ -102,6 +103,7 @@ object DeployedConfigRepository {
     ( (__ \ "serviceName"    ).format[String]
     ~ (__ \ "environment"    ).format[Environment]
     ~ (__ \ "deploymentId"   ).format[String]
+    ~ (__ \ "configId"       ).formatWithDefault[String]("")
     ~ (__ \ "appConfigBase"  ).formatNullable[String]
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
