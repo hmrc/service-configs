@@ -101,15 +101,17 @@ class DeploymentHandler @Inject()(
                                           , config         = payload.config
                                           )
                           )
-                        ).map { alreadProcessed =>
-                          if (alreadProcessed)
-                            logger.info(s"Event has already been processed (redeployment without config changes)")
+                        ).map { alreadyProcessed =>
+                          if (alreadyProcessed)
+                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
+                          else
+                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has been processed")
                         }
                       case (_, None) =>
-                        logger.info(s"Not processing message with unrecognised environment")
+                        logger.info(s"Not processing message '${message.messageId()}' with unrecognised environment")
                         EitherT.pure[Future, String](())
                       case (eventType, _) =>
-                        logger.info(s"Not processing message with event_type $eventType")
+                        logger.info(s"Not processing message '${message.messageId()}' with event_type $eventType")
                         EitherT.pure[Future, String](())
                     }
         } yield {

@@ -78,7 +78,7 @@ object LatestConfigRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
-  val collectionName = "appConfig"
+  val collectionName = "latestConfig"
 
   case class LatestConfig(
     repoName    : String,

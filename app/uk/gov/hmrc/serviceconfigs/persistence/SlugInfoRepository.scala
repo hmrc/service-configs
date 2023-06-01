@@ -75,7 +75,7 @@ class SlugInfoRepository @Inject()(
     collection
       .find(
         and(
-          equal("name", name),
+          equal("name"       , name),
           equal(flag.asString, true)
         )
       )
