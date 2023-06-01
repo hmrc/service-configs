@@ -24,7 +24,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WSClient
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.AlertEnvironmentHandlerRepository
 
 class AlertConfigIntegrationSpec
@@ -60,8 +60,8 @@ class AlertConfigIntegrationSpec
 
     "return correct json when getAlertConfigs receives a get request" in {
       val testData = Seq(
-        AlertEnvironmentHandler("testNameTwo", true, "L2"),
-        AlertEnvironmentHandler("testNameOne", true, "L1")
+        AlertEnvironmentHandler(ServiceName("testNameTwo"), true, "L2"),
+        AlertEnvironmentHandler(ServiceName("testNameOne"), true, "L1")
       )
 
       repository.collection.insertMany(testData).toFuture().futureValue
@@ -81,8 +81,8 @@ class AlertConfigIntegrationSpec
     "return correct json when getAlertConfigForService receives a get request" in {
       val testData =
         Seq(
-          AlertEnvironmentHandler("testNameOne", true, "L1"),
-          AlertEnvironmentHandler("testNameTwo", true, "L2")
+          AlertEnvironmentHandler(ServiceName("testNameOne"), true, "L1"),
+          AlertEnvironmentHandler(ServiceName("testNameTwo"), true, "L2")
         )
 
       repository.collection.insertMany(testData).toFuture().futureValue
@@ -100,8 +100,8 @@ class AlertConfigIntegrationSpec
     "return NotFound when getAlertConfigForService receives a get request for a non-existing service" in {
       val testData =
         Seq(
-          AlertEnvironmentHandler("testNameOne", true, ""),
-          AlertEnvironmentHandler("testNameTwo", true, "")
+          AlertEnvironmentHandler(ServiceName("testNameOne"), true, ""),
+          AlertEnvironmentHandler(ServiceName("testNameTwo"), true, "")
         )
 
       repository.collection.insertMany(testData).toFuture().futureValue

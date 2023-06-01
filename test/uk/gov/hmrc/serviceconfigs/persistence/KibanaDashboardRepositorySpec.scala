@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.Dashboard
+import uk.gov.hmrc.serviceconfigs.model.{Dashboard, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -32,8 +32,8 @@ class KibabaDashboardRepositorySpec
 
   "KibanaDashboardRepository" should {
     "put and retrieve" in {
-      val dashboard1 = Dashboard(service = "testName1", location = "1")
-      val dashboard2 = Dashboard(service = "testName2", location = "2")
+      val dashboard1 = Dashboard(service = ServiceName("testName1"), location = "1")
+      val dashboard2 = Dashboard(service = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(dashboard1, dashboard2)).futureValue
 
       repository.findByService(dashboard1.service).futureValue shouldBe Some(dashboard1)

@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
 
 class AppliedConfigRepositorySpec
@@ -37,10 +37,10 @@ class AppliedConfigRepositorySpec
 
   "AppliedConfigRepository" should {
     "put correctly" in {
-      val serviceName1 = "serviceName1"
+      val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "ENC[1234]")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-      val serviceName2 = "serviceName2"
+      val serviceName2 = ServiceName("serviceName2")
       repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
@@ -65,17 +65,17 @@ class AppliedConfigRepositorySpec
     }
 
     "store encrypted secrets simply" in {
-      val serviceName = "serviceName"
+      val serviceName = ServiceName("serviceName")
       repository.put(Environment.Development, serviceName, Map("k" -> "ENC[1234]")).futureValue
 
       mongoComponent.database.getCollection[BsonDocument]("appliedConfig").find().toFuture().futureValue.map(_.get("value")) shouldBe Seq(BsonString("ENC[...]"))
     }
 
     "delete correctly" in {
-      val serviceName1 = "serviceName1"
+      val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-      val serviceName2 = "serviceName2"
+      val serviceName2 = ServiceName("serviceName2")
       repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
@@ -98,10 +98,10 @@ class AppliedConfigRepositorySpec
     }
 
     "find exactly" in {
-      val serviceName1 = "serviceName1"
+      val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-      val serviceName2 = "serviceName2"
+      val serviceName2 = ServiceName("serviceName2")
       repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
@@ -128,10 +128,10 @@ class AppliedConfigRepositorySpec
     }
 
     "find containing" in {
-      val serviceName1 = "serviceName1"
+      val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-      val serviceName2 = "serviceName2"
+      val serviceName2 = ServiceName("serviceName2")
       repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
@@ -154,10 +154,10 @@ class AppliedConfigRepositorySpec
   }
 
   "return config keys" in {
-    val serviceName1 = "serviceName1"
+    val serviceName1 = ServiceName("serviceName1")
     repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
     repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-    val serviceName2 = "serviceName2"
+    val serviceName2 = ServiceName("serviceName2")
     repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
     repository.findConfigKeys().futureValue shouldBe Seq("k1", "k2", "k3", "k4")

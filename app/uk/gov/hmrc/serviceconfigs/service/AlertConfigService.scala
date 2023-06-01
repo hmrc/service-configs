@@ -20,7 +20,7 @@ import cats.data.EitherT
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
@@ -67,7 +67,7 @@ class AlertConfigService @Inject()(
   def findConfigs(): Future[Seq[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findAll()
 
-  def findConfigByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+  def findConfigByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findByServiceName(serviceName)
 }
 
@@ -120,10 +120,10 @@ object AlertConfigService {
   def toAlertEnvironmentHandler(sensuConfig: SensuConfig, locations: Seq[(Repo, String)]): Seq[AlertEnvironmentHandler] =
     for {
       alertConfig  <- sensuConfig.alertConfigs
-      serviceName  <- alertConfig.app.split('.').headOption
+      serviceName  <- alertConfig.app.split('.').headOption.map(ServiceName.apply)
       isProduction =  alertConfig.handlers.exists(h => hasProductionHandler(sensuConfig.productionHandler, h))
       location     <- locations
-                        .collect { case (Repo(name), location) if name == serviceName => location }
+                        .collect { case (Repo(name), location) if name == serviceName.asString => location }
                         .headOption
     } yield AlertEnvironmentHandler(serviceName = serviceName, production = isProduction, location = location)
 

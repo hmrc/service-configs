@@ -25,7 +25,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.http.StringContextOps
-import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,12 +38,14 @@ class RoutesConfigConnector @Inject()(
 ) extends Logging {
   private implicit val hc = HeaderCarrier()
 
-  private def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] =
-    ( (__ \ "microservice").read[String]
+  private def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "microservice").read[ServiceName]
     ~ Reads.pure(route)
     ~ (__ \ "allow").read[Map[String, List[String]]]
     ~ Reads.pure(s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}")
     )(AdminFrontendRoute.apply _)
+  }
 
   def allAdminFrontendRoutes(): Future[Seq[AdminFrontendRoute]] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/admin-frontend-proxy/HEAD/config/routes.yaml"

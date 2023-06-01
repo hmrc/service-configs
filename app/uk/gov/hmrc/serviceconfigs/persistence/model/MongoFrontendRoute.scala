@@ -18,12 +18,13 @@ package uk.gov.hmrc.serviceconfigs.persistence.model
 
 import java.time.Instant
 
-import play.api.libs.json.{Format, Json, OFormat}
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{Format, __}
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
 case class MongoFrontendRoute(
-  service             : String,
+  service             : ServiceName,
   frontendPath        : String,
   backendPath         : String,
   environment         : Environment,
@@ -45,11 +46,27 @@ case class MongoShutterSwitch(
 
 object MongoFrontendRoute {
   private implicit val shutterSwitchFormat: Format[MongoShutterSwitch] =
-    Json.format[MongoShutterSwitch]
+    ( (__ \ "switchFile").format[String]
+    ~ (__ \ "statusCode").formatNullable[Int]
+    ~ (__ \ "errorPage").formatNullable[String]
+    ~ (__ \ "rewriteRule").formatNullable[String]
+    )(MongoShutterSwitch.apply, unlift(MongoShutterSwitch.unapply))
 
-  val formats: OFormat[MongoFrontendRoute] = {
-    implicit val dateFormat = MongoJavatimeFormats.instantFormat
-    implicit val emvFormat  = Environment.format
-    Json.using[Json.WithDefaultValues].format[MongoFrontendRoute]
+  val formats: Format[MongoFrontendRoute] = {
+    implicit val jif = MongoJavatimeFormats.instantFormat
+    implicit val ef  = Environment.format
+    implicit val snf = ServiceName.format
+    ( (__ \ "service"             ).format[ServiceName]
+    ~ (__ \ "frontendPath"        ).format[String]
+    ~ (__ \ "backendPath"         ).format[String]
+    ~ (__ \ "environment"         ).format[Environment]
+    ~ (__ \ "routesFile"          ).format[String]
+    ~ (__ \ "markerComments"      ).formatWithDefault[Set[String]](Set.empty)
+    ~ (__ \ "shutterKillswitch"   ).formatNullable[MongoShutterSwitch]
+    ~ (__ \ "shutterServiceSwitch").formatNullable[MongoShutterSwitch]
+    ~ (__ \ "ruleConfigurationUrl").format[String]
+    ~ (__ \ "isRegex"             ).formatWithDefault[Boolean](false)
+    ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())
+    )(MongoFrontendRoute.apply, unlift(MongoFrontendRoute.unapply))
   }
 }

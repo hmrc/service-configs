@@ -22,7 +22,7 @@ import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
 import java.net.URL
@@ -50,8 +50,6 @@ object ReleasesApiConnector {
   val environmentReads: Reads[Option[Environment]] =
       JsPath.read[String].map(Environment.parse)
 
-
-
   case class DeploymentConfigFile(
     repoName: RepoName,
     fileName: FileName,
@@ -67,38 +65,43 @@ object ReleasesApiConnector {
   }
 
   case class Deployment(
-    optEnvironment: Option[Environment]
+    serviceName   : ServiceName
+  , optEnvironment: Option[Environment]
   , version       : Version
   , deploymentId  : Option[String]
   , config        : Seq[DeploymentConfigFile]
   ) {
     lazy val configId =
-      config.foldLeft(version.original)((acc, c) => acc + "_" + c.repoName.asString + "_" + c.commitId.asString.take(7))
+      config.foldLeft(serviceName.asString + "_" + version.original)((acc, c) =>
+        acc + "_" + c.repoName.asString + "_" + c.commitId.asString.take(7)
+      )
   }
 
-  object Deployment {
-    val reads: Reads[Deployment] = {
-      implicit val er = environmentReads
-      implicit val vf = Version.format
+  case class ServiceDeploymentInformation(
+    serviceName: ServiceName
+  , deployments: Seq[Deployment]
+  )
+
+  object ServiceDeploymentInformation {
+    private def deploymentReads(serviceName: ServiceName): Reads[Deployment] = {
+      implicit val er  = environmentReads
+      implicit val vf  = Version.format
       implicit val dcf = DeploymentConfigFile.reads
-      ( (__ \ "environment"  ).read[Option[Environment]]
+      ( Reads.pure(serviceName)
+      ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
       ~ (__ \ "deploymentId" ).readNullable[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
     }
-  }
 
-  case class ServiceDeploymentInformation(
-      serviceName: String
-    , deployments: Seq[Deployment]
-    )
-
-  object ServiceDeploymentInformation {
     val reads: Reads[ServiceDeploymentInformation] = {
-      implicit val dr = Deployment.reads
-      ( (__ \ "applicationName").read[String]
-      ~ (__ \ "versions"       ).read[Seq[Deployment]]
+      implicit val snf = ServiceName.format
+      ( (__ \ "applicationName").read[ServiceName]
+      ~ (__ \ "applicationName").read[ServiceName].flatMap { serviceName =>
+          implicit val dr = deploymentReads(serviceName)
+          (__ \ "versions"       ).read[Seq[Deployment]]
+        }
       )(ServiceDeploymentInformation.apply _)
     }
   }

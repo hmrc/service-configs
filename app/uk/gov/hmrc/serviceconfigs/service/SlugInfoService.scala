@@ -59,7 +59,7 @@ class SlugInfoService @Inject()(
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
-                                  .map(_.map(_.name))
+                                  .map(_.map(r => ServiceName(r.name)))
       decommissionedServices <- githubRawConnector.decommissionedServices()
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
@@ -109,7 +109,7 @@ class SlugInfoService @Inject()(
                                 } else Future.unit
     } yield ()
 
-    private def cleanUpDeployment(env: Environment, serviceName: String): Future[Unit] =
+    private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
       for {
         _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
         _ <- deployedConfigRepository.delete(serviceName, env)
@@ -118,7 +118,7 @@ class SlugInfoService @Inject()(
 
     def updateDeployment(
       env        : Environment,
-      serviceName: String,
+      serviceName: ServiceName,
       deployment : ReleasesApiConnector.Deployment
     )(implicit
       hc: HeaderCarrier
@@ -135,7 +135,7 @@ class SlugInfoService @Inject()(
 
     private def updateDeployedConfig(
       env         : Environment,
-      serviceName : String,
+      serviceName : ServiceName,
       deployment  : ReleasesApiConnector.Deployment,
       deploymentId: String
     )(implicit

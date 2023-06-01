@@ -23,9 +23,9 @@ import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -41,6 +41,7 @@ class AdminFrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("route"),   IndexOptions().background(true).name("routeIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Transactions {
 
   // we replace all the data for each call to putAll
@@ -48,9 +49,9 @@ class AdminFrontendRouteRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def findByService(service: String): Future[Seq[AdminFrontendRoute]] =
+  def findByService(serviceName: ServiceName): Future[Seq[AdminFrontendRoute]] =
     collection
-      .find(equal("service", service))
+      .find(equal("service", serviceName))
       .toFuture()
 
   def putAll(routes: Seq[AdminFrontendRoute]): Future[Int] =
@@ -61,8 +62,9 @@ class AdminFrontendRouteRepository @Inject()(
       } yield r.getInsertedIds.size
     }
 
-  def findAllAdminFrontendServices(): Future[Seq[String]] =
+  def findAllAdminFrontendServices(): Future[Seq[ServiceName]] =
     collection
       .distinct[String]("service")
       .toFuture()
+      .map(_.map(ServiceName.apply))
 }

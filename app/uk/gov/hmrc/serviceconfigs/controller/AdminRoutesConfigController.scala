@@ -22,7 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.AdminFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
 
 import scala.concurrent.ExecutionContext
@@ -43,11 +43,11 @@ class AdminRoutesConfigController @Inject()(
     notes = "YAML config is extracted from the admin-frontend-proxy repo"
   )
   def searchByServiceName(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: ServiceName
   ): Action[AnyContent] =
     Action.async {
       db.findByService(serviceName)
-        .map(routes => Json.toJson(routes))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 
@@ -57,8 +57,9 @@ class AdminRoutesConfigController @Inject()(
   )
   def allAdminFrontendServices(): Action[AnyContent] =
     Action.async {
+      implicit val snf = ServiceName.format
       db.findAllAdminFrontendServices()
-        .map(services => Json.toJson(services))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 }

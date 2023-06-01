@@ -20,7 +20,7 @@ import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,7 +38,7 @@ class DeployedConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("serviceName", "environment")),
                      IndexModel(Indexes.hashed("configId"))
                    ),
-  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) {
 
   // we replace all the data for each call to putAll
@@ -57,7 +57,7 @@ class DeployedConfigRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def find(serviceName: String, environment: Environment): Future[Option[DeployedConfigRepository.DeployedConfig]] =
+  def find(serviceName: ServiceName, environment: Environment): Future[Option[DeployedConfigRepository.DeployedConfig]] =
     collection
       .find(
         and(
@@ -67,17 +67,20 @@ class DeployedConfigRepository @Inject()(
       )
       .headOption()
 
-  def delete(serviceName: String, environment: Environment): Future[Unit] =
-    collection.deleteOne(
-      and(
-        equal("serviceName", serviceName),
-        equal("environment", environment)
+  def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
+    collection
+      .deleteOne(
+        and(
+          equal("serviceName", serviceName),
+          equal("environment", environment)
+        )
       )
-    ).toFuture()
-     .map(_ => ())
+      .toFuture()
+      .map(_ => ())
 
   def hasProcessed(configId: String): Future[Boolean] =
-    collection.find(equal("configId", configId))
+    collection
+      .find(equal("configId", configId))
       .headOption()
       .map(_.isDefined)
 }
@@ -89,7 +92,7 @@ object DeployedConfigRepository {
   val collectionName = "deployedConfig"
 
   case class DeployedConfig(
-    serviceName    : String,
+    serviceName    : ServiceName,
     environment    : Environment,
     deploymentId   : String,
     configId       : String,
@@ -99,8 +102,9 @@ object DeployedConfigRepository {
   )
 
   val mongoFormats: Format[DeployedConfig] = {
-    implicit val ef = Environment.format
-    ( (__ \ "serviceName"    ).format[String]
+    implicit val ef  = Environment.format
+    implicit val snf = ServiceName.format
+    ( (__ \ "serviceName"    ).format[ServiceName]
     ~ (__ \ "environment"    ).format[Environment]
     ~ (__ \ "deploymentId"   ).format[String]
     ~ (__ \ "configId"       ).formatWithDefault[String]("")

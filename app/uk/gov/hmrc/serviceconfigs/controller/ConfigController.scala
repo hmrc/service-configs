@@ -22,7 +22,7 @@ import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
@@ -43,7 +43,7 @@ class ConfigController @Inject()(
     notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
   )
   def serviceConfig(
-    @ApiParam(value = "The service name to query") serviceName: String,
+    @ApiParam(value = "The service name to query") serviceName: ServiceName,
     @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
     configService.configByEnvironment(serviceName, latest).map { e =>
@@ -56,7 +56,7 @@ class ConfigController @Inject()(
     notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
   )
   def configByKey(
-    @ApiParam(value = "The service name to query") serviceName: String,
+    @ApiParam(value = "The service name to query") serviceName: ServiceName,
     @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
     configService.configByKey(serviceName, latest).map { k =>

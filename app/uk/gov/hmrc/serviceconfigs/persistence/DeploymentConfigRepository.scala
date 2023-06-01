@@ -21,9 +21,9 @@ import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -39,7 +39,8 @@ class DeploymentConfigRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("name", "environment")),
                      IndexModel(Indexes.ascending("environment"))
-                   )
+                   ),
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions {
 
   // we replace all the data for each call to replaceEnv
@@ -50,7 +51,7 @@ class DeploymentConfigRepository @Inject()(
   def replaceEnv(environment: Environment, configs: Seq[BsonDocument]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, equal("environment", environment.asString)).toFuture()
+        _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
         r <- mongoComponent.database.getCollection[BsonDocument](collectionName)
                 .insertMany(session, configs).toFuture()
       } yield r.getInsertedIds.size
@@ -63,15 +64,15 @@ class DeploymentConfigRepository @Inject()(
 
   def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
     collection
-      .find(equal("environment", environment.asString))
+      .find(equal("environment", environment))
       .toFuture()
 
-  def findByName(environment: Environment, name: String): Future[Option[DeploymentConfig]] =
+  def findByName(environment: Environment, serviceName: ServiceName): Future[Option[DeploymentConfig]] =
     collection
       .find(
         and(
-          equal("name", name),
-          equal("environment", environment.asString)
+          equal("name"       , serviceName),
+          equal("environment", environment)
         )
       )
       .headOption()
@@ -81,8 +82,8 @@ class DeploymentConfigRepository @Inject()(
     collection
       .findOneAndReplace(
         filter      = and(
-                        equal("name", deploymentConfig.name),
-                        equal("environment", deploymentConfig.environment.asString)
+                        equal("name"       , deploymentConfig.serviceName),
+                        equal("environment", deploymentConfig.environment)
                       ),
         replacement = deploymentConfig,
         options     = FindOneAndReplaceOptions().upsert(true)

@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.model.{Environment, YamlRoutesFile}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, YamlRoutesFile}
 import uk.gov.hmrc.serviceconfigs.parser.YamlConfigParser.{YamlConfig, yamlConfigReads}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
@@ -92,7 +92,7 @@ class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
         loc         <- locs
       } yield
         MongoFrontendRoute(
-          service              = conf.service,
+          service              = ServiceName(conf.service),
           frontendPath         = stripModifiers(loc.path),
           backendPath          = s"https://${conf.service}.${conf.zone}.mdtp",
           environment          = env,

@@ -32,7 +32,7 @@ import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
 import scala.collection.immutable.TreeMap
@@ -94,7 +94,8 @@ class DeploymentHandler @Inject()(
                             env         = environment,
                             serviceName = payload.serviceName,
                             deployment  = ReleasesApiConnector.Deployment(
-                                            optEnvironment = Some(environment)
+                                            serviceName    = payload.serviceName
+                                          , optEnvironment = Some(environment)
                                           , version        = payload.version
                                           , deploymentId   = Some(payload.deploymentId)
                                           , config         = payload.config
@@ -128,7 +129,7 @@ object DeploymentHandler {
   case class DeploymentEvent(
     eventType     : String
   , optEnvironment: Option[Environment]
-  , serviceName   : String
+  , serviceName   : ServiceName
   , version       : Version
   , deploymentId  : String
   , config        : Seq[ReleasesApiConnector.DeploymentConfigFile]
@@ -175,12 +176,13 @@ object DeploymentHandler {
 
   private lazy val deploymentEventReads1: Reads[DeploymentEvent] = {
     implicit val er: Reads[Option[Environment]] =
-      _.validate[String].map(s => Environment.parse(s).map(Some.apply).getOrElse(None))
-    implicit val vf   = Version.format
+      __.read[String].map(Environment.parse)
+    implicit val snf = ServiceName.format
+    implicit val vf  = Version.format
 
     ( (__ \ "event_type"          ).read[String]
     ~ (__ \ "environment"         ).read[Option[Environment]]
-    ~ (__ \ "microservice"        ).read[String]
+    ~ (__ \ "microservice"        ).read[ServiceName]
     ~ (__ \ "microservice_version").read[Version]
     ~ (__ \ "stack_id"            ).read[String]
     ~ Reads.pure(Seq.empty) // config - to be added

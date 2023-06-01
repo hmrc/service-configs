@@ -16,8 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
+import play.api.libs.json.Format
+import play.api.libs.functional.syntax._
+
 case class CommitId(asString: String) extends AnyVal
 
 case class RepoName(asString: String) extends AnyVal
 
 case class FileName(asString: String) extends AnyVal
+
+case class ServiceName(asString: String) extends AnyVal
+
+object ServiceName {
+  val format =
+    implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
+}

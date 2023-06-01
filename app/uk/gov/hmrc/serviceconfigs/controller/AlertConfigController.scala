@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 import uk.gov.hmrc.serviceconfigs.service.AlertConfigService
 
 import javax.inject.{Inject, Singleton}
@@ -43,7 +43,7 @@ class AlertConfigController @Inject()(
       } yield result
     }
 
-  def getAlertConfigForService(serviceName: String): Action[AnyContent] =
+  def getAlertConfigForService(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       for {
         config <- alertConfigService.findConfigByServiceName(serviceName)

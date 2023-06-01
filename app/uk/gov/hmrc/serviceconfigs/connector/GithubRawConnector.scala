@@ -23,6 +23,7 @@ import org.yaml.snakeyaml.Yaml
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import HttpReads.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -37,7 +38,7 @@ class GithubRawConnector @Inject()(
   ec: ExecutionContext
 ) {
 
-  def decommissionedServices()(implicit hc: HeaderCarrier): Future[List[String]] = {
+  def decommissionedServices()(implicit hc: HeaderCarrier): Future[List[ServiceName]] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/decommissioning/main/decommissioned-microservices.yaml"
     httpClientV2
       .get(url)
@@ -50,7 +51,7 @@ class GithubRawConnector @Inject()(
             new Yaml()
               .load(res.body)
               .asInstanceOf[java.util.List[java.util.LinkedHashMap[String, String]]].asScala.toList
-              .flatMap(_.asScala.get("service_name").toList)
+              .flatMap(_.asScala.get("service_name").map(ServiceName.apply).toList)
           ).toEither
         )
         .leftMap(e => new RuntimeException(s"Failed to call $url: $e", e))

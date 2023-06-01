@@ -12,7 +12,7 @@ lazy val microservice = Project("service-configs", file("."))
     scalacOptions       +=  "-Wconf:src=routes/.*:s",
     resolvers           +=  Resolver.jcenterRepo,
     RoutesKeys.routesImport ++= Seq(
-      "uk.gov.hmrc.serviceconfigs.model.Environment",
+      "uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}",
       "uk.gov.hmrc.serviceconfigs.model.QueryBinders._",
     )
   )

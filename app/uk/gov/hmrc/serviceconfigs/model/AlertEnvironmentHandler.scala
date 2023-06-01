@@ -20,15 +20,17 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
 case class AlertEnvironmentHandler(
-  serviceName: String,
+  serviceName: ServiceName,
   production : Boolean,
   location   : String
 )
 
 object AlertEnvironmentHandler {
-  val format: Format[AlertEnvironmentHandler] =
-    ( (__ \ "serviceName").format[String]
+  val format: Format[AlertEnvironmentHandler] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "serviceName").format[ServiceName]
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
     )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
+  }
 }

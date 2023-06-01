@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.ServiceRelationship
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationship}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -30,45 +30,50 @@ class ServiceRelationshipRepositorySpec
 
   override lazy val repository = new ServiceRelationshipRepository(mongoComponent)
 
+  private val serviceA = ServiceName("service-a")
+  private val serviceB = ServiceName("service-b")
+  private val serviceC = ServiceName("service-c")
+  private val serviceD = ServiceName("service-d")
+
   private val seed = Seq(
-    ServiceRelationship("service-a", "service-b"),
-    ServiceRelationship("service-a", "service-c"),
-    ServiceRelationship("service-b", "service-a"),
-    ServiceRelationship("service-c", "service-b"),
-    ServiceRelationship("service-d", "service-a"),
+    ServiceRelationship(serviceA, serviceB),
+    ServiceRelationship(serviceA, serviceC),
+    ServiceRelationship(serviceB, serviceA),
+    ServiceRelationship(serviceC, serviceB),
+    ServiceRelationship(serviceD, serviceA)
   )
 
   "ServiceRelationshipsRepository" should {
     "return upstream dependencies for a given service" in {
       repository.putAll(seed).futureValue
 
-      repository.getInboundServices("service-b").futureValue shouldBe List("service-a", "service-c")
+      repository.getInboundServices(serviceB).futureValue shouldBe List(serviceA, serviceC)
     }
 
     "return downstream dependencies for a given service" in {
       repository.putAll(seed).futureValue
 
-      repository.getOutboundServices("service-a").futureValue shouldBe List("service-b", "service-c")
+      repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC)
     }
 
     "clear the collection and refresh" in {
       repository.putAll(seed).futureValue
 
-      repository.getOutboundServices("service-a").futureValue shouldBe List("service-b", "service-c")
+      repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC)
 
       val latest: Seq[ServiceRelationship] =
         Seq(
-          ServiceRelationship("service-a", "service-b"),
-          ServiceRelationship("service-a", "service-c"),
-          ServiceRelationship("service-a", "service-d"),
-          ServiceRelationship("service-b", "service-a"),
-          ServiceRelationship("service-c", "service-b"),
-          ServiceRelationship("service-d", "service-a"),
+          ServiceRelationship(serviceA, serviceB),
+          ServiceRelationship(serviceA, serviceC),
+          ServiceRelationship(serviceA, serviceD),
+          ServiceRelationship(serviceB, serviceA),
+          ServiceRelationship(serviceC, serviceB),
+          ServiceRelationship(serviceD, serviceA),
         )
 
       repository.putAll(latest).futureValue
 
-      repository.getOutboundServices("service-a").futureValue shouldBe List("service-b", "service-c", "service-d")
+      repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC, serviceD)
     }
   }
 

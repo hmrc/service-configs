@@ -21,7 +21,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 
 import java.io.FileInputStream
@@ -109,7 +109,7 @@ class AlertConfigServiceSpec
         Seq("TEST"))),
         Map("TEST" -> Handler("test/command"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler("test", production = true, location = "line1"))
+      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = true, location = "line1"))
     }
 
     "produce an AlertEnvironmentHandler for a service that has Alert Config Disabled" in {
@@ -118,7 +118,7 @@ class AlertConfigServiceSpec
         Seq("TEST"))),
         Map("TEST" -> Handler("test/noop.rb"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler("test", production = false, location = "line1"))
+      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
     }
 
     "produce an AlertEnvironmentHandler when a service has No Matching Handler Found in Production" in {
@@ -126,7 +126,7 @@ class AlertConfigServiceSpec
         Seq(AlertConfig("test.public.mdtp",
         Seq("TEST")))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler("test", production = false, location = "line1"))
+      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
     }
 
     "produce an AlertEnvironmentHandler for a service that has No Handler Name Defined in Config" in {
@@ -135,7 +135,7 @@ class AlertConfigServiceSpec
         Seq())),
         Map("TEST" -> Handler("test/command"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler("test", production = false, location = "line1"))
+      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
     }
 
     "produce an empty list when there is No Existing Alert Config" in {

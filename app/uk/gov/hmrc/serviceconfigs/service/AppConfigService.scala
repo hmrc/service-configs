@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.implicits._
 import play.api.{Configuration, Logger}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, LastHashRepository}
 
@@ -80,19 +80,19 @@ class AppConfigService @Inject()(
         } else acc
       }
 
-  def appConfigBaseConf(environment: Environment, serviceName: String): Future[Option[String]] =
+  def appConfigBaseConf(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
     latestConfigRepository.find(
       repoName    = "app-config-base",
-      fileName    = s"$serviceName.conf"
+      fileName    = s"${serviceName.asString}.conf"
     )
 
-  def appConfigEnvYaml(environment: Environment, serviceName: String): Future[Option[String]] =
+  def appConfigEnvYaml(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
     latestConfigRepository.find(
       repoName    = s"app-config-${environment.asString}",
-      fileName    = s"$serviceName.yaml"
+      fileName    = s"${serviceName.asString}.yaml"
     )
 
-  def serviceType(environment: Environment, serviceName: String): Future[Option[String]] =
+  def serviceType(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
     appConfigEnvYaml(environment, serviceName)
       .map { optAppConfigEnvRaw =>
         val appConfigEnvEntriesAll = ConfigParser.parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
@@ -104,7 +104,7 @@ class AppConfigService @Inject()(
         }
       }
 
-  def appConfigCommonYaml(environment: Environment, serviceName: String, serviceType: String): Future[Option[String]] =
+  def appConfigCommonYaml(environment: Environment, serviceType: String): Future[Option[String]] =
     latestConfigRepository.find(
       repoName = "app-config-common",
       fileName = s"${environment.asString}-$serviceType-common.yaml"

@@ -17,15 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.ClientSession
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
 import org.mongodb.scala.model.Updates._
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInfoFlag, ServiceName, Version}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,7 +37,8 @@ class SlugInfoRepository @Inject()(
   mongoComponent = mongoComponent,
   collectionName = SlugInfoRepository.collectionName,
   domainFormat   = MongoSlugInfoFormats.slugInfoFormat,
-  indexes        = SlugInfoRepository.indexes
+  indexes        = SlugInfoRepository.indexes,
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Logging
   with Transactions {
 
@@ -57,7 +57,7 @@ class SlugInfoRepository @Inject()(
       .toFutureOption()
       .map(_ => ())
 
-  def delete(name: String, version: Version): Future[Unit] =
+  def delete(name: ServiceName, version: Version): Future[Unit] =
     collection
       .deleteOne(
           and(
@@ -69,20 +69,25 @@ class SlugInfoRepository @Inject()(
       .map(_ => ())
 
   def getSlugInfo(
-    name: String,
+    name: ServiceName,
     flag: SlugInfoFlag = SlugInfoFlag.Latest
   ): Future[Option[SlugInfo]] =
     collection
-      .find(and(equal("name", name), equal(flag.asString, true)))
+      .find(
+        and(
+          equal("name", name),
+          equal(flag.asString, true)
+        )
+      )
       .first()
       .toFutureOption()
 
-  def getSlugInfos(name: String, optVersion: Option[Version]): Future[Seq[SlugInfo]] =
+  def getSlugInfos(name: ServiceName, optVersion: Option[Version]): Future[Seq[SlugInfo]] =
     optVersion match {
       case None          => collection.find(equal("name", name)).toFuture()
       case Some(version) => collection.find(
                                 and(
-                                  equal("name", name)
+                                  equal("name"   , name.asString)
                                 , equal("version", version.original)
                                 )
                               ).toFuture()
@@ -91,18 +96,19 @@ class SlugInfoRepository @Inject()(
   def getAllLatestSlugInfos(): Future[Seq[SlugInfo]] =
     collection.find(equal("latest", value = true)).toFuture()
 
-  def getUniqueSlugNames(): Future[Seq[String]] =
+  def getUniqueSlugNames(): Future[Seq[ServiceName]] =
     collection.distinct[String]("name")
       .toFuture()
+      .map(_.map(ServiceName.apply))
 
-  def clearFlag(flag: SlugInfoFlag, name: String): Future[Unit] =
+  def clearFlag(flag: SlugInfoFlag, name: ServiceName): Future[Unit] =
     withSessionAndTransaction { session =>
       clearFlag(flag, name, session)
     }
 
-  private def clearFlag(flag: SlugInfoFlag, name: String, session: ClientSession): Future[Unit] =
+  private def clearFlag(flag: SlugInfoFlag, name: ServiceName, session: ClientSession): Future[Unit] =
    for {
-    _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on $name"))
+    _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on ${name.asString}"))
     _ <- collection
            .updateMany(
                clientSession = session
@@ -114,7 +120,7 @@ class SlugInfoRepository @Inject()(
            .toFuture()
    } yield ()
 
-  def clearFlags(flags: List[SlugInfoFlag], names: List[String]): Future[Unit] = {
+  def clearFlags(flags: List[SlugInfoFlag], names: List[ServiceName]): Future[Unit] = {
     logger.debug(s"Clearing ${flags.size} flags on ${names.size} services")
     collection
       .updateMany(
@@ -125,11 +131,11 @@ class SlugInfoRepository @Inject()(
       .map(_ => ())
   }
 
-  def setFlag(flag: SlugInfoFlag, name: String, version: Version): Future[Unit] =
+  def setFlag(flag: SlugInfoFlag, name: ServiceName, version: Version): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- clearFlag(flag, name, session)
-        _ =  logger.debug(s"mark slug $name $version with ${flag.asString} flag")
+        _ =  logger.debug(s"mark slug ${name.asString} $version with ${flag.asString} flag")
         _ <- collection
                .updateOne(
                    clientSession = session

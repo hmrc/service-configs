@@ -16,9 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import uk.gov.hmrc.serviceconfigs.model.Environment._
-import uk.gov.hmrc.serviceconfigs.service._
-
 import akka.actor.ActorSystem
 import org.mockito.MockitoSugar
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
@@ -27,6 +24,8 @@ import org.scalatest.matchers.should.Matchers
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.service._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -40,10 +39,10 @@ class OutagePageControllerSpec
 
   "searchByServiceName" should {
     "return list of environments" in new Setup {
-      val serviceName = "service-name"
+      val serviceName = ServiceName("service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(
-          Some(List(QA, Production))
+          Some(List(Environment.QA, Environment.Production))
         ))
 
       val response = call(
@@ -57,7 +56,7 @@ class OutagePageControllerSpec
       )
     }
     "return not found" in new Setup{
-      val serviceName = "not-found-service-name"
+      val serviceName = ServiceName("not-found-service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(None))
 

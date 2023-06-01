@@ -21,7 +21,7 @@ import java.time.Instant
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext
 
@@ -42,11 +42,11 @@ class SlugVersionRepositorySpec
       slugInfoRepository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
       slugInfoRepository.add(sampleSlugInfo(Version(1, 4, 1), "/my-slug/1.4.1")).futureValue
       slugInfoRepository.add(sampleSlugInfo(Version(1, 4, 0), "/my-slug/1.4.0")).futureValue
-      repository.getMaxVersion("my-slug").futureValue shouldBe Some(Version(1, 4, 1))
+      repository.getMaxVersion(ServiceName("my-slug")).futureValue shouldBe Some(Version(1, 4, 1))
     }
 
     "return no max version when no previous slugs exist" in {
-      repository.getMaxVersion("non-existing-slug").futureValue shouldBe None
+      repository.getMaxVersion(ServiceName("non-existing-slug")).futureValue shouldBe None
     }
   }
 
@@ -54,7 +54,7 @@ class SlugVersionRepositorySpec
     SlugInfo(
       created           = Instant.parse("2019-06-28T11:51:23.000Z"),
       uri               = uri,
-      name              = "my-slug",
+      name              = ServiceName("my-slug"),
       version           = version,
       classpath         = "",
       dependencies      = List.empty,

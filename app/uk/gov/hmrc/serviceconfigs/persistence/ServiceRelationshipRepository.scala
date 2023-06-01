@@ -20,9 +20,9 @@ import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.ServiceRelationship
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationship}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +39,8 @@ class ServiceRelationshipRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("source"), IndexOptions().name("srSourceIdx")),
                      IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))
-                   )
+                   ),
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Logging
   with Transactions
 {
@@ -48,15 +49,15 @@ class ServiceRelationshipRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def getInboundServices(service: String): Future[Seq[String]] =
+  def getInboundServices(serviceName: ServiceName): Future[Seq[ServiceName]] =
     collection
-      .find(Filters.equal("target", service))
+      .find(Filters.equal("target", serviceName))
       .toFuture()
       .map(_.map(_.source))
 
-  def getOutboundServices(service: String): Future[Seq[String]] =
+  def getOutboundServices(serviceName: ServiceName): Future[Seq[ServiceName]] =
     collection
-      .find(Filters.equal("source", service))
+      .find(Filters.equal("source", serviceName))
       .toFuture()
       .map(_.map(_.target))
 

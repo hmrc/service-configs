@@ -22,7 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Json, OFormat}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.FrontendRoutes
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FrontendRoutes, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
 import scala.concurrent.ExecutionContext
@@ -43,12 +43,12 @@ class NginxController @Inject()(
     notes = """The nginx rules are extracted from the mdtp-frontend-routes repo"""
   )
   def searchByServiceName(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: ServiceName
   ): Action[AnyContent] =
     Action.async {
       db.findByService(serviceName)
         .map(FrontendRoutes.fromMongo)
-        .map(routes => Json.toJson(routes))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 
@@ -57,12 +57,12 @@ class NginxController @Inject()(
     notes = """The nginx rules are extracted from the mdtp-frontend-routes repo"""
   )
   def searchByEnvironment(
-    @ApiParam(value = "The environment to query") environment: String
+    @ApiParam(value = "The environment to query") environment: Environment
   ): Action[AnyContent] =
     Action.async {
       db.findByEnvironment(environment)
         .map(FrontendRoutes.fromMongo)
-        .map(routes => Json.toJson(routes))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 
@@ -76,7 +76,7 @@ class NginxController @Inject()(
     Action.async {
       db.searchByFrontendPath(frontendPath)
         .map(FrontendRoutes.fromMongo)
-        .map(routes => Json.toJson(routes))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 
@@ -87,8 +87,9 @@ class NginxController @Inject()(
   def allFrontendServices(): Action[AnyContent] =
     Action.async {
       db.findAllFrontendServices()
+        .map(_.map(_.asString))
         .map(_.filterNot(_.contains("$")))
-        .map(service => Json.toJson(service))
+        .map(Json.toJson(_))
         .map(Ok(_))
     }
 }

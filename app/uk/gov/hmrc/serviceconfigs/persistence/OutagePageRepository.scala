@@ -21,29 +21,31 @@ import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
-import scala.concurrent.{ExecutionContext, Future}
-
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model._
+import uk.gov.hmrc.serviceconfigs.model.{Environment, OutagePage, ServiceName}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class OutagePageRepository @Inject() (
   override val mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(implicit
+  ec: ExecutionContext
 ) extends PlayMongoRepository[OutagePage](
-      mongoComponent = mongoComponent
-    , collectionName = "outagePages"
-    , domainFormat   = OutagePage.outagePageFormat
-    , indexes        = Seq(IndexModel(ascending("serviceName"), IndexOptions().unique(true)))
+  mongoComponent = mongoComponent
+, collectionName = "outagePages"
+, domainFormat   = OutagePage.outagePageFormat
+, indexes        = Seq(IndexModel(ascending("serviceName"), IndexOptions().unique(true)))
+, extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Transactions {
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def findByServiceName(serviceName: String): Future[Option[Seq[Environment]]] =
+  def findByServiceName(serviceName: ServiceName): Future[Option[Seq[Environment]]] =
     collection.find(equal("serviceName", serviceName))
       .headOption()
       .map(_.map(_.environments))

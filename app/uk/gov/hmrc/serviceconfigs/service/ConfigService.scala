@@ -23,7 +23,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, ServiceName, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.AppConfigService
@@ -74,7 +74,7 @@ class ConfigService @Inject()(
     * Exposes the raw bootstrap conf if its at the start of the file, otherwise merges it in.
     */
   private def lookupApplicationConf(
-    serviceName     : String,
+    serviceName     : ServiceName,
     referenceConfigs: List[DependencyConfig],
     optSlugInfo     : Option[SlugInfo]
   )(implicit hc: HeaderCarrier): Future[(Config, Map[String, Config])] =
@@ -143,7 +143,7 @@ class ConfigService @Inject()(
 
   private def configSourceEntries(
     environment: ConfigEnvironment,
-    serviceName: String,
+    serviceName: ServiceName,
     latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
     hc: HeaderCarrier
@@ -191,7 +191,7 @@ class ConfigService @Inject()(
                                                  appConfigService.appConfigBaseConf(env, serviceName)
 
                 optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st =>
-                                                 appConfigService.appConfigCommonYaml(env, serviceName, st)
+                                                 appConfigService.appConfigCommonYaml(env, st)
                                                )
 
               } yield
@@ -225,7 +225,7 @@ class ConfigService @Inject()(
         } yield
           ConfigSourceEntries(
             "loggerConf",
-            sourceUrl = Some(s"https://github.com/hmrc/$serviceName/blob/main/conf/application-json-logger.xml"),
+            sourceUrl = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application-json-logger.xml"),
             loggerConfMap
           ) +:
           toConfigSourceEntries(
@@ -240,14 +240,14 @@ class ConfigService @Inject()(
           )
     }
 
-  def configByEnvironment(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
+  def configByEnvironment(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
     ConfigEnvironment.values.map(e =>
       configSourceEntries(e, serviceName, latest).map(e.name -> _)
     ).sequence.map(_.toMap)
 
   def resultingConfig(
     environment: ConfigEnvironment,
-    serviceName: String,
+    serviceName: ServiceName,
     latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
     hc: HeaderCarrier
@@ -273,7 +273,7 @@ class ConfigService @Inject()(
     appliedConfigRepository.findConfigKeys()
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
-  def configByKey(serviceName: String, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
+  def configByKey(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
     ConfigEnvironment.values.toList
       .foldLeftM[Future, ConfigByKey](Map.empty) {
         case (map, e) =>
@@ -327,18 +327,18 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def applicationConf(serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+    def applicationConf(serviceName: ServiceName)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
       ConfigSourceConfig(
         "applicationConf",
-        sourceUrl  = Some(s"https://github.com/hmrc/$serviceName/blob/main/conf/application.conf"),
+        sourceUrl  = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application.conf"),
         config     = config,
         suppressed = suppressed
       )
 
-    def baseConfig(serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+    def baseConfig(serviceName: ServiceName)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
       ConfigSourceConfig(
         "baseConfig",
-        sourceUrl  = Some(s"https://github.com/hmrc/app-config-base/blob/main/$serviceName.conf"),
+        sourceUrl  = Some(s"https://github.com/hmrc/app-config-base/blob/main/${serviceName.asString}.conf"),
         config     = config,
         suppressed = suppressed
       )
@@ -351,10 +351,10 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def appConfigEnvironment(environment: Environment, serviceName: String)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
+    def appConfigEnvironment(environment: Environment, serviceName: ServiceName)(config: Config, suppressed: Map[String, String]): ConfigSourceConfig =
       ConfigSourceConfig(
         "appConfigEnvironment",
-        sourceUrl  = Some(s"https://github.com/hmrc/app-config-${environment.asString}/blob/main/$serviceName.yaml"),
+        sourceUrl  = Some(s"https://github.com/hmrc/app-config-${environment.asString}/blob/main/${serviceName.asString}.yaml"),
         config     = config,
         suppressed = suppressed
       )

@@ -20,7 +20,7 @@ import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -34,12 +34,12 @@ class DeploymentConfigRepositorySpec
   "DeploymentConfigRepository" should {
     "replaceEnv correctly" in {
       val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig("service1", Environment.Development),
-        mkDeploymentConfig("service2", Environment.Development)
+        mkDeploymentConfig(ServiceName("service1"), Environment.Development),
+        mkDeploymentConfig(ServiceName("service2"), Environment.Development)
       )
       val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig("service2", Environment.Production),
-        mkDeploymentConfig("service3", Environment.Production)
+        mkDeploymentConfig(ServiceName("service2"), Environment.Production),
+        mkDeploymentConfig(ServiceName("service3"), Environment.Production)
       )
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
@@ -49,8 +49,8 @@ class DeploymentConfigRepositorySpec
       repository.findAllForEnv(Environment.Production ).futureValue shouldBe productionDeploymentConfigs
 
       val developmentDeploymentConfigs2 = Seq(
-        mkDeploymentConfig("service3", Environment.Development),
-        mkDeploymentConfig("service4", Environment.Development)
+        mkDeploymentConfig(ServiceName("service3"), Environment.Development),
+        mkDeploymentConfig(ServiceName("service4"), Environment.Development)
       )
 
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2.map(toBson)).futureValue
@@ -60,25 +60,28 @@ class DeploymentConfigRepositorySpec
     }
 
     "find one by matching service name" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+      val serviceName3 = ServiceName("serviceName3")
       val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig("service1", Environment.Development),
-        mkDeploymentConfig("service2", Environment.Development)
+        mkDeploymentConfig(serviceName1, Environment.Development),
+        mkDeploymentConfig(serviceName2, Environment.Development)
       )
       val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig("service2", Environment.Production),
-        mkDeploymentConfig("service3", Environment.Production)
+        mkDeploymentConfig(serviceName2, Environment.Production),
+        mkDeploymentConfig(serviceName3, Environment.Production)
       )
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
 
-      repository.findByName(Environment.Development, "service1").futureValue shouldBe developmentDeploymentConfigs.find(_.name == "service1")
-      repository.findByName(Environment.Production , "service1").futureValue shouldBe productionDeploymentConfigs .find(_.name == "service1")
+      repository.findByName(Environment.Development, serviceName1).futureValue shouldBe developmentDeploymentConfigs.find(_.serviceName == serviceName1)
+      repository.findByName(Environment.Production , serviceName1).futureValue shouldBe productionDeploymentConfigs .find(_.serviceName == serviceName1)
     }
   }
 
-  def mkDeploymentConfig(name: String, environment: Environment): DeploymentConfig =
+  def mkDeploymentConfig(serviceName: ServiceName, environment: Environment): DeploymentConfig =
     DeploymentConfig(
-      name           = name,
+      serviceName    = serviceName,
       artifactName   = Some("artefactName"),
       environment    = environment,
       zone           = "public",
@@ -89,7 +92,7 @@ class DeploymentConfigRepositorySpec
 
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
-      "name"           -> deploymentConfig.name,
+      "name"           -> deploymentConfig.serviceName.asString,
       "artifactName"   -> deploymentConfig.artifactName,
       "environment"    -> deploymentConfig.environment.asString,
       "zone"           -> deploymentConfig.zone,

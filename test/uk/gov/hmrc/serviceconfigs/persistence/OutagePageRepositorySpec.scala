@@ -16,13 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.model.Environment._
-
 import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+import uk.gov.hmrc.serviceconfigs.model._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class OutagePageRepositorySpec
@@ -35,10 +34,10 @@ class OutagePageRepositorySpec
 
   "OutagePageRepository" should {
     "putAll correctly" in {
-      val serviceName = "service-name"
-      val environments = List(Development, QA)
+      val serviceName = ServiceName("service-name")
+      val environments = List(Environment.Development, Environment.QA)
       repository.putAll(Seq(OutagePage(serviceName, environments))).futureValue
-      
+
       repository.findByServiceName(serviceName).futureValue shouldBe Some(environments)
     }
   }

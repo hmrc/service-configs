@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
@@ -42,7 +42,7 @@ class SlugInfoServiceSpec
 
   "SlugInfoService.updateMetadata" should {
     "clear flags of decommissioned services" in new Setup {
-      val decommissionedServices = List("service1", "service2")
+      val decommissionedServices = List(ServiceName("service1"), ServiceName("service2"))
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(Seq.empty))
@@ -59,35 +59,35 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
         .thenReturn(Future.successful(Seq.empty))
 
-      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
+      when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
 
       Environment.values.foreach { env =>
-        verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), "service1")
-        verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), "service2")
-        verify(mockedDeployedConfigRepository).delete("service1", env)
-        verify(mockedDeployedConfigRepository).delete("service2", env)
-        verify(mockedAppliedConfigRepository).delete(env, "service1")
-        verify(mockedAppliedConfigRepository).delete(env, "service2")
+        verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), ServiceName("service1"))
+        verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), ServiceName("service2"))
+        verify(mockedDeployedConfigRepository).delete(ServiceName("service1"), env)
+        verify(mockedDeployedConfigRepository).delete(ServiceName("service2"), env)
+        verify(mockedAppliedConfigRepository).delete(env, ServiceName("service1"))
+        verify(mockedAppliedConfigRepository).delete(env, ServiceName("service2"))
       }
       verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
     }
 
     "clear latest flag for services that have been deleted/archived" in new Setup {
-      val knownServices  = List("service1", "service2", "service3")
-      val activeServices = List("service1", "service3").map(Repo.apply)
-      val archived       = List("service2")
+      val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
+      val activeServices = List(Repo("service1"), Repo("service3"))
+      val archived       = List(ServiceName("service2"))
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
@@ -104,16 +104,16 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
         .thenReturn(Future.successful(knownServices.map(toSlugInfo)))
 
-      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
+      when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
@@ -129,10 +129,10 @@ class SlugInfoServiceSpec
     }
 
     "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
-      val knownServices  = List("service1", "service2", "service3")
-      val activeServices = List("service1", "service2", "service3").map(Repo.apply)
-      val latestServices = List("service1", "service3")
-      val missingLatest  = "service2"
+      val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
+      val activeServices = List(Repo       ("service1"), Repo       ("service2"), Repo       ("service3"))
+      val latestServices = List(ServiceName("service1")                         , ServiceName("service3"))
+      val missingLatest  = ServiceName("service2")
       val maxVersion     = Version("1.0.0")
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
@@ -150,22 +150,22 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
         .thenReturn(Future.successful(latestServices.map(toSlugInfo)))
 
-      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
+      when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugVersionRepository.getMaxVersion(any[String]))
+      when(mockedSlugVersionRepository.getMaxVersion(any[ServiceName]))
         .thenReturn(Future.successful(Some(maxVersion)))
 
-      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[String], any[Version]))
+      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
@@ -174,29 +174,31 @@ class SlugInfoServiceSpec
     }
 
     "lookup and store config files for deployment" in new Setup {
-      val knownServices  = List("service1", "service2")
-      val activeServices = knownServices.map(Repo.apply)
-      val latestServices = knownServices
+      val serviceName1 = ServiceName("service1")
+      val serviceName2 = ServiceName("service2")
+      val knownServices  = List(serviceName1, serviceName2)
+      val activeServices = knownServices.map(s => Repo(s.asString))
+      val latestServices = List(serviceName1, serviceName2)
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(Seq(
-          ServiceDeploymentInformation("service1", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
+          ServiceDeploymentInformation(serviceName1, Seq(
+            Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
               DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
             )),
-            Deployment(Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
+            Deployment(serviceName1, Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                 , commitId = CommitId("4")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("production-microservice-common"), commitId = CommitId("5")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service1.yaml")                 , commitId = CommitId("6"))
             ))
           )),
-          ServiceDeploymentInformation("service2", Seq(
-            Deployment(Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
+          ServiceDeploymentInformation(serviceName2, Seq(
+            Deployment(serviceName2, Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service2.conf")                 , commitId = CommitId("7")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")        , commitId = CommitId("8")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service2.yaml")                 , commitId = CommitId("9"))
@@ -213,87 +215,87 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
         .thenReturn(Future.successful(latestServices.map(toSlugInfo)))
 
-      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[String]))
+      when(mockedSlugInfoRepository.clearFlag(any[SlugInfoFlag], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedDeployedConfigRepository.delete(any[String], any[Environment]))
+      when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[String]))
+      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[String]]))
+      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[String], any[Version]))
+      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
 
       when(mockedDeployedConfigRepository.hasProcessed(any[String]))
         .thenReturn(Future.successful(false))
 
-      when(mockedConfigConnector.appConfigBaseConf(any[String], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
+      when(mockedConfigConnector.appConfigBaseConf(any[ServiceName], any[CommitId])(any[HeaderCarrier]))
+        .thenAnswer((serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
 
       when(mockedConfigConnector.appConfigCommonYaml(any[Environment], any[FileName], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((environment: Environment, fileName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
+        .thenAnswer((environment: Environment, fileName: FileName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
 
-      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[String], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((environment: Environment, serviceName: String, commitId: String) => Future.successful(Some(s"content$commitId")))
+      when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[ServiceName], any[CommitId])(any[HeaderCarrier]))
+        .thenAnswer((environment: Environment, serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
 
       when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
         .thenReturn(Future.unit)
 
-      when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[String], any[Boolean])(any[HeaderCarrier]))
-        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: String, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.$serviceName" -> "v")))
+      when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
+        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.${serviceName.asString}" -> "v")))
 
-      when(mockedAppliedConfigRepository.put(any[Environment], any[String], any[Map[String, String]]))
+      when(mockedAppliedConfigRepository.put(any[Environment], any[ServiceName], any[Map[String, String]]))
         .thenReturn(Future.unit)
 
 
       service.updateMetadata().futureValue
 
 
-      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.QA)        , "service1", Version("1.0.0"))
-      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.Production), "service1", Version("1.0.1"))
-      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.QA)        , "service2", Version("1.0.2"))
+      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.QA)        , serviceName1, Version("1.0.0"))
+      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.Production), serviceName1, Version("1.0.1"))
+      verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.QA)        , serviceName2, Version("1.0.2"))
 
-      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Staging   ), "service1")
-      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Staging   ), "service2")
-      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Production), "service2")
+      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Staging   ), serviceName1)
+      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Staging   ), serviceName2)
+      verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(Environment.Production), serviceName2)
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
-        serviceName     = "service1",
+        serviceName     = serviceName1,
         environment     = Environment.QA,
         deploymentId    = "deploymentId1",
-        configId        = "1.0.0_app-config-base_1_app-config-common_2_app-config-qa_3",
+        configId        = "service1_1.0.0_app-config-base_1_app-config-common_2_app-config-qa_3",
         appConfigBase   = Some("content1"),
         appConfigCommon = Some("content2"),
         appConfigEnv    = Some("content3")
       ))
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
-        serviceName     = "service1",
+        serviceName     = serviceName1,
         environment     = Environment.Production,
         deploymentId    = "deploymentId2",
-        configId        = "1.0.1_app-config-base_4_app-config-common_5_app-config-production_6",
+        configId        = "service1_1.0.1_app-config-base_4_app-config-common_5_app-config-production_6",
         appConfigBase   = Some("content4"),
         appConfigCommon = Some("content5"),
         appConfigEnv    = Some("content6")
       ))
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
-        serviceName     = "service2",
+        serviceName     = serviceName2,
         environment     = Environment.QA,
         deploymentId    = "deploymentId3",
-        configId        = "1.0.2_app-config-base_7_app-config-common_8_app-config-production_9",
+        configId        = "service2_1.0.2_app-config-base_7_app-config-common_8_app-config-production_9",
         appConfigBase   = Some("content7"),
         appConfigCommon = Some("content8"),
         appConfigEnv    = Some("content9")
       ))
 
-      verify(mockedAppliedConfigRepository).put(Environment.QA        , "service1", Map("qa.service1"         -> "v"))
-      verify(mockedAppliedConfigRepository).put(Environment.Production, "service1", Map("production.service1" -> "v"))
-      verify(mockedAppliedConfigRepository).put(Environment.QA        , "service2", Map("qa.service2"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(Environment.QA        , serviceName1, Map("qa.service1"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(Environment.Production, serviceName1, Map("production.service1" -> "v"))
+      verify(mockedAppliedConfigRepository).put(Environment.QA        , serviceName2, Map("qa.service2"         -> "v"))
     }
   }
 
@@ -322,18 +324,18 @@ class SlugInfoServiceSpec
                       , mockedConfigService
                       )
 
-    def toSlugInfo(name: String): SlugInfo =
+    def toSlugInfo(name: ServiceName): SlugInfo =
       SlugInfo(
-          uri               = ""
-        , created           = Instant.now
-        , name              = name
-        , version           = Version("0.0.0")
-        , classpath         = ""
-        , dependencies      = List.empty
-        , applicationConfig = ""
-        , includedAppConfig = Map.empty
-        , loggerConfig      = ""
-        , slugConfig        = ""
+        uri               = ""
+      , created           = Instant.now
+      , name              = name
+      , version           = Version("0.0.0")
+      , classpath         = ""
+      , dependencies      = List.empty
+      , applicationConfig = ""
+      , includedAppConfig = Map.empty
+      , loggerConfig      = ""
+      , slugConfig        = ""
       )
   }
 }

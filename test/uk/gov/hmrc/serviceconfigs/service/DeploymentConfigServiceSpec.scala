@@ -20,7 +20,7 @@ import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.yaml.snakeyaml.Yaml
-import uk.gov.hmrc.serviceconfigs.model.Environment.Production
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
 import java.util
 import scala.collection.mutable
@@ -65,14 +65,14 @@ class DeploymentConfigServiceSpec
            |""".stripMargin
 
       val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = modifyConfigKeys(data, "test", Production).value
+      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production).value
 
       result.keySet shouldBe Set("slots", "instances", "zone", "name", "environment", "type")
     }
 
     "return None when there is no 0.0.0 root element" in {
       val data = mutable.Map[String, Object]("any-other-key" -> new mutable.LinkedHashMap[String,Object]())
-      val result = modifyConfigKeys(data, "test", Production)
+      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production)
 
       result shouldBe None
     }
@@ -87,7 +87,7 @@ class DeploymentConfigServiceSpec
            |""".stripMargin
 
       val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = modifyConfigKeys(data, "test", Production)
+      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production)
 
       result shouldBe None
     }

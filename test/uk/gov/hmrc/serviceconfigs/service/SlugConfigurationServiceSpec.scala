@@ -37,52 +37,65 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
       val slug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
 
-      when(boot.mockedSlugVersionRepository.getMaxVersion(any)).thenReturn(Future.successful(None))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
+      when(boot.mockedSlugVersionRepository.getMaxVersion(any[ServiceName]))
+        .thenReturn(Future.successful(None))
+      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
 
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slug.name, slug.version)
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
+
     "mark the slug as latest if the version is latest" in {
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv1.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv1.name))
+        .thenReturn(Future.successful(Some(slugv2.version)))
+      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv2).futureValue
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
 
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
+
     "not use the latest flag from sqs/artefact processor" in {
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name))
+        .thenReturn(Future.successful(Some(slugv2.version)))
+      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
 
       verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1)
       verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
+
     "not mark the slug as latest if there is a later one already in the collection" in {
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
       val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
 
-      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name)).thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
+      when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name))
+        .thenReturn(Future.successful(Some(slugv2.version)))
+      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
 
@@ -99,9 +112,12 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
         dependencies = List(classPathDependency, nonClassPathDependency)
       )
 
-      when(boot.mockedSlugInfoRepository.add(any)).thenReturn(Future.unit)
-      when(boot.mockedSlugVersionRepository.getMaxVersion(any)).thenReturn(Future.successful(None))
-      when(boot.mockedSlugInfoRepository.setFlag(any, any, any)).thenReturn(Future.unit)
+      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .thenReturn(Future.unit)
+      when(boot.mockedSlugVersionRepository.getMaxVersion(any[ServiceName]))
+        .thenReturn(Future.successful(None))
+      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
 
@@ -113,7 +129,7 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
     SlugInfo(
       created           = Instant.parse("2019-06-28T11:51:23.000Z"),
       uri               = uri,
-      name              = "my-slug",
+      name              = ServiceName("my-slug"),
       version           = version,
       classpath         = "",
       dependencies      = List.empty,

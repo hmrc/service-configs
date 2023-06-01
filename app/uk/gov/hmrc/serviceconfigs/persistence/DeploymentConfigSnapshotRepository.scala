@@ -18,16 +18,15 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
 import org.mongodb.scala.ClientSession
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Indexes
 import org.mongodb.scala.model.Updates.set
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 
 import java.time.Instant
@@ -51,13 +50,14 @@ class DeploymentConfigSnapshotRepository @Inject()(
                        IndexModel(Indexes.hashed("deploymentConfig.name"), IndexOptions().background(true)),
                        IndexModel(Indexes.hashed("deploymentConfig.environment"), IndexOptions().background(true)),
                        IndexModel(Indexes.ascending("date"), IndexOptions().expireAfter(7 * 365, TimeUnit.DAYS).background(true))
-                     )
+                     ),
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
   ) with Transactions with Logging {
 
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
 
-  def snapshotsForService(serviceName: String): Future[Seq[DeploymentConfigSnapshot]] =
+  def snapshotsForService(serviceName: ServiceName): Future[Seq[DeploymentConfigSnapshot]] =
     collection
       .find(equal("deploymentConfig.name", serviceName))
       .sort(Sorts.ascending("date"))
@@ -67,7 +67,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
     collection
       .find(
         and(
-          equal("deploymentConfig.environment", environment.asString),
+          equal("deploymentConfig.environment", environment),
           equal("latest", true)
         )
       ).toFuture()
@@ -75,12 +75,13 @@ class DeploymentConfigSnapshotRepository @Inject()(
   def add(snapshot: DeploymentConfigSnapshot): Future[Unit] =
     collection
       .findOneAndReplace(
-        filter = and(
-          equal("deploymentConfig.name", snapshot.deploymentConfig.name),
-          equal("deploymentConfig.environment", snapshot.deploymentConfig.environment.asString),
-          equal("date", snapshot.date)),
+        filter      = and(
+                        equal("deploymentConfig.name"       , snapshot.deploymentConfig.serviceName),
+                        equal("deploymentConfig.environment", snapshot.deploymentConfig.environment),
+                        equal("date"                        , snapshot.date)
+                      ),
         replacement = snapshot,
-        options = FindOneAndReplaceOptions().upsert(true))
+        options     = FindOneAndReplaceOptions().upsert(true))
       .toFutureOption()
       .map(_ => ())
 
@@ -92,7 +93,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .updateMany(
         session,
         filter = and(
-                   equal("deploymentConfig.environment", environment.asString),
+                   equal("deploymentConfig.environment", environment),
                    equal("latest"                      , true),
                    equal("deleted"                     , false)
                  ),
@@ -102,7 +103,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
       .map(_ =>())
 
   private [persistence] def removeLatestFlagForServiceInEnvironment(
-    serviceName: String,
+    serviceName: ServiceName,
     environment: Environment,
     session    : ClientSession
   ): Future[Unit] =
@@ -112,7 +113,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
         filter = and(
                    equal("latest"                      , true),
                    equal("deploymentConfig.name"       , serviceName),
-                   equal("deploymentConfig.environment", environment.asString)
+                   equal("deploymentConfig.environment", environment)
                  ),
         update = set("latest", false)
       )
@@ -151,7 +152,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
       withSessionAndTransaction { session =>
         for {
           _ <- removeLatestFlagForServiceInEnvironment(
-                 deploymentConfigSnapshot.deploymentConfig.name,
+                 deploymentConfigSnapshot.deploymentConfig.serviceName,
                  deploymentConfigSnapshot.deploymentConfig.environment,
                  session
                )
@@ -185,7 +186,7 @@ object DeploymentConfigSnapshotRepository {
     ): PlanOfWork = {
       val latestSnapshotsByNameAndEnv =
         latestSnapshots
-          .map(s => (s.deploymentConfig.name, s.deploymentConfig.environment) -> s)
+          .map(s => (s.deploymentConfig.serviceName, s.deploymentConfig.environment) -> s)
           .toMap
 
       val (snapshots, snapshotServiceReintroductions) =
@@ -194,7 +195,7 @@ object DeploymentConfigSnapshotRepository {
             case ((snapshots, snapshotServiceReintroductions), deploymentConfig) =>
               val deploymentConfigSnapshot =
                 DeploymentConfigSnapshot(date, latest = true, deleted = false, deploymentConfig)
-              if (latestSnapshotsByNameAndEnv.get((deploymentConfig.name, deploymentConfig.environment)).exists(_.deleted))
+              if (latestSnapshotsByNameAndEnv.get((deploymentConfig.serviceName, deploymentConfig.environment)).exists(_.deleted))
                 (snapshots, deploymentConfigSnapshot +: snapshotServiceReintroductions)
               else
                 (deploymentConfigSnapshot +: snapshots, snapshotServiceReintroductions)
@@ -202,7 +203,7 @@ object DeploymentConfigSnapshotRepository {
 
       val snapshotSynthesisedDeletions = {
         val currentDeploymentConfigsByNameAndEnv =
-          currentDeploymentConfigs.map(c => (c.name, c.environment))
+          currentDeploymentConfigs.map(c => (c.serviceName, c.environment))
 
         (latestSnapshotsByNameAndEnv -- currentDeploymentConfigsByNameAndEnv)
           .values

@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 
 import java.time.Instant
@@ -166,7 +166,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
     now.minusSeconds(86400)
 
   private lazy val someDeploymentConfig =
-    DeploymentConfig("A", None, Environment.Production, "", "", 10, 10)
+    DeploymentConfig(ServiceName("A"), None, Environment.Production, "", "", 10, 10)
 
   private lazy val someDeploymentConfigSnapshot =
     DeploymentConfigSnapshot(yesterday, latest = false, deleted = false, someDeploymentConfig)

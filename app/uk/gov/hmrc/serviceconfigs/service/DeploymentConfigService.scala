@@ -21,7 +21,7 @@ import com.google.common.io.CharStreams
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
 
 import javax.inject.{Inject, Singleton}
@@ -59,7 +59,7 @@ class DeploymentConfigService @Inject()(
   def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
     deploymentConfigRepository.findAllForEnv(environment)
 
-  def find(environment: Environment, serviceName: String): Future[Option[DeploymentConfig]] =
+  def find(environment: Environment, serviceName: ServiceName): Future[Option[DeploymentConfig]] =
     deploymentConfigRepository.findByName(environment, serviceName)
 }
 
@@ -77,10 +77,10 @@ object DeploymentConfigService extends Logging {
         logger.debug(s"processing config file $file")
         file.getName match {
           case name if isAppConfig(name.toLowerCase) =>
-            val shortName  = name.split("/").last.replace(".yaml", "")
+            val serviceName  = ServiceName(name.split("/").last.replace(".yaml", ""))
             val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
             val parsedYaml = new Yaml().load(yaml).asInstanceOf[java.util.LinkedHashMap[String, Object]].asScala
-            modifyConfigKeys(parsedYaml, shortName, environment).flatMap(m => YamlToBson(m).toOption)
+            modifyConfigKeys(parsedYaml, serviceName, environment).flatMap(m => YamlToBson(m).toOption)
           case _ => None
         }
       }.toSeq
@@ -91,17 +91,17 @@ object DeploymentConfigService extends Logging {
     filename.endsWith(".yaml") && ignoreList.forall(i => !filename.endsWith(i))
 
   def parseConfig(filename: String, cfg: Map[String, String], environment: Environment): Option[DeploymentConfig] = {
-    val name = filename.split("/").last.replace(".yaml", "")
+    val serviceName = ServiceName(filename.split("/").last.replace(".yaml", ""))
     for {
       zone           <- cfg.get("zone")
       deploymentType <- cfg.get("type")
       slots          <- cfg.get("slots").map(_.toInt)
       instances      <- cfg.get("instances").map(_.toInt)
       artifactName    = cfg.get("artifact_name")
-    } yield DeploymentConfig(name, artifactName, environment, zone, deploymentType, slots, instances)
+    } yield DeploymentConfig(serviceName, artifactName, environment, zone, deploymentType, slots, instances)
   }
 
-  def modifyConfigKeys(data: mutable.Map[String, Object], name: String, environment: Environment): Option[mutable.Map[String, Object]] = {
+  def modifyConfigKeys(data: mutable.Map[String, Object], serviceName: ServiceName, environment: Environment): Option[mutable.Map[String, Object]] = {
     import scala.jdk.CollectionConverters._
     val requiredKeys = Set("zone", "type", "slots", "instances")
     data
@@ -111,7 +111,7 @@ object DeploymentConfigService extends Logging {
       .map { m =>
         m.remove("hmrc_config") // discard the app config, outside the scope of service
         m.remove("connector_config") // present in kafka-amqp-sink as an additional config block
-        m.put("name", name)
+        m.put("name", serviceName.asString)
         m.put("environment", environment.asString)
         m
       }

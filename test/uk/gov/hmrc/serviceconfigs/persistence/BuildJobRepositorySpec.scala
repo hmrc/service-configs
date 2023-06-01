@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.BuildJob
+import uk.gov.hmrc.serviceconfigs.model.{BuildJob, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -32,8 +32,8 @@ class BuildJobDashboardRepositorySpec
 
   "BuildJobRepository" should {
     "put and retrieve" in {
-      val buildJob1 = BuildJob(service = "testName1", location = "1")
-      val buildJob2 = BuildJob(service = "testName2", location = "2")
+      val buildJob1 = BuildJob(service = ServiceName("testName1"), location = "1")
+      val buildJob2 = BuildJob(service = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(buildJob1, buildJob2)).futureValue
 
       repository.findByService(buildJob1.service).futureValue shouldBe Some(buildJob1)

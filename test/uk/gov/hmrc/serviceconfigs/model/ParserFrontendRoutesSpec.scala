@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 class ParserFrontendRoutesSpec
@@ -27,11 +28,11 @@ class ParserFrontendRoutesSpec
   "frontendRoutes" should {
     "group routes by environment" in {
       val mongRoutes = Seq(
-        MongoFrontendRoute("testService", "/test1", "http://test.com",  Environment.Production, routesFile = "file1"),
-        MongoFrontendRoute("testService", "/test2", "http://test2.com", Environment.Production, routesFile = "file1"),
-        MongoFrontendRoute("testService", "/test1", "http://test.com",  Environment.Development, routesFile = "file1"),
-        MongoFrontendRoute("testService", "/test2", "http://test2.com", Environment.Development, routesFile = "file1"),
-        MongoFrontendRoute("testService", "/test3", "http://test3.com", Environment.Development, routesFile = "file1"))
+        MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com",  Environment.Production , routesFile = "file1"),
+        MongoFrontendRoute(ServiceName("testService"), "/test2", "http://test2.com", Environment.Production , routesFile = "file1"),
+        MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com",  Environment.Development, routesFile = "file1"),
+        MongoFrontendRoute(ServiceName("testService"), "/test2", "http://test2.com", Environment.Development, routesFile = "file1"),
+        MongoFrontendRoute(ServiceName("testService"), "/test3", "http://test3.com", Environment.Development, routesFile = "file1"))
 
       val res = FrontendRoutes.fromMongo(mongRoutes)
       res.size shouldBe 2
@@ -52,7 +53,7 @@ class ParserFrontendRoutesSpec
 
   "frontendRoute" should {
     "be creatable from a MongoFrontendRoute" in {
-      val mongoRoute = MongoFrontendRoute("testService", "/test1", "http://test.com", Environment.Production, routesFile = "file1")
+      val mongoRoute = MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com", Environment.Production, routesFile = "file1")
       val route      = FrontendRoute.fromMongo(mongoRoute)
       route shouldBe FrontendRoute(frontendPath = "/test1", backendPath = "http://test.com")
     }

@@ -32,7 +32,7 @@ class OutagePageService @Inject()(
   lastHashRepository   : LastHashRepository,
   outagePageRepository : OutagePageRepository,
 )(implicit ec: ExecutionContext) extends Logging {
-  def findByServiceName(serviceName: String): Future[Option[Seq[Environment]]] =
+  def findByServiceName(serviceName: ServiceName): Future[Option[Seq[Environment]]] =
     outagePageRepository.findByServiceName(serviceName)
 
   def update(): Future[Unit] =
@@ -54,20 +54,20 @@ class OutagePageService @Inject()(
     Iterator
       .continually(codeZip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[String, List[Environment]]){ (acc, entry) =>
+      .foldLeft(Map.empty[ServiceName, List[Environment]]){ (acc, entry) =>
         extractOutagePage(entry.getName)
           .fold(acc){ case (serviceName, env) =>
             acc.updatedWith(serviceName)(currentEnvs =>
               Option(currentEnvs.fold(List(env))(_ :+ env))
             )
           }
-      }.map{ case (serviceName, envs) => OutagePage(serviceName, envs)}
+      }.map { case (serviceName, envs) => OutagePage(serviceName, envs)}
       .toSeq
 
-  private def extractOutagePage(path: String): Option[(String, Environment)] =
+  private def extractOutagePage(path: String): Option[(ServiceName, Environment)] =
     path.split("/") match {
       case Array(_, env, serviceName, OutagePage.outagePageName) =>
-        Environment.parse(env).map(serviceName -> _)
+        Environment.parse(env).map(ServiceName(serviceName) -> _)
       case _ => None
     }
 }

@@ -20,25 +20,29 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
 case class ServiceRelationship(
-  source: String,
-  target: String
+  source: ServiceName,
+  target: ServiceName
 )
 
 object ServiceRelationship {
-  val serviceRelationshipFormat: OFormat[ServiceRelationship] =
-    ( (__ \ "source").format[String]
-    ~ (__ \ "target").format[String]
+  val serviceRelationshipFormat: OFormat[ServiceRelationship] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "source").format[ServiceName]
+    ~ (__ \ "target").format[ServiceName]
     )(ServiceRelationship.apply, unlift(ServiceRelationship.unapply))
+  }
 }
 
 case class ServiceRelationships(
-  inboundServices : Set[String],
-  outboundServices: Set[String]
+  inboundServices : Set[ServiceName],
+  outboundServices: Set[ServiceName]
 )
 
 object ServiceRelationships {
-  val writes: OWrites[ServiceRelationships] =
-    ( (__ \ "inboundServices").write[Set[String]]
-    ~ (__ \ "outboundServices").write[Set[String]]
+  val writes: OWrites[ServiceRelationships] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "inboundServices").write[Set[ServiceName]]
+    ~ (__ \ "outboundServices").write[Set[ServiceName]]
     )(unlift(ServiceRelationships.unapply))
+  }
 }

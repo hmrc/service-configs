@@ -20,17 +20,18 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
 
 case class OutagePage(
-  serviceName: String,
+  serviceName : ServiceName,
   environments: List[Environment],
 )
 
 object OutagePage {
   val outagePageName = "index.html"
 
-  implicit val e: Format[Environment] = Environment.format
-
-  lazy val outagePageFormat: Format[OutagePage] = 
-    ( (__ \ "serviceName"  ).format[String]
+  lazy val outagePageFormat: Format[OutagePage] = {
+    implicit val ef: Format[Environment] = Environment.format
+    implicit val snf = ServiceName.format
+    ( (__ \ "serviceName"  ).format[ServiceName]
     ~ (__ \ "environments" ).format[List[Environment]]
     ) (OutagePage.apply _, unlift(OutagePage.unapply))
+  }
 }

@@ -24,18 +24,20 @@ import play.api.libs.json.{Format, __}
  * It represents data about where and how a service is deployed
  */
 case class DeploymentConfig(
-  name:           String,
-  artifactName:   Option[String],
-  environment:    Environment,
-  zone:           String,
+  serviceName   : ServiceName,
+  artifactName  : Option[String],
+  environment   : Environment,
+  zone          : String,
   deploymentType: String,
-  slots:          Int,
-  instances:      Int
+  slots         : Int,
+  instances     : Int
 )
 
 object DeploymentConfig {
+  private implicit val snf = ServiceName.format
+
   val mongoFormat: Format[DeploymentConfig] =
-    ( (__ \ "name"        ).format[String]
+    ( (__ \ "name"        ).format[ServiceName]
     ~ (__ \ "artifactName").formatNullable[String]
     ~ (__ \ "environment" ).format[Environment](Environment.format)
     ~ (__ \ "zone"        ).format[String]
@@ -45,7 +47,7 @@ object DeploymentConfig {
     ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 
   val apiFormat: Format[DeploymentConfig] =
-    ( (__ \ "name"        ).format[String]
+    ( (__ \ "name"        ).format[ServiceName]
     ~ (__ \ "artifactName").formatNullable[String]
     ~ (__ \ "environment" ).format[Environment](Environment.format)
     ~ (__ \ "zone"        ).format[String]
