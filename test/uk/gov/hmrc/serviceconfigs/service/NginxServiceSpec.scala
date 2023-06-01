@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.{NginxConfigParser, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoShutterSwitch
@@ -86,17 +86,17 @@ class NginxServiceSpec
   "NginxService.urlToService" should {
     "extract the service name from url" in {
       val url = "https://test-service.public.local"
-      NginxService.urlToService(url) shouldBe "test-service"
+      NginxService.urlToService(url) shouldBe ServiceName("test-service")
     }
 
     "return the input unmodified if its not a url" in {
       val url = "test-service"
-      NginxService.urlToService(url) shouldBe "test-service"
+      NginxService.urlToService(url) shouldBe ServiceName("test-service")
     }
 
     "handle hostnames without dots" in {
       val url = "https://test-service/test124?query=false"
-      NginxService.urlToService(url) shouldBe "test-service"
+      NginxService.urlToService(url) shouldBe ServiceName("test-service")
     }
   }
 
@@ -177,7 +177,7 @@ class NginxServiceSpec
       result.length shouldBe 2
 
       result.head.environment          shouldBe Environment.Development
-      result.head.service              shouldBe "service1"
+      result.head.service              shouldBe ServiceName("service1")
       result.head.frontendPath         shouldBe "/test/assets"
       result.head.backendPath          shouldBe "http://service1"
       result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L1"
@@ -188,7 +188,7 @@ class NginxServiceSpec
         MongoShutterSwitch("/etc/nginx/switches/mdtp/service1", Some(503), Some("/shutter/service1/index.html"), None))
 
       result(1).environment          shouldBe Environment.Development
-      result(1).service              shouldBe "testservice"
+      result(1).service              shouldBe ServiceName("testservice")
       result(1).frontendPath         shouldBe "/lol"
       result(1).backendPath          shouldBe "http://testservice"
       result(1).ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L17"
@@ -213,7 +213,7 @@ class NginxServiceSpec
       result.length shouldBe 1
 
       result.head.environment          shouldBe Environment.Development
-      result.head.service              shouldBe "testservice"
+      result.head.service              shouldBe ServiceName("testservice")
       result.head.frontendPath         shouldBe "/lol"
       result.head.backendPath          shouldBe "http://testservice"
       result.head.ruleConfigurationUrl shouldBe "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf#L1"

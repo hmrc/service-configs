@@ -21,7 +21,7 @@ import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import java.time.Instant
@@ -69,10 +69,10 @@ class FrontendRouteRepositoryMongoSpec
 
   "FrontendRouteRepository.findByService" should {
     "return only routes with the service" in {
-      val service1Name = "service1"
-      val service2Name = "service2"
-      repository.update(newFrontendRoute(service = service1Name)).futureValue
-      repository.update(newFrontendRoute(service = service2Name)).futureValue
+      val service1Name = ServiceName("service1")
+      val service2Name = ServiceName("service2")
+      repository.update(newFrontendRoute(serviceName = service1Name)).futureValue
+      repository.update(newFrontendRoute(serviceName = service2Name)).futureValue
 
       val allEntries = repository.findAllRoutes().futureValue
       allEntries should have size 2
@@ -92,7 +92,7 @@ class FrontendRouteRepositoryMongoSpec
       val allEntries = repository.findAllRoutes().futureValue
       allEntries should have size 2
 
-      val productionEntries = repository.findByEnvironment("production").futureValue
+      val productionEntries = repository.findByEnvironment(Environment.Production).futureValue
       productionEntries should have size 1
       val route = productionEntries.head
       route.environment shouldBe Environment.Production
@@ -109,11 +109,10 @@ class FrontendRouteRepositoryMongoSpec
 
     "FrontendRouteRepository.findAllFrontendServices" should {
       "return list of all services" in {
-
-        repository.update(newFrontendRoute(service = "service1", environment = Environment.Production)).futureValue
-        repository.update(newFrontendRoute(service = "service1", environment = Environment.Development)).futureValue
-        repository.update(newFrontendRoute(service = "service2", environment = Environment.Production)).futureValue
-        repository.update(newFrontendRoute(service = "service2", environment = Environment.Development)).futureValue
+        repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Production )).futureValue
+        repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Development)).futureValue
+        repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Production )).futureValue
+        repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Development)).futureValue
 
         val allEntries = repository
           .collection
@@ -125,7 +124,7 @@ class FrontendRouteRepositoryMongoSpec
 
         val services = repository.findAllFrontendServices().futureValue
         services should have size 2
-        services shouldBe List("service1", "service2")
+        services shouldBe List(ServiceName("service1"), ServiceName("service2"))
       }
     }
 
@@ -149,12 +148,12 @@ class FrontendRouteRepositoryMongoSpec
   }
 
   def newFrontendRoute(
-    service     : String      = "service",
+    serviceName : ServiceName = ServiceName("service"),
     frontendPath: String      = "frontendPath",
     environment : Environment = Environment.Production,
     isRegex     : Boolean     = true
   ) = MongoFrontendRoute(
-    service              = service,
+    service              = serviceName,
     frontendPath         = frontendPath,
     backendPath          = "backendPath",
     environment          = environment,

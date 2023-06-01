@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.mvc.QueryStringBindable
+import play.api.mvc.{PathBindable, QueryStringBindable}
 
 object QueryBinders {
 
@@ -31,4 +31,20 @@ object QueryBinders {
       override def unbind(key: String, value: Environment): String =
         strBinder.unbind(key, value.asString)
     }
+
+  implicit def environmentParamBindable(implicit strBinder: PathBindable[String]): PathBindable[Environment] =
+    new PathBindable[Environment] {
+      override def bind(key: String, value: String): Either[String, Environment] =
+        Environment.parse(value) match {
+          case None      => Left(s"Invalid Environment $value")
+          case Some(env) => Right(env)
+        }
+
+      override def unbind(key: String, value: Environment): String =
+        strBinder.unbind(key, value.asString)
+    }
+
+
+  implicit def serviceNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
+    strBinder.transform(ServiceName.apply, _.asString)
 }

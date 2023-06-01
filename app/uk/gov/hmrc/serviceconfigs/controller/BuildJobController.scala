@@ -22,7 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.BuildJob
+import uk.gov.hmrc.serviceconfigs.model.{BuildJob, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 
 import scala.concurrent.ExecutionContext
@@ -43,7 +43,7 @@ class BuildJobController @Inject()(
     notes = "Build Job config is extracted fromt the build-jobs repo"
   )
   def buildJob(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: ServiceName
   ): Action[AnyContent] =
     Action.async {
       buildJobRepository

@@ -16,21 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
+import play.api.libs.json.Format
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, __}
 
-case class AlertEnvironmentHandler(
-  serviceName: ServiceName,
-  production : Boolean,
-  location   : String
-)
+case class CommitId(asString: String) extends AnyVal
 
-object AlertEnvironmentHandler {
-  val format: Format[AlertEnvironmentHandler] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName").format[ServiceName]
-    ~ (__ \ "production" ).format[Boolean]
-    ~ (__ \ "location"   ).format[String]
-    )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
-  }
+case class RepoName(asString: String) extends AnyVal
+
+case class FileName(asString: String) extends AnyVal
+
+case class ServiceName(asString: String) extends AnyVal
+
+object ServiceName {
+  val format =
+    implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
 }

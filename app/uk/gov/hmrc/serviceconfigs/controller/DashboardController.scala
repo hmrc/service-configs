@@ -22,7 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.Dashboard
+import uk.gov.hmrc.serviceconfigs.model.{Dashboard, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{KibanaDashboardRepository, GrafanaDashboardRepository}
 
 import scala.concurrent.ExecutionContext
@@ -44,7 +44,7 @@ class DashboardController @Inject()(
     notes = "Grafana Dashboard config is extracted fromt the grafana-dashboards repo"
   )
   def grafana(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: ServiceName
   ): Action[AnyContent] =
     Action.async {
       grafanaDashboardRepository
@@ -57,7 +57,7 @@ class DashboardController @Inject()(
     notes = "Kibana Dashboard config is extracted fromt the kibana-dashboards repo"
   )
   def kibana(
-    @ApiParam(value = "The service name to query") serviceName: String
+    @ApiParam(value = "The service name to query") serviceName: ServiceName
   ): Action[AnyContent] =
     Action.async {
       kibanaDashboardRepository

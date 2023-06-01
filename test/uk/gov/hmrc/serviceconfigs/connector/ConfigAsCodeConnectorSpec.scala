@@ -24,6 +24,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -54,7 +55,7 @@ class ConfigAsCodeConnectorSpec
           .willReturn(aResponse().withBodyFile("test.zip"))
       )
 
-      val is = connector.streamGithub("app-config-common").futureValue
+      val is = connector.streamGithub(RepoName("app-config-common")).futureValue
       // convert to Map(name -> content)
       Iterator
         .continually(is.getNextEntry)
@@ -80,7 +81,7 @@ class ConfigAsCodeConnectorSpec
           .willReturn(aResponse().withBody("""{"sha":"27a469be69c988822b2bda722833b24301afb691"}"""))
       )
 
-      connector.getLatestCommitId("app-config-common").futureValue shouldBe CommitId("27a469be69c988822b2bda722833b24301afb691")
+      connector.getLatestCommitId(RepoName("app-config-common")).futureValue shouldBe CommitId("27a469be69c988822b2bda722833b24301afb691")
 
       wireMockServer.verify(
         getRequestedFor(urlPathEqualTo("/api/repos/hmrc/app-config-common/commits/HEAD"))

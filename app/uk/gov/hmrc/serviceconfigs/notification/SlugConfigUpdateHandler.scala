@@ -31,6 +31,7 @@ import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 import uk.gov.hmrc.serviceconfigs.connector.ArtefactProcessorConnector
+import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.service.SlugConfigurationService
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -70,7 +71,7 @@ class SlugConfigUpdateHandler @Inject()(
     SqsSource(queueUrl.toString, settings)(awsSqsClient)
       .mapAsync(1)(processMessage)
       .withAttributes(ActorAttributes.supervisionStrategy {
-        case NonFatal(e) => logger.error(s"Failed to process sqs messages: ${e.getMessage}", e); Supervision.Restart
+        case t: Throwable => logger.error(s"Failed to process sqs messages: ${t.getMessage}", t); Supervision.Restart
       })
       .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
   else
@@ -125,7 +126,7 @@ class SlugConfigUpdateHandler @Inject()(
                       for {
                         _ <- EitherT.cond[Future](deleted.jobType == "slug", (), s"${deleted.jobType} was not 'slug'")
                         _ <- EitherT(
-                               slugConfigurationService.deleteSlugInfo(deleted.name, deleted.version)
+                               slugConfigurationService.deleteSlugInfo(ServiceName(deleted.name), deleted.version)
                                  .map(Right.apply)
                                  .recover {
                                    case e =>

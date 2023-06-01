@@ -20,12 +20,12 @@ import io.swagger.annotations.Api
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Deployment Config")
@@ -44,27 +44,15 @@ class DeploymentConfigController @Inject()(
      deploymentConfigService.findAll().map(res => Ok(Json.toJson(res)))
     }
 
-  def deploymentConfigForEnv(environment: String): Action[AnyContent] =
+  def deploymentConfigForEnv(environment: Environment): Action[AnyContent] =
     Action.async {
-      Environment
-        .parse(environment)
-        .fold(
-            Future.successful(BadRequest(s"invalid environment name, must be one of ${Environment.values.mkString(",")}"))
-          )(env =>
-            deploymentConfigService.findAllForEnv(env).map(res => Ok(Json.toJson(res)))
-          )
+      deploymentConfigService.findAllForEnv(environment).map(res => Ok(Json.toJson(res)))
     }
 
-  def deploymentConfigForService(environment: String, service: String): Action[AnyContent] =
+  def deploymentConfigForService(environment: Environment, serviceName: ServiceName): Action[AnyContent] =
     Action.async {
-      Environment
-        .parse(environment)
-        .fold(
-          Future.successful(BadRequest(s"invalid environment"))
-        )(env =>
-          deploymentConfigService
-            .find(env, service)
-            .map(_.fold(NotFound(s"Service: $service not found"))(cfg => Ok(Json.toJson(cfg))))
-        )
+      deploymentConfigService
+        .find(environment, serviceName)
+          .map(_.fold(NotFound(s"Service: ${serviceName.asString} not found"))(cfg => Ok(Json.toJson(cfg))))
     }
 }

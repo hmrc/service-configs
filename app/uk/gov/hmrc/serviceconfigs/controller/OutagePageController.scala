@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.service.OutagePageService
 
 import javax.inject.{Inject, Singleton}
@@ -35,7 +35,7 @@ class OutagePageController @Inject()(
 
   private implicit val ef: Format[Environment] = Environment.format
 
-  def searchByServiceName(serviceName: String): Action[AnyContent] =
+  def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       for {
         optEnvironments <- outagePageService.findByServiceName(serviceName)

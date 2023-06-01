@@ -27,7 +27,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, ServiceName, SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -60,7 +60,7 @@ class ArtefactProcessorConnectorSpec
         SlugInfo(
           created              = Instant.parse("2019-06-28T11:51:23Z"),
           uri                  = "https://store/slugs/my-slug/my-slug_0.27.0_0.5.2.tgz",
-          name                 = "my-slug",
+          name                 = ServiceName("my-slug"),
           version              = Version.apply("0.27.0"),
           classpath            = "some-classpath",
           dependencies         = List.empty,

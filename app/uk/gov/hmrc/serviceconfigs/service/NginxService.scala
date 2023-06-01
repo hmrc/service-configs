@@ -24,7 +24,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, YamlRoutesFile}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, ServiceName, YamlRoutesFile}
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
@@ -97,10 +97,10 @@ class NginxService @Inject()(
 
 object NginxService extends Logging {
 
-  def urlToService(url: String): String =
+  def urlToService(url: String): ServiceName =
     Try(new URL(url).getHost)
-      .map(url => url.split("\\.").headOption.getOrElse(url))
-      .getOrElse(url)
+      .map(url => ServiceName(url.split("\\.").headOption.getOrElse(url)))
+      .getOrElse(ServiceName(url))
 
   def parseConfig(
     parser    : FrontendRouteParser,

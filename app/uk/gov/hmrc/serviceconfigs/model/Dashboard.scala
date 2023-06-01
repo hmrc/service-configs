@@ -19,11 +19,16 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-case class Dashboard(service: String, location: String)
+case class Dashboard(
+  service : ServiceName,
+  location: String
+)
 
 object  Dashboard {
-  val format: Format[Dashboard] =
-    ( (__ \ "service" ).format[String]
+  val format: Format[Dashboard] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "location").format[String]
     )(Dashboard.apply, unlift(Dashboard.unapply))
+  }
 }

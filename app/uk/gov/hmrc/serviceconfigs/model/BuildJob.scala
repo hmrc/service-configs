@@ -19,11 +19,16 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
-case class BuildJob(service: String, location: String)
+case class BuildJob(
+  service : ServiceName,
+  location: String
+)
 
 object BuildJob {
-  val format: Format[BuildJob] =
-    ( (__ \ "service" ).format[String]
+  val format: Format[BuildJob] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "location").format[String]
     )(BuildJob.apply, unlift(BuildJob.unapply))
+  }
 }

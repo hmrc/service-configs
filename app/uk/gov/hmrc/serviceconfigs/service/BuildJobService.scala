@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.BuildJob
+import uk.gov.hmrc.serviceconfigs.model.{BuildJob, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
@@ -42,7 +42,7 @@ class BuildJobService @Inject()(
       blob    = "https://github.com/hmrc/build-jobs/blob"
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
-                  .map { case (repo, location) => BuildJob(service = repo.name, location = location) }
+                  .map { case (repo, location) => BuildJob(service = ServiceName(repo.name), location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
       count  <- buildJobRepository.putAll(items)

@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -35,17 +35,17 @@ class ConfigConnector @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  def appConfigEnvYaml(env: Environment, service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/$commitId/$service.yaml")
+  def appConfigEnvYaml(env: Environment, serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-${env.asString}/${commitId.asString}/${serviceName.asString}.yaml")
 
-  def appConfigBaseConf(service: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/$commitId/$service.conf")
+  def appConfigBaseConf(serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/${commitId.asString}/${serviceName.asString}.conf")
 
-  def appConfigCommonYaml(env: Environment, fileName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/$commitId/$fileName")
+  def appConfigCommonYaml(env: Environment, fileName: FileName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/${commitId.asString}/${fileName.asString}")
 
-  def applicationConf(serviceName: String, commitId: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/$serviceName/$commitId/conf/application.conf")
+  def applicationConf(serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/${serviceName.asString}/${commitId.asString}/conf/application.conf")
 
   private def doCall(url: URL)(implicit hc: HeaderCarrier) =
     httpClientV2

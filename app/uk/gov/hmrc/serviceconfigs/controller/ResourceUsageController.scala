@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.service.{ResourceUsage, ResourceUsageService}
 
 import javax.inject.{Inject, Singleton}
@@ -35,7 +36,7 @@ class ResourceUsageController @Inject()(
   private implicit val resourceUsageFormat: Format[ResourceUsage] =
     ResourceUsage.apiFormat
 
-  def resourceUsageSnapshotsForService(serviceName: String): Action[AnyContent] =
+  def resourceUsageSnapshotsForService(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       resourceUsageService
         .resourceUsageSnapshotsForService(serviceName)

@@ -20,7 +20,7 @@ import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -34,22 +34,22 @@ class AlertEnvironmentHandlerRepositorySpec
 
   "AlertEnvironmentHandlerRepository" should {
     "putAll correctly" in {
-      val alertEnvironmentHandler1 = AlertEnvironmentHandler("testNameOne", production = true, location = "")
+      val alertEnvironmentHandler1 = AlertEnvironmentHandler(ServiceName("testNameOne"), production = true, location = "")
       repository.putAll(Seq(alertEnvironmentHandler1)).futureValue
       repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler1)
 
-      val alertEnvironmentHandler2 = AlertEnvironmentHandler("testNameTwo", production = false, location = "2")
+      val alertEnvironmentHandler2 = AlertEnvironmentHandler(ServiceName("testNameTwo"), production = false, location = "2")
       repository.putAll(Seq(alertEnvironmentHandler2)).futureValue
       repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler2)
     }
 
     "find one by matching service name" in {
       val alertEnvironmentHandlers = Seq(
-        AlertEnvironmentHandler("testNameOne", production = true, location = ""),
-        AlertEnvironmentHandler("testNameTwo", production = true, location = "")
+        AlertEnvironmentHandler(ServiceName("testNameOne"), production = true, location = ""),
+        AlertEnvironmentHandler(ServiceName("testNameTwo"), production = true, location = "")
       )
       repository.putAll(alertEnvironmentHandlers).futureValue
-      repository.findByServiceName("testNameOne").futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == "testNameOne")
+      repository.findByServiceName(ServiceName("testNameOne")).futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == ServiceName("testNameOne"))
     }
   }
 }

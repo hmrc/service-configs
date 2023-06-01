@@ -59,7 +59,7 @@ class SlugInfoService @Inject()(
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
-                                  .map(_.map(_.name))
+                                  .map(_.map(r => ServiceName(r.name)))
       decommissionedServices <- githubRawConnector.decommissionedServices()
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
@@ -109,16 +109,16 @@ class SlugInfoService @Inject()(
                                 } else Future.unit
     } yield ()
 
-    private def cleanUpDeployment(env: Environment, serviceName: String): Future[Unit] =
+    private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
       for {
         _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
         _ <- deployedConfigRepository.delete(serviceName, env)
         _ <- appliedConfigRepository.delete(env, serviceName)
       } yield ()
 
-    private def updateDeployment(
+    def updateDeployment(
       env        : Environment,
-      serviceName: String,
+      serviceName: ServiceName,
       deployment : ReleasesApiConnector.Deployment
     )(implicit
       hc: HeaderCarrier
@@ -135,7 +135,7 @@ class SlugInfoService @Inject()(
 
     private def updateDeployedConfig(
       env         : Environment,
-      serviceName : String,
+      serviceName : ServiceName,
       deployment  : ReleasesApiConnector.Deployment,
       deploymentId: String
     )(implicit
@@ -144,7 +144,7 @@ class SlugInfoService @Inject()(
       for {
         deployedConfigMap <- deployment.config.toList.foldMapM[EitherT[Future, String, *], List[(String, String)]] { config =>
                                 config.repoName match {
-                                  case "app-config-common" =>
+                                  case RepoName("app-config-common") =>
                                     for {
                                       optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(env, config.fileName, config.commitId))
                                       appConfigCommon    <- optAppConfigCommon match {
@@ -152,7 +152,7 @@ class SlugInfoService @Inject()(
                                                               case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
                                                             }
                                     } yield List("app-config-common" -> appConfigCommon)
-                                  case "app-config-base" =>
+                                  case RepoName("app-config-base") =>
                                     for {
                                       optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
                                       appConfigBase      <- optAppConfigBase match {
@@ -160,7 +160,7 @@ class SlugInfoService @Inject()(
                                                               case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
                                                             }
                                     } yield List("app-config-base" -> appConfigBase)
-                                  case s"app-config-${_}" =>
+                                  case RepoName(s"app-config-${_}") =>
                                     for {
                                       optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
                                       appConfigEnv       <- optAppConfigEnv match {

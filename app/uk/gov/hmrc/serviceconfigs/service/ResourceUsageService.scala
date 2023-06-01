@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import java.time.Instant
@@ -32,15 +32,14 @@ class ResourceUsageService @Inject() (
   ec: ExecutionContext
 ) {
 
-  def resourceUsageSnapshotsForService(serviceName: String): Future[Seq[ResourceUsage]] =
-    deploymentConfigSnapshotRepository
-      .snapshotsForService(serviceName)
+  def resourceUsageSnapshotsForService(serviceName: ServiceName): Future[Seq[ResourceUsage]] =
+    deploymentConfigSnapshotRepository.snapshotsForService(serviceName)
       .map(_.map(ResourceUsage.fromDeploymentConfigSnapshot))
 }
 
 final case class ResourceUsage(
   date       : Instant,
-  serviceName: String,
+  serviceName: ServiceName,
   environment: Environment,
   slots      : Int,
   instances  : Int
@@ -57,18 +56,20 @@ object ResourceUsage {
 
     ResourceUsage(
       date        = deploymentConfigSnapshot.date,
-      serviceName = deploymentConfigSnapshot.deploymentConfig.name,
+      serviceName = deploymentConfigSnapshot.deploymentConfig.serviceName,
       environment = deploymentConfigSnapshot.deploymentConfig.environment,
       slots       = slots,
       instances   = instances
     )
   }
 
-  val apiFormat: Format[ResourceUsage] =
+  val apiFormat: Format[ResourceUsage] = {
+    implicit val snf = ServiceName.format
     ( (__ \ "date"        ).format[Instant]
-    ~ (__ \ "serviceName" ).format[String]
+    ~ (__ \ "serviceName" ).format[ServiceName]
     ~ (__ \ "environment" ).format[Environment](Environment.format)
     ~ (__ \ "slots"       ).format[Int]
     ~ (__ \ "instances"   ).format[Int]
     )(ResourceUsage.apply, unlift(ResourceUsage.unapply))
+  }
 }

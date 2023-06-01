@@ -23,9 +23,9 @@ import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.Dashboard
+import uk.gov.hmrc.serviceconfigs.model.{Dashboard, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -40,6 +40,7 @@ class GrafanaDashboardRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Transactions {
 
   // we replace all the data for each call to putAll
@@ -47,9 +48,9 @@ class GrafanaDashboardRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def findByService(service: String): Future[Option[Dashboard]] =
+  def findByService(serviceName: ServiceName): Future[Option[Dashboard]] =
     collection
-      .find(equal("service", service))
+      .find(equal("service", serviceName))
       .headOption()
 
   def putAll(dashboards: Seq[Dashboard]): Future[Int] =

@@ -39,7 +39,7 @@ class OutagePageServiceSpec
     "extract all the outage-pages from the gihub zipball" in new OutagePageServiceFixture {
       val expectedOutagePages = List(
         OutagePage(
-          "example-service",
+          ServiceName("example-service"),
           List(Development, Production, QA)
         )
       )

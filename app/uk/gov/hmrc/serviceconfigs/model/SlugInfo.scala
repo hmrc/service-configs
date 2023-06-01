@@ -45,7 +45,7 @@ case class SlugDependency(
 case class SlugInfo(
   uri               : String,
   created           : Instant, //not used
-  name              : String,
+  name              : ServiceName,
   version           : Version,
   classpath         : String,  // not stored in Mongo - used to order dependencies before storing
   dependencies      : List[SlugDependency],
@@ -76,9 +76,10 @@ trait MongoSlugInfoFormats {
 
   val slugInfoFormat: OFormat[SlugInfo] = {
     implicit val sdf = slugDependencyFormat
+    implicit val snf = ServiceName.format
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
-    ~ (__ \ "name"             ).format[String]
+    ~ (__ \ "name"             ).format[ServiceName]
     ~ (__ \ "version"          ).format[Version](Version.format)
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
@@ -118,9 +119,10 @@ trait ApiSlugInfoFormats {
 
   val slugInfoFormat: OFormat[SlugInfo] = {
     implicit val sdf = slugDependencyFormat
+    implicit val snf = ServiceName.format
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant]
-    ~ (__ \ "name"             ).format[String]
+    ~ (__ \ "name"             ).format[ServiceName]
     ~ (__ \ "version"          ).format[Version](Version.format)
     ~ (__ \ "classpath"        ).format[String]
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]

@@ -21,7 +21,7 @@ import play.api.libs.json.{Json, OWrites}
 import play.api.mvc.MessagesControllerComponents
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.ServiceRelationships
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationships}
 import uk.gov.hmrc.serviceconfigs.service.ServiceRelationshipService
 
 import javax.inject.{Inject, Singleton}
@@ -41,10 +41,10 @@ class ServiceRelationshipController @Inject()(
     notes = "Relationships determined by config under microservice.services key in application.conf"
   )
   def serviceRelationships(
-    @ApiParam(value = "The service name of the given service") service: String
+    @ApiParam(value = "The service name of the given service") serviceName: ServiceName
   ): Action[AnyContent] = Action.async {
     implicit val serviceRelationshipWrites: OWrites[ServiceRelationships] = ServiceRelationships.writes
-    serviceRelationshipService.getServiceRelationships(service).map { res =>
+    serviceRelationshipService.getServiceRelationships(serviceName).map { res =>
       Ok(Json.toJson(res))
     }
   }

@@ -20,17 +20,19 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
 case class AdminFrontendRoute(
-  service : String
+  service : ServiceName
 , route   : String
 , allow   : Map[String, List[String]]
 , location: String
 )
 
 object AdminFrontendRoute {
-  val format: Format[AdminFrontendRoute] =
-    ( (__ \ "service" ).format[String]
+  val format: Format[AdminFrontendRoute] = {
+    implicit val snf = ServiceName.format
+    ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "route"   ).format[String]
     ~ (__ \ "allow"   ).format[Map[String, List[String]]]
     ~ (__ \ "location").format[String]
     )(AdminFrontendRoute.apply, unlift(AdminFrontendRoute.unapply))
+  }
 }

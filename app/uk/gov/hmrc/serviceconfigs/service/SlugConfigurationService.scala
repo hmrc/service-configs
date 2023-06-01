@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, SlugDependency, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, ServiceName, SlugDependency, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -55,14 +55,14 @@ class SlugConfigurationService @Inject()(
     } yield ()
   }
 
-  def deleteSlugInfo(slugName: String, slugVersion: Version): Future[Unit] =
-    slugInfoRepository.delete(slugName, slugVersion)
+  def deleteSlugInfo(serviceName: ServiceName, slugVersion: Version): Future[Unit] =
+    slugInfoRepository.delete(serviceName, slugVersion)
 
   def addDependencyConfigurations(dependencyConfigs: Seq[DependencyConfig]): Future[Unit] =
     dependencyConfigs.toList.traverse_(dependencyConfigRepository.add)
 
-  def getSlugInfo(name: String, flag: SlugInfoFlag): Future[Option[SlugInfo]] =
-    slugInfoRepository.getSlugInfo(name, flag)
+  def getSlugInfo(serviceName: ServiceName, flag: SlugInfoFlag): Future[Option[SlugInfo]] =
+    slugInfoRepository.getSlugInfo(serviceName, flag)
 
   def findDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     dependencyConfigRepository.getDependencyConfig(group, artefact, version)

@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.JsResultException
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
-import uk.gov.hmrc.serviceconfigs.model.YamlRoutesFile
+import uk.gov.hmrc.serviceconfigs.model.{YamlRoutesFile, ServiceName}
 
 class YamlConfigParserSpec
   extends AnyWordSpec
@@ -61,7 +61,7 @@ class YamlConfigParserSpec
       result.size shouldBe 2
 
       result.map { r =>
-        r.service              shouldBe "my-service-frontend"
+        r.service              shouldBe ServiceName("my-service-frontend")
         r.frontendPath         shouldBe "/my-service"
         r.backendPath          shouldBe "https://my-service-frontend.public.mdtp" // zone defaults to public
         r.routesFile           shouldBe "routes.yaml"
@@ -88,7 +88,7 @@ class YamlConfigParserSpec
 
       result.size shouldBe 1
 
-      result.head.service      shouldBe "my-service-frontend"
+      result.head.service      shouldBe ServiceName("my-service-frontend")
       result.head.frontendPath shouldBe "^/(my-service|hello-world)"
       result.head.isRegex      shouldBe true
     }
@@ -109,7 +109,7 @@ class YamlConfigParserSpec
 
       result.size shouldBe 1
 
-      result.head.service              shouldBe "my-service-frontend"
+      result.head.service              shouldBe ServiceName("my-service-frontend")
       result.head.frontendPath         shouldBe "/my-service"
       result.head.backendPath          shouldBe "https://my-service-frontend.public-monolith.mdtp"
       result.head.shutterKillswitch    shouldBe None

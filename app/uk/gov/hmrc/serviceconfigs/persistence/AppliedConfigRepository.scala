@@ -21,7 +21,7 @@ import org.mongodb.scala.model.{Filters, Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +39,7 @@ class AppliedConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("environment", "serviceName", "key")),
                      IndexModel(Indexes.ascending("key", "environment", "serviceName")) // look ups are key first
                    ),
-  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions {
   import AppliedConfigRepository._
 
@@ -48,7 +48,7 @@ class AppliedConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(environment: Environment, serviceName: String, config: Map[String, String]): Future[Unit] =
+  def put(environment: Environment, serviceName: ServiceName, config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _             <- collection.deleteMany(
@@ -88,7 +88,7 @@ class AppliedConfigRepository @Inject()(
       .toFuture()
       .map(_.sorted)
 
-  def delete(environment: Environment, serviceName: String): Future[Unit] =
+  def delete(environment: Environment, serviceName: ServiceName): Future[Unit] =
     collection.deleteMany(
       Filters.and(
         Filters.equal("environment", environment),
@@ -104,16 +104,17 @@ object AppliedConfigRepository {
 
   case class AppliedConfig(
     environment: Environment,
-    serviceName: String,
+    serviceName: ServiceName,
     key        : String,
     value      : String
   )
 
   object AppliedConfig {
     val format: Format[AppliedConfig] = {
-      implicit val ef = Environment.format
+      implicit val ef  = Environment.format
+      implicit val snf = ServiceName.format
       ( (__ \ "environment").format[Environment]
-      ~ (__ \ "serviceName").format[String]
+      ~ (__ \ "serviceName").format[ServiceName]
       ~ (__ \ "key"        ).format[String]
       ~ (__ \ "value"      ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))

@@ -32,21 +32,21 @@ class OutagePageService @Inject()(
   lastHashRepository   : LastHashRepository,
   outagePageRepository : OutagePageRepository,
 )(implicit ec: ExecutionContext) extends Logging {
-  def findByServiceName(serviceName: String): Future[Option[Seq[Environment]]] =
+  def findByServiceName(serviceName: ServiceName): Future[Option[Seq[Environment]]] =
     outagePageRepository.findByServiceName(serviceName)
 
   def update(): Future[Unit] =
     (for {
         _            <- EitherT.pure[Future, Unit](logger.info(s"Updating Outage Pages"))
-        repo         =  "outage-pages"
-        currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repo).map(_.value))
-        previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repo))
+        repoName     =  RepoName("outage-pages")
+        currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
+        previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
         oHash        =  Option.when(Some(currentHash) != previousHash)(currentHash)
         hash         <- EitherT.fromOption[Future](oHash, logger.info("No updates on outage-pages repository"))
-        is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repo))
+        is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
         outagePages  =  try { extractOutagePages(is) } finally { is.close() }
         _            <- EitherT.right[Unit](outagePageRepository.putAll(outagePages))
-        _            <- EitherT.right[Unit](lastHashRepository.update(repo, hash))
+        _            <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
       } yield ()
     ).merge
 
@@ -54,20 +54,20 @@ class OutagePageService @Inject()(
     Iterator
       .continually(codeZip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[String, List[Environment]]){ (acc, entry) =>
+      .foldLeft(Map.empty[ServiceName, List[Environment]]){ (acc, entry) =>
         extractOutagePage(entry.getName)
           .fold(acc){ case (serviceName, env) =>
             acc.updatedWith(serviceName)(currentEnvs =>
               Option(currentEnvs.fold(List(env))(_ :+ env))
             )
           }
-      }.map{ case (serviceName, envs) => OutagePage(serviceName, envs)}
+      }.map { case (serviceName, envs) => OutagePage(serviceName, envs)}
       .toSeq
 
-  private def extractOutagePage(path: String): Option[(String, Environment)] =
+  private def extractOutagePage(path: String): Option[(ServiceName, Environment)] =
     path.split("/") match {
       case Array(_, env, serviceName, OutagePage.outagePageName) =>
-        Environment.parse(env).map(serviceName -> _)
+        Environment.parse(env).map(ServiceName(serviceName) -> _)
       case _ => None
     }
 }

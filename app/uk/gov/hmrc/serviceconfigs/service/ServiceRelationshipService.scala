@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.model.{ServiceRelationship, ServiceRelationships, SlugInfo}
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationship, ServiceRelationships, SlugInfo}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlugInfoRepository}
 
@@ -38,18 +38,18 @@ class ServiceRelationshipService @Inject()(
 
   private val logger: Logger = Logger(getClass)
 
-  def getServiceRelationships(service: String): Future[ServiceRelationships] =
+  def getServiceRelationships(serviceName: ServiceName): Future[ServiceRelationships] =
     for {
-      inbound  <- serviceRelationshipsRepository.getInboundServices(service)
-      outbound <- serviceRelationshipsRepository.getOutboundServices(service)
+      inbound  <- serviceRelationshipsRepository.getInboundServices(serviceName)
+      outbound <- serviceRelationshipsRepository.getOutboundServices(serviceName)
     } yield ServiceRelationships(inbound.toSet, outbound.toSet)
 
   def updateServiceRelationships(): Future[Unit] =
     for {
       slugInfos       <- slugInfoRepository.getAllLatestSlugInfos()
-      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[String])](slugInfo =>
-                           serviceRelationshipsFromSlugInfo(slugInfo, knownServices = slugInfos.map(_.name))
-                             .map(res => (res.toList, List.empty[String]))
+      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[ServiceName])](slugInfo =>
+                           serviceRelationshipsFromSlugInfo(slugInfo, knownServices = slugInfos.map(_.name.asString))
+                             .map(res => (res.toList, List.empty[ServiceName]))
                              .recover { case NonFatal(e) =>
                                logger.warn(s"Error encountered when getting service relationships for ${slugInfo.name}", e)
                                (List.empty[ServiceRelationship], List(slugInfo.name))
@@ -85,13 +85,13 @@ class ServiceRelationshipService @Inject()(
           .collect { case (k @ ServiceNameFromKey(service), _) => (k, service) }
           .flatMap {
             case (_, serviceFromKey) if knownServices.contains(serviceFromKey) =>
-              Seq(ServiceRelationship(slugInfo.name, serviceFromKey))
+              Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromKey)))
             case (key, serviceFromKey) =>
                 appConfBase.get(key) match {
                   case Some(ServiceNameFromHost(serviceFromHost)) if knownServices.contains(serviceFromHost) =>
-                    Seq(ServiceRelationship(slugInfo.name, serviceFromHost))
+                    Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromHost)))
                   case _ =>
-                    Seq(ServiceRelationship(slugInfo.name, serviceFromKey))
+                    Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromKey)))
                 }
           }
       )

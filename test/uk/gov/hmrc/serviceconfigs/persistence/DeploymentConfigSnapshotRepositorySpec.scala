@@ -21,7 +21,7 @@ import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
 
@@ -45,9 +45,9 @@ class DeploymentConfigSnapshotRepositorySpec
 
     "Persist and retrieve `DeploymentConfigSnapshot`s" in {
       (for {
-        before <- repository.snapshotsForService("A")
+        before <- repository.snapshotsForService(ServiceName("A"))
         _      <- repository.add(deploymentConfigSnapshotA1)
-        after  <- repository.snapshotsForService("A")
+        after  <- repository.snapshotsForService(ServiceName("A"))
         _       = before shouldBe empty
         _       = after shouldBe List(deploymentConfigSnapshotA1)
       } yield ()).futureValue
@@ -57,7 +57,7 @@ class DeploymentConfigSnapshotRepositorySpec
       (for {
         _         <- repository.add(deploymentConfigSnapshotA1)
         _         <- repository.add(deploymentConfigSnapshotB1)
-        snapshots <- repository.snapshotsForService("A")
+        snapshots <- repository.snapshotsForService(ServiceName("A"))
         _          = snapshots shouldBe List(deploymentConfigSnapshotA1)
       } yield ()).futureValue
     }
@@ -67,7 +67,7 @@ class DeploymentConfigSnapshotRepositorySpec
         _         <- repository.add(deploymentConfigSnapshotB2)
         _         <- repository.add(deploymentConfigSnapshotB1)
         _         <- repository.add(deploymentConfigSnapshotB3)
-        snapshots <- repository.snapshotsForService("B")
+        snapshots <- repository.snapshotsForService(ServiceName("B"))
           _       = snapshots shouldBe List(deploymentConfigSnapshotB1, deploymentConfigSnapshotB2, deploymentConfigSnapshotB3)
       } yield ()).futureValue
 
@@ -79,12 +79,12 @@ class DeploymentConfigSnapshotRepositorySpec
         _       <- repository.add(deploymentConfigSnapshotB1)
         _       <- repository.add(deploymentConfigSnapshotB2)
         _       <- repository.add(deploymentConfigSnapshotB3)
-        beforeA <- repository.snapshotsForService("A")
-        beforeB <- repository.snapshotsForService("B")
+        beforeA <- repository.snapshotsForService(ServiceName("A"))
+        beforeB <- repository.snapshotsForService(ServiceName("B"))
         before   = beforeA ++ beforeB
         _       <- deleteAll()
-        afterA  <- repository.snapshotsForService("A")
-        afterB  <- repository.snapshotsForService("B")
+        afterA  <- repository.snapshotsForService(ServiceName("A"))
+        afterB  <- repository.snapshotsForService(ServiceName("B"))
         after    = afterA ++ afterB
         _        = before.size shouldBe 4
         _        = after shouldBe empty
@@ -118,7 +118,7 @@ class DeploymentConfigSnapshotRepositorySpec
       (for {
         _         <- repository.add(deploymentConfigSnapshotC1)
         _         <- repository.add(deploymentConfigSnapshotC2)
-        _         <- withClientSession(repository.removeLatestFlagForServiceInEnvironment("C", Environment.Production, _))
+        _         <- withClientSession(repository.removeLatestFlagForServiceInEnvironment(ServiceName("C"), Environment.Production, _))
         snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
         _          = snapshots shouldBe empty
       } yield ()).futureValue
@@ -146,9 +146,9 @@ class DeploymentConfigSnapshotRepositorySpec
         _               <- repository.add(deploymentConfigSnapshotD1)
         _               <- repository.add(deploymentConfigSnapshotE1)
         _               <- repository.executePlanOfWork(planOfWork, Environment.Production)
-        snapshotsA      <- repository.snapshotsForService("A")
-        snapshotsD      <- repository.snapshotsForService("D")
-        snapshotsE      <- repository.snapshotsForService("E")
+        snapshotsA      <- repository.snapshotsForService(ServiceName("A"))
+        snapshotsD      <- repository.snapshotsForService(ServiceName("D"))
+        snapshotsE      <- repository.snapshotsForService(ServiceName("E"))
         actualSnapshots = snapshotsA ++ snapshotsD ++ snapshotsE
         _               = actualSnapshots should contain theSameElementsAs(expectedSnapshots)
       } yield ()).futureValue
@@ -171,7 +171,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotA2: DeploymentConfigSnapshot =
@@ -179,7 +179,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotA3: DeploymentConfigSnapshot =
@@ -187,7 +187,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.00Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig("A", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
@@ -195,7 +195,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
@@ -203,7 +203,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest = false,
       deleted = false,
-      DeploymentConfig("B", None, Environment.QA, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("B"), None, Environment.QA, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
@@ -211,7 +211,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.000Z"),
       latest = false,
       deleted = false,
-      DeploymentConfig("B", None, Environment.Staging, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("B"), None, Environment.Staging, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotC1: DeploymentConfigSnapshot =
@@ -219,7 +219,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotC2: DeploymentConfigSnapshot =
@@ -227,7 +227,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig("C", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotD1: DeploymentConfigSnapshot =
@@ -235,7 +235,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig("D", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotD2: DeploymentConfigSnapshot =
@@ -243,7 +243,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig("D", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotE1: DeploymentConfigSnapshot =
@@ -251,7 +251,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig("E", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1),
     )
 
   val deploymentConfigSnapshotE2: DeploymentConfigSnapshot =
@@ -259,6 +259,6 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig("E", None, Environment.Production, "public", "service", 5, 1),
+      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1),
     )
 }

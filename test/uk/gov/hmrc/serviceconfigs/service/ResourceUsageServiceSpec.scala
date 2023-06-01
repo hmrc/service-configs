@@ -20,7 +20,7 @@ import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 
 import java.time.Instant
@@ -39,50 +39,50 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
             date    = Instant.parse("2021-01-01T00:00:00.000Z"),
             latest  = false,
             deleted = false,
-            DeploymentConfig("A", None, Environment.Staging, "public", "service", 5, 1),
+            DeploymentConfig(ServiceName("A"), None, Environment.Staging, "public", "service", 5, 1),
           ),
           DeploymentConfigSnapshot(
             date    = Instant.parse("2021-01-01T00:00:00.000Z"),
             latest  = false,
             deleted = false,
-            DeploymentConfig("B", None, Environment.Production, "public", "service", 5, 1),
+            DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1),
           )
         )
 
       val resourceUsageService =
-        new ResourceUsageService(stubDeploymentConfigSnapshotRepository("name", snapshots))
+        new ResourceUsageService(stubDeploymentConfigSnapshotRepository(ServiceName("name"), snapshots))
 
       val expectedHistoricResourceUsages =
         Seq(
           ResourceUsage(
             date        = Instant.parse("2021-01-01T00:00:00.000Z"),
-            serviceName = "A",
+            serviceName = ServiceName("A"),
             environment = Environment.Staging,
             slots       = 5,
             instances   = 1
           ),
           ResourceUsage(
             date        = Instant.parse("2021-01-01T00:00:00.000Z"),
-            serviceName = "B",
+            serviceName = ServiceName("B"),
             environment = Environment.Production,
             slots       = 5,
             instances   = 1
           )
         )
 
-      resourceUsageService.resourceUsageSnapshotsForService("name").futureValue shouldBe
+      resourceUsageService.resourceUsageSnapshotsForService(ServiceName("name")).futureValue shouldBe
         expectedHistoricResourceUsages
     }
   }
 
   private def stubDeploymentConfigSnapshotRepository(
-    name: String,
-    snapshots: Seq[DeploymentConfigSnapshot]
+    serviceName: ServiceName,
+    snapshots  : Seq[DeploymentConfigSnapshot]
   ): DeploymentConfigSnapshotRepository = {
     val repository =
       mock[DeploymentConfigSnapshotRepository]
 
-    when(repository.snapshotsForService(name))
+    when(repository.snapshotsForService(serviceName))
       .thenReturn(Future.successful(snapshots))
 
     repository

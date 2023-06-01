@@ -21,9 +21,9 @@ import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.AlertEnvironmentHandler
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +39,8 @@ class AlertEnvironmentHandlerRepository @Inject()(
   domainFormat   = AlertEnvironmentHandler.format,
   indexes        = Seq(
                      IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
-                   )
+                   ),
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Transactions {
 
   // we replace all the data for each call to putAll
@@ -55,7 +56,7 @@ class AlertEnvironmentHandlerRepository @Inject()(
       } yield ()
     }
 
-  def findByServiceName(serviceName: String): Future[Option[AlertEnvironmentHandler]] =
+  def findByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
     collection
       .find(equal("serviceName", serviceName))
       .headOption()
