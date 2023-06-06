@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.{Filters, Indexes, IndexModel}
+import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel, Sorts}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -66,27 +66,40 @@ class AppliedConfigRepository @Inject()(
   private val Quoted = """^\"(.*)\"$""".r
 
   def find(
-    key        : String,
-    environment: Seq[Environment]
+    key         : String,
+    environment : Seq[Environment],
+    serviceNames: Option[Seq[ServiceName]]
   ): Future[Seq[AppliedConfig]] =
     collection.find(
       Filters.and(
+        (if (serviceNames.isEmpty) BsonDocument()
+         else                      Filters.in("serviceName", serviceNames.toList.flatten.map(_.asString): _*)
+        ),
         (key match {
           case Quoted(k) => Filters.equal("key", k)
           case _         => Filters.regex("key", key)
         }),
-        (if (environment.isEmpty)
-           BsonDocument()
-         else
-          Filters.in("environment", environment: _*)
+        (if (environment.isEmpty) BsonDocument()
+         else                     Filters.in("environment", environment: _*)
         )
       )
     ).toFuture()
 
-  def findConfigKeys(): Future[Seq[String]] =
-    collection.distinct[String]("key")
-      .toFuture()
-      .map(_.sorted)
+  def findConfigKeys(serviceNames: Option[Seq[ServiceName]]): Future[Seq[String]] =
+    serviceNames match {
+      case Some(s) => collection
+                        .aggregate[BsonDocument](Seq(
+                          Aggregates.`match`(Filters.in("serviceName", s.map(_.asString): _*))
+                        , Aggregates.group("$key")
+                        , Aggregates.sort(Sorts.ascending("_id"))
+                        ))
+                        .toFuture()
+                        .map(_.map(_.getString("_id").getValue))
+      case None    => collection
+                        .distinct[String]("key")
+                        .toFuture()
+                        .map(_.sorted)
+    }
 
   def delete(environment: Environment, serviceName: ServiceName): Future[Unit] =
     collection.deleteMany(
