@@ -59,7 +59,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
 
-  private val deleteBatchSize = config.get[Int]("deploymentConfigSnapshots_migration.deleteBatchSize")
+  private lazy val deleteBatchSize = config.get[Int]("deploymentConfigSnapshots_migration.deleteBatchSize")
   if (config.get[Boolean]("dedupeDeploymentConfigSnapshots")) {
     for {
       taken <- mongoLockRepository.takeLock(lockId = "deploymentConfigSnapshots_migration", owner = "", ttl = config.get[Duration]("deploymentConfigSnapshots_migration.ttl"))
