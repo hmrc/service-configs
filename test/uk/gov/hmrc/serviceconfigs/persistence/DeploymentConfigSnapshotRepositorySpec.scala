@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import akka.actor.ActorSystem
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
@@ -44,8 +43,6 @@ class DeploymentConfigSnapshotRepositorySpec
   private val config = Configuration("dedupeDeploymentConfigSnapshots" -> false)
 
   private val mockedMongoLockRepository = mock[MongoLockRepository]
-
-  private implicit val as = ActorSystem()
 
   override lazy val repository =
     new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent, config, mockedMongoLockRepository)
