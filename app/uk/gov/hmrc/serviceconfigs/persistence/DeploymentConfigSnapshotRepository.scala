@@ -69,63 +69,66 @@ class DeploymentConfigSnapshotRepository @Inject()(
     } yield ()
   }
 
-  def cleanupDuplicates(): Future[Unit] = {
-    logger.info(s"Launching migration")
-    Source.fromPublisher(
-      mongoComponent.database.getCollection("deploymentConfigSnapshots")
-        .aggregate(Seq(
-          BsonDocument("$group" ->
-            BsonDocument(
-              "_id" -> BsonDocument("name" -> "$deploymentConfig.name", "environment" -> "$deploymentConfig.environment")
-            )
-          ),
-          BsonDocument("$replaceRoot" -> BsonDocument("newRoot" ->  "$_id")),
-          Aggregates.sort(Sorts.ascending("name", "environment"))
-        ))
-        .allowDiskUse(true)
-        .map { bson =>
-          for {
-            name        <- bson.get[BsonString]("name")
-            environment <- bson.get[BsonString]("environment")
-          } yield (name.getValue, environment.getValue)
-        }
-    )
-     .collect { case Some(s) => s }
-     .flatMapConcat { case (name, environment) =>
-       logger.info(s"Cleaning up: $name $environment")
-       Source.fromPublisher(
-         collection
-          .aggregate(Seq(
-            Aggregates.`match`(and(equal("deploymentConfig.name", name), equal("deploymentConfig.environment", environment))),
-            Aggregates.sort(Sorts.ascending("date"))
-          ))
-          .allowDiskUse(true)
-       ).sliding(2, 1)
-        .mapConcat {
-          case prev +: current +: _ =>
-            if (current.deploymentConfig == prev.deploymentConfig)
-              List(
-                DeleteOneModel(
-                  and(
-                    equal("deploymentConfig.name"       , name),
-                    equal("deploymentConfig.environment", environment),
-                    equal("date"                        , current.date)
-                  )
-                )
-              )
-            else {
-              logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
-              List.empty
-            }
-          case _ => List.empty
-       }
-       .grouped(1000)
-       .mapAsync(1)(g => collection.bulkWrite(g).toFuture().map(_ => ()) )
-       .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
-    }
-    .runWith(Sink.fold(())((_, _) => ()))
-    .andThen { t => logger.info(s"Finished migration: $t") }
-  }
+  def cleanupDuplicates(): Future[Unit] =
+    (for {
+      _        <- Future.successful(logger.info(s"Launching migration"))
+      nameEnvs <- mongoComponent.database.getCollection("deploymentConfigSnapshots")
+                    .aggregate(Seq(
+                      BsonDocument("$group" ->
+                        BsonDocument(
+                          "_id" -> BsonDocument("name" -> "$deploymentConfig.name", "environment" -> "$deploymentConfig.environment")
+                        )
+                      ),
+                      BsonDocument("$replaceRoot" -> BsonDocument("newRoot" ->  "$_id")),
+                      Aggregates.sort(Sorts.ascending("name", "environment"))
+                    ))
+                    .allowDiskUse(true)
+                    .map { bson =>
+                      for {
+                        name        <- bson.get[BsonString]("name")
+                        environment <- bson.get[BsonString]("environment")
+                      } yield (name.getValue, environment.getValue)
+                    }
+                    .toFuture()
+        _      =  logger.info(s"Cleaning up ${nameEnvs.size} name/environments")
+        _      <- nameEnvs.foldLeftM[Future, Unit](()){
+                    case (acc, None)                      =>
+                      Future.unit
+                    case (acc, Some((name, environment))) =>
+                      logger.info(s"Cleaning up: $name $environment")
+                      Source.fromPublisher(
+                        collection
+                          .aggregate(Seq(
+                            Aggregates.`match`(and(equal("deploymentConfig.name", name), equal("deploymentConfig.environment", environment))),
+                            Aggregates.sort(Sorts.ascending("date"))
+                          ))
+                          .allowDiskUse(true)
+                      ).sliding(2, 1)
+                        .mapConcat {
+                          case prev +: current +: _ =>
+                            if (current.deploymentConfig == prev.deploymentConfig)
+                              List(
+                                DeleteOneModel(
+                                  and(
+                                    equal("deploymentConfig.name"       , name),
+                                    equal("deploymentConfig.environment", environment),
+                                    equal("date"                        , current.date)
+                                  )
+                                )
+                              )
+                            else {
+                              logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
+                              List.empty
+                            }
+                          case _ => List.empty
+                      }
+                      .grouped(1000)
+                      .mapAsync(1)(g => collection.bulkWrite(g).toFuture().map(_ => ()) )
+                      .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
+                      .runWith(Sink.fold(())((_, _) => ()))
+                  }
+      } yield ()
+    ).andThen { t => logger.info(s"Finished migration: $t") }
 
   def snapshotsForService(serviceName: ServiceName): Future[Seq[DeploymentConfigSnapshot]] =
     collection
