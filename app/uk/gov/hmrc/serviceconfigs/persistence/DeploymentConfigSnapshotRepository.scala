@@ -124,7 +124,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
        .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
     }
     .runWith(Sink.fold(())((_, _) => ()))
-    .andThen { _ => logger.info(s"Finished migration") }
+    .andThen { t => logger.info(s"Finished migration: $t") }
   }
 
   def snapshotsForService(serviceName: ServiceName): Future[Seq[DeploymentConfigSnapshot]] =
@@ -205,11 +205,12 @@ class DeploymentConfigSnapshotRepository @Inject()(
     logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
 
     def bulkInsertSnapshots(snapshots: List[DeploymentConfigSnapshot]) =
-      withSessionAndTransaction { session =>
+      if (snapshots.isEmpty)
+        Future.unit
+      else
+        withSessionAndTransaction { session =>
         for {
-          _ <- if (snapshots.nonEmpty)
-                 removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session)
-               else Future.unit
+          _ <- removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session)
           _ <- collection.insertMany(session, snapshots).toFuture()
         } yield ()
       }
