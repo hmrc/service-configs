@@ -16,13 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
 import org.mongodb.scala.ClientSession
+import org.mongodb.scala.bson.{BsonDocument, BsonString}
+import org.mongodb.scala.model.{Aggregates, DeleteOneModel, FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.Indexes
 import org.mongodb.scala.model.Updates.set
-import org.mongodb.scala.model.Aggregates
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Sorts}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -34,17 +35,14 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import akka.stream.scaladsl.Source
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.bson.BsonString
-import akka.stream.scaladsl.Sink
-import akka.stream.Materializer
-import org.mongodb.scala.model.DeleteOneModel
+import scala.concurrent.duration.Duration
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
   deploymentConfigRepository : DeploymentConfigRepository,
-  override val mongoComponent: MongoComponent
+  override val mongoComponent: MongoComponent,
+  config                     : play.api.Configuration,
+  mongoLockRepository        : uk.gov.hmrc.mongo.lock.MongoLockRepository,
 )(implicit
   ec: ExecutionContext,
   mat: Materializer
@@ -64,8 +62,12 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
 
-  // TODO feature flag, and run with lock
-  //cleanupDuplicates()
+  if (config.get[Boolean]("dedupeDeploymentConfigSnapshots")) {
+    for {
+      taken <- mongoLockRepository.takeLock(lockId = "deploymentConfigSnapshots_migration", owner = "", ttl = config.get[Duration]("deploymentConfigSnapshots_migration.ttl"))
+      _     <- if (taken) cleanupDuplicates() else Future.unit
+    } yield ()
+  }
 
   def cleanupDuplicates(): Future[Unit] = {
     logger.info(s"Launching migration")
@@ -112,7 +114,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
                 )
               )
             else {
-              println(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
+              logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
               List.empty
             }
           case _ => List.empty
