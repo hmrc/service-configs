@@ -16,11 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import akka.actor.ActorSystem
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import play.api.Configuration
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
@@ -35,93 +38,105 @@ class DeploymentConfigSnapshotRepositorySpec
      with DefaultPlayMongoRepositorySupport[DeploymentConfigSnapshot]
      with MockitoSugar {
 
-  private val stubDeploymentConfigRepository: DeploymentConfigRepository =
+  private val mockedDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]
 
+  private val config = Configuration("dedupeDeploymentConfigSnapshots" -> false)
+
+  private val mockedMongoLockRepository = mock[MongoLockRepository]
+
+  private implicit val as = ActorSystem()
+
   override lazy val repository =
-    new DeploymentConfigSnapshotRepository(stubDeploymentConfigRepository, mongoComponent)
+    new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent, config, mockedMongoLockRepository)
 
   "DeploymentConfigSnapshotRepository" should {
 
     "Persist and retrieve `DeploymentConfigSnapshot`s" in {
       (for {
-        before <- repository.snapshotsForService(ServiceName("A"))
-        _      <- repository.add(deploymentConfigSnapshotA1)
-        after  <- repository.snapshotsForService(ServiceName("A"))
-        _       = before shouldBe empty
-        _       = after shouldBe List(deploymentConfigSnapshotA1)
-      } yield ()).futureValue
+         before <- repository.snapshotsForService(ServiceName("A"))
+         _      <- repository.add(deploymentConfigSnapshotA1)
+         after  <- repository.snapshotsForService(ServiceName("A"))
+         _       = before shouldBe empty
+         _       = after shouldBe List(deploymentConfigSnapshotA1)
+       } yield ()
+      ).futureValue
     }
 
     "Retrieve snapshots by service name" in {
       (for {
-        _         <- repository.add(deploymentConfigSnapshotA1)
-        _         <- repository.add(deploymentConfigSnapshotB1)
-        snapshots <- repository.snapshotsForService(ServiceName("A"))
-        _          = snapshots shouldBe List(deploymentConfigSnapshotA1)
-      } yield ()).futureValue
+         _         <- repository.add(deploymentConfigSnapshotA1)
+         _         <- repository.add(deploymentConfigSnapshotB1)
+         snapshots <- repository.snapshotsForService(ServiceName("A"))
+         _          = snapshots shouldBe List(deploymentConfigSnapshotA1)
+       } yield ()
+      ).futureValue
     }
 
     "Retrieve snapshots sorted by date, ascending" in {
       (for {
-        _         <- repository.add(deploymentConfigSnapshotB2)
-        _         <- repository.add(deploymentConfigSnapshotB1)
-        _         <- repository.add(deploymentConfigSnapshotB3)
-        snapshots <- repository.snapshotsForService(ServiceName("B"))
-          _       = snapshots shouldBe List(deploymentConfigSnapshotB1, deploymentConfigSnapshotB2, deploymentConfigSnapshotB3)
-      } yield ()).futureValue
-
+         _         <- repository.add(deploymentConfigSnapshotB2)
+         _         <- repository.add(deploymentConfigSnapshotB1)
+         _         <- repository.add(deploymentConfigSnapshotB3)
+         snapshots <- repository.snapshotsForService(ServiceName("B"))
+           _       = snapshots shouldBe List(deploymentConfigSnapshotB1, deploymentConfigSnapshotB2, deploymentConfigSnapshotB3)
+       } yield ()
+      ).futureValue
     }
 
     "Delete all documents in the collection" in  {
       (for {
-        _       <- repository.add(deploymentConfigSnapshotA1)
-        _       <- repository.add(deploymentConfigSnapshotB1)
-        _       <- repository.add(deploymentConfigSnapshotB2)
-        _       <- repository.add(deploymentConfigSnapshotB3)
-        beforeA <- repository.snapshotsForService(ServiceName("A"))
-        beforeB <- repository.snapshotsForService(ServiceName("B"))
-        before   = beforeA ++ beforeB
-        _       <- deleteAll()
-        afterA  <- repository.snapshotsForService(ServiceName("A"))
-        afterB  <- repository.snapshotsForService(ServiceName("B"))
-        after    = afterA ++ afterB
-        _        = before.size shouldBe 4
-        _        = after shouldBe empty
-      } yield ()).futureValue
+         _       <- repository.add(deploymentConfigSnapshotA1)
+         _       <- repository.add(deploymentConfigSnapshotB1)
+         _       <- repository.add(deploymentConfigSnapshotB2)
+         _       <- repository.add(deploymentConfigSnapshotB3)
+         beforeA <- repository.snapshotsForService(ServiceName("A"))
+         beforeB <- repository.snapshotsForService(ServiceName("B"))
+         before   = beforeA ++ beforeB
+         _       <- deleteAll()
+         afterA  <- repository.snapshotsForService(ServiceName("A"))
+         afterB  <- repository.snapshotsForService(ServiceName("B"))
+         after    = afterA ++ afterB
+         _        = before.size shouldBe 4
+         _        = after shouldBe empty
+       } yield ()
+      ).futureValue
     }
 
     "Retrieve only the latest snapshots in an environment" in {
       (for {
-        _         <- repository.add(deploymentConfigSnapshotA1)
-        _         <- repository.add(deploymentConfigSnapshotA2)
-        _         <- repository.add(deploymentConfigSnapshotC1)
-        _         <- repository.add(deploymentConfigSnapshotC2)
-        snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
-          _        = snapshots shouldBe List( deploymentConfigSnapshotA2, deploymentConfigSnapshotC2 )
-      } yield ()).futureValue
+         _         <- repository.add(deploymentConfigSnapshotA1)
+         _         <- repository.add(deploymentConfigSnapshotA2)
+         _         <- repository.add(deploymentConfigSnapshotC1)
+         _         <- repository.add(deploymentConfigSnapshotC2)
+         snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
+           _        = snapshots shouldBe List( deploymentConfigSnapshotA2, deploymentConfigSnapshotC2 )
+       } yield ()
+      ).futureValue
     }
 
     "Remove the `latest` flag for all non-deleted snapshots in an environment" in {
       (for {
-        _         <- repository.add(deploymentConfigSnapshotA1)
-        _         <- repository.add(deploymentConfigSnapshotA2)
-        _         <- repository.add(deploymentConfigSnapshotC1)
-        _         <- repository.add(deploymentConfigSnapshotC2)
-        _         <- withClientSession(repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, _))
-        snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
-        _          = snapshots shouldBe List(deploymentConfigSnapshotC2)
-      } yield ()).futureValue
+         _         <- repository.add(deploymentConfigSnapshotA1)
+         _         <- repository.add(deploymentConfigSnapshotA2)
+         _         <- repository.add(deploymentConfigSnapshotC1)
+         _         <- repository.add(deploymentConfigSnapshotC2)
+         _         <- withClientSession(repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, _))
+         snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
+         _          = snapshots shouldBe List(deploymentConfigSnapshotC2)
+       } yield ()
+      ).futureValue
     }
 
     "Remove the `latest` flag for all snapshots of a service in an environment" in {
       (for {
-        _         <- repository.add(deploymentConfigSnapshotC1)
-        _         <- repository.add(deploymentConfigSnapshotC2)
-        _         <- withClientSession(repository.removeLatestFlagForServiceInEnvironment(ServiceName("C"), Environment.Production, _))
-        snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
-        _          = snapshots shouldBe empty
-      } yield ()).futureValue
+         _         <- repository.add(deploymentConfigSnapshotC1)
+         _         <- repository.add(deploymentConfigSnapshotC2)
+         _         <- withClientSession(repository.removeLatestFlagForServiceInEnvironment(ServiceName("C"), Environment.Production, _))
+         snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
+         _          = snapshots shouldBe empty
+       } yield ()
+      ).futureValue
     }
 
     "Execute a `PlanOfWork`" in {
@@ -142,16 +157,17 @@ class DeploymentConfigSnapshotRepositorySpec
         )
 
       (for {
-        _               <- repository.add(deploymentConfigSnapshotA2)
-        _               <- repository.add(deploymentConfigSnapshotD1)
-        _               <- repository.add(deploymentConfigSnapshotE1)
-        _               <- repository.executePlanOfWork(planOfWork, Environment.Production)
-        snapshotsA      <- repository.snapshotsForService(ServiceName("A"))
-        snapshotsD      <- repository.snapshotsForService(ServiceName("D"))
-        snapshotsE      <- repository.snapshotsForService(ServiceName("E"))
-        actualSnapshots = snapshotsA ++ snapshotsD ++ snapshotsE
-        _               = actualSnapshots should contain theSameElementsAs(expectedSnapshots)
-      } yield ()).futureValue
+         _               <- repository.add(deploymentConfigSnapshotA2)
+         _               <- repository.add(deploymentConfigSnapshotD1)
+         _               <- repository.add(deploymentConfigSnapshotE1)
+         _               <- repository.executePlanOfWork(planOfWork, Environment.Production)
+         snapshotsA      <- repository.snapshotsForService(ServiceName("A"))
+         snapshotsD      <- repository.snapshotsForService(ServiceName("D"))
+         snapshotsE      <- repository.snapshotsForService(ServiceName("E"))
+         actualSnapshots = snapshotsA ++ snapshotsD ++ snapshotsE
+         _               = actualSnapshots should contain theSameElementsAs(expectedSnapshots)
+       } yield ()
+      ).futureValue
     }
   }
 

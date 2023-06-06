@@ -47,21 +47,14 @@ final case class ResourceUsage(
 
 object ResourceUsage {
 
-  def fromDeploymentConfigSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot): ResourceUsage = {
-    val slots =
-      deploymentConfigSnapshot.deploymentConfig.slots
-
-    val instances =
-      deploymentConfigSnapshot.deploymentConfig.instances
-
+  def fromDeploymentConfigSnapshot(deploymentConfigSnapshot: DeploymentConfigSnapshot): ResourceUsage =
     ResourceUsage(
       date        = deploymentConfigSnapshot.date,
       serviceName = deploymentConfigSnapshot.deploymentConfig.serviceName,
       environment = deploymentConfigSnapshot.deploymentConfig.environment,
-      slots       = slots,
-      instances   = instances
+      slots       = deploymentConfigSnapshot.deploymentConfig.slots,
+      instances   = deploymentConfigSnapshot.deploymentConfig.instances
     )
-  }
 
   val apiFormat: Format[ResourceUsage] = {
     implicit val snf = ServiceName.format
