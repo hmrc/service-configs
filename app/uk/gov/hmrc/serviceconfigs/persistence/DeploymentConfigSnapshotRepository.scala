@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
 import cats.implicits._
 import org.mongodb.scala.ClientSession
 import org.mongodb.scala.bson.{BsonDocument, BsonString}
@@ -44,8 +42,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   config                     : play.api.Configuration,
   mongoLockRepository        : uk.gov.hmrc.mongo.lock.MongoLockRepository,
 )(implicit
-  ec: ExecutionContext,
-  mat: Materializer
+  ec: ExecutionContext
 ) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "deploymentConfigSnapshots",
@@ -62,6 +59,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
 
+  private val deleteBatchSize = config.get[Int]("deploymentConfigSnapshots_migration.deleteBatchSize")
   if (config.get[Boolean]("dedupeDeploymentConfigSnapshots")) {
     for {
       taken <- mongoLockRepository.takeLock(lockId = "deploymentConfigSnapshots_migration", owner = "", ttl = config.get[Duration]("deploymentConfigSnapshots_migration.ttl"))
@@ -96,36 +94,39 @@ class DeploymentConfigSnapshotRepository @Inject()(
                       Future.unit
                     case (acc, Some((name, environment))) =>
                       logger.info(s"Cleaning up: $name $environment")
-                      Source.fromPublisher(
-                        collection
-                          .aggregate(Seq(
-                            Aggregates.`match`(and(equal("deploymentConfig.name", name), equal("deploymentConfig.environment", environment))),
-                            Aggregates.sort(Sorts.ascending("date"))
-                          ))
-                          .allowDiskUse(true)
-                      ).sliding(2, 1)
-                        .mapConcat {
-                          case prev +: current +: _ =>
-                            if (current.deploymentConfig == prev.deploymentConfig)
-                              List(
-                                DeleteOneModel(
-                                  and(
-                                    equal("deploymentConfig.name"       , name),
-                                    equal("deploymentConfig.environment", environment),
-                                    equal("date"                        , current.date)
+                      collection
+                        .aggregate(Seq(
+                          Aggregates.`match`(and(equal("deploymentConfig.name", name), equal("deploymentConfig.environment", environment))),
+                          Aggregates.sort(Sorts.ascending("date"))
+                        ))
+                        .allowDiskUse(true)
+                        .toFuture()
+                        .map { x =>
+                          logger.info(s"Collected data for: $name $environment")
+                          x.sliding(2, 1)
+                          .flatMap {
+                            case prev +: current +: _ =>
+                              if (current.deploymentConfig == prev.deploymentConfig)
+                                List(
+                                  DeleteOneModel(
+                                    and(
+                                      equal("deploymentConfig.name"       , name),
+                                      equal("deploymentConfig.environment", environment),
+                                      equal("date"                        , current.date)
+                                    )
                                   )
                                 )
-                              )
-                            else {
-                              logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
-                              List.empty
-                            }
-                          case _ => List.empty
-                      }
-                      .grouped(1000)
-                      .mapAsync(1)(g => collection.bulkWrite(g).toFuture().map(_ => ()) )
-                      .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
-                      .runWith(Sink.fold(())((_, _) => ()))
+                              else {
+                                logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
+                                List.empty
+                              }
+                            case x => logger.info(s"No match for $x"); List.empty
+                          }
+                          .grouped(deleteBatchSize)
+                          .toList
+                          .foldLeftM(()){ (_, g) => logger.info(s"Deleting Batch of ${g.size}");collection.bulkWrite(g).toFuture().map(_ => ()) }
+                          .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
+                        }
                   }
       } yield ()
     ).andThen { t => logger.info(s"Finished migration: $t") }
