@@ -91,10 +91,9 @@ class DeploymentConfigSnapshotRepository @Inject()(
                     }
                     .toFuture()
         _      =  logger.info(s"Cleaning up ${nameEnvs.size} name/environments")
-        _      <- nameEnvs.foldLeftM[Future, Unit](()){
-                    case (acc, None)                      =>
-                      Future.unit
-                    case (acc, Some((name, environment))) =>
+        _      <- nameEnvs.toList.traverse_{
+                    case None                      => Future.unit
+                    case Some((name, environment)) =>
                       logger.info(s"Cleaning up: $name $environment")
                       collection
                         .aggregate(Seq(
