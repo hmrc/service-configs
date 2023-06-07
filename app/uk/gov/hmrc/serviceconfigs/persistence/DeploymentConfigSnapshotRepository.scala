@@ -101,7 +101,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
                         ))
                         .allowDiskUse(true)
                         .toFuture()
-                        .map { x =>
+                        .flatMap { x =>
                           logger.info(s"Collected data for: $name $environment")
                           x.sliding(2, 1)
                           .flatMap {
@@ -120,7 +120,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
                                 logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
                                 List.empty
                               }
-                            case x => logger.info(s"No match for $x"); List.empty
+                            case x => List.empty
                           }
                           .grouped(deleteBatchSize)
                           .toList
