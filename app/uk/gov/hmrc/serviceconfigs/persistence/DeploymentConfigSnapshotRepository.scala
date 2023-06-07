@@ -19,12 +19,12 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import cats.implicits._
 import org.mongodb.scala.ClientSession
 import org.mongodb.scala.bson.{BsonDocument, BsonString}
-import org.mongodb.scala.model.{Aggregates, DeleteOneModel, FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
+import org.mongodb.scala.model.{Aggregates, FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, InsertOneModel, Sorts}
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
+import uk.gov.hmrc.mongo.play.json.{Codecs, CollectionFactory, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
@@ -43,7 +43,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   mongoLockRepository        : uk.gov.hmrc.mongo.lock.MongoLockRepository,
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[DeploymentConfigSnapshot](
   mongoComponent = mongoComponent,
   collectionName = "deploymentConfigSnapshots",
   domainFormat   = DeploymentConfigSnapshot.mongoFormat,
@@ -59,7 +59,9 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
 
-  private lazy val deleteBatchSize = config.get[Int]("deploymentConfigSnapshots_migration.deleteBatchSize")
+  private val newCollection =
+    CollectionFactory.collection(mongoComponent.database, "deploymentConfigSnapshots-new", DeploymentConfigSnapshot.mongoFormat)
+
   if (config.get[Boolean]("dedupeDeploymentConfigSnapshots")) {
     for {
       taken <- mongoLockRepository.takeLock(lockId = "deploymentConfigSnapshots_migration", owner = "", ttl = config.get[Duration]("deploymentConfigSnapshots_migration.ttl"))
@@ -101,31 +103,23 @@ class DeploymentConfigSnapshotRepository @Inject()(
                         ))
                         .allowDiskUse(true)
                         .toFuture()
-                        .map { x =>
-                          logger.info(s"Collected data for: $name $environment")
-                          x.sliding(2, 1)
-                          .flatMap {
-                            case prev +: current +: _ =>
-                              if (current.deploymentConfig == prev.deploymentConfig)
-                                List(
-                                  DeleteOneModel(
-                                    and(
-                                      equal("deploymentConfig.name"       , name),
-                                      equal("deploymentConfig.environment", environment),
-                                      equal("date"                        , current.date)
-                                    )
-                                  )
-                                )
-                              else {
-                                logger.info(s"Changed - keep : ${current.date} with ${prev.date}\n${current.deploymentConfig} with ${prev.deploymentConfig}")
-                                List.empty
-                              }
-                            case x => logger.info(s"No match for $x"); List.empty
-                          }
-                          .grouped(deleteBatchSize)
-                          .toList
-                          .foldLeftM(()){ (_, g) => logger.info(s"Deleting Batch of ${g.size}");collection.bulkWrite(g).toFuture().map(_ => ()) }
-                          .recover[Unit] { case t: Throwable => logger.error(s"Failed to delete ${t.getMessage}", t) }
+                        .map { dcs =>
+                          val inserts =
+                            dcs.headOption.map(InsertOneModel.apply).toList ++
+                              dcs.sliding(2, 1)
+                                .flatMap {
+                                  case prev +: current +: _ =>
+                                    if (current.deploymentConfig != prev.deploymentConfig)
+                                      List(
+                                        InsertOneModel(current)
+                                      )
+                                    else
+                                      List.empty
+                                  case other =>
+                                    other.map(InsertOneModel.apply)
+                                }
+                          logger.info(s"Keeping ${inserts.size} for $name $environment")
+                          newCollection.bulkWrite(inserts).toFuture().map(_ => ())
                         }
                   }
       } yield ()
