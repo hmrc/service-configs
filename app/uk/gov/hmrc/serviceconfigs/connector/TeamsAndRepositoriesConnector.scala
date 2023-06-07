@@ -18,10 +18,12 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
+import play.api.cache.AsyncCacheApi
 
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.serviceconfigs.model.TeamName
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,12 +35,19 @@ object TeamsAndRepositoriesConnector {
 
   val readsRepo: Reads[Repo] =
     (__ \ "name").read[String].map(Repo)
+
+  val readsTeamRepos: Reads[(Repo, List[TeamName])] = (v: JsValue) =>
+    for {
+      repoName  <- (v \ "name"     ).validate[String]
+      teamNames <- (v \ "teamNames").validate[List[String]]
+    } yield (Repo(repoName), teamNames.map(TeamName))
 }
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
   serviceConfigs: ServicesConfig,
-  httpClientV2  : HttpClientV2
+  httpClientV2  : HttpClientV2,
+  cache         : AsyncCacheApi
 )(implicit ec: ExecutionContext) extends Logging {
   import uk.gov.hmrc.http.HttpReads.Implicits._
 
@@ -47,9 +56,26 @@ class TeamsAndRepositoriesConnector @Inject()(
 
   implicit private val hc = HeaderCarrier()
   implicit private val rd = TeamsAndRepositoriesConnector.readsRepo
+  implicit private val rt = TeamsAndRepositoriesConnector.readsTeamRepos
 
   def getRepos(archived: Option[Boolean] = None, repoType: Option[String] = None): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/v2/repositories?archived=$archived&repoType=$repoType")
       .execute[List[TeamsAndRepositoriesConnector.Repo]]
+
+  private val teamReposCacheExpiration =
+    serviceConfigs.getDuration("microservice.services.teams-and-repositories.teamReposCacheExpiration")
+
+  def getTeamRepos(): Future[Map[TeamName, Seq[TeamsAndRepositoriesConnector.Repo]]] =
+    cache.getOrElseUpdate("team-repos-cache", teamReposCacheExpiration) {
+      httpClientV2
+        .get(url"$teamsAndServicesUrl/api/v2/repositories")
+        .execute[Seq[(TeamsAndRepositoriesConnector.Repo, List[TeamName])]]
+        .map(
+          _.flatMap { case (repo, teams) => teams.map(team => (repo, team)) }
+          .groupBy(_._2)
+          .map { case (k, vs) => (k, vs.map(_._1).distinct) }
+          .toMap
+        )
+    }
 }

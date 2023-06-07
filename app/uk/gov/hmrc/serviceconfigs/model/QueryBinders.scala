@@ -44,7 +44,9 @@ object QueryBinders {
         strBinder.unbind(key, value.asString)
     }
 
-
   implicit def serviceNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
     strBinder.transform(ServiceName.apply, _.asString)
+
+  implicit def teamNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[TeamName] =
+    strBinder.transform(TeamName.apply, _.asString)
 }

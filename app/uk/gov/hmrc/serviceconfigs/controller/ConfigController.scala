@@ -22,7 +22,7 @@ import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, TeamName}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
@@ -69,18 +69,22 @@ class ConfigController @Inject()(
   )
   def search(
     @ApiParam(value = "The key to query. Quotes required for an exact match") key        : String,
-    @ApiParam(value = "Environment filter"                                  ) environment: Seq[Environment]
+    @ApiParam(value = "Environment filter"                                  ) environment: Seq[Environment],
+    @ApiParam(value = "Team name filter"                                    ) teamName   : Option[TeamName]
   ): Action[AnyContent] = Action.async {
     implicit val acf = AppliedConfigRepository.AppliedConfig.format
-    configService.find(key, environment).map { k =>
-      Ok(Json.toJson(k))
-    }
+    configService
+      .find(key, environment, teamName)
+      .map(k => Ok(Json.toJson(k)))
   }
   @ApiOperation(
-    value = "Retrieves all config keys."
+    value = "Retrieves all config keys, unless filtered."
   )
-  val configKeys: Action[AnyContent] = Action.async {
-    configService.findConfigKeys()
+  def configKeys(
+    @ApiParam(value = "Team name filter") teamName: Option[TeamName]
+  ): Action[AnyContent] = Action.async {
+    configService
+      .findConfigKeys(teamName)
       .map(res => Ok(Json.toJson(res)))
   }
 }

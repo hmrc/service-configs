@@ -27,6 +27,8 @@ case class FileName(asString: String) extends AnyVal
 
 case class ServiceName(asString: String) extends AnyVal
 
+case class TeamName(asString: String) extends AnyVal
+
 object ServiceName {
   val format =
     implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))

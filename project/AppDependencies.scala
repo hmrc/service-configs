@@ -1,5 +1,5 @@
 import play.core.PlayVersion
-import play.sbt.PlayImport.ws
+import play.sbt.PlayImport.{ws, ehcache}
 import sbt._
 
 object AppDependencies {
@@ -23,7 +23,8 @@ object AppDependencies {
     "com.iterable"                     %% "swagger-play"              % "2.0.1",
     "com.fasterxml.jackson.module"     %% "jackson-module-scala"      % jacksonVersion, // update deps provided by swagger
     "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
-    ws
+    ws,
+    ehcache
   )
 
   val test: Seq[ModuleID] = Seq(
