@@ -40,6 +40,7 @@ class SlugConfigurationService @Inject()(
 
   def addSlugInfo(slugInfo: SlugInfo): Future[Unit] = {
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
+    logger.info(s"${slug.name} ${slug.version}: slug.dependencies.size=${slug.dependencies.size}")
 
     for {
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message

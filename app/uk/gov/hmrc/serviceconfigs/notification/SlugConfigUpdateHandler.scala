@@ -93,10 +93,12 @@ class SlugConfigUpdateHandler @Inject()(
                                                artefactProcessorConnector.getSlugInfo(available.name, available.version),
                                                s"SlugInfo for name: ${available.name}, version: ${available.version} was not found"
                                              )
+                        _                 =  logger.info(s"${available.name} ${available.version}: slugInfo.dependencies.size=${slugInfo.dependencies.size}")
                         dependencyConfigs <- EitherT.fromOptionF(
                                                artefactProcessorConnector.getDependencyConfigs(available.name, available.version),
                                                s"DependencyConfigs for name: ${available.name}, version: ${available.version} was not found"
                                              )
+                        _                 =  logger.info(s"${available.name} ${available.version}: dependencyConfigs.size=${dependencyConfigs.size}")
                         _                 <- EitherT[Future, String, Unit](
                                                slugConfigurationService.addSlugInfo(slugInfo)
                                                .map(Right.apply)
