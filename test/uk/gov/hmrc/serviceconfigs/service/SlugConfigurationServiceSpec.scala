@@ -28,14 +28,17 @@ import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugI
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
-  with ScalaFutures with MockitoSugar {
+class SlugConfigurationServiceSpec
+  extends AnyWordSpec
+     with Matchers
+     with ScalaFutures
+     with MockitoSugar {
 
   "SlugInfoService.addSlugInfo" should {
     "mark the slug as latest if it is the first slug with that name" in {
       val boot = Boot.init
 
-      val slug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
+      val slug = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(any[ServiceName]))
         .thenReturn(Future.successful(None))
@@ -53,8 +56,8 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
     "mark the slug as latest if the version is latest" in {
       val boot = Boot.init
 
-      val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
-      val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
+      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
+      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv1.name))
         .thenReturn(Future.successful(Some(slugv2.version)))
@@ -72,8 +75,8 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
     "not use the latest flag from sqs/artefact processor" in {
       val boot = Boot.init
 
-      val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
-      val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
+      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
+      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name))
         .thenReturn(Future.successful(Some(slugv2.version)))
@@ -89,8 +92,8 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
     "not mark the slug as latest if there is a later one already in the collection" in {
       val boot = Boot.init
 
-      val slugv1 = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
-      val slugv2 = sampleSlugInfo(version = Version("2.0.0"), uri = "uri2")
+      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
+      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
 
       when(boot.mockedSlugVersionRepository.getMaxVersion(slugv2.name))
         .thenReturn(Future.successful(Some(slugv2.version)))
@@ -104,11 +107,13 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
 
     "add slug with classpath ordered dependencies" in {
       val boot = Boot.init
-      val sampleSlug = sampleSlugInfo(version = Version("1.0.0"), uri = "uri1")
-      val classPathDependency = SlugDependency(s"${sampleSlug.name}-${sampleSlug.version}/lib/org.scala-lang.scala-library-2.12.11.jar", "", "", "")
-      val nonClassPathDependency = SlugDependency(s"${sampleSlug.name}-${sampleSlug.version}/lib/org.scala-lang.scala-library-2.12.12.jar", "", "", "")
+      val slugName    = "my-slug"
+      val slugVersion = "1.0.0"
+      val sampleSlug = sampleSlugInfo(slugName, version = slugVersion, uri = "uri1")
+      val classPathDependency    = SlugDependency(s"$slugName-$slugVersion/lib/org.scala-lang.scala-library-2.12.11.jar", "", "", "")
+      val nonClassPathDependency = SlugDependency(s"$slugName-$slugVersion/lib/org.scala-lang.scala-library-2.12.12.jar", "", "", "")
       val slug = sampleSlug.copy(
-        classpath = "$lib_dir/../conf/:$lib_dir/uk.gov.hmrc.internal-auth-0.26.0-sans-externalized.jar:$lib_dir/org.scala-lang.scala-library-2.12.11.jar",
+        classpath    = "$lib_dir/../conf/:$lib_dir/uk.gov.hmrc.internal-auth-0.26.0-sans-externalized.jar:$lib_dir/org.scala-lang.scala-library-2.12.11.jar",
         dependencies = List(classPathDependency, nonClassPathDependency)
       )
 
@@ -125,12 +130,12 @@ class SlugConfigurationServiceSpec extends AnyWordSpec with Matchers
     }
   }
 
-  def sampleSlugInfo(version: Version, uri: String, latest: Boolean = true): SlugInfo =
+  def sampleSlugInfo(name: String, version: String, uri: String, latest: Boolean = true): SlugInfo =
     SlugInfo(
       created           = Instant.parse("2019-06-28T11:51:23.000Z"),
       uri               = uri,
-      name              = ServiceName("my-slug"),
-      version           = version,
+      name              = ServiceName(name),
+      version           = Version(version),
       classpath         = "",
       dependencies      = List.empty,
       applicationConfig = "",
