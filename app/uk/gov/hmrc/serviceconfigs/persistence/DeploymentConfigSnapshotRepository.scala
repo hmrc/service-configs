@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import akka.actor.ActorSystem
 import cats.implicits._
 import org.mongodb.scala.ClientSession
 import org.mongodb.scala.bson.{BsonDocument, BsonString}
@@ -33,14 +34,12 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.Duration
 
 @Singleton
 class DeploymentConfigSnapshotRepository @Inject()(
   deploymentConfigRepository : DeploymentConfigRepository,
   override val mongoComponent: MongoComponent,
-  config                     : play.api.Configuration,
-  mongoLockRepository        : uk.gov.hmrc.mongo.lock.MongoLockRepository,
+  actorSystem                : ActorSystem
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeploymentConfigSnapshot](
@@ -62,14 +61,8 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private val newCollection =
     CollectionFactory.collection(mongoComponent.database, "deploymentConfigSnapshots-new", DeploymentConfigSnapshot.mongoFormat)
 
-  if (config.get[Boolean]("dedupeDeploymentConfigSnapshots")) {
-    for {
-      taken <- mongoLockRepository.takeLock(lockId = "deploymentConfigSnapshots_migration", owner = "", ttl = config.get[Duration]("deploymentConfigSnapshots_migration.ttl"))
-      _     <- if (taken) cleanupDuplicates() else Future.unit
-    } yield ()
-  }
-
-  def cleanupDuplicates(): Future[Unit] =
+  def cleanupDuplicates(): Future[Unit] = {
+    implicit val ec: ExecutionContext = actorSystem.dispatchers.lookup("migration-dispatcher")
     (for {
       _        <- Future.successful(logger.info(s"Launching migration"))
       nameEnvs <- mongoComponent.database.getCollection("deploymentConfigSnapshots")
@@ -123,6 +116,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
                   }
       } yield ()
     ).andThen { t => logger.info(s"Finished migration: $t") }
+  }
 
   def snapshotsForService(serviceName: ServiceName): Future[Seq[DeploymentConfigSnapshot]] =
     collection

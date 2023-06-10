@@ -55,4 +55,10 @@ class DeploymentConfigController @Inject()(
         .find(environment, serviceName)
           .map(_.fold(NotFound(s"Service: ${serviceName.asString} not found"))(cfg => Ok(Json.toJson(cfg))))
     }
+
+  def cleanupDuplicates(): Action[AnyContent] =
+    Action {
+      deploymentConfigSnapshotRepository.cleanupDuplicates()
+      Accepted("")
+    }
 }

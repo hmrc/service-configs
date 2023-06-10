@@ -16,13 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import akka.actor.ActorSystem
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.Configuration
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepositorySpec._
@@ -40,15 +39,12 @@ class DeploymentConfigSnapshotRepositorySpec
   private val mockedDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]
 
-  private val config = Configuration("dedupeDeploymentConfigSnapshots" -> false)
-
-  private val mockedMongoLockRepository = mock[MongoLockRepository]
+  private val as = ActorSystem()
 
   override lazy val repository =
-    new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent, config, mockedMongoLockRepository)
+    new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent, as)
 
   "DeploymentConfigSnapshotRepository" should {
-
     "Persist and retrieve `DeploymentConfigSnapshot`s" in {
       (for {
          before <- repository.snapshotsForService(ServiceName("A"))
