@@ -40,6 +40,8 @@ class WebhookControllerSpec
      with ScalaFutures
      with IntegrationPatience {
 
+  private val mockitoTimeoutMs = 1000
+
   "processGithubWebhook" should {
     "accept unknown repository" in new Setup {
       val response = postWebhook(repository = "123", branch = "yyy")
@@ -56,7 +58,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockAppConfigService, times(1)).updateAppConfigBase()
+      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigBase()
     }
 
     "update app-config-env" in new Setup {
@@ -68,8 +70,8 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDeploymentConfigService, times(1)).update(Environment.Production)
-      verify(mockAppConfigService, times(1)).updateAppConfigEnv(Environment.Production)
+      verify(mockDeploymentConfigService, timeout(mockitoTimeoutMs).times(1)).update(Environment.Production)
+      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigEnv(Environment.Production)
     }
 
     "update app-config-common" in new Setup {
@@ -80,7 +82,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockAppConfigService, times(1)).updateAppConfigCommon()
+      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigCommon()
     }
 
     "update bobby-config" in new Setup {
@@ -91,7 +93,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockBobbyRulesService, times(1)).update()
+      verify(mockBobbyRulesService, timeout(mockitoTimeoutMs).times(1)).update()
     }
 
     "update build-jobs" in new Setup {
@@ -102,7 +104,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockBuildJobService, times(1)).updateBuildJobs()
+      verify(mockBuildJobService, timeout(mockitoTimeoutMs).times(1)).updateBuildJobs()
     }
 
     "update grafana-dashboards" in new Setup {
@@ -113,7 +115,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDashboardService, times(1)).updateGrafanaDashboards()
+      verify(mockDashboardService, timeout(mockitoTimeoutMs).times(1)).updateGrafanaDashboards()
     }
 
     "update kibana-dashboards" in new Setup {
@@ -124,7 +126,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDashboardService, times(1)).updateKibanaDashboards()
+      verify(mockDashboardService, timeout(mockitoTimeoutMs).times(1)).updateKibanaDashboards()
     }
 
     "update admin-frontend-proxy" in new Setup {
@@ -135,7 +137,7 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockRoutesConfigService, times(1)).updateAdminFrontendRoutes()
+      verify(mockRoutesConfigService, timeout(mockitoTimeoutMs).times(1)).updateAdminFrontendRoutes()
     }
   }
 
