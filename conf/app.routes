@@ -20,7 +20,6 @@ GET     /alert-configs/:serviceName                     uk.gov.hmrc.serviceconfi
 GET     /deployment-config                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigAll
 GET     /deployment-config/:environment                 uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForEnv(environment: Environment)
 GET     /deployment-config/:environment/:name           uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigForService(environment: Environment, name: ServiceName)
-POST    /cleanupDuplicates                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.cleanupDuplicates()
 
 GET     /resource-usage/services/:serviceName/snapshots uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.resourceUsageSnapshotsForService(serviceName: ServiceName)
 
