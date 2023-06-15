@@ -20,6 +20,18 @@ import play.api.mvc.{PathBindable, QueryStringBindable}
 
 object QueryBinders {
 
+  implicit def filterTypeBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[FilterType] =
+    new QueryStringBindable[FilterType] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, FilterType]] =
+        strBinder.bind(key, params)
+          .map(_.flatMap(s =>
+            FilterType.parse(s).toRight(s"Invalid FilterType '$s'")
+          ))
+
+      override def unbind(key: String, value: FilterType): String =
+        strBinder.unbind(key, value.asString)
+    }
+
   implicit def environmentBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[Environment] =
     new QueryStringBindable[Environment] {
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Environment]] =
