@@ -31,12 +31,13 @@ class SlugConfigurationService @Inject()(
   dependencyConfigRepository : DependencyConfigRepository
 )(implicit ec: ExecutionContext) extends Logging {
 
-  private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
+  private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] = {
     slugInfo.classpath
       .split(":")
-      .map(_.replace("$lib_dir/", s"${slugInfo.name}-${slugInfo.version}/lib/"))
+      .map(_.replace("$lib_dir/", s"${slugInfo.name.asString}-${slugInfo.version}/lib/"))
       .toList
       .flatMap(path => slugInfo.dependencies.filter(_.path == path))
+  }
 
   def addSlugInfo(slugInfo: SlugInfo): Future[Unit] = {
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
