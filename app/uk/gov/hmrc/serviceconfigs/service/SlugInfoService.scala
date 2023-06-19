@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class SlugInfoService @Inject()(
@@ -129,6 +130,7 @@ class SlugInfoService @Inject()(
         _         <- if (!processed)
                        updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
                          .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                         .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
                      else
                        Future.unit
       } yield processed
