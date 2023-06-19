@@ -18,25 +18,21 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.data.EitherT
 import cats.implicits._
-import play.api.{Configuration, Logger}
-import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, ConfigConnector}
+import play.api.Logger
+import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, LastHashRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
-import scala.jdk.CollectionConverters._
 
 @Singleton
 class AppConfigService @Inject()(
   latestConfigRepository: LatestConfigRepository,
   lastHashRepository    : LastHashRepository,
-  configAsCodeConnector : ConfigAsCodeConnector,
-  config                : Configuration,
-  configConnector       : ConfigConnector
+  configAsCodeConnector : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
 ) {
@@ -80,7 +76,7 @@ class AppConfigService @Inject()(
         } else acc
       }
 
-  def appConfigBaseConf(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
+  def appConfigBaseConf(serviceName: ServiceName): Future[Option[String]] =
     latestConfigRepository.find(
       repoName    = "app-config-base",
       fileName    = s"${serviceName.asString}.conf"
@@ -92,21 +88,17 @@ class AppConfigService @Inject()(
       fileName    = s"${serviceName.asString}.yaml"
     )
 
-  def serviceType(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
-    appConfigEnvYaml(environment, serviceName)
-      .map { optAppConfigEnvRaw =>
-        val appConfigEnvEntriesAll = ConfigParser.parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
-        val optServiceType = appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-        // We do store data for `api-microservice` but it is not yaml - it's a link to the `microservice` file
-        optServiceType.map {
-          case "api-microservice" => "microservice"
-          case other              => other
-        }
-      }
+  def appConfigCommonYaml(environment: Environment, serviceTypeRaw: String): Future[Option[String]] = {
+    // `$env-api-frontend-common.yaml` and `$env-api-microservice-common.yaml` are not actually yaml files, they are links to relevant underlying yaml file.
+    val serviceType = serviceTypeRaw match {
+      case "api-frontend"     => "frontend"
+      case "api-microservice" => "microservice"
+      case other              => other
+    }
 
-  def appConfigCommonYaml(environment: Environment, serviceType: String): Future[Option[String]] =
     latestConfigRepository.find(
       repoName = "app-config-common",
       fileName = s"${environment.asString}-$serviceType-common.yaml"
     )
+  }
 }
