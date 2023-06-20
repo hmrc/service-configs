@@ -41,8 +41,10 @@ class ConfigConnector @Inject()(
   def appConfigBaseConf(serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-base/${commitId.asString}/${serviceName.asString}.conf")
 
-  def appConfigCommonYaml(env: Environment, fileName: FileName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/${commitId.asString}/${fileName.asString}")
+  def appConfigCommonYaml(fileName: FileName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] = {
+    val fn = fileName.asString.replace("api-", "") // fileName's with "api-" in them are symlinks, and will just return the name of the symlinked file rather than the content
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/app-config-common/${commitId.asString}/$fn")
+  }
 
   def applicationConf(serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/${serviceName.asString}/${commitId.asString}/conf/application.conf")

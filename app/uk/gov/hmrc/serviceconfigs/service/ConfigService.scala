@@ -26,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositori
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, SlugInfo, SlugInfoFlag, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
-import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
@@ -189,7 +188,7 @@ class ConfigService @Inject()(
                 optAppConfigBase            <- if (configuration.get[Boolean](s"app-config-base-in-slug.${env.asString}"))
                                                   Future.successful(None)
                                                else
-                                                 appConfigService.appConfigBaseConf(env, serviceName)
+                                                 appConfigService.appConfigBaseConf(serviceName)
 
                 optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st =>
                                                  appConfigService.appConfigCommonYaml(env, st)

@@ -236,8 +236,8 @@ class SlugInfoServiceSpec
       when(mockedConfigConnector.appConfigBaseConf(any[ServiceName], any[CommitId])(any[HeaderCarrier]))
         .thenAnswer((serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
 
-      when(mockedConfigConnector.appConfigCommonYaml(any[Environment], any[FileName], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((environment: Environment, fileName: FileName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+      when(mockedConfigConnector.appConfigCommonYaml(any[FileName], any[CommitId])(any[HeaderCarrier]))
+        .thenAnswer((fileName: FileName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
 
       when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[ServiceName], any[CommitId])(any[HeaderCarrier]))
         .thenAnswer((environment: Environment, serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))

@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class SlugInfoService @Inject()(
@@ -129,6 +130,7 @@ class SlugInfoService @Inject()(
         _         <- if (!processed)
                        updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
                          .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                         .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
                      else
                        Future.unit
       } yield processed
@@ -146,7 +148,7 @@ class SlugInfoService @Inject()(
                                 config.repoName match {
                                   case RepoName("app-config-common") =>
                                     for {
-                                      optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(env, config.fileName, config.commitId))
+                                      optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
                                       appConfigCommon    <- optAppConfigCommon match {
                                                               case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
                                                               case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
