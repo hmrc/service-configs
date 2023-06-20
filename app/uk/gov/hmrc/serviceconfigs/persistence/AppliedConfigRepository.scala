@@ -87,15 +87,9 @@ class AppliedConfigRepository @Inject()(
   ): Future[Seq[AppliedConfig]] =
     collection
       .aggregate(Seq(
-        Aggregates.`match`(
-          if (serviceNames.isEmpty) Filters.empty()
-          else                      Filters.in("serviceName", serviceNames.toList.flatten.map(_.asString): _*)
-        ),
+        Aggregates.`match`(serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*))),
         Aggregates.`match`(toFilter("key", key, keyFilterType)),
-        Aggregates.`match`(
-          if (environment.isEmpty) Filters.empty()
-          else                     Filters.in("environment", environment: _*)
-        ),
+        Aggregates.`match`(if (environment.isEmpty) Filters.empty() else Filters.in("environment", environment.map(_.asString): _*)),
         Aggregates.group(
           BsonDocument("serviceName" -> s"$$serviceName", "key" -> s"$$key"),
           Accumulators.push("results", "$$ROOT")

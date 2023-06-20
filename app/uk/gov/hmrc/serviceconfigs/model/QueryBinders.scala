@@ -56,8 +56,23 @@ object QueryBinders {
         strBinder.unbind(key, value.asString)
     }
 
+  implicit def serviceTypeBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceType] =
+    new QueryStringBindable[ServiceType] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, ServiceType]] =
+        strBinder.bind(key, params)
+          .map(_.flatMap(s =>
+            ServiceType.parse(s).toRight(s"Invalid ServiceType '$s'")
+          ))
+
+      override def unbind(key: String, value: ServiceType): String =
+        strBinder.unbind(key, value.asString)
+    }
+
   implicit def serviceNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
     strBinder.transform(ServiceName.apply, _.asString)
+
+  implicit def tagBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[Tag] =
+    strBinder.transform(Tag.apply, _.asString)
 
   implicit def teamNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[TeamName] =
     strBinder.transform(TeamName.apply, _.asString)

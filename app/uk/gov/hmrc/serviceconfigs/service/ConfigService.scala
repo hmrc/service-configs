@@ -23,7 +23,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, SlugInfo, SlugInfoFlag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, SlugInfo, SlugInfoFlag, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.AppConfigService
@@ -267,25 +267,27 @@ class ConfigService @Inject()(
     value          : Option[String],
     valueFilterType: FilterType,
     environment    : Seq[Environment],
-    teamName       : Option[TeamName]
+    teamName       : Option[TeamName],
+    serviceType    : Option[ServiceType],
+    tag            : Seq[Tag],
   ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
-    teamName match {
-      case None           => appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, None)
-      case Some(teamName) => for {
-                                teamRepos    <- teamsAndReposConnector.getTeamRepos()
-                                serviceNames =  teamRepos.get(teamName).map(_.map(repo => ServiceName(repo.name)))
-                                configRepos  <- appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, serviceNames)
-                             } yield configRepos
+    (teamName, serviceType, tag) match {
+      case (None, None, Nil) => appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, None)
+      case  _                => for {
+                                  repos        <- teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tag = tag)
+                                  serviceNames =  repos.map(repo => ServiceName(repo.name))
+                                  configRepos  <- appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, Some(serviceNames))
+                                } yield configRepos
     }
 
   def findConfigKeys(teamName: Option[TeamName]): Future[Seq[String]] =
     teamName match {
-      case None           => appliedConfigRepository.findConfigKeys(None)
-      case Some(teamName) => for {
-                                teamRepos    <- teamsAndReposConnector.getTeamRepos()
-                                serviceNames =  teamRepos.get(teamName).map(_.map(repo => ServiceName(repo.name)))
-                                configKeys   <- appliedConfigRepository.findConfigKeys(serviceNames)
-                             } yield configKeys
+      case None => appliedConfigRepository.findConfigKeys(None)
+      case _    => for {
+                     repos        <- teamsAndReposConnector.getRepos(teamName = teamName)
+                     serviceNames =  repos.map(repo => ServiceName(repo.name))
+                     configKeys   <- appliedConfigRepository.findConfigKeys(Some(serviceNames))
+                   } yield configKeys
     }
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
