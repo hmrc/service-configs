@@ -88,9 +88,9 @@ class AppConfigService @Inject()(
       fileName    = s"${serviceName.asString}.yaml"
     )
 
-  def appConfigCommonYaml(environment: Environment, serviceTypeRaw: String): Future[Option[String]] = {
+  def appConfigCommonYaml(environment: Environment, serviceType: String): Future[Option[String]] = {
     // `$env-api-frontend-common.yaml` and `$env-api-microservice-common.yaml` are not actually yaml files, they are links to relevant underlying yaml file.
-    val serviceType = serviceTypeRaw match {
+    val st = serviceType match {
       case "api-frontend"     => "frontend"
       case "api-microservice" => "microservice"
       case other              => other
@@ -98,7 +98,7 @@ class AppConfigService @Inject()(
 
     latestConfigRepository.find(
       repoName = "app-config-common",
-      fileName = s"${environment.asString}-$serviceType-common.yaml"
+      fileName = s"${environment.asString}-$st-common.yaml"
     )
   }
 }

@@ -139,7 +139,7 @@ class ConfigServiceSpec
       }
     }
   }
-/*
+
   "ConfigService.configSourceEntries" should {
     List(true, false).foreach { latest =>
       s"show config changes per key for each environment for latest $latest" in {
@@ -166,7 +166,7 @@ class ConfigServiceSpec
         )
       }
     }
-  }*/
+  }
 
   def withAppConfigEnvForHEAD(env: String, serviceName: ServiceName, content: String): Unit =
     latestConfigCollection
