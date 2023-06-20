@@ -16,22 +16,15 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.Format
-import play.api.libs.functional.syntax._
+sealed trait ServiceType { def asString: String }
 
-case class CommitId(asString: String) extends AnyVal
+object ServiceType {
+  case object Frontend extends ServiceType { val asString = "FrontendService" }
+  case object Backend  extends ServiceType { val asString = "BackendService" }
 
-case class RepoName(asString: String) extends AnyVal
+  val values: List[ServiceType] =
+    List(Frontend, Backend)
 
-case class FileName(asString: String) extends AnyVal
-
-case class ServiceName(asString: String) extends AnyVal
-
-case class Tag(asString: String) extends AnyVal
-
-case class TeamName(asString: String) extends AnyVal
-
-object ServiceName {
-  val format =
-    implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
+  def parse(s: String): Option[ServiceType] =
+    values.find(_.asString == s)
 }

@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, SlugInfo, SlugInfoFlag, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, TeamName, Tag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
@@ -50,7 +50,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(Seq.empty))
 
       when(mockedGithubRawConnector.decommissionedServices())
@@ -95,7 +95,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedGithubRawConnector.decommissionedServices())
@@ -141,7 +141,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatIsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedGithubRawConnector.decommissionedServices())
@@ -206,7 +206,7 @@ class SlugInfoServiceSpec
           ))
         )))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedGithubRawConnector.decommissionedServices())

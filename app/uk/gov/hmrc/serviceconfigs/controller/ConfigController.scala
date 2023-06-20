@@ -18,11 +18,12 @@ package uk.gov.hmrc.serviceconfigs.controller
 
 import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
@@ -31,6 +32,7 @@ import scala.concurrent.ExecutionContext
 @Singleton
 @Api("Github Config")
 class ConfigController @Inject()(
+  configuration: Configuration,
   configService: ConfigService,
   mcc          : MessagesControllerComponents
 )(implicit
@@ -64,18 +66,28 @@ class ConfigController @Inject()(
     }
   }
 
+  private def maxSearchLimit = configuration.get[Int]("config-search.max-limit")
   @ApiOperation(
-    value = "Retrieves all uses of the config key, across all Environments and ServiceNames, unless filtered."
+    value = "Search for config using the list query params below.",
+    notes = "Queries are not allowed to be over the configured max search limit"
   )
   def search(
-    @ApiParam(value = "The key to query. Quotes required for an exact match") key        : String,
-    @ApiParam(value = "Environment filter"                                  ) environment: Seq[Environment],
-    @ApiParam(value = "Team name filter"                                    ) teamName   : Option[TeamName]
+    @ApiParam(value = "The key to query"     ) key            : Option[String],
+    @ApiParam(value = "The key filter type"  ) keyFilterType  : FilterType,
+    @ApiParam(value = "The value to query."  ) value          : Option[String],
+    @ApiParam(value = "The value filter type") valueFilterType: FilterType,
+    @ApiParam(value = "Environment filter"   ) environment    : Seq[Environment],
+    @ApiParam(value = "Team name filter"     ) teamName       : Option[TeamName],
+    @ApiParam(value = "serviceType filter"   ) serviceType    : Option[ServiceType],
+    @ApiParam(value = "Tag filter"           ) tag            : Seq[Tag],
   ): Action[AnyContent] = Action.async {
     implicit val acf = AppliedConfigRepository.AppliedConfig.format
     configService
-      .find(key, environment, teamName)
-      .map(k => Ok(Json.toJson(k)))
+      .search(key, keyFilterType, value, valueFilterType, environment, teamName, serviceType, tag)
+      .map {
+        case k if (k.size > maxSearchLimit) => Forbidden(s"Queries returning over $maxSearchLimit results are not allowed")
+        case k                              => Ok(Json.toJson(k))
+      }
   }
   @ApiOperation(
     value = "Retrieves all config keys, unless filtered."

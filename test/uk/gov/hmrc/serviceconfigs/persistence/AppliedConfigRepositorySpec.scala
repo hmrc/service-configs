@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
 
 
 class AppliedConfigRepositorySpec
@@ -33,7 +33,10 @@ class AppliedConfigRepositorySpec
      with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig] {
   import AppliedConfigRepository._
 
-  override protected val repository = new AppliedConfigRepository(mongoComponent)
+  val configSearchLimit = 5
+  private val config = play.api.Configuration("config-search.max-limit" -> configSearchLimit)
+
+  override protected val repository = new AppliedConfigRepository(config, mongoComponent)
 
   "AppliedConfigRepository" should {
     "put correctly" in {
@@ -97,7 +100,37 @@ class AppliedConfigRepositorySpec
       )
     }
 
-    "find exactly" in {
+    "search config key equal to" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      val serviceName2 = ServiceName("serviceName2")
+      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
+        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
+        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
+      )
+
+      repository.search(
+        key             = Some("k")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = None
+      ).futureValue should be (Nil)
+    }
+
+    "search config key contains" in {
       val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
@@ -113,68 +146,120 @@ class AppliedConfigRepositorySpec
         AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
       )
 
-      repository.find("1", environment = Seq.empty, serviceNames = None).futureValue should contain theSameElementsAs Seq(
+      repository.search(
+        key             = Some("1")
+      , keyFilterType   = FilterType.Contains
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
         AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
         AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
         AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
       )
-
-      repository.find("k", environment = Seq(Environment.Development), serviceNames = None).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
-      )
     }
 
-    "find containing" in {
+    "search by service names when present" in {
       val serviceName1 = ServiceName("serviceName1")
       repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
       repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
       repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
-      )
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = Some(Nil)
+      ).futureValue should be (Nil)
 
-      repository.find("\"k1\"", environment = Seq.empty, serviceNames = None).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
-      )
-
-      repository.find("\"k\"", environment = Seq(Environment.Development), serviceNames = None).futureValue should contain theSameElementsAs Seq.empty
-    }
-
-    "filter by service names when present" in {
-      val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
-      val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
-
-      repository.find("\"k1\"", environment = Seq.empty, serviceNames = Some(Nil)).futureValue should contain theSameElementsAs Nil
-
-      repository.find("\"k1\"", environment = Seq.empty, serviceNames = Some(List(serviceName1))).futureValue should contain theSameElementsAs Seq(
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = Some(List(serviceName1))
+      ).futureValue should contain theSameElementsAs Seq(
         AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
         AppliedConfig(Environment.QA         , serviceName1, "k1", "v1")
       )
 
-      repository.find("\"k1\"", environment = Seq.empty, serviceNames = Some(List(serviceName2))).futureValue should contain theSameElementsAs Seq(
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = Some(List(serviceName2))
+      ).futureValue should contain theSameElementsAs Seq(
         AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
       )
 
-      repository.find("\"k1\"", environment = Seq.empty, serviceNames = Some(List(serviceName1, serviceName2))).futureValue should contain theSameElementsAs Seq(
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq.empty
+      , serviceNames    = Some(List(serviceName1, serviceName2))
+      ).futureValue should contain theSameElementsAs Seq(
         AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
         AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
         AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
       )
+    }
+
+    "search per environment when present" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Nil
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
+        AppliedConfig(Environment.QA, serviceName1, "k1", "v1"),
+      )
+
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq(Environment.Development)
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
+      )
+
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq(Environment.QA)
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(Environment.QA, serviceName1, "k1", "v1"),
+      )
+
+      repository.search(
+        key             = Some("k1")
+      , keyFilterType   = FilterType.EqualTo
+      , value           = None
+      , valueFilterType = FilterType.Contains
+      , environment     = Seq(Environment.Production)
+      , serviceNames    = None
+      ).futureValue should be (Nil)
     }
   }
 
