@@ -148,7 +148,7 @@ class SlugInfoService @Inject()(
                                 config.repoName match {
                                   case RepoName("app-config-common") =>
                                     for {
-                                      optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(env, config.fileName, config.commitId))
+                                      optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
                                       appConfigCommon    <- optAppConfigCommon match {
                                                               case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
                                                               case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")

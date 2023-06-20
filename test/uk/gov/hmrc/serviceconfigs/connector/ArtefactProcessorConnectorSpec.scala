@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.connector
 import java.time.Instant
 
 import com.github.tomakehurst.wiremock.client.WireMock._
-import org.mockito.MockitoSugar
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -36,7 +35,6 @@ class ArtefactProcessorConnectorSpec
      with Matchers
      with ScalaFutures
      with IntegrationPatience
-     with MockitoSugar
      with WireMockSupport
      with HttpClientV2Support {
 
