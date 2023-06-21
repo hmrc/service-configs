@@ -185,10 +185,7 @@ class ConfigService @Inject()(
                                                 .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
                 serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
 
-                optAppConfigBase            <- if (configuration.get[Boolean](s"app-config-base-in-slug.${env.asString}"))
-                                                  Future.successful(None)
-                                               else
-                                                 appConfigService.appConfigBaseConf(serviceName)
+                optAppConfigBase            <- appConfigService.appConfigBaseConf(serviceName)
 
                 optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st =>
                                                  appConfigService.appConfigCommonYaml(env, st)
