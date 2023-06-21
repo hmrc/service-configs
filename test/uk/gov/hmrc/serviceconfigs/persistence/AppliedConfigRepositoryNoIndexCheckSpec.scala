@@ -42,8 +42,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
   "AppliedConfigRepository with no index check" should {
     "search config value equal to" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k2" -> "")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k2" -> "")).futureValue
 
       repository.search(
         key             = None
@@ -53,15 +53,15 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k2", ""),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k2", ""),
       )
     }
 
     "search config value not equal to" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k2" -> "")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k2" -> "")).futureValue
 
       repository.search(
         key             = None
@@ -71,15 +71,15 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
       )
     }
 
     "search config value contains" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k2" -> "")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k2" -> "")).futureValue
 
       repository.search(
         key             = None
@@ -89,17 +89,17 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k2", ""),
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k2", ""),
       )
     }
 
     "search config value does not contain" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k2" -> "")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k2" -> "")).futureValue
 
       repository.search(
         key             = None
@@ -113,8 +113,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
 
     "search config value is empty" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k2" -> "")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k2" -> "")).futureValue
 
       repository.search(
         key             = None
@@ -124,8 +124,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k2", ""),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k2", ""),
       )
 
       repository.search(
@@ -136,15 +136,15 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k2", ""),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k2", ""),
       )
     }
 
     "search limited" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, (1 to configSearchLimit + 2).map(i => s"k$i" -> s"v$i").toMap).futureValue
-      repository.put(Environment.QA, serviceName1, (1 to configSearchLimit + 2).map(i => s"k$i" -> s"v$i").toMap).futureValue
+      repository.put(serviceName1, Environment.Development, (1 to configSearchLimit + 2).map(i => s"k$i" -> s"v$i").toMap).futureValue
+      repository.put(serviceName1, Environment.QA, (1 to configSearchLimit + 2).map(i => s"k$i" -> s"v$i").toMap).futureValue
 
       repository.search(
         key             = None

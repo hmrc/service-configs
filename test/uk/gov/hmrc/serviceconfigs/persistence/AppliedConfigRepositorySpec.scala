@@ -41,71 +41,71 @@ class AppliedConfigRepositorySpec
   "AppliedConfigRepository" should {
     "put correctly" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "ENC[1234]")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "ENC[1234]")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+      repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "ENC[...]"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "ENC[...]"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k4", "v4"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k3", "v3")
       )
 
-      repository.put(Environment.Development, serviceName1, Map("k5" -> "v5", "k6" -> "v6")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k5" -> "v5", "k6" -> "v6")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3"),
-        AppliedConfig(Environment.Development, serviceName1, "k5", "v5"),
-        AppliedConfig(Environment.Development, serviceName1, "k6", "v6")
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k4", "v4"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k3", "v3"),
+        AppliedConfig(serviceName1, Environment.Development, "k5", "v5"),
+        AppliedConfig(serviceName1, Environment.Development, "k6", "v6")
       )
     }
 
     "store encrypted secrets simply" in {
       val serviceName = ServiceName("serviceName")
-      repository.put(Environment.Development, serviceName, Map("k" -> "ENC[1234]")).futureValue
+      repository.put(serviceName, Environment.Development, Map("k" -> "ENC[1234]")).futureValue
 
       mongoComponent.database.getCollection[BsonDocument]("appliedConfig").find().toFuture().futureValue.map(_.get("value")) shouldBe Seq(BsonString("ENC[...]"))
     }
 
     "delete correctly" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+      repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k4", "v4"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k3", "v3")
       )
 
-      repository.delete(Environment.Development, serviceName1).futureValue
+      repository.delete(serviceName1, Environment.Development).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k4", "v4"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k3", "v3")
       )
     }
 
     "search config key equal to" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+      repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.search(
         key             = Some("k1")
@@ -115,9 +115,9 @@ class AppliedConfigRepositorySpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1")
       )
 
       repository.search(
@@ -132,18 +132,18 @@ class AppliedConfigRepositorySpec
 
     "search config key contains" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+      repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName1, "k2", "v2"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k4", "v4"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k3", "v3")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k2", "v2"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k4", "v4"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k3", "v3")
       )
 
       repository.search(
@@ -154,18 +154,18 @@ class AppliedConfigRepositorySpec
       , environment     = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1")
       )
     }
 
     "search by service names when present" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
       val serviceName2 = ServiceName("serviceName2")
-      repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+      repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
       repository.search(
         key             = Some("k1")
@@ -184,8 +184,8 @@ class AppliedConfigRepositorySpec
       , environment     = Seq.empty
       , serviceNames    = Some(List(serviceName1))
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1")
       )
 
       repository.search(
@@ -196,7 +196,7 @@ class AppliedConfigRepositorySpec
       , environment     = Seq.empty
       , serviceNames    = Some(List(serviceName2))
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1")
       )
 
       repository.search(
@@ -207,16 +207,16 @@ class AppliedConfigRepositorySpec
       , environment     = Seq.empty
       , serviceNames    = Some(List(serviceName1, serviceName2))
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA         , serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.Development, serviceName2, "k1", "v1")
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA         , "k1", "v1"),
+        AppliedConfig(serviceName2, Environment.Development, "k1", "v1")
       )
     }
 
     "search per environment when present" in {
       val serviceName1 = ServiceName("serviceName1")
-      repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-      repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+      repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
 
       repository.search(
         key             = Some("k1")
@@ -226,8 +226,8 @@ class AppliedConfigRepositorySpec
       , environment     = Nil
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
-        AppliedConfig(Environment.QA, serviceName1, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA, "k1", "v1"),
       )
 
       repository.search(
@@ -238,7 +238,7 @@ class AppliedConfigRepositorySpec
       , environment     = Seq(Environment.Development)
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.Development, serviceName1, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.Development, "k1", "v1"),
       )
 
       repository.search(
@@ -249,7 +249,7 @@ class AppliedConfigRepositorySpec
       , environment     = Seq(Environment.QA)
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
-        AppliedConfig(Environment.QA, serviceName1, "k1", "v1"),
+        AppliedConfig(serviceName1, Environment.QA, "k1", "v1"),
       )
 
       repository.search(
@@ -265,11 +265,12 @@ class AppliedConfigRepositorySpec
 
   "return config keys" in {
     val serviceName1 = ServiceName("serviceName1")
-    repository.put(Environment.Development, serviceName1, Map("k1" -> "v1", "k2" -> "v2")).futureValue
-    repository.put(Environment.QA         , serviceName1, Map("k1" -> "v1", "k4" -> "v4")).futureValue
+    repository.put(serviceName1, Environment.Development, Map("k1" -> "v1", "k2" -> "v2")).futureValue
+    repository.put(serviceName1, Environment.QA         , Map("k1" -> "v1", "k4" -> "v4")).futureValue
     val serviceName2 = ServiceName("serviceName2")
-    repository.put(Environment.Development, serviceName2, Map("k1" -> "v1", "k3" -> "v3")).futureValue
+    repository.put(serviceName2, Environment.Development, Map("k1" -> "v1", "k3" -> "v3")).futureValue
 
     repository.findConfigKeys(serviceNames = None).futureValue shouldBe Seq("k1", "k2", "k3", "k4")
+    repository.findConfigKeys(serviceNames = Some(List(serviceName1))).futureValue shouldBe Seq("k1", "k2", "k4")
   }
 }

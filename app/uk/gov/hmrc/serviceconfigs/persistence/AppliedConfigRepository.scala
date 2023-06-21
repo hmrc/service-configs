@@ -38,8 +38,9 @@ class AppliedConfigRepository @Inject()(
   collectionName = "appliedConfig",
   domainFormat   = AppliedConfigRepository.AppliedConfig.format,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("environment", "serviceName", "key")),
-                     IndexModel(Indexes.ascending("key", "environment", "serviceName")) // look ups are key first
+                     IndexModel(Indexes.ascending("serviceName", "environment", "key")),
+                     IndexModel(Indexes.ascending("environment", "key")),
+                     IndexModel(Indexes.ascending("key"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions {
@@ -50,18 +51,18 @@ class AppliedConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(environment: Environment, serviceName: ServiceName, config: Map[String, String]): Future[Unit] =
+  def put(serviceName: ServiceName, environment: Environment, config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _             <- collection.deleteMany(
                            session,
                            Filters.and(
-                             Filters.equal("environment", environment),
-                             Filters.equal("serviceName", serviceName)
+                             Filters.equal("serviceName", serviceName),
+                             Filters.equal("environment", environment)
                            )
                          ).toFuture()
-        configEntries =  config.map { case (k, v) => AppliedConfig(environment, serviceName = serviceName, key = k, value = v) }.toSeq
-        r             <- collection.insertMany(session, configEntries).toFuture()
+        configEntries =  config.map { case (k, v) => AppliedConfig(serviceName = serviceName, environment = environment, key = k, value = v) }.toSeq
+        _             <- collection.insertMany(session, configEntries).toFuture()
       } yield ()
     }
 
@@ -78,18 +79,22 @@ class AppliedConfigRepository @Inject()(
     }
 
   def search(
+    serviceNames   : Option[Seq[ServiceName]],
+    environment    : Seq[Environment],
     key            : Option[String],
     keyFilterType  : FilterType,
     value          : Option[String],
-    valueFilterType: FilterType,
-    environment    : Seq[Environment],
-    serviceNames   : Option[Seq[ServiceName]]
+    valueFilterType: FilterType
   ): Future[Seq[AppliedConfig]] =
     collection
       .aggregate(Seq(
-        Aggregates.`match`(serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*))),
-        Aggregates.`match`(toFilter("key", key, keyFilterType)),
-        Aggregates.`match`(if (environment.isEmpty) Filters.empty() else Filters.in("environment", environment.map(_.asString): _*)),
+        Aggregates.`match`(
+          Filters.and(
+            serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*)),
+            if (environment.isEmpty) Filters.empty() else Filters.in("environment", environment.map(_.asString): _*),
+            toFilter("key", key, keyFilterType)
+          )
+        ),
         Aggregates.group(
           BsonDocument("serviceName" -> s"$$serviceName", "key" -> s"$$key"),
           Accumulators.push("results", "$$ROOT")
@@ -117,11 +122,11 @@ class AppliedConfigRepository @Inject()(
                         .map(_.sorted)
     }
 
-  def delete(environment: Environment, serviceName: ServiceName): Future[Unit] =
+  def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
     collection.deleteMany(
       Filters.and(
-        Filters.equal("environment", environment),
-        Filters.equal("serviceName", serviceName)
+        Filters.equal("serviceName", serviceName),
+        Filters.equal("environment", environment)
       )
     ).toFuture()
      .map(_ => ())
@@ -132,8 +137,8 @@ object AppliedConfigRepository {
   import play.api.libs.json.{Format, __}
 
   case class AppliedConfig(
-    environment: Environment,
     serviceName: ServiceName,
+    environment: Environment,
     key        : String,
     value      : String
   )
@@ -142,8 +147,8 @@ object AppliedConfigRepository {
     val format: Format[AppliedConfig] = {
       implicit val ef  = Environment.format
       implicit val snf = ServiceName.format
-      ( (__ \ "environment").format[Environment]
-      ~ (__ \ "serviceName").format[ServiceName]
+      ( (__ \ "serviceName").format[ServiceName]
+      ~ (__ \ "environment").format[Environment]
       ~ (__ \ "key"        ).format[String]
       ~ (__ \ "value"      ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
