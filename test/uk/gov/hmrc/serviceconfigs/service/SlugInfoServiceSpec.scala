@@ -65,7 +65,7 @@ class SlugInfoServiceSpec
       when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
+      when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
@@ -78,8 +78,8 @@ class SlugInfoServiceSpec
         verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), ServiceName("service2"))
         verify(mockedDeployedConfigRepository).delete(ServiceName("service1"), env)
         verify(mockedDeployedConfigRepository).delete(ServiceName("service2"), env)
-        verify(mockedAppliedConfigRepository).delete(env, ServiceName("service1"))
-        verify(mockedAppliedConfigRepository).delete(env, ServiceName("service2"))
+        verify(mockedAppliedConfigRepository).delete(ServiceName("service1"), env)
+        verify(mockedAppliedConfigRepository).delete(ServiceName("service2"), env)
       }
       verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
     }
@@ -110,7 +110,7 @@ class SlugInfoServiceSpec
       when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
+      when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
@@ -122,7 +122,7 @@ class SlugInfoServiceSpec
         archived.foreach { service =>
           verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), service)
           verify(mockedDeployedConfigRepository).delete(service, env)
-          verify(mockedAppliedConfigRepository).delete(env, service)
+          verify(mockedAppliedConfigRepository).delete(service, env)
         }
       }
       verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), archived)
@@ -156,7 +156,7 @@ class SlugInfoServiceSpec
       when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
+      when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
@@ -221,7 +221,7 @@ class SlugInfoServiceSpec
       when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedAppliedConfigRepository.delete(any[Environment], any[ServiceName]))
+      when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
@@ -248,7 +248,7 @@ class SlugInfoServiceSpec
       when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
         .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.${serviceName.asString}" -> "v")))
 
-      when(mockedAppliedConfigRepository.put(any[Environment], any[ServiceName], any[Map[String, String]]))
+      when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, String]]))
         .thenReturn(Future.unit)
 
 
@@ -293,9 +293,9 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content9")
       ))
 
-      verify(mockedAppliedConfigRepository).put(Environment.QA        , serviceName1, Map("qa.service1"         -> "v"))
-      verify(mockedAppliedConfigRepository).put(Environment.Production, serviceName1, Map("production.service1" -> "v"))
-      verify(mockedAppliedConfigRepository).put(Environment.QA        , serviceName2, Map("qa.service2"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.QA        , Map("qa.service1"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.Production, Map("production.service1" -> "v"))
+      verify(mockedAppliedConfigRepository).put(serviceName2, Environment.QA        , Map("qa.service2"         -> "v"))
     }
   }
 

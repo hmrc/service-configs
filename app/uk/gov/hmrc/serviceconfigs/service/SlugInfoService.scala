@@ -114,7 +114,7 @@ class SlugInfoService @Inject()(
       for {
         _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
         _ <- deployedConfigRepository.delete(serviceName, env)
-        _ <- appliedConfigRepository.delete(env, serviceName)
+        _ <- appliedConfigRepository.delete(serviceName, env)
       } yield ()
 
     def updateDeployment(
@@ -186,7 +186,7 @@ class SlugInfoService @Inject()(
         // now we have stored the deployment configs, we can calculate the resulting configs
         deploymentConfig  <- EitherT.right(configService.resultingConfig(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false))
         _                 <- if (deploymentConfig.nonEmpty)
-                                EitherT.right[String](appliedConfigRepository.put(env, serviceName, deploymentConfig))
+                                EitherT.right[String](appliedConfigRepository.put(serviceName, env, deploymentConfig))
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()

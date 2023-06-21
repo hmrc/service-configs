@@ -270,14 +270,22 @@ class ConfigService @Inject()(
     serviceType    : Option[ServiceType],
     tag            : Seq[Tag],
   ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
-    (teamName, serviceType, tag) match {
-      case (None, None, Nil) => appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, None)
-      case  _                => for {
-                                  repos        <- teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tag = tag)
-                                  serviceNames =  repos.map(repo => ServiceName(repo.name))
-                                  configRepos  <- appliedConfigRepository.search(key, keyFilterType, value, valueFilterType, environment, Some(serviceNames))
-                                } yield configRepos
-    }
+    for {
+      serviceNames <- (teamName, serviceType, tag) match {
+                        case (None, None, Nil) => Future.successful(None)
+                        case _                 => teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tag = tag)
+                                                    .map(_.map(repo => ServiceName(repo.name)))
+                                                    .map(Some.apply)
+                      }
+      configRepos  <- appliedConfigRepository.search(
+                        serviceNames    = serviceNames
+                      , environment     = environment
+                      , key             = key
+                      , keyFilterType   = keyFilterType
+                      , value           = value
+                      , valueFilterType = valueFilterType
+                      )
+    } yield configRepos
 
   def findConfigKeys(teamName: Option[TeamName]): Future[Seq[String]] =
     teamName match {
