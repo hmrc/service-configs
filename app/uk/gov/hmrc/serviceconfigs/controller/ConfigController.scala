@@ -76,14 +76,14 @@ class ConfigController @Inject()(
     @ApiParam(value = "The key filter type"  ) keyFilterType  : FilterType,
     @ApiParam(value = "The value to query."  ) value          : Option[String],
     @ApiParam(value = "The value filter type") valueFilterType: FilterType,
-    @ApiParam(value = "Environment filter"   ) environment    : Seq[Environment],
+    @ApiParam(value = "Environment filter"   ) environments    : Seq[Environment],
     @ApiParam(value = "Team name filter"     ) teamName       : Option[TeamName],
     @ApiParam(value = "serviceType filter"   ) serviceType    : Option[ServiceType],
-    @ApiParam(value = "Tag filter"           ) tag            : Seq[Tag],
+    @ApiParam(value = "Tag filter"           ) tags           : Seq[Tag],
   ): Action[AnyContent] = Action.async {
     implicit val acf = AppliedConfigRepository.AppliedConfig.format
     configService
-      .search(key, keyFilterType, value, valueFilterType, environment, teamName, serviceType, tag)
+      .search(key, keyFilterType, value, valueFilterType, environments, teamName, serviceType, tags)
       .map {
         case k if (k.size > maxSearchLimit) => Forbidden(s"Queries returning over $maxSearchLimit results are not allowed")
         case k                              => Ok(Json.toJson(k))

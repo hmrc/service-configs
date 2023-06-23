@@ -126,11 +126,12 @@ class SlugInfoService @Inject()(
       for {
         _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
         processed <- deployedConfigRepository.hasProcessed(deployment.configId)
-        _         <- if (!processed)
+         _        <- if (!processed)
                        updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
                          .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
                      else
                        Future.unit
+
       } yield processed
 
     private def updateDeployedConfig(

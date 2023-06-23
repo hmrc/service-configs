@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import play.api.Configuration
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.{Accumulators, Aggregates, Filters, Indexes, IndexModel, Sorts}
+import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel, Sorts}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -38,8 +38,7 @@ class AppliedConfigRepository @Inject()(
   collectionName = "appliedConfig",
   domainFormat   = AppliedConfigRepository.AppliedConfig.format,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("serviceName", "environment", "key")),
-                     IndexModel(Indexes.ascending("environment", "key")),
+                     IndexModel(Indexes.ascending("serviceName", "key")),
                      IndexModel(Indexes.ascending("key"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
@@ -54,15 +53,20 @@ class AppliedConfigRepository @Inject()(
   def put(serviceName: ServiceName, environment: Environment, config: Map[String, String]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
-        _             <- collection.deleteMany(
-                           session,
-                           Filters.and(
-                             Filters.equal("serviceName", serviceName),
-                             Filters.equal("environment", environment)
-                           )
-                         ).toFuture()
-        configEntries =  config.map { case (k, v) => AppliedConfig(serviceName = serviceName, environment = environment, key = k, value = v) }.toSeq
-        _             <- collection.insertMany(session, configEntries).toFuture()
+        old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
+        updated =  old.map(x => x.copy(environments = config.get(x.key) match {
+                      case Some(v) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = ""))
+                      case None    => x.environments - environment
+                   }))
+        missing =  config
+                    .filterNot { case (k, _) => old.exists(_.key == k) }
+                    .map { case (k, v) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = "")), onlyReference = false) }
+        entries =  (updated ++ missing)
+                      .filter(_.environments.nonEmpty)
+                      .map(x => x.copy(onlyReference = x.environments.exists(_._2.source == "reference")))
+        _       <- collection.deleteMany(session, Filters.equal("serviceName", serviceName)).toFuture()
+        _       <- if (entries.nonEmpty) collection.insertMany(session, entries).toFuture()
+                   else                  Future.unit
       } yield ()
     }
 
@@ -80,7 +84,7 @@ class AppliedConfigRepository @Inject()(
 
   def search(
     serviceNames   : Option[Seq[ServiceName]],
-    environment    : Seq[Environment],
+    environments   : Seq[Environment],
     key            : Option[String],
     keyFilterType  : FilterType,
     value          : Option[String],
@@ -91,17 +95,17 @@ class AppliedConfigRepository @Inject()(
         Aggregates.`match`(
           Filters.and(
             serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*)),
-            if (environment.isEmpty) Filters.empty() else Filters.in("environment", environment.map(_.asString): _*),
-            toFilter("key", key, keyFilterType)
+            toFilter("key", key, keyFilterType),
+            Filters.or(
+              (if (environments.isEmpty) Environment.values else environments).map { e =>
+                Filters.and(
+                  Filters.notEqual(s"environments.${e.asString}", null),
+                  toFilter(s"environments.${e.asString}.value", value, valueFilterType)
+                )
+              }: _*
+            )
           )
         ),
-        Aggregates.group(
-          BsonDocument("serviceName" -> s"$$serviceName", "key" -> s"$$key"),
-          Accumulators.push("results", "$$ROOT")
-        ),
-        Aggregates.`match`(toFilter("results.value", value, valueFilterType)),
-        Aggregates.unwind("$results"),
-        Aggregates.replaceRoot("$results"),
         Aggregates.limit(maxSearchLimit + 1) // Controller sets request to Forbidden if over maxSearchLimit
       ))
      .toFuture()
@@ -123,34 +127,46 @@ class AppliedConfigRepository @Inject()(
     }
 
   def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
-    collection.deleteMany(
-      Filters.and(
-        Filters.equal("serviceName", serviceName),
-        Filters.equal("environment", environment)
-      )
-    ).toFuture()
-     .map(_ => ())
+    put(serviceName, environment, Map.empty)
 }
 
 object AppliedConfigRepository {
   import play.api.libs.functional.syntax._
-  import play.api.libs.json.{Format, __}
+  import play.api.libs.json.{Format, Json, Reads, Writes, __}
+
+  case class EnvironmentData(
+    value : String
+  , source: String
+  )
 
   case class AppliedConfig(
-    serviceName: ServiceName,
-    environment: Environment,
-    key        : String,
-    value      : String
+    serviceName  : ServiceName
+  , key          : String
+  , environments : Map[Environment, EnvironmentData]
+  , onlyReference: Boolean
   )
 
   object AppliedConfig {
     val format: Format[AppliedConfig] = {
-      implicit val ef  = Environment.format
       implicit val snf = ServiceName.format
-      ( (__ \ "serviceName").format[ServiceName]
-      ~ (__ \ "environment").format[Environment]
-      ~ (__ \ "key"        ).format[String]
-      ~ (__ \ "value"      ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+      implicit val edf: Format[EnvironmentData] =
+        ( (__ \ "value" ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+        ~ (__ \ "source").format[String]
+        )(EnvironmentData.apply, unlift(EnvironmentData.unapply))
+
+      implicit val readsEnvMap: Format[Map[Environment, EnvironmentData]] =
+        Format(
+          Reads
+            .of[Map[String, EnvironmentData]]
+            .map(_.map { case (k, v) => (Environment.parse(k).getOrElse(sys.error(s"Invalid Environment: $k")), v) })
+        , Writes
+            .apply { xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }) }
+        )
+
+      ( (__ \ "serviceName"  ).format[ServiceName]
+      ~ (__ \ "key"          ).format[String]
+      ~ (__ \ "environments" ).format[Map[Environment, EnvironmentData]]
+      ~ (__ \ "onlyReference").format[Boolean]
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
     }
   }

@@ -266,21 +266,21 @@ class ConfigService @Inject()(
     keyFilterType  : FilterType,
     value          : Option[String],
     valueFilterType: FilterType,
-    environment    : Seq[Environment],
+    environments   : Seq[Environment],
     teamName       : Option[TeamName],
     serviceType    : Option[ServiceType],
-    tag            : Seq[Tag],
+    tags           : Seq[Tag],
   ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
     for {
-      serviceNames <- (teamName, serviceType, tag) match {
+      serviceNames <- (teamName, serviceType, tags) match {
                         case (None, None, Nil) => Future.successful(None)
-                        case _                 => teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tag = tag)
+                        case _                 => teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tags = tags)
                                                     .map(_.map(repo => ServiceName(repo.name)))
                                                     .map(Some.apply)
                       }
       configRepos  <- appliedConfigRepository.search(
                         serviceNames    = serviceNames
-                      , environment     = environment
+                      , environments    = environments
                       , key             = key
                       , keyFilterType   = keyFilterType
                       , value           = value
