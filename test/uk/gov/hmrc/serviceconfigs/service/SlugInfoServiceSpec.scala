@@ -246,9 +246,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
-        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.${serviceName.asString}" -> "v")))
+        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.${serviceName.asString}" -> ("v", "s"))))
 
-      when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, String]]))
+      when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, (String, String)]]))
         .thenReturn(Future.unit)
 
 
@@ -293,9 +293,9 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content9")
       ))
 
-      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.QA        , Map("qa.service1"         -> "v"))
-      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.Production, Map("production.service1" -> "v"))
-      verify(mockedAppliedConfigRepository).put(serviceName2, Environment.QA        , Map("qa.service2"         -> "v"))
+      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.QA        , Map("qa.service1"         -> ("v", "s")))
+      verify(mockedAppliedConfigRepository).put(serviceName1, Environment.Production, Map("production.service1" -> ("v", "s")))
+      verify(mockedAppliedConfigRepository).put(serviceName2, Environment.QA        , Map("qa.service2"         -> ("v", "s")))
     }
   }
 

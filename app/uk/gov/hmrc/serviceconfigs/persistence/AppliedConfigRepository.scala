@@ -50,25 +50,28 @@ class AppliedConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(serviceName: ServiceName, environment: Environment, config: Map[String, String]): Future[Unit] =
+  def put(serviceName: ServiceName, environment: Environment, config: Map[String, (String, String)]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
         updated =  old.map(x => x.copy(environments = config.get(x.key) match {
-                      case Some(v) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = ""))
-                      case None    => x.environments - environment
+                      case Some((v, source)) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = source))
+                      case None              => x.environments - environment
                    }))
         missing =  config
                     .filterNot { case (k, _) => old.exists(_.key == k) }
-                    .map { case (k, v) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = "")), onlyReference = false) }
+                    .map { case (k, (v, source)) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = source)), onlyReference = false) }
         entries =  (updated ++ missing)
                       .filter(_.environments.nonEmpty)
-                      .map(x => x.copy(onlyReference = x.environments.exists(_._2.source == "reference")))
+                      .map(x => x.copy(onlyReference = x.environments.exists(_._2.source == "referenceConf")))
         _       <- collection.deleteMany(session, Filters.equal("serviceName", serviceName)).toFuture()
         _       <- if (entries.nonEmpty) collection.insertMany(session, entries).toFuture()
                    else                  Future.unit
       } yield ()
     }
+
+  def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
+    put(serviceName, environment, Map.empty)
 
   private def maxSearchLimit = configuration.get[Int]("config-search.max-limit")
 
@@ -125,9 +128,6 @@ class AppliedConfigRepository @Inject()(
                         .toFuture()
                         .map(_.sorted)
     }
-
-  def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
-    put(serviceName, environment, Map.empty)
 }
 
 object AppliedConfigRepository {

@@ -252,10 +252,10 @@ class ConfigService @Inject()(
     latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
     hc: HeaderCarrier
-  ): Future[Map[String, String]] =
+  ): Future[Map[String, (String, String)]] =
     configSourceEntries(environment, serviceName, latest)
       .map(
-        _.flatMap(_.entries.toSeq)
+        _.flatMap(x => x.entries.view.mapValues(v => (v, x.source)).toSeq)
          .groupBy(_._1)
          .map { case (k, vs) => k -> vs.lastOption.map(_._2) }
          .collect { case (k, Some(v)) => k -> v }
