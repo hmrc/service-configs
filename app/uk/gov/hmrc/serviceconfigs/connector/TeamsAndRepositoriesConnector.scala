@@ -56,9 +56,9 @@ class TeamsAndRepositoriesConnector @Inject()(
   , repoType   : Option[String]       = None
   , teamName   : Option[TeamName]     = None
   , serviceType: Option[ServiceType]  = None
-  , tag        : Seq[Tag]             = Nil
+  , tags       : Seq[Tag]             = Nil
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tag.map(_.asString)}")
+      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
 }
