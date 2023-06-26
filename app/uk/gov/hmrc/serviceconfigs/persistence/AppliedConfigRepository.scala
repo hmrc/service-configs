@@ -17,8 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import play.api.Configuration
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel, Sorts}
+import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -38,6 +37,7 @@ class AppliedConfigRepository @Inject()(
   collectionName = "appliedConfig",
   domainFormat   = AppliedConfigRepository.AppliedConfig.format,
   indexes        = Seq(
+                     IndexModel(Indexes.ascending("onlyReference")),
                      IndexModel(Indexes.ascending("serviceName", "key")),
                      IndexModel(Indexes.ascending("key"))
                    ),
@@ -51,24 +51,26 @@ class AppliedConfigRepository @Inject()(
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def put(serviceName: ServiceName, environment: Environment, config: Map[String, (String, String)]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
-        updated =  old.map(x => x.copy(environments = config.get(x.key) match {
-                      case Some((v, source)) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = source))
-                      case None              => x.environments - environment
-                   }))
-        missing =  config
-                    .filterNot { case (k, _) => old.exists(_.key == k) }
-                    .map { case (k, (v, source)) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = source)), onlyReference = false) }
-        entries =  (updated ++ missing)
-                      .filter(_.environments.nonEmpty)
-                      .map(x => x.copy(onlyReference = x.environments.exists(_._2.source == "referenceConf")))
-        _       <- collection.deleteMany(session, Filters.equal("serviceName", serviceName)).toFuture()
-        _       <- if (entries.nonEmpty) collection.insertMany(session, entries).toFuture()
-                   else                  Future.unit
-      } yield ()
-    }
+    for {
+      old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
+      updated =  old.map(x => x.copy(environments = config.get(x.key) match {
+                    case Some((v, source)) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = source))
+                    case None              => x.environments - environment
+                  }))
+      missing =  config
+                  .filterNot { case (k, _) => old.exists(_.key == k) }
+                  .map { case (k, (v, source)) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = source)), onlyReference = false) }
+      entries =  (updated ++ missing)
+                    .filter(_.environments.nonEmpty)
+                    .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
+      _       <- withSessionAndTransaction { session =>
+                    for {
+                      _ <- collection.deleteMany(session, Filters.equal("serviceName", serviceName)).toFuture()
+                      _ <- if (entries.nonEmpty) collection.insertMany(session, entries).toFuture()
+                           else                  Future.unit
+                    } yield ()
+                 }
+    } yield ()
 
   def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
     put(serviceName, environment, Map.empty)
@@ -97,6 +99,7 @@ class AppliedConfigRepository @Inject()(
       .aggregate(Seq(
         Aggregates.`match`(
           Filters.and(
+            Filters.equal("onlyReference", false),
             serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*)),
             toFilter("key", key, keyFilterType),
             Filters.or(
@@ -114,20 +117,10 @@ class AppliedConfigRepository @Inject()(
      .toFuture()
 
   def findConfigKeys(serviceNames: Option[Seq[ServiceName]]): Future[Seq[String]] =
-    serviceNames match {
-      case Some(s) => collection
-                        .aggregate[BsonDocument](Seq(
-                          Aggregates.`match`(Filters.in("serviceName", s.map(_.asString): _*))
-                        , Aggregates.group("$key")
-                        , Aggregates.sort(Sorts.ascending("_id"))
-                        ))
-                        .toFuture()
-                        .map(_.map(_.getString("_id").getValue))
-      case None    => collection
-                        .distinct[String]("key")
-                        .toFuture()
-                        .map(_.sorted)
-    }
+    collection
+      .distinct[String]("key", Filters.and(Filters.equal("onlyReference", false), serviceNames.fold(Filters.empty())(s => Filters.in("serviceName", s.map(_.asString): _*))))
+      .toFuture()
+      .map(_.sorted)
 }
 
 object AppliedConfigRepository {
