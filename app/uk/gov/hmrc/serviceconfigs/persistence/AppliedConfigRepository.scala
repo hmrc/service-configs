@@ -22,6 +22,7 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceValue
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -50,16 +51,16 @@ class AppliedConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(serviceName: ServiceName, environment: Environment, config: Map[String, (String, String)]): Future[Unit] =
+  def put(serviceName: ServiceName, environment: Environment, config: Map[String, ConfigSourceValue]): Future[Unit] =
     for {
       old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
       updated =  old.map(x => x.copy(environments = config.get(x.key) match {
-                    case Some((v, source)) => x.environments ++ Map(environment -> EnvironmentData(value = v, source = source))
-                    case None              => x.environments - environment
+                    case Some(configSourceValue) => x.environments ++ Map(environment -> configSourceValue)
+                    case None                    => x.environments - environment
                   }))
       missing =  config
                   .filterNot { case (k, _) => old.exists(_.key == k) }
-                  .map { case (k, (v, source)) => AppliedConfig(serviceName, k, Map(environment -> EnvironmentData(value = v, source = source)), onlyReference = false) }
+                  .map { case (k, configSourceValue) => AppliedConfig(serviceName, k, Map(environment -> configSourceValue), onlyReference = false) }
       entries =  (updated ++ missing)
                     .filter(_.environments.nonEmpty)
                     .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
@@ -127,30 +128,26 @@ object AppliedConfigRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, Json, Reads, Writes, __}
 
-  case class EnvironmentData(
-    value : String
-  , source: String
-  )
-
   case class AppliedConfig(
     serviceName  : ServiceName
   , key          : String
-  , environments : Map[Environment, EnvironmentData]
+  , environments : Map[Environment, ConfigSourceValue]
   , onlyReference: Boolean
   )
 
   object AppliedConfig {
     val format: Format[AppliedConfig] = {
       implicit val snf = ServiceName.format
-      implicit val edf: Format[EnvironmentData] =
-        ( (__ \ "value" ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
-        ~ (__ \ "source").format[String]
-        )(EnvironmentData.apply, unlift(EnvironmentData.unapply))
+      implicit val edf: Format[ConfigSourceValue] =
+        ( (__ \ "source"   ).format[String]
+        ~ (__ \ "sourceUrl").formatNullable[String]
+        ~ (__ \ "value"    ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+        )(ConfigSourceValue.apply, unlift(ConfigSourceValue.unapply))
 
-      implicit val readsEnvMap: Format[Map[Environment, EnvironmentData]] =
+      implicit val readsEnvMap: Format[Map[Environment, ConfigSourceValue]] =
         Format(
           Reads
-            .of[Map[String, EnvironmentData]]
+            .of[Map[String, ConfigSourceValue]]
             .map(_.map { case (k, v) => (Environment.parse(k).getOrElse(sys.error(s"Invalid Environment: $k")), v) })
         , Writes
             .apply { xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }) }
@@ -158,7 +155,7 @@ object AppliedConfigRepository {
 
       ( (__ \ "serviceName"  ).format[ServiceName]
       ~ (__ \ "key"          ).format[String]
-      ~ (__ \ "environments" ).format[Map[Environment, EnvironmentData]]
+      ~ (__ \ "environments" ).format[Map[Environment, ConfigSourceValue]]
       ~ (__ \ "onlyReference").format[Boolean]
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
     }
