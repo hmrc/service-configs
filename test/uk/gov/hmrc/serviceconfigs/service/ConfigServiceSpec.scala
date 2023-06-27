@@ -140,29 +140,29 @@ class ConfigServiceSpec
     }
   }
 
-  "ConfigService.configSourceEntries" should {
+  "ConfigService.resultingConfig" should {
     List(true, false).foreach { latest =>
       s"show config changes per key for each environment for latest $latest" in {
         val serviceName = ServiceName("test-service")
         setup(serviceName, latest)
 
         configService.resultingConfig(ConfigEnvironment.ForEnvironment(Environment.Development), serviceName, latest = latest).futureValue shouldBe Map(
-          "list.2" -> "3",
-          "a"      -> "3",
-          "b"      -> "4",
-          "c"      -> "3",
-          "list"   -> "<<SUPPRESSED>>"
+          "list.2" -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), "3")
+        , "a"      -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), "3")
+        , "b"      -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), "4")
+        , "c"      -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), "3")
+        , "list"   -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), "<<SUPPRESSED>>")
         )
 
         configService.resultingConfig(ConfigEnvironment.ForEnvironment(Environment.QA), serviceName, latest = latest).futureValue shouldBe Map(
-          "a"        -> "<<SUPPRESSED>>",
-          "c"        -> "<<SUPPRESSED>>",
-          "a.b"      -> "6",
-          "c.b"      -> "6",
-          "d.base64" -> "Mg==",
-          "b"        -> "2",
-          "list"     -> "[1,2]",
-          "d"        -> "2"
+          "a"        -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , "<<SUPPRESSED>>")
+        , "c"        -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , "<<SUPPRESSED>>")
+        , "a.b"      -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , "6")
+        , "c.b"      -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , "6")
+        , "d.base64" -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , "Mg==")
+        , "b"        -> ConfigSourceValue("applicationConf"     , Some("https://github.com/hmrc/test-service/blob/main/conf/application.conf"), "2")
+        , "list"     -> ConfigSourceValue("applicationConf"     , Some("https://github.com/hmrc/test-service/blob/main/conf/application.conf"), "[1,2]")
+        , "d"        -> ConfigSourceValue("base64"              , None                                                                        , "2")
         )
       }
     }
