@@ -60,6 +60,25 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       )
     }
 
+    "search config value equal ignore case" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), ""))).futureValue
+      repository.search(
+        key             = None
+      , keyFilterType   = FilterType.EqualTo
+      , value           = Some("V2")
+      , valueFilterType = FilterType.EqualToIgnoreCase
+      , environments    = Seq.empty
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(serviceName1, "k2", Map(Environment.Development -> ConfigSourceValue("some-source", Some("some-url"), "v2"),
+                                              Environment.QA          -> ConfigSourceValue("some-source", Some("some-url"), "")), false)
+      )
+    }
+
     "search config value not equal to" in {
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
@@ -72,6 +91,26 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , keyFilterType   = FilterType.EqualTo
       , value           = Some("v2")
       , valueFilterType = FilterType.NotEqualTo
+      , environments    = Seq.empty
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(serviceName1, "k1", Map(Environment.Development -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                              Environment.QA          -> ConfigSourceValue("some-source", Some("some-url"), "v1")), false)
+      )
+    }
+
+    "search config value not equal to ignore case" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+
+      repository.search(
+        key             = None
+      , keyFilterType   = FilterType.EqualTo
+      , value           = Some("V2")
+      , valueFilterType = FilterType.NotEqualToIgnoreCase
       , environments    = Seq.empty
       , serviceNames    = None
       ).futureValue should contain theSameElementsAs Seq(
@@ -102,6 +141,29 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       )
     }
 
+    "search config value contains ignore case" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), ""))).futureValue
+
+      repository.search(
+        key             = None
+      , keyFilterType   = FilterType.EqualTo
+      , value           = Some("V")
+      , valueFilterType = FilterType.ContainsIgnoreCase
+      , environments    = Seq.empty
+      , serviceNames    = None
+      ).futureValue should contain theSameElementsAs Seq(
+        AppliedConfig(serviceName1, "k1", Map(Environment.Development -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                              Environment.QA          -> ConfigSourceValue("some-source", Some("some-url"), "v1")), false)
+      , AppliedConfig(serviceName1, "k2", Map(Environment.Development -> ConfigSourceValue("some-source", Some("some-url"), "v2"),
+                                              Environment.QA          -> ConfigSourceValue("some-source", Some("some-url"), "")), false)
+      )
+    }
+
+
     "search config value does not contain" in {
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
@@ -114,6 +176,23 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , keyFilterType   = FilterType.EqualTo
       , value           = Some("v")
       , valueFilterType = FilterType.DoesNotContain
+      , environments    = Seq.empty
+      , serviceNames    = None
+      ).futureValue should be (Nil)
+    }
+
+    "search config value does not contain ignore case" in {
+      val serviceName1 = ServiceName("serviceName1")
+      repository.put(serviceName1, Environment.Development, Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+      repository.put(serviceName1, Environment.QA         , Map("k1" -> ConfigSourceValue("some-source", Some("some-url"), "v1"),
+                                                                "k2" -> ConfigSourceValue("some-source", Some("some-url"), "v2"))).futureValue
+
+      repository.search(
+        key             = None
+      , keyFilterType   = FilterType.EqualTo
+      , value           = Some("V")
+      , valueFilterType = FilterType.DoesNotContainIgnoreCase
       , environments    = Seq.empty
       , serviceNames    = None
       ).futureValue should be (Nil)
