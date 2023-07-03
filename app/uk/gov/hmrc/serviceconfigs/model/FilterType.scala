@@ -20,14 +20,18 @@ sealed trait FilterType {val asString: String }
 
 object FilterType {
 
-  case object Contains       extends FilterType { val asString = "contains"      }
-  case object DoesNotContain extends FilterType { val asString = "doesNotContain"}
-  case object EqualTo        extends FilterType { val asString = "equalTo"       }
-  case object NotEqualTo     extends FilterType { val asString = "notEqualTo"    }
-  case object IsEmpty        extends FilterType { val asString = "isEmpty"       }
+  case object Contains                 extends FilterType { val asString = "contains"                }
+  case object ContainsIgnoreCase       extends FilterType { val asString = "containsIgnoreCase"      }
+  case object DoesNotContain           extends FilterType { val asString = "doesNotContain"          }
+  case object DoesNotContainIgnoreCase extends FilterType { val asString = "doesNotContainIgnoreCase"}
+  case object EqualTo                  extends FilterType { val asString = "equalTo"                 }
+  case object EqualToIgnoreCase        extends FilterType { val asString = "equalToIgnoreCase"       }
+  case object NotEqualTo               extends FilterType { val asString = "notEqualTo"              }
+  case object NotEqualToIgnoreCase     extends FilterType { val asString = "notEqualToIgnoreCase"    }
+  case object IsEmpty                  extends FilterType { val asString = "isEmpty"                 }
 
   val values: List[FilterType] =
-    List(Contains, DoesNotContain, EqualTo, NotEqualTo, IsEmpty)
+    List(Contains, ContainsIgnoreCase, DoesNotContain, DoesNotContainIgnoreCase, EqualTo, EqualToIgnoreCase, NotEqualTo, NotEqualToIgnoreCase, IsEmpty)
 
   def parse(s: String): Option[FilterType] =
     values.find(_.asString == s)

@@ -78,14 +78,19 @@ class AppliedConfigRepository @Inject()(
 
   private def maxSearchLimit = configuration.get[Int]("config-search.max-limit")
 
+  import java.util.regex.Pattern
   private def toFilter(field: String, fieldValue: Option[String], filterType: FilterType) =
     (fieldValue, filterType) match {
-      case (Some(v), FilterType.Contains)       => Filters.regex(field, java.util.regex.Pattern.quote(v).r)
-      case (Some(v), FilterType.DoesNotContain) => Filters.not(Filters.regex(field, java.util.regex.Pattern.quote(v).r))
-      case (Some(v), FilterType.EqualTo)        => Filters.equal(field, v)
-      case (Some(v), FilterType.NotEqualTo)     => Filters.not(Filters.equal(field, v))
-      case (_      , FilterType.IsEmpty)        => Filters.equal(field, "")
-      case _                                    => Filters.empty()
+      case (Some(v), FilterType.Contains)                 => Filters.regex(field, Pattern.quote(v).r)
+      case (Some(v), FilterType.ContainsIgnoreCase)       => Filters.regex(field, s"(?i)${Pattern.quote(v)}".r)
+      case (Some(v), FilterType.DoesNotContain)           => Filters.not(Filters.regex(field, Pattern.quote(v).r))
+      case (Some(v), FilterType.DoesNotContainIgnoreCase) => Filters.not(Filters.regex(field, s"(?i)${Pattern.quote(v)}".r))
+      case (Some(v), FilterType.EqualTo)                  => Filters.equal(field, v)
+      case (Some(v), FilterType.EqualToIgnoreCase)        => Filters.regex(field, s"(?i)${Pattern.quote(v)}$$".r)
+      case (Some(v), FilterType.NotEqualTo)               => Filters.notEqual(field, v)
+      case (Some(v), FilterType.NotEqualToIgnoreCase)     => Filters.not(Filters.regex(field, s"(?i)${Pattern.quote(v)}$$".r))
+      case (_      , FilterType.IsEmpty)                  => Filters.equal(field, "")
+      case _                                              => Filters.empty()
     }
 
   def search(
