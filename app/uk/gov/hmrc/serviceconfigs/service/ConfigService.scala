@@ -243,19 +243,13 @@ class ConfigService @Inject()(
     ).sequence.map(_.toMap)
 
   def resultingConfig(
-    environment: ConfigEnvironment,
-    serviceName: ServiceName,
-    latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
-  )(implicit
-    hc: HeaderCarrier
-  ): Future[Map[String, ConfigSourceValue]] =
-    configSourceEntries(environment, serviceName, latest)
-      .map(
-        _.flatMap(x => x.entries.view.mapValues(v => ConfigSourceValue(x.source, x.sourceUrl, v)).toSeq)
-         .groupBy(_._1)
-         .map { case (k, vs) => k -> vs.lastOption.map(_._2) }
-         .collect { case (k, Some(v)) => k -> v }
-      )
+    configSourceEntries: Seq[ConfigSourceEntries]
+  ): Map[String, ConfigSourceValue] =
+    configSourceEntries
+      .flatMap(x => x.entries.view.mapValues(v => ConfigSourceValue(x.source, x.sourceUrl, v)).toSeq)
+      .groupBy(_._1)
+      .map { case (k, vs) => k -> vs.lastOption.map(_._2) }
+      .collect { case (k, Some(v)) => k -> v }
 
   def search(
     key            : Option[String],

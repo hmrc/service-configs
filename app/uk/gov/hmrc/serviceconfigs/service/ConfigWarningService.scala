@@ -30,24 +30,20 @@ class ConfigWarningService @Inject()(
   ec: ExecutionContext
 ){
 
-  def configByEnvironment(env: Environment, serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Seq[(KeyName, ConfigSourceValue, String)]] =
+  def warnings(env: Environment, serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Seq[(KeyName, ConfigSourceValue, String)]] =
     for {
       configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest)
-      resultingConfig     <- // TODO resultingConfig recalculates configSourceEntries - change to a function of configSourceEntries
-                             configService.resultingConfig(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest) // Future[Map[String, ConfigSourceValue]] =
-      _                   =  println(s"configSourceEntries=${configSourceEntries.mkString("\n")}")
+      resultingConfig     =  configService.resultingConfig(configSourceEntries) // Future[Map[String, ConfigSourceValue]] =
       nov                 =  configNotOverriding(configSourceEntries)
-      _                   =  println(s"--------- notOverriding ---------\n${nov.mkString("\n")}")
       _                   =  configTypeChange(configSourceEntries)
       ulh                 =  useOfLocalhost(resultingConfig)
-      _                   =  println(s"--------- useOfLocalhost ---------\n${ulh.mkString("\n")}")
-      udb                 =  useOfDebug(resultingConfig) // TODO if env == Environment.Production
-      _                   =  println(s"--------- useOfDebug ---------\n${udb.mkString("\n")}")
-      tor                 =  testOnlyRoutes(resultingConfig) // TODO if env == Environment.Production
-      _                   =  println(s"--------- testOnlyRoutes ---------\n${tor.mkString("\n")}")
+      udb                 =  if (env == Environment.Production)
+                               useOfDebug(resultingConfig)
+                             else Seq.empty
+      tor                 =  if (env == Environment.Production)
+                               testOnlyRoutes(resultingConfig)
+                             else Seq.empty
       rmc                 =  reactiveMongoConfig(resultingConfig)
-      _                   =  println(s"--------- reactiveMongoConfig ---------\n${rmc.mkString("\n")}")
-
     } yield
       nov.map { case (k, csv) => (k, csv, "NotOverriding") } ++
       ulh.map { case (k, csv) => (k, csv, "Localhost") } ++
@@ -55,27 +51,56 @@ class ConfigWarningService @Inject()(
       tor.map { case (k, csv) => (k, csv, "TestOnlyRoutes") } ++
       rmc.map { case (k, csv) => (k, csv, "ReactiveMongoConfig") }
 
+  private val ArrayRegex = "(.*)\\.\\d+".r
+  private val Base64Regex = "(.*)\\.base64".r
+
   private def configNotOverriding(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] = {
-    val (overrides, overrideable) =
-      configSourceEntries.collect {
-        case cse if List("baseConfig", "appConfigEnvironment").contains(cse.source) => Left(cse)
-        case cse if List("referenceConf", "applicationConf").contains(cse.source) => Right(cse)
-      }.partitionMap(identity)
+    def checkOverrides(overrideSource: String, overridableSources: Seq[String]): Seq[(KeyName, ConfigSourceValue)] = {
+      val (overrides, overrideable) =
+        configSourceEntries.collect {
+          case cse if cse.source == overrideSource => Left(cse)
+          case cse if overridableSources.contains(cse.source) => Right(cse)
+        }.partitionMap(identity)
 
-    val overrideableKeys = overrideable.flatMap(_.entries.keys)
+      val overrideableKeys = overrideable.flatMap(_.entries.keys)
 
-    overrides.collect {
-      case ConfigSourceEntries(source, sourceUrl, entries) =>
-        entries.collect {
-          case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v)
-        }
-    }.flatten
-     .collect {
-      case k -> csv
-        if !k.startsWith("logger.")
-        && !(k.startsWith("microservice.services") && k.endsWith(".protocol")) =>
-          k -> csv
-     }
+      overrides.collect {
+        case ConfigSourceEntries(source, sourceUrl, entries) =>
+          entries.collect {
+            case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v)
+          }
+      }.flatten
+       .collect {
+        case k -> csv
+          if !k.startsWith("logger.")
+          && !(k.startsWith("microservice.services.") && k.endsWith(".protocol")) //
+          && !(k.startsWith("play.filters.csp.directives."))
+          && !(k.startsWith("java.")) // system props
+          && !(k.startsWith("javax.")) // sytem props
+          //&& !(k.contains("\"")) // dynamic keys - e.g. play.assets.cache."resource" (or should these always be defined in application.conf ?)
+          && // ignore, if there's a related `.enabled` key
+             !{ val i = k.lastIndexWhere(_ == '.')
+                if (i >= 0) {
+                  val enabledKey = k.substring(0, i) + ".enabled"
+                  overrideable.exists(_.entries.exists(_._1 == enabledKey))
+                } else false
+              }
+
+          && !{ k match {
+            case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
+                                    key.endsWith(".previousKeys") // crypto defaults to []
+            case _               => false
+          } }
+          && !{ k match {
+            case Base64Regex(key) => overrideable.exists(_.entries.exists(_._1 == key))
+            case _                => false
+          } }
+          => k -> csv
+       }
+    }
+
+    checkOverrides(overrideSource = "baseConfig", overridableSources = List("referenceConf", "applicationConf")) ++
+      checkOverrides(overrideSource = "appConfigEnvironment", overridableSources = List("referenceConf", "applicationConf", "baseConfig", "appConfigCommonOverridable"))
   }
 
   private def configTypeChange(configSourceEntries: Seq[ConfigSourceEntries]): Unit = {
@@ -84,7 +109,7 @@ class ConfigWarningService @Inject()(
 
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if csv.value.contains("localhost") => k -> csv
+      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.contains) => k -> csv
     }.toSeq
 
   private def useOfDebug(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
@@ -103,24 +128,13 @@ class ConfigWarningService @Inject()(
     }.toSeq
 
 
-//    writeConcernW=2&writeConcernJ=true&writeConcernTimeout=20000
 /*
 
-    Configuration in app-config-$env doesn't override anything. This can happen through spelling mistakes or configuration that is now obsolete. It could legitimately be optional configuration or configuration with default values in code (which we'd want to discourage)
-    Configuration overrides of a different type - e.g. overridding an Array with a String
-    Use of localhost (and other identifiable local development configuration)
-    Use of DEBUG in production (note we're only highlighting the state of configuration, not preventing)
-    testonly routes in production
+Notes:
+  no overrides for:
+    && !(k.endsWith("Controller.needsLogging")) // See bootstrap-play ControllerConfig
+    && !(k.endsWith("Controller.needsAuditing")) // See bootstrap-play ControllerConfig
+  should be configured in application.conf
 
-We can't detect this configuration easily from config repos prs (e.g. pr commenter) since it's the combination of different config sources with different lifecycles. But we could surface in the catalogue.
-
-    Should it be surfaced in ConfigExplorer, or a new page?
-    Could it be surfaced as part of a Deploy Microservice functionality, e.g. a pre-deploy warning?
-
-As a first step, we could run this analysis on existing deployed configuration and produce a spreadsheet to analyse?
-
-old reactivemongo config are still being used - e.g. https://hmrcdigital.slack.com/archives/C0QBN79B9/p1685625640617509
-
-other ideas: https://hmrcdigital.slack.com/archives/G0H0ARKNY/p1687942766828359
 */
 }

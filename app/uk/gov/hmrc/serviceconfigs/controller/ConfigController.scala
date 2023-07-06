@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
+import cats.implicits._
 import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
@@ -27,7 +28,8 @@ import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, 
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
 
 @Singleton
 @Api("Github Config")
@@ -35,7 +37,8 @@ class ConfigController @Inject()(
   configuration       : Configuration,
   configService       : ConfigService,
   configWarningService: ConfigWarningService,
-  cc                  : ControllerComponents
+  cc                  : ControllerComponents,
+  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc)
@@ -101,15 +104,43 @@ class ConfigController @Inject()(
       .map(res => Ok(Json.toJson(res)))
   }
 
+  private val logger = play.api.Logger(getClass)
+
+  import java.nio.charset.StandardCharsets
+  import java.nio.file.{Files, StandardOpenOption}
+  private val path = new java.io.File("warnings.csv").toPath
+  println(s"Writing to $path")
+  Files.write(path, "".getBytes(StandardCharsets.UTF_8))
+
+  private def escapeCsv(s: String): String =
+    "\"" + s.replaceAll("\"", "\"\"") + "\""
+
   def warnings(
     env        : Environment,
     serviceName: ServiceName,
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      configWarningService.configByEnvironment(env, serviceName, latest)
+      teamsAndRepositoriesConnector.getRepos()
+        .map { repos =>
+          println(s"Processing ${repos.size} repos")
+          repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
+            println(s">>>> repo: ${repo.name} ($i/${repos.size})")
+            Environment.values.foldLeftM[Future, Unit](acc) { (acc, env) =>
+              configWarningService.warnings(env, ServiceName(repo.name), latest = false)
+                .map { ws =>
+                  val w = ws.map { case (k, cse, r) => s"${repo.name},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
+                  val warnings = if (w.nonEmpty) w + "\n" else w
+                  Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
+                  println(warnings)
+                  //Seq[(KeyName, ConfigSourceValue, String)]
+                }
+                .recover { case ex => logger.error(s"Failed to get warnings for $repo, $env: ${ex.getMessage}", ex) }
+            }
+          }
+        }
         .map { res =>
-          Ok(Json.toJson(res))
+          Ok("")//Json.toJson(res))
         }
     }
 }
