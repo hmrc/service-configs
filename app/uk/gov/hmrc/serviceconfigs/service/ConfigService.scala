@@ -141,7 +141,7 @@ class ConfigService @Inject()(
     }
   }
 
-  private def configSourceEntries(
+  def configSourceEntries(
     environment: ConfigEnvironment,
     serviceName: ServiceName,
     latest     : Boolean // true - latest (as would be deployed), false - as currently deployed

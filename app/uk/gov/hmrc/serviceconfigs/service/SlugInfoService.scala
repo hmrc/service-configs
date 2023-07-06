@@ -56,7 +56,6 @@ class SlugInfoService @Inject()(
     updated: Int
   )
 
-  // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()

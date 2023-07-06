@@ -24,7 +24,7 @@ import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
+import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import scala.concurrent.ExecutionContext
@@ -32,12 +32,13 @@ import scala.concurrent.ExecutionContext
 @Singleton
 @Api("Github Config")
 class ConfigController @Inject()(
-  configuration: Configuration,
-  configService: ConfigService,
-  mcc          : MessagesControllerComponents
+  configuration       : Configuration,
+  configService       : ConfigService,
+  configWarningService: ConfigWarningService,
+  cc                  : ControllerComponents
 )(implicit
   ec: ExecutionContext
-) extends BackendController(mcc)
+) extends BackendController(cc)
      with ConfigJson {
 
   @ApiOperation(
@@ -99,4 +100,16 @@ class ConfigController @Inject()(
       .findConfigKeys(teamName)
       .map(res => Ok(Json.toJson(res)))
   }
+
+  def warnings(
+    env        : Environment,
+    serviceName: ServiceName,
+    latest     : Boolean
+  ): Action[AnyContent] =
+    Action.async { implicit request =>
+      configWarningService.configByEnvironment(env, serviceName, latest)
+        .map { res =>
+          Ok(Json.toJson(res))
+        }
+    }
 }
