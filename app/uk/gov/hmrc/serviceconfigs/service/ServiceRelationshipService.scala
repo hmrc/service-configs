@@ -74,11 +74,13 @@ class ServiceRelationshipService @Inject()(
 
       val appConfig: Future[Seq[ConfigService.ConfigSourceEntries]] = configService.appConfig(slugInfo)
 
-      val appConfBase: Map[String, String] = ConfigParser.flattenConfigToDotNotation(
-        ConfigParser.parseConfString(
-          slugInfo.slugConfig.replace("include \"application.conf\"", "")
+      val appConfBase: Map[String, String] =
+        ConfigParser.flattenConfigToDotNotation(
+          ConfigParser.parseConfString(
+            slugInfo.slugConfig.replace("include \"application.conf\"", "")
+          )
         )
-      )
+        .view.mapValues(_.render).toMap
 
       appConfig.map(
         _.flatMap(_.entries)

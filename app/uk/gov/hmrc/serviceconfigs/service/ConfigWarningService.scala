@@ -67,7 +67,7 @@ class ConfigWarningService @Inject()(
       overrides.collect {
         case ConfigSourceEntries(source, sourceUrl, entries) =>
           entries.collect {
-            case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v)
+            case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v.render)
           }
       }.flatten
        .collect {

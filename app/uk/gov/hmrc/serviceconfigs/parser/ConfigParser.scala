@@ -25,6 +25,8 @@ import uk.gov.hmrc.serviceconfigs.util.SafeXml
 import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
+import java.util.Map.Entry
+import scala.annotation.tailrec
 
 trait ConfigParser extends Logging {
 
@@ -84,14 +86,14 @@ trait ConfigParser extends Logging {
     props
   }
 
-  def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, String]] =
+  def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, MyConfigValue]] =
     Try {
       val xml = SafeXml().loadString(xmlString)
       val root =
         (for {
            node  <- (xml  \ "root"  ).headOption
            level <- (node \ "@level").headOption
-         } yield Map("logger.root" -> level.text)
+         } yield Map("logger.root" -> MyConfigValue.FromString(level.text))
         ).getOrElse(Map.empty)
       val logger =
           (xml \ "logger")
@@ -99,7 +101,7 @@ trait ConfigParser extends Logging {
               for {
                 k <- (x \ "@name" ).headOption
                 v <- (x \ "@level").headOption
-              } yield s"logger.${k.text}" -> v.text
+              } yield s"logger.${k.text}" -> MyConfigValue.FromString(v.text)
             )
             .toMap
       root ++ logger
@@ -108,26 +110,29 @@ trait ConfigParser extends Logging {
   /** The config is resolved (substitutions applied) and
     * the config is returned as a flat Map
     */
-  def flattenConfigToDotNotation(config: Config): Map[String, String] =
-    config
-      .resolve(
-        ConfigResolveOptions.defaults
-          .setAllowUnresolved(true)
-          .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
-        )
-      .entrySet
-      .asScala
-      .map(e =>
-        s"${e.getKey}" -> removeQuotes(e.getValue.render(ConfigRenderOptions.concise))
-      )
-      .toMap
+  def flattenConfigToDotNotation(config: Config): Map[String, MyConfigValue] =
+    entrySetWithNull(
+      config
+        .resolve(
+          ConfigResolveOptions.defaults
+            .setAllowUnresolved(true)
+            .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
+          )
+    )
+    .toMap
 
-  private def removeQuotes(input: String): String =
-    if (input.charAt(0).equals('"') &&
-         input.charAt(input.length - 1).equals('"'))
-      input.substring(1, input.length - 1)
-    else
-      input
+  /** calling config.entrySet will strip out keys with null values */
+  def entrySetWithNull(config: Config): Set[(String, MyConfigValue)] = {
+    //@tailrec
+    def go(acc: Set[(String, MyConfigValue)], configObject: ConfigObject, path: String): Set[(String, MyConfigValue)] =
+      configObject.entrySet().asScala.toSet[Entry[String, ConfigValue]].flatMap { e =>
+        e.getValue match {
+          case o: ConfigObject => go(acc, o, e.getKey)
+          case other           => acc ++ Set(path + (if (path.nonEmpty) "." else "") + e.getKey -> MyConfigValue.FromConfigValue(e.getValue))
+        }
+      }
+    go(Set.empty[(String, MyConfigValue)], config.root(), "")
+  }
 
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
@@ -180,7 +185,7 @@ trait ConfigParser extends Logging {
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, String]) = {
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, MyConfigValue]) = {
      val newProps = new Properties
 
      properties
@@ -189,7 +194,10 @@ trait ConfigParser extends Logging {
        .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
      val config     = ConfigFactory.parseProperties(newProps)
-     val suppressed = newProps.asScala.view.filterKeys(!flattenConfigToDotNotation(config).contains(_)).toMap
+     val suppressed = newProps.asScala.view
+                        .filterKeys(!flattenConfigToDotNotation(config).contains(_))
+                        .mapValues(MyConfigValue.FromString)
+                        .toMap
      (config, suppressed)
    }
 
@@ -197,7 +205,7 @@ trait ConfigParser extends Logging {
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
     * i.e. new entries from latestConf, or entries that have been changed because of latestConf (e.g. latestConf provided different substitutions)
     */
-  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, String]) = {
+  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, MyConfigValue]) = {
     val previousConfMap = ConfigParser.flattenConfigToDotNotation(previousConf)
 
     val conf = latestConf.withFallback(previousConf)
@@ -207,8 +215,8 @@ trait ConfigParser extends Logging {
           .setAllowUnresolved(true)
           .setUseSystemEnvironment(false)
       )
-    val confAsMap = ConfigParser.flattenConfigToDotNotation(conf)
-    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, String]){ case (acc, (k, v)) =>
+    val confAsMap = ConfigParser.flattenConfigToDotNotation(conf).view
+    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, MyConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now...
         if (previousConfMap.get(k) != Some(v) ||
@@ -224,7 +232,7 @@ trait ConfigParser extends Logging {
   /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
     * This is often the sign of an error.
     */
-  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, String] = {
+  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, MyConfigValue] = {
     val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
     val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
     flattenConfigToDotNotation(previousConf)
@@ -235,3 +243,28 @@ trait ConfigParser extends Logging {
 }
 
 object ConfigParser extends ConfigParser
+
+sealed trait MyConfigValue {
+  def render: String
+}
+
+
+object MyConfigValue {
+  case class FromString(
+    s: String
+  ) extends MyConfigValue {
+    override def render = s
+  }
+
+  case class FromConfigValue(
+    value: ConfigValue
+  ) extends MyConfigValue {
+    override def render: String = MyConfigValue.removeQuotes(value.render(ConfigRenderOptions.concise))
+  }
+
+  private[MyConfigValue] def removeQuotes(input: String): String =
+    if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"'))
+      input.substring(1, input.length - 1)
+    else
+      input
+}

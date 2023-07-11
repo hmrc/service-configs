@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.{Writes, __}
 import play.api.libs.functional.syntax._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
 
 trait ConfigJson {
   implicit val configSourceEntriesWrites: Writes[ConfigSourceEntries] =
@@ -29,6 +30,7 @@ trait ConfigJson {
                           case (k, v) if v.startsWith("ENC[") => k -> "ENC[...]"
                           case (k, v)                         => k -> v
                         })
+                        .contramap[Map[KeyName, MyConfigValue]](_.view.mapValues(_.render).toMap)
     )(unlift(ConfigSourceEntries.unapply))
 
   implicit val configSourceValueWrites: Writes[ConfigSourceValue] =

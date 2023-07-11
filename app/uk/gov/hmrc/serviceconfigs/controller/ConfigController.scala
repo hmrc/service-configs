@@ -138,7 +138,6 @@ class ConfigController @Inject()(
   private def escapeCsv(s: String): String =
     "\"" + s.replaceAll("\"", "\"\"") + "\""
 
-
   def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] =
     releasesApiConnector.getWhatsRunningWhere()
       .map { repos =>
