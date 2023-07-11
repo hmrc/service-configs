@@ -4,7 +4,7 @@ import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsVal
 import play.api.libs.functional.syntax._
 
 
-case class InternalAuthConfig(serviceName: ServiceName, environment: InternalAuthEnvironment, grantType: GrantType)
+case class InternalAuthConfig(service: ServiceName, environment: InternalAuthEnvironment, grantType: GrantType)
 
 object InternalAuthConfig {
   val format: Format[InternalAuthConfig] = {
