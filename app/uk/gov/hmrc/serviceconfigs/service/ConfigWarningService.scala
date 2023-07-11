@@ -30,10 +30,10 @@ class ConfigWarningService @Inject()(
   ec: ExecutionContext
 ){
 
-  def warnings(env: Environment, serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Seq[(KeyName, ConfigSourceValue, String)]] =
+  def warnings(env: Environment, serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] =
     for {
       configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest)
-      resultingConfig     =  configService.resultingConfig(configSourceEntries) // Future[Map[String, ConfigSourceValue]] =
+      resultingConfig     =  configService.resultingConfig(configSourceEntries)
       nov                 =  configNotOverriding(configSourceEntries)
       _                   =  configTypeChange(configSourceEntries)
       ulh                 =  useOfLocalhost(resultingConfig)
@@ -45,11 +45,11 @@ class ConfigWarningService @Inject()(
                              else Seq.empty
       rmc                 =  reactiveMongoConfig(resultingConfig)
     } yield
-      nov.map { case (k, csv) => (k, csv, "NotOverriding") } ++
-      ulh.map { case (k, csv) => (k, csv, "Localhost") } ++
-      udb.map { case (k, csv) => (k, csv, "DEBUG") } ++
-      tor.map { case (k, csv) => (k, csv, "TestOnlyRoutes") } ++
-      rmc.map { case (k, csv) => (k, csv, "ReactiveMongoConfig") }
+      nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding") } ++
+      ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost") } ++
+      udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG") } ++
+      tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes") } ++
+      rmc.map { case (k, csv) => ConfigWarning(k, csv, "ReactiveMongoConfig") }
 
   private val ArrayRegex = "(.*)\\.\\d+".r
   private val Base64Regex = "(.*)\\.base64".r
@@ -75,8 +75,10 @@ class ConfigWarningService @Inject()(
           if !k.startsWith("logger.")
           && !(k.startsWith("microservice.services.") && k.endsWith(".protocol")) //
           && !(k.startsWith("play.filters.csp.directives."))
-          && !(k.startsWith("java.")) // system props
-          && !(k.startsWith("javax.")) // sytem props
+          && !(k.startsWith("java."))  // system props
+          && !(k.startsWith("javax.")) // system props
+          && !(k == "user.timezone")   // system props
+
           //&& !(k.contains("\"")) // dynamic keys - e.g. play.assets.cache."resource" (or should these always be defined in application.conf ?)
           && // ignore, if there's a related `.enabled` key
              !{ val i = k.lastIndexWhere(_ == '.')
@@ -126,15 +128,10 @@ class ConfigWarningService @Inject()(
     resultingConfig.collect {
       case k -> csv if k == "mongodb.uri" && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.toLowerCase.contains) => k -> csv
     }.toSeq
-
-
-/*
-
-Notes:
-  no overrides for:
-    && !(k.endsWith("Controller.needsLogging")) // See bootstrap-play ControllerConfig
-    && !(k.endsWith("Controller.needsAuditing")) // See bootstrap-play ControllerConfig
-  should be configured in application.conf
-
-*/
 }
+
+case class ConfigWarning(
+  key    : KeyName,
+  value  : ConfigSourceValue,
+  warning: String
+)

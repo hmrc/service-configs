@@ -21,15 +21,18 @@ import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import play.api.mvc._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
-import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarningService}
+import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceValue, KeyName}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import scala.concurrent.{ExecutionContext, Future}
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 
 @Singleton
 @Api("Github Config")
@@ -38,7 +41,7 @@ class ConfigController @Inject()(
   configService       : ConfigService,
   configWarningService: ConfigWarningService,
   cc                  : ControllerComponents,
-  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
+  releasesApiConnector: ReleasesApiConnector
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc)
@@ -104,6 +107,26 @@ class ConfigController @Inject()(
       .map(res => Ok(Json.toJson(res)))
   }
 
+  private implicit val cww: Writes[ConfigWarning] =
+    ( (__ \ "key"    ).write[KeyName]
+    ~ (__ \ "value"  ).write[ConfigSourceValue]
+    ~ (__ \ "warning").write[String]
+    )(unlift(ConfigWarning.unapply))
+
+
+  def warnings(
+    env        : Environment,
+    serviceName: ServiceName,
+    latest     : Boolean
+  ): Action[AnyContent] =
+    Action.async { implicit request =>
+      calculateAllWarnings()
+      configWarningService.warnings(env, serviceName, latest = false)
+        .map { res =>
+          Ok(Json.toJson(res))
+        }
+    }
+
   private val logger = play.api.Logger(getClass)
 
   import java.nio.charset.StandardCharsets
@@ -115,32 +138,23 @@ class ConfigController @Inject()(
   private def escapeCsv(s: String): String =
     "\"" + s.replaceAll("\"", "\"\"") + "\""
 
-  def warnings(
-    env        : Environment,
-    serviceName: ServiceName,
-    latest     : Boolean
-  ): Action[AnyContent] =
-    Action.async { implicit request =>
-      teamsAndRepositoriesConnector.getRepos()
-        .map { repos =>
-          println(s"Processing ${repos.size} repos")
-          repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
-            println(s">>>> repo: ${repo.name} ($i/${repos.size})")
-            Environment.values.foldLeftM[Future, Unit](acc) { (acc, env) =>
-              configWarningService.warnings(env, ServiceName(repo.name), latest = false)
-                .map { ws =>
-                  val w = ws.map { case (k, cse, r) => s"${repo.name},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
-                  val warnings = if (w.nonEmpty) w + "\n" else w
-                  Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
-                  println(warnings)
-                  //Seq[(KeyName, ConfigSourceValue, String)]
-                }
-                .recover { case ex => logger.error(s"Failed to get warnings for $repo, $env: ${ex.getMessage}", ex) }
-            }
+
+  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] =
+    releasesApiConnector.getWhatsRunningWhere()
+      .map { repos =>
+        println(s"Processing ${repos.size} repos")
+        repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
+          println(s">>>> repo: ${repo.serviceName.asString} ($i/${repos.size})")
+          repo.deployments.flatMap(_.optEnvironment.toList).foldLeftM[Future, Unit](acc) { (acc, env) =>
+            configWarningService.warnings(env, repo.serviceName, latest = false)
+              .map { ws =>
+                val w = ws.map { case ConfigWarning(k, cse, r) => s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
+                val warnings = if (w.nonEmpty) w + "\n" else w
+                Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
+                println(warnings)
+              }
+              .recover { case ex => logger.error(s"Failed to get warnings for $repo, $env: ${ex.getMessage}", ex) }
           }
         }
-        .map { res =>
-          Ok("")//Json.toJson(res))
-        }
-    }
+      }
 }

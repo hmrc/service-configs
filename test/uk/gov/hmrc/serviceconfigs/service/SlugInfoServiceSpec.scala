@@ -49,7 +49,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(Seq.empty))
 
-      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
@@ -94,7 +94,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
@@ -140,7 +140,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
@@ -185,7 +185,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(mockedReleasesApiConnector.getWhatIsRunningWhere())
+      when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation(serviceName1, Seq(
             Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
