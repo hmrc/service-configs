@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
+import uk.gov.hmrc.serviceconfigs.parser.MyConfigValueType
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName}
 
 import javax.inject.{Inject, Singleton}
@@ -81,16 +81,13 @@ class ConfigWarningService @Inject()(
           && !(k.startsWith("java."))  // system props
           && !(k.startsWith("javax.")) // system props
           && !(k == "user.timezone")   // system props
-
-          //&& !(k.contains("\"")) // dynamic keys - e.g. play.assets.cache."resource" (or should these always be defined in application.conf ?)
-          && // ignore, if there's a related `.enabled` key
+          && // ignore, if there's a related `.enabled` key // TODO should all the related keys just be defined with `null`
              !{ val i = k.lastIndexWhere(_ == '.')
                 if (i >= 0) {
                   val enabledKey = k.substring(0, i) + ".enabled"
                   overrideable.exists(_.entries.exists(_._1 == enabledKey))
                 } else false
               }
-
           && !{ k match {
             case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
                                     key.endsWith(".previousKeys") // crypto defaults to []
@@ -109,19 +106,6 @@ class ConfigWarningService @Inject()(
   }
 
   private def configTypeChange(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] = {
-
-    import com.typesafe.config.{ConfigObject, ConfigList, ConfigValue}
-    def typeOf(value: MyConfigValue): String =
-      value match {
-        case _: MyConfigValue.FromString => "string"
-        case MyConfigValue.FromNull      => "null"
-        case MyConfigValue.FromConfigValue(v) => v match {
-          case _: ConfigObject => "object"
-          case _: ConfigList   => "list"
-          case _: ConfigValue  => "value"
-        }
-      }
-
     def checkTypeOverrides(overrideSource: String, overridableSources: Seq[String]): Seq[(KeyName, ConfigSourceValue)] = {
       val (overrides, overrideable) =
         configSourceEntries.collect {
@@ -135,21 +119,22 @@ class ConfigWarningService @Inject()(
         case ConfigSourceEntries(source, sourceUrl, entries) =>
           entries.collect {
             case k -> v if overrideable2.exists { case (k2, v2) =>
-              if (k == k2 && typeOf(v) != typeOf(v2)) {
-//                println(s">>> k: ${typeOf(v2)} (${v2.render}) -> ${typeOf(v)} $v (${v.render})")
+              if (k == k2 && v.valueType != v2.valueType) {
                 val IsArrayValue = s"${k.replace(".", "\\.")}.\\d+(\\..+)?".r
                 val IsBase64     = s"${k.replace(".", "\\.")}.base64".r
                 if (
-                  (typeOf(v2) == "list"  && v.render == "<<SUPPRESSED>>" && overrides.flatMap(_.entries.keySet).exists(IsArrayValue.matches)) ||
-                  (typeOf(v2) == "value" && v.render == "<<SUPPRESSED>>" && overrides.flatMap(_.entries.keySet).exists(IsBase64.matches)) ||
-                  typeOf(v2) == "null"
+                  (v2.valueType == MyConfigValueType.List        && v.valueType == MyConfigValueType.Suppressed && overrides.flatMap(_.entries.keySet).exists(IsArrayValue.matches)) ||
+                  (v2.valueType == MyConfigValueType.SimpleValue && v.valueType == MyConfigValueType.Suppressed && overrides.flatMap(_.entries.keySet).exists(IsBase64.matches)) ||
+                  v.valueType   == MyConfigValueType.Null     || v2.valueType == MyConfigValueType.Null ||
+                  v.valueType   == MyConfigValueType.Unmerged || v2.valueType == MyConfigValueType.Unmerged
                 )
                   false
-                else
+                else {
+//                  println(s">>> k $k: ${v2.valueType} (${v2.render}) -> ${v.valueType} $v (${v.render})")
                   true
+                }
               } else false
              } =>
-
               k -> ConfigSourceValue(source, sourceUrl, v.render)
           }
         }

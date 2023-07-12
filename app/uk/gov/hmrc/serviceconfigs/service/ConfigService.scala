@@ -125,7 +125,7 @@ class ConfigService @Inject()(
       }
       val suppressed: Map[String, MyConfigValue] =
         (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
-          .map { case (k, _) => k -> MyConfigValue.FromString(s"<<SUPPRESSED>>") }
+          .map { case (k, _) => k -> MyConfigValue.Suppressed }
           .filterNot { case (k, _) => k.startsWith("logger.") && k != "logger.resource" } // This assumes that logging was defined in system.properties or the key was quoted
       (acc :+ ConfigSourceEntries(entry.name, entry.sourceUrl, entries ++ suppressed), Some(nextConfig))
     }

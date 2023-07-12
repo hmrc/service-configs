@@ -121,18 +121,30 @@ trait ConfigParser extends Logging {
     )
     .toMap
 
+  def hasFunkyChars(c: Char) =
+    Character.isLetterOrDigit(c) || c == '-' || c == '_'
+
   /** calling config.entrySet will strip out keys with null values */
   def entrySetWithNull(config: Config): Set[(String, MyConfigValue)] = {
     //@tailrec
     def go(acc: Set[(String, MyConfigValue)], configObject: ConfigObject, path: String): Set[(String, MyConfigValue)] =
       configObject.entrySet().asScala.toSet[Entry[String, ConfigValue]].flatMap { e =>
-        val key = path + (if (path.nonEmpty) "." else "") + (if (e.getKey.contains(".") || e.getKey.contains("*") || e.getKey.contains("[")) s"\"${e.getKey}\"" else e.getKey)
+        val key =
+          path +
+          (if (path.nonEmpty) "." else "") +
+          (if (e.getKey.exists(c => !hasFunkyChars(c))) s"\"${e.getKey}\"" else e.getKey)
+
         e.getValue match {
-          case o: ConfigObject           => go(acc, o, key)
-          case o if !Try(config.hasPath(key)).getOrElse(true) // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
-                                                              // can we resolve first?
-                                         => acc ++ Set(key -> MyConfigValue.FromNull)
-          case other                     => acc ++ Set(key -> MyConfigValue.FromConfigValue(e.getValue))
+          case o: ConfigObject => go(acc, o, key)
+          case other           => acc ++ Set(key ->
+                                    // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
+                                    // can we resolve first?
+                                    (if (Try(config.getIsNull(key)).getOrElse(false))
+                                       MyConfigValue.FromNull
+                                     else
+                                       MyConfigValue.FromConfigValue(e.getValue)
+                                    )
+                                  )
         }
       }
     go(Set.empty[(String, MyConfigValue)], config.root(), "")
@@ -249,26 +261,42 @@ trait ConfigParser extends Logging {
 object ConfigParser extends ConfigParser
 
 sealed trait MyConfigValue {
-  def render: String
+  def render   : String
+  def valueType: MyConfigValueType
 }
-
 
 object MyConfigValue {
   case class FromString(
     s: String
   ) extends MyConfigValue {
-    override def render = s
+    override def render    = s
+    override def valueType = MyConfigValueType.SimpleValue
   }
 
   // we can't interrogate ConfigValue to this extent (only ConfigObject, ConfigList, ConfigValue) are in public api of config library
   case object FromNull extends MyConfigValue {
-    override def render = "<<NULL>>"
+    override def render    = "<<NULL>>"
+    override def valueType = MyConfigValueType.Null
+  }
+
+  case object Suppressed extends MyConfigValue {
+    override def render    = "<<SUPPRESSED>>"
+    override def valueType = MyConfigValueType.Suppressed
   }
 
   case class FromConfigValue(
     value: ConfigValue
   ) extends MyConfigValue {
-    override def render: String = MyConfigValue.removeQuotes(value.render(ConfigRenderOptions.concise))
+    override def render: String =
+      MyConfigValue.removeQuotes(value.render(ConfigRenderOptions.concise))
+    override def valueType: MyConfigValueType =
+      Try{
+        value.valueType match {
+          case ConfigValueType.LIST   => MyConfigValueType.List
+          case ConfigValueType.OBJECT => MyConfigValueType.Object
+          case _                      => MyConfigValueType.SimpleValue
+        }
+      }.getOrElse(MyConfigValueType.Unmerged)
   }
 
   private[MyConfigValue] def removeQuotes(input: String): String =
@@ -276,4 +304,17 @@ object MyConfigValue {
       input.substring(1, input.length - 1)
     else
       input
+}
+
+// We don't use ConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties
+// and we want to add Unmerged, when we can't tell (e.g. placeholders need resolving)
+sealed trait MyConfigValueType
+
+object MyConfigValueType {
+  case object Null        extends MyConfigValueType
+  case object Unmerged    extends MyConfigValueType
+  case object SimpleValue extends MyConfigValueType
+  case object List        extends MyConfigValueType
+  case object Object      extends MyConfigValueType
+  case object Suppressed  extends MyConfigValueType // This is really a non-type
 }

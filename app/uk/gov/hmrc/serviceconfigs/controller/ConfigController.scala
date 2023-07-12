@@ -122,11 +122,11 @@ class ConfigController @Inject()(
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      //calculateAllWarnings()
-      //  .onComplete {
-      //    case Success(_) => println(s"Finished")
-      //    case Failure(ex) => logger.error(s"Failed: ${ex.getMessage()}", ex)
-      //  }
+      calculateAllWarnings()
+        .onComplete {
+          case Success(_) => println(s"Finished")
+          case Failure(ex) => logger.error(s"Failed: ${ex.getMessage()}", ex)
+        }
       configWarningService.warnings(env, serviceName, latest = false)
         .map { res =>
           Ok(Json.toJson(res))
@@ -144,10 +144,8 @@ class ConfigController @Inject()(
   private def escapeCsv(s: String): String =
     "\"" + s.replaceAll("\"", "\"\"") + "\""
 
-  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] = {
-    println(s">>>>>>>>>>> calculateAllWarnings")
+  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] =
     releasesApiConnector.getWhatsRunningWhere()
-      //.map(_.filter(_.serviceName == ServiceName("agent-authorisation-api")))
       .map { repos =>
         println(s"Processing ${repos.size} repos")
         repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
@@ -164,5 +162,4 @@ class ConfigController @Inject()(
           }
         }
       }
-    }
 }
