@@ -126,10 +126,13 @@ trait ConfigParser extends Logging {
     //@tailrec
     def go(acc: Set[(String, MyConfigValue)], configObject: ConfigObject, path: String): Set[(String, MyConfigValue)] =
       configObject.entrySet().asScala.toSet[Entry[String, ConfigValue]].flatMap { e =>
-        val key = path + (if (path.nonEmpty) "." else "") + e.getKey
+        val key = path + (if (path.nonEmpty) "." else "") + (if (e.getKey.contains(".") || e.getKey.contains("*") || e.getKey.contains("[")) s"\"${e.getKey}\"" else e.getKey)
         e.getValue match {
-          case o: ConfigObject => go(acc, o, key)
-          case other           => acc ++ Set(key -> MyConfigValue.FromConfigValue(e.getValue))
+          case o: ConfigObject           => go(acc, o, key)
+          case o if !Try(config.hasPath(key)).getOrElse(true) // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
+                                                              // can we resolve first?
+                                         => acc ++ Set(key -> MyConfigValue.FromNull)
+          case other                     => acc ++ Set(key -> MyConfigValue.FromConfigValue(e.getValue))
         }
       }
     go(Set.empty[(String, MyConfigValue)], config.root(), "")
@@ -255,6 +258,11 @@ object MyConfigValue {
     s: String
   ) extends MyConfigValue {
     override def render = s
+  }
+
+  // we can't interrogate ConfigValue to this extent (only ConfigObject, ConfigList, ConfigValue) are in public api of config library
+  case object FromNull extends MyConfigValue {
+    override def render = "<<NULL>>"
   }
 
   case class FromConfigValue(

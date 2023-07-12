@@ -114,6 +114,7 @@ class ConfigWarningService @Inject()(
     def typeOf(value: MyConfigValue): String =
       value match {
         case _: MyConfigValue.FromString => "string"
+        case MyConfigValue.FromNull      => "null"
         case MyConfigValue.FromConfigValue(v) => v match {
           case _: ConfigObject => "object"
           case _: ConfigList   => "list"
@@ -135,14 +136,13 @@ class ConfigWarningService @Inject()(
           entries.collect {
             case k -> v if overrideable2.exists { case (k2, v2) =>
               if (k == k2 && typeOf(v) != typeOf(v2)) {
-//                println(s">>> k: ${typeOf(v2)} (${v2.render}) -> ${typeOf(v)} (${v.render})")
+//                println(s">>> k: ${typeOf(v2)} (${v2.render}) -> ${typeOf(v)} $v (${v.render})")
                 val IsArrayValue = s"${k.replace(".", "\\.")}.\\d+(\\..+)?".r
                 val IsBase64     = s"${k.replace(".", "\\.")}.base64".r
-//                println(s"${v2.render} == \"null\" -> ${v2.render == "null"}")
                 if (
                   (typeOf(v2) == "list"  && v.render == "<<SUPPRESSED>>" && overrides.flatMap(_.entries.keySet).exists(IsArrayValue.matches)) ||
                   (typeOf(v2) == "value" && v.render == "<<SUPPRESSED>>" && overrides.flatMap(_.entries.keySet).exists(IsBase64.matches)) ||
-                  v2.render == "null" // TODO distinguish from String `"null"` (ConfigNull is library internal)
+                  typeOf(v2) == "null"
                 )
                   false
                 else
@@ -156,33 +156,6 @@ class ConfigWarningService @Inject()(
        .flatten
        .collect {
         case k -> csv
-          // if csv.value == "<<SUPPRESSED>>" && overrides.flatMap(_.entries.keySet).exists("") -> csv.value
-          //if csv.
-          /*if !k.startsWith("logger.")
-          && !(k.startsWith("microservice.services.") && k.endsWith(".protocol")) //
-          && !(k.startsWith("play.filters.csp.directives."))
-          && !(k.startsWith("java."))  // system props
-          && !(k.startsWith("javax.")) // system props
-          && !(k == "user.timezone")   // system props
-
-          //&& !(k.contains("\"")) // dynamic keys - e.g. play.assets.cache."resource" (or should these always be defined in application.conf ?)
-          && // ignore, if there's a related `.enabled` key
-             !{ val i = k.lastIndexWhere(_ == '.')
-                if (i >= 0) {
-                  val enabledKey = k.substring(0, i) + ".enabled"
-                  overrideable.exists(_.entries.exists(_._1 == enabledKey))
-                } else false
-              }
-
-          && !{ k match {
-            case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
-                                    key.endsWith(".previousKeys") // crypto defaults to []
-            case _               => false
-          } }
-          && !{ k match {
-            case Base64Regex(key) => overrideable.exists(_.entries.exists(_._1 == key))
-            case _                => false
-          } }*/
           => k -> csv
        }
       }
