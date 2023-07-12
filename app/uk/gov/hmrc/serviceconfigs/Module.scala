@@ -21,6 +21,8 @@ import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser
 import uk.gov.hmrc.serviceconfigs.notification.{DeadLetterHandler, DeploymentHandler, SlugConfigUpdateHandler}
 import uk.gov.hmrc.serviceconfigs.scheduler.{ConfigScheduler, MissedWebhookEventsScheduler, ServiceRelationshipScheduler, SlugMetadataUpdateScheduler}
 
+import java.time.Clock
+
 class Module extends AbstractModule {
   override def configure(): Unit = {
     bind(classOf[SlugConfigUpdateHandler     ]).asEagerSingleton()
@@ -31,5 +33,6 @@ class Module extends AbstractModule {
     bind(classOf[SlugMetadataUpdateScheduler ]).asEagerSingleton()
     bind(classOf[ServiceRelationshipScheduler]).asEagerSingleton()
     bind(classOf[FrontendRouteParser         ]).to(classOf[NginxConfigParser]).asEagerSingleton()
+    bind(classOf[Clock]).toInstance(Clock.systemUTC())
   }
 }

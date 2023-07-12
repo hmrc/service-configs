@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import org.mongodb.scala.bson.{BsonDateTime, BsonDocument}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.BeforeAndAfterAll
@@ -27,6 +28,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
 import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, SlugInfoRepository}
@@ -34,6 +36,8 @@ import uk.gov.hmrc.serviceconfigs.model.{Environment, MongoSlugInfoFormats, Serv
 
 import java.time.Instant
 import uk.gov.hmrc.serviceconfigs.persistence.DeployedConfigRepository
+
+import java.time.temporal.ChronoUnit
 
 class ConfigServiceSpec
   extends AnyWordSpec
@@ -177,18 +181,20 @@ class ConfigServiceSpec
       ))
       .toFuture().futureValue
 
-  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String): Unit =
+  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String): Unit = {
     deployedConfigCollection
       .insertOne(Document(
-        "serviceName"     -> serviceName.asString,
-        "environment"     -> env,
-        "deploymentId"    -> "deploymentId",
-        "configId"        -> "configId",
+        "serviceName"       -> serviceName.asString,
+        "environment"       -> env,
+        "deploymentId"      -> "deploymentId",
+        "configId"          -> "configId",
         //"appConfigBase"   -> None,
         //"appConfigCommon" -> None
-        "appConfigEnv"    -> content
+        "appConfigEnv"      -> content,
+        "lastUpdated"       -> BsonDocument("$date" -> BsonDocument("$numberLong" -> Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli.toString))
       ))
       .toFuture().futureValue
+  }
 
   def setup(serviceName: ServiceName, latest: Boolean): Unit = {
     val slugInfo = SlugInfo(

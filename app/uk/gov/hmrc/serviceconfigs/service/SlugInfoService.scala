@@ -28,6 +28,7 @@ import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
+import java.time.{Clock, Instant}
 import scala.util.control.NonFatal
 
 @Singleton
@@ -41,7 +42,8 @@ class SlugInfoService @Inject()(
 , teamsAndReposConnector   : TeamsAndRepositoriesConnector
 , githubRawConnector       : GithubRawConnector
 , configConnector          : ConfigConnector
-, configService            : ConfigService
+, configService            : ConfigService,
+  clock                    : java.time.Clock
 )(implicit
   ec: ExecutionContext
 ) {
@@ -58,6 +60,7 @@ class SlugInfoService @Inject()(
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
+      processStart            = Instant.now(clock)
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.name)))
@@ -82,10 +85,10 @@ class SlugInfoService @Inject()(
                                   deployments.foldLeftM(acc) {
                                     case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
                                                                              .map(_ => acc.copy(removed = acc.removed + 1))
-                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
-                                                                             .map(skipped => if (skipped)
-                                                                                               acc.copy(skipped = acc.skipped + 1)
-                                                                                             else acc.copy(updated = acc.updated + 1))
+                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment, processStart)
+                                                                             .map(requiresUpdate => if (requiresUpdate)
+                                                                                               acc.copy(updated = acc.updated + 1)
+                                                                                             else acc.copy(skipped = acc.skipped + 1))
                                   }
                                 }
       _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
@@ -118,28 +121,48 @@ class SlugInfoService @Inject()(
       } yield ()
 
     def updateDeployment(
-      env        : Environment,
-      serviceName: ServiceName,
-      deployment : ReleasesApiConnector.Deployment
+      env           : Environment,
+      serviceName   : ServiceName,
+      deployment    : ReleasesApiConnector.Deployment,
+      dataTimestamp : Instant
     )(implicit
       hc: HeaderCarrier
     ): Future[Boolean] =
       for {
-        _         <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-        processed <- deployedConfigRepository.hasProcessed(deployment.configId)
-        _         <- if (!processed)
-                       updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"))
+        _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
+        currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
+        requiresUpdate         = currentDeploymentInfo match {
+            case None         => {
+              logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
+              true
+            }
+            case Some(config) =>
+              if(config.lastUpdated.isAfter(dataTimestamp) && !config.configId.equals(deployment.configId)) {
+                logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
+                  s"as the latest update occurred after the current process began.")
+                false
+              } else if (config.lastUpdated.isBefore(dataTimestamp) && !config.configId.equals(deployment.configId)) {
+                logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
+                true
+              } else {
+                logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
+                false
+              }
+        }
+        _              <- if (requiresUpdate)
+                       updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), dataTimestamp)
                          .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
                          .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
                      else
                        Future.unit
-      } yield processed
+      } yield requiresUpdate
 
     private def updateDeployedConfig(
-      env         : Environment,
-      serviceName : ServiceName,
-      deployment  : ReleasesApiConnector.Deployment,
-      deploymentId: String
+      env          : Environment,
+      serviceName  : ServiceName,
+      deployment   : ReleasesApiConnector.Deployment,
+      deploymentId : String,
+      dataTimestamp: Instant
     )(implicit
       hc: HeaderCarrier
     ): EitherT[Future, String, Unit] =
@@ -180,7 +203,8 @@ class SlugInfoService @Inject()(
                                 configId        = deployment.configId,
                                 appConfigBase   = deployedConfigMap.get("app-config-base"),
                                 appConfigCommon = deployedConfigMap.get("app-config-common"),
-                                appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}")
+                                appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}"),
+                                lastUpdated     = dataTimestamp
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
         // now we have stored the deployment configs, we can calculate the resulting configs
@@ -190,4 +214,5 @@ class SlugInfoService @Inject()(
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()
+
 }

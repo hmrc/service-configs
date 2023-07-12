@@ -17,11 +17,13 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{Indexes, IndexModel, ReplaceOptions}
+import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -78,11 +80,6 @@ class DeployedConfigRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def hasProcessed(configId: String): Future[Boolean] =
-    collection
-      .find(equal("configId", configId))
-      .headOption()
-      .map(_.isDefined)
 }
 
 object DeployedConfigRepository {
@@ -98,10 +95,12 @@ object DeployedConfigRepository {
     configId       : String,
     appConfigBase  : Option[String],
     appConfigCommon: Option[String],
-    appConfigEnv   : Option[String]
+    appConfigEnv   : Option[String],
+    lastUpdated    : Instant
   )
 
   val mongoFormats: Format[DeployedConfig] = {
+    implicit val instantFormat = MongoJavatimeFormats.instantFormat
     implicit val ef  = Environment.format
     implicit val snf = ServiceName.format
     ( (__ \ "serviceName"    ).format[ServiceName]
@@ -111,6 +110,7 @@ object DeployedConfigRepository {
     ~ (__ \ "appConfigBase"  ).formatNullable[String]
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
-    )(DeployedConfig. apply, unlift(DeployedConfig.unapply))
+    ~ (__ \ "lastUpdated"    ).format[Instant]
+      )(DeployedConfig. apply, unlift(DeployedConfig.unapply))
   }
 }

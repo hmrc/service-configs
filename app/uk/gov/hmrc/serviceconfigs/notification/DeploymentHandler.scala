@@ -35,6 +35,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
+import java.time.Instant
 import scala.collection.immutable.TreeMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -43,8 +44,9 @@ import scala.util.{Failure, Try}
 @Singleton
 class DeploymentHandler @Inject()(
   config         : ArtefactReceivingConfig,
-  slugInfoService: SlugInfoService
-)(implicit
+  slugInfoService: SlugInfoService,
+  clock          : java.time.Clock
+  )(implicit
   actorSystem : ActorSystem,
   materializer: Materializer,
   ec          : ExecutionContext
@@ -99,13 +101,14 @@ class DeploymentHandler @Inject()(
                                           , version        = payload.version
                                           , deploymentId   = Some(payload.deploymentId)
                                           , config         = payload.config
-                                          )
+                                          ),
+                            dataTimestamp = Instant.now(clock)
                           )
-                        ).map { alreadyProcessed =>
-                          if (alreadyProcessed)
-                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
-                          else
+                        ).map { requiresUpdate =>
+                          if (requiresUpdate)
                             logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has been processed")
+                          else
+                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
                         }
                       case (_, None) =>
                         logger.info(s"Not processing message '${message.messageId()}' with unrecognised environment")
