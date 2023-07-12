@@ -117,8 +117,8 @@ class ConfigController @Inject()(
 
 
   def warnings(
-    env        : Environment,
     serviceName: ServiceName,
+    environment: Environment,
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
@@ -127,7 +127,7 @@ class ConfigController @Inject()(
           case Success(_) => println(s"Finished")
           case Failure(ex) => logger.error(s"Failed: ${ex.getMessage()}", ex)
         }
-      configWarningService.warnings(env, serviceName, latest = false)
+      configWarningService.warnings(environment, serviceName, latest = false)
         .map { res =>
           Ok(Json.toJson(res))
         }
