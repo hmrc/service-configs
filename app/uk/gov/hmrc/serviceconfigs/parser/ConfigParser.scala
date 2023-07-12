@@ -126,9 +126,10 @@ trait ConfigParser extends Logging {
     //@tailrec
     def go(acc: Set[(String, MyConfigValue)], configObject: ConfigObject, path: String): Set[(String, MyConfigValue)] =
       configObject.entrySet().asScala.toSet[Entry[String, ConfigValue]].flatMap { e =>
+        val key = path + (if (path.nonEmpty) "." else "") + e.getKey
         e.getValue match {
-          case o: ConfigObject => go(acc, o, e.getKey)
-          case other           => acc ++ Set(path + (if (path.nonEmpty) "." else "") + e.getKey -> MyConfigValue.FromConfigValue(e.getValue))
+          case o: ConfigObject => go(acc, o, key)
+          case other           => acc ++ Set(key -> MyConfigValue.FromConfigValue(e.getValue))
         }
       }
     go(Set.empty[(String, MyConfigValue)], config.root(), "")
@@ -219,7 +220,7 @@ trait ConfigParser extends Logging {
     val confAsMap2 = confAsMap.foldLeft(Map.empty[String, MyConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now...
-        if (previousConfMap.get(k) != Some(v) ||
+        if (previousConfMap.get(k).fold(true)(_.render != Some(v.render)) ||
           scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
         )
           acc ++ Seq(k -> v) // and not explicitly included in previousConf

@@ -33,6 +33,8 @@ import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
+import scala.util.Success
+import scala.util.Failure
 
 @Singleton
 @Api("Github Config")
@@ -120,7 +122,11 @@ class ConfigController @Inject()(
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      calculateAllWarnings()
+      //calculateAllWarnings()
+      //  .onComplete {
+      //    case Success(_) => println(s"Finished")
+      //    case Failure(ex) => logger.error(s"Failed: ${ex.getMessage()}", ex)
+      //  }
       configWarningService.warnings(env, serviceName, latest = false)
         .map { res =>
           Ok(Json.toJson(res))
@@ -138,8 +144,10 @@ class ConfigController @Inject()(
   private def escapeCsv(s: String): String =
     "\"" + s.replaceAll("\"", "\"\"") + "\""
 
-  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] =
+  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] = {
+    println(s">>>>>>>>>>> calculateAllWarnings")
     releasesApiConnector.getWhatsRunningWhere()
+      //.map(_.filter(_.serviceName == ServiceName("agent-authorisation-api")))
       .map { repos =>
         println(s"Processing ${repos.size} repos")
         repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
@@ -147,7 +155,7 @@ class ConfigController @Inject()(
           repo.deployments.flatMap(_.optEnvironment.toList).foldLeftM[Future, Unit](acc) { (acc, env) =>
             configWarningService.warnings(env, repo.serviceName, latest = false)
               .map { ws =>
-                val w = ws.map { case ConfigWarning(k, cse, r) => s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
+                val w = ws.sortBy(w => (w.warning, w.key)).map { case ConfigWarning(k, cse, r) => s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
                 val warnings = if (w.nonEmpty) w + "\n" else w
                 Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
                 println(warnings)
@@ -156,4 +164,5 @@ class ConfigController @Inject()(
           }
         }
       }
+    }
 }

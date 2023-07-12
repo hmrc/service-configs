@@ -388,7 +388,7 @@ object ConfigService {
   case class ConfigSourceEntries(
     source    : String,
     sourceUrl : Option[String],
-    entries   : Map[KeyName, uk.gov.hmrc.serviceconfigs.parser.MyConfigValue]
+    entries   : Map[KeyName, MyConfigValue]
   )
 
   case class ConfigSourceValue(
