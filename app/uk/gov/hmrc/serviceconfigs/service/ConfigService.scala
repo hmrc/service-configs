@@ -247,7 +247,7 @@ class ConfigService @Inject()(
     configSourceEntries: Seq[ConfigSourceEntries]
   ): Map[String, ConfigSourceValue] =
     configSourceEntries
-      .flatMap(x => x.entries.view.mapValues(v => ConfigSourceValue(x.source, x.sourceUrl, v.render)).toSeq)
+      .flatMap(x => x.entries.view.mapValues(v => ConfigSourceValue(x.source, x.sourceUrl, v)).toSeq)
       .groupBy(_._1)
       .map { case (k, vs) => k -> vs.lastOption.map(_._2) }
       .collect { case (k, Some(v)) => k -> v }
@@ -301,7 +301,7 @@ class ConfigService @Inject()(
                   case (key, value) =>
                     val envMap = subMap.getOrElse(key, Map.empty)
                     val values = envMap.getOrElse(e.name, Seq.empty)
-                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value.render))))
+                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value))))
                 }
             }
           }
@@ -394,7 +394,7 @@ object ConfigService {
   case class ConfigSourceValue(
     source    : String,
     sourceUrl : Option[String],
-    value     : String
+    value     : MyConfigValue
   )
 
   sealed trait ConfigEnvironment {

@@ -23,6 +23,7 @@ import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceValue
+import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -146,7 +147,11 @@ object AppliedConfigRepository {
       implicit val edf: Format[ConfigSourceValue] =
         ( (__ \ "source"   ).format[String]
         ~ (__ \ "sourceUrl").formatNullable[String]
-        ~ (__ \ "value"    ).format[String].inmap[String](s => s, s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+        ~ (__ \ "value"    ).format[String]
+                            .inmap[MyConfigValue](
+                               MyConfigValue.FromString, // TODO does it matter we loose info here?
+                               _.render
+                            )
         )(ConfigSourceValue.apply, unlift(ConfigSourceValue.unapply))
 
       implicit val readsEnvMap: Format[Map[Environment, ConfigSourceValue]] =

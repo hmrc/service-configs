@@ -122,7 +122,7 @@ trait ConfigParser extends Logging {
     .toMap
 
   def hasFunkyChars(c: Char) =
-    Character.isLetterOrDigit(c) || c == '-' || c == '_'
+    !(Character.isLetterOrDigit(c) || c == '-' || c == '_')
 
   /** calling config.entrySet will strip out keys with null values */
   def entrySetWithNull(config: Config): Set[(String, MyConfigValue)] = {
@@ -132,7 +132,7 @@ trait ConfigParser extends Logging {
         val key =
           path +
           (if (path.nonEmpty) "." else "") +
-          (if (e.getKey.exists(c => !hasFunkyChars(c))) s"\"${e.getKey}\"" else e.getKey)
+          (if (e.getKey.exists(hasFunkyChars)) s"\"${e.getKey}\"" else e.getKey)
 
         e.getValue match {
           case o: ConfigObject => go(acc, o, key)
@@ -275,22 +275,23 @@ object MyConfigValue {
 
   // we can't interrogate ConfigValue to this extent (only ConfigObject, ConfigList, ConfigValue) are in public api of config library
   case object FromNull extends MyConfigValue {
-    override def render    = "<<NULL>>"
-    override def valueType = MyConfigValueType.Null
+    override lazy val render    = "<<NULL>>"
+    override lazy val valueType = MyConfigValueType.Null
   }
 
   case object Suppressed extends MyConfigValue {
-    override def render    = "<<SUPPRESSED>>"
-    override def valueType = MyConfigValueType.Suppressed
+    override lazy val render    = "<<SUPPRESSED>>"
+    override lazy val valueType = MyConfigValueType.Suppressed
   }
 
   case class FromConfigValue(
     value: ConfigValue
   ) extends MyConfigValue {
-    override def render: String =
-      MyConfigValue.removeQuotes(value.render(ConfigRenderOptions.concise))
-    override def valueType: MyConfigValueType =
-      Try{
+    override lazy val render: String =
+      suppressEncryption(removeQuotes(value.render(ConfigRenderOptions.concise)))
+
+    override lazy val valueType: MyConfigValueType =
+      Try {
         value.valueType match {
           case ConfigValueType.LIST   => MyConfigValueType.List
           case ConfigValueType.OBJECT => MyConfigValueType.Object
@@ -304,6 +305,9 @@ object MyConfigValue {
       input.substring(1, input.length - 1)
     else
       input
+
+  private[MyConfigValue] def suppressEncryption(input: String): String =
+    if (input.startsWith("ENC[")) "ENC[...]" else input
 }
 
 // We don't use ConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties

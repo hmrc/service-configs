@@ -45,15 +45,19 @@ class ConfigWarningService @Inject()(
                                testOnlyRoutes(resultingConfig)
                              else Seq.empty
       rmc                 =  reactiveMongoConfig(resultingConfig)
+      uec                 =  unencryptedConfig(resultingConfig)
     } yield
-      nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding") } ++
-      ctc.map { case (k, csv) => ConfigWarning(k, csv, "DifferentType") } ++
-      ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost") } ++
-      udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG") } ++
-      tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes") } ++
-      rmc.map { case (k, csv) => ConfigWarning(k, csv, "ReactiveMongoConfig") }
+      (
+        nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding") } ++
+        ctc.map { case (k, csv) => ConfigWarning(k, csv, "DifferentType") } ++
+        ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost") } ++
+        udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG") } ++
+        tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes") } ++
+        rmc.map { case (k, csv) => ConfigWarning(k, csv, "ReactiveMongoConfig") } ++
+        uec.map { case (k, csv) => ConfigWarning(k, csv, "Unencrypted") }
+      ).sortBy(w => (w.warning, w.key))
 
-  private val ArrayRegex = "(.*)\\.\\d+".r
+  private val ArrayRegex = "(.*)\\.\\d+(\\..+)?".r
   private val Base64Regex = "(.*)\\.base64".r
 
   private def configNotOverriding(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] = {
@@ -69,7 +73,7 @@ class ConfigWarningService @Inject()(
       overrides.collect {
         case ConfigSourceEntries(source, sourceUrl, entries) =>
           entries.collect {
-            case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v.render)
+            case k -> v if !overrideableKeys.contains(k) => k -> ConfigSourceValue(source, sourceUrl, v)
           }
       }.flatten
        .collect {
@@ -90,7 +94,7 @@ class ConfigWarningService @Inject()(
               }
           && !{ k match {
             case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
-                                    key.endsWith(".previousKeys") // crypto defaults to []
+                                    key.endsWith(".previousKeys") // crypto defaults to [] // TODO require definition in application.conf
             case _               => false
           } }
           && !{ k match {
@@ -135,7 +139,7 @@ class ConfigWarningService @Inject()(
                 }
               } else false
              } =>
-              k -> ConfigSourceValue(source, sourceUrl, v.render)
+              k -> ConfigSourceValue(source, sourceUrl, v)
           }
         }
        .flatten
@@ -151,22 +155,34 @@ class ConfigWarningService @Inject()(
 
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.contains) => k -> csv
+      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.render.contains) => k -> csv
     }.toSeq
 
   private def useOfDebug(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if k.startsWith("logger.") && csv.value == "DEBUG" => k -> csv
+      case k -> csv if k.startsWith("logger.") && csv.value.render == "DEBUG" => k -> csv
     }.toSeq
 
   private def testOnlyRoutes(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if List("application.router", "play.http.router").contains(k) && csv.value.contains("testOnly") => k -> csv
+      case k -> csv if List("application.router", "play.http.router").contains(k) && csv.value.render.contains("testOnly") => k -> csv
     }.toSeq
 
   private def reactiveMongoConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if k == "mongodb.uri" && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.toLowerCase.contains) => k -> csv
+      case k -> csv if k == "mongodb.uri" && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.render.toLowerCase.contains) => k -> csv
+    }.toSeq
+
+  def hasFunkyChars(c: Char) =
+    !(Character.isLetterOrDigit(c) || c == '-' || c == '_' || c == '.' || c == '*' || c == '/' || c == ':' || c == ',')
+
+  private def unencryptedConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
+    resultingConfig.collect {
+      case k -> csv if (List("key", "secret", "pass", "token").exists(k.toLowerCase.contains))
+                    && csv.value.valueType == MyConfigValueType.SimpleValue
+                    && csv.value.render.exists(hasFunkyChars)
+                    && !csv.value.render.contains("ENC[")
+                    => k -> csv
     }.toSeq
 }
 

@@ -122,15 +122,15 @@ class ConfigController @Inject()(
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      calculateAllWarnings()
-        .onComplete {
-          case Success(_) => println(s"Finished")
-          case Failure(ex) => logger.error(s"Failed: ${ex.getMessage()}", ex)
-        }
-      configWarningService.warnings(environment, serviceName, latest = false)
-        .map { res =>
-          Ok(Json.toJson(res))
-        }
+      //calculateAllWarnings()
+      //  .onComplete {
+      //    case Success(_)  => logger.info("calculateAllWarnings - finished")
+      //    case Failure(ex) => logger.error(s"calculateAllWarnings - failed: ${ex.getMessage()}", ex)
+      //  }
+
+      configWarningService
+        .warnings(environment, serviceName, latest = false)
+        .map(res => Ok(Json.toJson(res)))
     }
 
   private val logger = play.api.Logger(getClass)
@@ -153,7 +153,10 @@ class ConfigController @Inject()(
           repo.deployments.flatMap(_.optEnvironment.toList).foldLeftM[Future, Unit](acc) { (acc, env) =>
             configWarningService.warnings(env, repo.serviceName, latest = false)
               .map { ws =>
-                val w = ws.sortBy(w => (w.warning, w.key)).map { case ConfigWarning(k, cse, r) => s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(if (cse.value.startsWith("ENC[")) "ENC[...]" else cse.value)},${cse.source},$r" }.mkString("\n")
+                val w =
+                  ws.map { case ConfigWarning(k, cse, r) =>
+                    s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(cse.value.render)},${cse.source},$r"
+                  }.mkString("\n")
                 val warnings = if (w.nonEmpty) w + "\n" else w
                 Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
                 println(warnings)

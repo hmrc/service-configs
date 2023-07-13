@@ -26,16 +26,13 @@ trait ConfigJson {
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "entries"  ).write[Map[KeyName, String]]
-                        .contramap[Map[KeyName, String]](_.map {
-                          case (k, v) if v.startsWith("ENC[") => k -> "ENC[...]"
-                          case (k, v)                         => k -> v
-                        })
                         .contramap[Map[KeyName, MyConfigValue]](_.view.mapValues(_.render).toMap)
     )(unlift(ConfigSourceEntries.unapply))
 
   implicit val configSourceValueWrites: Writes[ConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
-    ~ (__ \ "value"    ).write[String].contramap[String](s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+    ~ (__ \ "value"    ).write[String]
+                        .contramap[MyConfigValue](_.render)
     )(unlift(ConfigSourceValue.unapply))
 }
