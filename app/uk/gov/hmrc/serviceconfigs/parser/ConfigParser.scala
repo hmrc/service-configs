@@ -234,8 +234,8 @@ trait ConfigParser extends Logging {
     val confAsMap = ConfigParser.flattenConfigToDotNotation(conf).view
     val confAsMap2 = confAsMap.foldLeft(Map.empty[String, MyConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
-        // keep it for now...
-        if (previousConfMap.get(k).fold(true)(_.render != Some(v.render)) ||
+        // keep it for now... (TODO Try could be avoided by checking type Unmerged)
+        if (previousConfMap.get(k).fold(true)(_.render != v.render) ||
           scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
         )
           acc ++ Seq(k -> v) // and not explicitly included in previousConf

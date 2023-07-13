@@ -50,7 +50,7 @@ class ConfigParserSpec
         |""".stripMargin
       )
 
-      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.render).toMap shouldBe Map(
         "controllers.confidenceLevel" -> "300",
         "appName" -> "service-configs",
         "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth" -> "false",
@@ -66,7 +66,7 @@ class ConfigParserSpec
         |param2=$${play.http.parser.maxMemoryBuffer}
         |""".stripMargin)
 
-      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.render).toMap shouldBe Map(
         "param1" -> s"$${akka.http.version}",
         "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
       )
@@ -92,7 +92,7 @@ class ConfigParserSpec
         |  }
         |}""".stripMargin)
 
-      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.render).toMap shouldBe Map(
         "cookie.encryption.key" -> "1",
         "queryParameter.encryption.key" -> "P5xsJ9Nt+quxGZzB4DeLfw==",
         "queryParameter.encryption.previousKeys" -> "[]",
@@ -106,7 +106,7 @@ class ConfigParserSpec
         |param2=$${play.http.parser.maxMemoryBuffer}
         |""".stripMargin)
 
-      ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.render).toMap shouldBe Map(
         "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
       )
     }
@@ -174,9 +174,9 @@ class ConfigParserSpec
         """
       ) shouldBe Some(
         Map(
-          "logger.root"        -> "INFO",
-          "logger.uk.gov"      -> "DEBUG",
-          "logger.application" -> "DEBUG"
+          "logger.root"        -> MyConfigValue.FromString("INFO"),
+          "logger.uk.gov"      -> MyConfigValue.FromString("DEBUG"),
+          "logger.application" -> MyConfigValue.FromString("DEBUG")
         )
       )
     }
@@ -200,9 +200,9 @@ class ConfigParserSpec
         """
       ) shouldBe Some(
         Map(
-          "logger.root"        -> f"$${logger.root:-WARN}",
-          "logger.uk.gov"      -> f"$${logger.uk.gov:-WARN}",
-          "logger.application" -> f"$${logger.application:-WARN}"
+          "logger.root"        -> MyConfigValue.FromString(f"$${logger.root:-WARN}"),
+          "logger.uk.gov"      -> MyConfigValue.FromString(f"$${logger.uk.gov:-WARN}"),
+          "logger.application" -> MyConfigValue.FromString(f"$${logger.application:-WARN}")
         )
       )
     }
@@ -214,35 +214,58 @@ class ConfigParserSpec
 
   "ConfigParser.extractAsConfig" should {
     "strip and return entries under prefix" in {
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a" -> "1", "b" -> "2")), Map.empty[String, String])
+      val (config, suppressed) =
+        ConfigParser.extractAsConfig(
+          properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
+        , prefix          = "prefix."
+        )
+      config     shouldBe toConfig(Map("a" -> "1", "b" -> "2"))
+      suppressed shouldBe Map.empty[String, String]
     }
 
     "handle object and value conflicts by ignoring values" in {
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("a.b" -> "2"))
+        suppressed.view.mapValues(_.render).toMap shouldBe Map("a" -> "1")
+      }
 
       // Check not affected by order
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("a.b" -> "2"))
+        suppressed.view.mapValues(_.render).toMap shouldBe Map("a" -> "1")
+      }
 
       // Check nested
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b.c" -> "3")), Map("a" -> "1", "a.b" -> "2"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("a.b.c" -> "3"))
+        suppressed.view.mapValues(_.render).toMap shouldBe Map("a" -> "1", "a.b" -> "2")
+      }
 
       // Ensure diff by key since Play Config applies its escaping
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("Prod.http-client.audit.disabled-for" -> """http://.*\.service""")), Map.empty[String, String])
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
+        suppressed.view.mapValues(_.render).toMap shouldBe Map.empty[String, String]
+      }
     }
   }
 
@@ -256,7 +279,7 @@ class ConfigParserSpec
                                |c=3
                                |""".stripMargin
                           ))
-      ) shouldBe Map("a" -> "1")
+      ).view.mapValues(_.render).toMap shouldBe Map("a" -> "1")
     }
 
     "work on many levels" in {
@@ -268,7 +291,7 @@ class ConfigParserSpec
                                |c=3
                                |""".stripMargin
                           ))
-      ) shouldBe Map("a" -> "1")
+      ).view.mapValues(_.render).toMap shouldBe Map("a" -> "1")
     }
   }
 
@@ -362,9 +385,9 @@ class ConfigParserSpec
         |""".stripMargin
       )
       // entries should have substitutions applied
-      entries shouldBe Map(
-        "param1" -> s"yyy",
-        "param2" -> s"yyy"
+      entries.view.mapValues(_.render).toMap shouldBe Map(
+        "param1" -> "yyy",
+        "param2" -> "yyy"
       )
     }
 
@@ -387,8 +410,8 @@ class ConfigParserSpec
         |""".stripMargin
       )
       // entries should only include effective changes from latestConf
-      entries shouldBe Map(
-        "param1" -> s"yyy"
+      entries.view.mapValues(_.render).toMap shouldBe Map(
+        "param1" -> "yyy"
       )
     }
 
@@ -410,8 +433,8 @@ class ConfigParserSpec
         |""".stripMargin
       )
       // and entries should preserve the update from latestConf, even though it hasn't changed from previousConf
-      entries shouldBe Map(
-        "param1" -> s"yyy"
+      entries.view.mapValues(_.render).toMap shouldBe Map(
+        "param1" -> "yyy"
       )
     }
   }

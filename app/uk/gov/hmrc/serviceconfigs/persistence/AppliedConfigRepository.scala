@@ -22,8 +22,6 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceValue
-import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -52,7 +50,7 @@ class AppliedConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def put(serviceName: ServiceName, environment: Environment, config: Map[String, ConfigSourceValue]): Future[Unit] =
+  def put(serviceName: ServiceName, environment: Environment, config: Map[String, RenderedConfigSourceValue]): Future[Unit] =
     for {
       old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
       updated =  old.map(x => x.copy(environments = config.get(x.key) match {
@@ -134,30 +132,32 @@ object AppliedConfigRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, Json, Reads, Writes, __}
 
+  case class RenderedConfigSourceValue(
+    source   : String,
+    sourceUrl: Option[String],
+    value    : String
+  )
+
   case class AppliedConfig(
     serviceName  : ServiceName
   , key          : String
-  , environments : Map[Environment, ConfigSourceValue]
+  , environments : Map[Environment, RenderedConfigSourceValue]
   , onlyReference: Boolean
   )
 
   object AppliedConfig {
     val format: Format[AppliedConfig] = {
       implicit val snf = ServiceName.format
-      implicit val edf: Format[ConfigSourceValue] =
+      implicit val rcsvf: Format[RenderedConfigSourceValue] =
         ( (__ \ "source"   ).format[String]
         ~ (__ \ "sourceUrl").formatNullable[String]
         ~ (__ \ "value"    ).format[String]
-                            .inmap[MyConfigValue](
-                               MyConfigValue.FromString, // TODO does it matter we loose info here?
-                               _.render
-                            )
-        )(ConfigSourceValue.apply, unlift(ConfigSourceValue.unapply))
+        )(RenderedConfigSourceValue.apply, unlift(RenderedConfigSourceValue.unapply))
 
-      implicit val readsEnvMap: Format[Map[Environment, ConfigSourceValue]] =
+      implicit val readsEnvMap: Format[Map[Environment, RenderedConfigSourceValue]] =
         Format(
           Reads
-            .of[Map[String, ConfigSourceValue]]
+            .of[Map[String, RenderedConfigSourceValue]]
             .map(_.map { case (k, v) => (Environment.parse(k).getOrElse(sys.error(s"Invalid Environment: $k")), v) })
         , Writes
             .apply { xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }) }
@@ -165,7 +165,7 @@ object AppliedConfigRepository {
 
       ( (__ \ "serviceName"  ).format[ServiceName]
       ~ (__ \ "key"          ).format[String]
-      ~ (__ \ "environments" ).format[Map[Environment, ConfigSourceValue]]
+      ~ (__ \ "environments" ).format[Map[Environment, RenderedConfigSourceValue]]
       ~ (__ \ "onlyReference").format[Boolean]
       )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
     }
