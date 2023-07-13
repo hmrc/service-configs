@@ -46,7 +46,7 @@ class ConfigAsCodeConnector @Inject()(
   implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def streamInternalAuth(): Future[ZipInputStream] =
-    streamGithub(RepoName("internal-auth"))
+    streamGithub(RepoName("internal-auth-config"))
 
   def streamBuildJobs(): Future[ZipInputStream] =
     streamGithub(RepoName("build-jobs"))

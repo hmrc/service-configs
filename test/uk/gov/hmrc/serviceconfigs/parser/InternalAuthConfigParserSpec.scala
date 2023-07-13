@@ -34,7 +34,7 @@ class InternalAuthConfigParserSpec
     "parse a zip file " in {
       val result: Set[InternalAuthConfig] = parser.parseZip(configZip)
 
-      result.size shouldBe 218
+      result.size shouldBe 218 //todo make this a better test reduce the size of the zip and assert on values
     }
   }
 

@@ -34,7 +34,7 @@ configAsCodeConnector: ConfigAsCodeConnector
   def updateInternalAuth(): Future[Unit] = {
     for {
       zip <- configAsCodeConnector.streamInternalAuth()
-      - <- internalAuthConfigRepository.putAll(parser.parseZip(zip).toSeq) //todo look to refactor putAll to take a set
+      - <- internalAuthConfigRepository.putAll(parser.parseZip(zip))
     } yield ()
   }
 

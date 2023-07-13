@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
+import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
@@ -42,7 +43,7 @@ class InternalAuthConfigRepository @Inject()(
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format),
                        Codecs.playFormatCodec(InternalAuthEnvironment.format),
                        Codecs.playFormatCodec(GrantType.format))
-) with Transactions {
+) with Transactions with Logging {
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
@@ -52,12 +53,13 @@ class InternalAuthConfigRepository @Inject()(
       .find(equal("service", serviceName))
       .toFuture()
 
-  def putAll(internalAuthConfigs: Seq[InternalAuthConfig]) : Future[Int] =
+  def putAll(internalAuthConfigs: Set[InternalAuthConfig]) : Future[Int] = {
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, internalAuthConfigs).toFuture()
+        r <- collection.insertMany(session, internalAuthConfigs.toSeq).toFuture()
       } yield r.getInsertedIds.size()
     }
+  }
 
 }
