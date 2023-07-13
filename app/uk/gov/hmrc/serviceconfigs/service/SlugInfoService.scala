@@ -43,7 +43,7 @@ class SlugInfoService @Inject()(
 , githubRawConnector       : GithubRawConnector
 , configConnector          : ConfigConnector
 , configService            : ConfigService,
-  clock                    : java.time.Clock
+  clock                    : Clock
 )(implicit
   ec: ExecutionContext
 ) {
@@ -60,7 +60,7 @@ class SlugInfoService @Inject()(
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
-      processStart            = Instant.now(clock)
+      dataTimestamp          =  Instant.now(clock)
       serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.name)))
@@ -85,7 +85,7 @@ class SlugInfoService @Inject()(
                                   deployments.foldLeftM(acc) {
                                     case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
                                                                              .map(_ => acc.copy(removed = acc.removed + 1))
-                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment, processStart)
+                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment, dataTimestamp)
                                                                              .map(requiresUpdate => if (requiresUpdate)
                                                                                                acc.copy(updated = acc.updated + 1)
                                                                                              else acc.copy(skipped = acc.skipped + 1))
@@ -131,30 +131,29 @@ class SlugInfoService @Inject()(
       for {
         _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
         currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
-        requiresUpdate         = currentDeploymentInfo match {
-            case None         => {
-              logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
-              true
-            }
-            case Some(config) =>
-              if(config.lastUpdated.isAfter(dataTimestamp) && !config.configId.equals(deployment.configId)) {
-                logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
-                  s"as the latest update occurred after the current process began.")
-                false
-              } else if (config.lastUpdated.isBefore(dataTimestamp) && !config.configId.equals(deployment.configId)) {
-                logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
-                true
-              } else {
-                logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
-                false
-              }
-        }
-        _              <- if (requiresUpdate)
-                       updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), dataTimestamp)
-                         .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
-                         .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
-                     else
-                       Future.unit
+        requiresUpdate        =  currentDeploymentInfo match {
+                                    case None         =>
+                                      logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
+                                      true
+                                    case Some(config) =>
+                                      if (config.configId.equals(deployment.configId)) {
+                                        logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
+                                        false
+                                      } else if (config.lastUpdated.isAfter(dataTimestamp)) {
+                                        logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
+                                          s"as the latest update occurred after the current process began.")
+                                        false
+                                      } else {
+                                        logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
+                                        true
+                                      }
+                                }
+      _                       <- if (requiresUpdate)
+                                   updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), dataTimestamp)
+                                     .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                                     .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
+                                 else
+                                   Future.unit
       } yield requiresUpdate
 
     private def updateDeployedConfig(

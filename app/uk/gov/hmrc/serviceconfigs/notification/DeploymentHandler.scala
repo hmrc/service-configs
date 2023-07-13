@@ -35,7 +35,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
-import java.time.Instant
+import java.time.{Instant, Clock}
 import scala.collection.immutable.TreeMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -45,7 +45,7 @@ import scala.util.{Failure, Try}
 class DeploymentHandler @Inject()(
   config         : ArtefactReceivingConfig,
   slugInfoService: SlugInfoService,
-  clock          : java.time.Clock
+  clock          : Clock
   )(implicit
   actorSystem : ActorSystem,
   materializer: Materializer,

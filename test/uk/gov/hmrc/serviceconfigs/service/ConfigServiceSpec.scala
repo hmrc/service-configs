@@ -181,7 +181,7 @@ class ConfigServiceSpec
       ))
       .toFuture().futureValue
 
-  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String): Unit = {
+  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String, lastUpdated: Instant): Unit = {
     deployedConfigCollection
       .insertOne(Document(
         "serviceName"       -> serviceName.asString,
@@ -191,15 +191,16 @@ class ConfigServiceSpec
         //"appConfigBase"   -> None,
         //"appConfigCommon" -> None
         "appConfigEnv"      -> content,
-        "lastUpdated"       -> BsonDocument("$date" -> BsonDocument("$numberLong" -> Instant.now().minus(2, ChronoUnit.DAYS).toEpochMilli.toString))
+        "lastUpdated"       -> BsonDocument("$date" -> BsonDocument("$numberLong" -> lastUpdated.toEpochMilli.toString))
       ))
       .toFuture().futureValue
   }
 
   def setup(serviceName: ServiceName, latest: Boolean): Unit = {
+    val now      = Instant.now()
     val slugInfo = SlugInfo(
       uri               = "some/uri"
-    , created           = Instant.now
+    , created           = now
     , name              = serviceName
     , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
     , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
@@ -225,8 +226,8 @@ class ConfigServiceSpec
       withAppConfigEnvForHEAD("development", serviceName, appConfigDev)
       withAppConfigEnvForHEAD("qa"         , serviceName, appConfigQa)
     } else {
-      withAppConfigEnvForDeployment("development", serviceName, appConfigDev)
-      withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa)
+      withAppConfigEnvForDeployment("development", serviceName, appConfigDev, now.minus(2, ChronoUnit.DAYS))
+      withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa , now.minus(2, ChronoUnit.DAYS))
     }
 
     slugInfoCollection
