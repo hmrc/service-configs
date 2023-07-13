@@ -25,9 +25,11 @@ import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{GrantType, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
+
+@Singleton
 class InternalAuthConfigRepository @Inject()(
                                            override val mongoComponent: MongoComponent
                                          )(implicit
@@ -37,8 +39,7 @@ class InternalAuthConfigRepository @Inject()(
   collectionName = "internalAuthConfig",
   domainFormat   = InternalAuthConfig.format,
   indexes        = Seq(
-    IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx")),
-    IndexModel(Indexes.hashed("environment"), IndexOptions().background(true).name("environmentIdx"))
+    IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("intAuthServiceNameIdx"))
   ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format),
                        Codecs.playFormatCodec(InternalAuthEnvironment.format),
@@ -50,7 +51,7 @@ class InternalAuthConfigRepository @Inject()(
 
   def findByService(serviceName: ServiceName): Future[Seq[InternalAuthConfig]] =
     collection
-      .find(equal("service", serviceName))
+      .find(equal("serviceName", serviceName))
       .toFuture()
 
   def putAll(internalAuthConfigs: Set[InternalAuthConfig]) : Future[Int] = {
