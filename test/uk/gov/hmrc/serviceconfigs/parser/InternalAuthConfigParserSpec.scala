@@ -34,8 +34,7 @@ class InternalAuthConfigParserSpec
     "parse a zip file " in {
       val result: Set[InternalAuthConfig] = parser.parseZip(configZip)
 
-      logger.info(s"${result.mkString(" : ")}")
-
+      result.size shouldBe 218
     }
   }
 

@@ -18,13 +18,14 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.model.GrantType.Grantee
+import uk.gov.hmrc.serviceconfigs.model.GrantType.{Grantee, Grantor}
 import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment._
 import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, InternalAuthEnvironment, ServiceName}
 
 import java.io.ByteArrayOutputStream
 import java.util
 import java.util.zip.{ZipEntry, ZipInputStream}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
@@ -47,16 +48,25 @@ class InternalAuthConfigParser extends Logging {
 
   }
 
-  def parseGrants(parsedYaml: util.List[util.Map[String, Any]], env: InternalAuthEnvironment) = {
+  private def parseGrants(parsedYaml: util.List[util.Map[String, Any]], env: InternalAuthEnvironment) = {
     parsedYaml.asScala.flatMap { entry =>
-      entry.asScala.get("grantees") match {
-        case Some(granteesMap: java.util.Map[String, Any]) =>
-          granteesMap.asScala.get("service") match {
-            case Some(serviceList: java.util.ArrayList[String]) =>
-              serviceList.asScala.map(s => Some(InternalAuthConfig(ServiceName(s), env, Grantee)))
-            case _ => None
-          }
-        case None => None
+      if (entry.asScala.contains("grantees")) {
+        entry.asScala.get("grantees") match {
+          case Some(granteesMap: java.util.Map[String, Any]) =>
+            granteesMap.asScala.get("service") match {
+              case Some(serviceList: java.util.ArrayList[String]) =>
+                serviceList.asScala.map(s => Some(InternalAuthConfig(ServiceName(s), env, Grantee)))
+              case _ => None
+            }
+          case None => None
+        }
+      } else if (entry.asScala.contains("resourceType")) {
+        entry.asScala.get("resourceType") match {
+          case Some(service: String) => Some(List(InternalAuthConfig(ServiceName(service), env, Grantor)))
+          case _ => None
+        }
+      } else {
+        None
       }
     }
   }.toSet.flatten
