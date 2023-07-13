@@ -22,7 +22,7 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
-import uk.gov.hmrc.serviceconfigs.service.AlertConfigService
+import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -34,6 +34,7 @@ class ConfigScheduler @Inject()(
   schedulerConfigs                  : SchedulerConfigs,
   mongoLockRepository               : MongoLockRepository,
   alertConfigService                : AlertConfigService,
+  internalAuthConfigService         : InternalAuthConfigService,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
   timestampSupport                  : TimestampSupport
 )(implicit
@@ -50,8 +51,9 @@ class ConfigScheduler @Inject()(
     logger.info("Updating config")
     runAllAndFailWithFirstError(
       for {
-        _ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
-        _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+        //_ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
+        //_ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+        - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
       } yield logger.info("Finished updating config")
     )
   }
