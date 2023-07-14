@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.MyConfigValueType
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValueType
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName}
 
 import javax.inject.{Inject, Singleton}
@@ -48,16 +48,16 @@ class ConfigWarningService @Inject()(
       uec                 =  unencryptedConfig(resultingConfig)
     } yield
       (
-        nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding") } ++
-        ctc.map { case (k, csv) => ConfigWarning(k, csv, "DifferentType") } ++
-        ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost") } ++
-        udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG") } ++
-        tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes") } ++
+        nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding"      ) } ++
+        ctc.map { case (k, csv) => ConfigWarning(k, csv, "TypeChange"         ) } ++
+        ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost"          ) } ++
+        udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG"              ) } ++
+        tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
         rmc.map { case (k, csv) => ConfigWarning(k, csv, "ReactiveMongoConfig") } ++
-        uec.map { case (k, csv) => ConfigWarning(k, csv, "Unencrypted") }
+        uec.map { case (k, csv) => ConfigWarning(k, csv, "Unencrypted"        ) }
       ).sortBy(w => (w.warning, w.key))
 
-  private val ArrayRegex = "(.*)\\.\\d+(\\..+)?".r
+  private val ArrayRegex = "(.*)\\.\\d+(?:\\..+)?".r
   private val Base64Regex = "(.*)\\.base64".r
 
   private def configNotOverriding(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] = {
@@ -124,20 +124,16 @@ class ConfigWarningService @Inject()(
           entries.collect {
             case k -> v if overrideable2.exists { case (k2, v2) =>
               if (k == k2 && v.valueType != v2.valueType) {
-                val IsArrayValue = s"${k.replace(".", "\\.")}.\\d+(\\..+)?".r
-                val IsBase64     = s"${k.replace(".", "\\.")}.base64".r
                 if (
-                  (v2.valueType == MyConfigValueType.List        && v.valueType == MyConfigValueType.Suppressed && overrides.flatMap(_.entries.keySet).exists(IsArrayValue.matches)) ||
-                  (v2.valueType == MyConfigValueType.SimpleValue && v.valueType == MyConfigValueType.Suppressed && overrides.flatMap(_.entries.keySet).exists(IsBase64.matches)) ||
-                  v.valueType   == MyConfigValueType.Null     || v2.valueType == MyConfigValueType.Null ||
-                  v.valueType   == MyConfigValueType.Unmerged || v2.valueType == MyConfigValueType.Unmerged
+                 v.valueType == ConfigValueType.Null       || v2.valueType == ConfigValueType.Null     ||
+                 v.valueType == ConfigValueType.Unmerged   || v2.valueType == ConfigValueType.Unmerged ||
+                 v.valueType == ConfigValueType.Suppressed || v2.valueType == ConfigValueType.Suppressed
                 )
                   false
-                else {
-//                  println(s">>> k $k: ${v2.valueType} (${v2.asString}) -> ${v.valueType} $v (${v.asString})")
+                else
                   true
-                }
-              } else false
+              } else
+                false
              } =>
               k -> ConfigSourceValue(source, sourceUrl, v)
           }
@@ -171,7 +167,7 @@ class ConfigWarningService @Inject()(
   private def reactiveMongoConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
       case k -> csv if k == "mongodb.uri"
-                    && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.asString.toLowerCase.contains)
+                    && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms", "sslEnabled").exists(csv.value.asString.toLowerCase.contains)
                     => k -> csv
     }.toSeq
 
@@ -181,7 +177,7 @@ class ConfigWarningService @Inject()(
   private def unencryptedConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
       case k -> csv if (List("key", "secret", "pass", "token").exists(k.toLowerCase.contains))
-                    && csv.value.valueType == MyConfigValueType.SimpleValue
+                    && csv.value.valueType == ConfigValueType.SimpleValue
                     && csv.value.asString.exists(hasFunkyChars)
                     && !csv.value.asString.contains("ENC[")
                     => k -> csv

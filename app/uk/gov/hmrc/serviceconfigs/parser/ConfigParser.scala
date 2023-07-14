@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import com.typesafe.config._
+import com.typesafe.config.{ConfigValue => TSConfigValue, ConfigValueType => TSConfigValueType, _}
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
@@ -86,14 +86,14 @@ trait ConfigParser extends Logging {
     props
   }
 
-  def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, MyConfigValue]] =
+  def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, ConfigValue]] =
     Try {
       val xml = SafeXml().loadString(xmlString)
       val root =
         (for {
            node  <- (xml  \ "root"  ).headOption
            level <- (node \ "@level").headOption
-         } yield Map("logger.root" -> MyConfigValue(level.text))
+         } yield Map("logger.root" -> ConfigValue(level.text))
         ).getOrElse(Map.empty)
       val logger =
           (xml \ "logger")
@@ -101,7 +101,7 @@ trait ConfigParser extends Logging {
               for {
                 k <- (x \ "@name" ).headOption
                 v <- (x \ "@level").headOption
-              } yield s"logger.${k.text}" -> MyConfigValue(v.text)
+              } yield s"logger.${k.text}" -> ConfigValue(v.text)
             )
             .toMap
       root ++ logger
@@ -110,7 +110,7 @@ trait ConfigParser extends Logging {
   /** The config is resolved (substitutions applied) and
     * the config is returned as a flat Map
     */
-  def flattenConfigToDotNotation(config: Config): Map[String, MyConfigValue] =
+  def flattenConfigToDotNotation(config: Config): Map[String, ConfigValue] =
     entrySetWithNull(
       config
         .resolve(
@@ -125,10 +125,10 @@ trait ConfigParser extends Logging {
     !(Character.isLetterOrDigit(c) || c == '-' || c == '_')
 
   /** calling config.entrySet will strip out keys with null values */
-  def entrySetWithNull(config: Config): Set[(String, MyConfigValue)] = {
+  def entrySetWithNull(config: Config): Set[(String, ConfigValue)] = {
     //@tailrec
-    def go(acc: Set[(String, MyConfigValue)], configObject: ConfigObject, path: String): Set[(String, MyConfigValue)] =
-      configObject.entrySet().asScala.toSet[Entry[String, ConfigValue]].flatMap { e =>
+    def go(acc: Set[(String, ConfigValue)], configObject: ConfigObject, path: String): Set[(String, ConfigValue)] =
+      configObject.entrySet().asScala.toSet[Entry[String, TSConfigValue]].flatMap { e =>
         val key =
           path +
           (if (path.nonEmpty) "." else "") +
@@ -140,15 +140,15 @@ trait ConfigParser extends Logging {
                                     // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
                                     // can we resolve first?
                                     (if (Try(config.getIsNull(key)).getOrElse(false))
-                                       MyConfigValue.Null
+                                       ConfigValue.Null
                                      else {
-                                       MyConfigValue.apply(e.getValue)
+                                       ConfigValue.apply(e.getValue)
                                      }
                                     )
                                   )
         }
       }
-    go(Set.empty[(String, MyConfigValue)], config.root(), "")
+    go(Set.empty[(String, ConfigValue)], config.root(), "")
   }
 
   private def flattenYamlToDotNotation(
@@ -195,14 +195,13 @@ trait ConfigParser extends Logging {
               .get(filename)
               .map(parseConfString(_, toIncludeCandidates(dc :: rest)))
               .getOrElse(ConfigFactory.empty)
-          configFor("play/reference-overrides.conf").withFallback(
-            configFor("reference.conf")
-          )
+          configFor("play/reference-overrides.conf")
+            .withFallback(configFor("reference.conf"))
         case _ => ConfigFactory.empty
       }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, MyConfigValue]) = {
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, ConfigValue]) = {
      val newProps = new Properties
 
      properties
@@ -213,7 +212,7 @@ trait ConfigParser extends Logging {
      val config     = ConfigFactory.parseProperties(newProps)
      val suppressed = newProps.asScala.view
                         .filterKeys(!flattenConfigToDotNotation(config).contains(_))
-                        .mapValues(MyConfigValue.apply)
+                        .mapValues(ConfigValue.apply)
                         .toMap
      (config, suppressed)
    }
@@ -222,7 +221,7 @@ trait ConfigParser extends Logging {
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
     * i.e. new entries from latestConf, or entries that have been changed because of latestConf (e.g. latestConf provided different substitutions)
     */
-  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, MyConfigValue]) = {
+  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, ConfigValue]) = {
     val previousConfMap = ConfigParser.flattenConfigToDotNotation(previousConf)
 
     val conf = latestConf.withFallback(previousConf)
@@ -233,7 +232,7 @@ trait ConfigParser extends Logging {
           .setUseSystemEnvironment(false)
       )
     val confAsMap = ConfigParser.flattenConfigToDotNotation(conf).view
-    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, MyConfigValue]){ case (acc, (k, v)) =>
+    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, ConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now... (TODO Try could be avoided by checking type Unmerged)
         if (previousConfMap.get(k).fold(true)(_.asString != v.asString) ||
@@ -249,7 +248,7 @@ trait ConfigParser extends Logging {
   /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
     * This is often the sign of an error.
     */
-  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, MyConfigValue] = {
+  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, ConfigValue] = {
     val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
     val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
     flattenConfigToDotNotation(previousConf)
@@ -261,32 +260,32 @@ trait ConfigParser extends Logging {
 
 object ConfigParser extends ConfigParser
 
-case class MyConfigValue(
+case class ConfigValue(
   asString : String,
-  valueType: MyConfigValueType
+  valueType: ConfigValueType
 )
 
-object MyConfigValue {
-  val Null: MyConfigValue =
-    MyConfigValue(asString = "<<NULL>>", MyConfigValueType.Null)
+object ConfigValue {
+  val Null: ConfigValue =
+    ConfigValue(asString = "<<NULL>>", ConfigValueType.Null)
 
-  val Suppressed: MyConfigValue =
-    MyConfigValue(asString = "<<SUPPRESSED>>", MyConfigValueType.Suppressed)
+  val Suppressed: ConfigValue =
+    ConfigValue(asString = "<<SUPPRESSED>>", ConfigValueType.Suppressed)
 
-  def apply(s: String): MyConfigValue =
-    MyConfigValue(asString = s, valueType = MyConfigValueType.SimpleValue)
+  def apply(s: String): ConfigValue =
+    ConfigValue(asString = s, valueType = ConfigValueType.SimpleValue)
 
-  def apply(value: ConfigValue): MyConfigValue =
+  def apply(value: TSConfigValue): ConfigValue =
     // TODO should we also store value.origin (filename, lineNumber etc.)
-    MyConfigValue(
+    ConfigValue(
       asString  = suppressEncryption(removeQuotes(value.render(ConfigRenderOptions.concise))),
       valueType = Try {
                     value.valueType match {
-                      case ConfigValueType.LIST   => MyConfigValueType.List
-                      case ConfigValueType.OBJECT => MyConfigValueType.Object
-                      case _                      => MyConfigValueType.SimpleValue
+                      case TSConfigValueType.LIST   => ConfigValueType.List
+                      case TSConfigValueType.OBJECT => ConfigValueType.Object
+                      case _                        => ConfigValueType.SimpleValue
                     }
-                  }.getOrElse(MyConfigValueType.Unmerged)
+                  }.getOrElse(ConfigValueType.Unmerged)
     )
 
   private def removeQuotes(input: String): String =
@@ -299,15 +298,15 @@ object MyConfigValue {
     if (input.startsWith("ENC[")) "ENC[...]" else input
 }
 
-// We don't use ConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties
+// We don't use TSConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties
 // and we want to add Unmerged, when we can't tell (e.g. placeholders need resolving)
-sealed trait MyConfigValueType
+sealed trait ConfigValueType
 
-object MyConfigValueType {
-  case object Null        extends MyConfigValueType
-  case object Unmerged    extends MyConfigValueType
-  case object SimpleValue extends MyConfigValueType
-  case object List        extends MyConfigValueType
-  case object Object      extends MyConfigValueType
-  case object Suppressed  extends MyConfigValueType // This is really a non-type
+object ConfigValueType {
+  case object Null        extends ConfigValueType
+  case object Unmerged    extends ConfigValueType
+  case object SimpleValue extends ConfigValueType
+  case object List        extends ConfigValueType
+  case object Object      extends ConfigValueType
+  case object Suppressed  extends ConfigValueType
 }

@@ -24,7 +24,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, SlugInfo, SlugInfoFlag, ServiceType, Tag, TeamName, Version}
-import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, MyConfigValue}
+import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
 
 import java.util.Base64
@@ -46,7 +46,7 @@ class ConfigService @Inject()(
 
   import ConfigService._
 
-  private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Map[String, MyConfigValue] =
+  private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Map[String, ConfigValue] =
     optSlugInfo match {
       // LoggerModule was added for this version
       case Some(slugInfo) if slugInfo.dependencies.exists(d =>
@@ -57,7 +57,7 @@ class ConfigService @Inject()(
         ConfigParser
           .parseXmlLoggerConfigStringAsMap(slugInfo.loggerConfig)
           .getOrElse(Map.empty)
-      case _ => Map.empty[String, MyConfigValue]
+      case _ => Map.empty[String, ConfigValue]
     }
 
   private def lookupDependencyConfigs(optSlugInfo: Option[SlugInfo]): Future[List[DependencyConfig]] =
@@ -123,9 +123,9 @@ class ConfigService @Inject()(
           case None                 => (entry.config, ConfigParser.flattenConfigToDotNotation(entry.config))
           case Some(previousConfig) => ConfigParser.delta(entry.config, previousConfig)
       }
-      val suppressed: Map[String, MyConfigValue] =
+      val suppressed: Map[String, ConfigValue] =
         (ConfigParser.suppressed(entry.config, optPreviousConfig) ++ entry.suppressed)
-          .map { case (k, _) => k -> MyConfigValue.Suppressed }
+          .map { case (k, _) => k -> ConfigValue.Suppressed }
           .filterNot { case (k, _) => k.startsWith("logger.") && k != "logger.resource" } // This assumes that logging was defined in system.properties or the key was quoted
       (acc :+ ConfigSourceEntries(entry.name, entry.sourceUrl, entries ++ suppressed), Some(nextConfig))
     }
@@ -133,7 +133,7 @@ class ConfigService @Inject()(
     lastConfig match {
       case Some(config) =>
         val base64 = ConfigParser.flattenConfigToDotNotation(config).flatMap {
-          case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> MyConfigValue(Try(new String(Base64.getDecoder.decode(v.asString), "UTF-8")).getOrElse("<<Invalid base64>>")))
+          case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> ConfigValue(Try(new String(Base64.getDecoder.decode(v.asString), "UTF-8")).getOrElse("<<Invalid base64>>")))
           case _                               => Map.empty
         }
         cses :+ ConfigSourceEntries("base64", sourceUrl = None, base64)
@@ -332,11 +332,11 @@ object ConfigService {
     name         : String,
     sourceUrl    : Option[String],
     config       : Config,
-    suppressed   : Map[String, MyConfigValue]
+    suppressed   : Map[String, ConfigValue]
   )
 
   object ConfigSourceConfig {
-    def referenceConf(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def referenceConf(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "referenceConf",
         sourceUrl  = None,
@@ -344,7 +344,7 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def applicationConf(serviceName: ServiceName)(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def applicationConf(serviceName: ServiceName)(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "applicationConf",
         sourceUrl  = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application.conf"),
@@ -352,7 +352,7 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def baseConfig(serviceName: ServiceName)(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def baseConfig(serviceName: ServiceName)(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "baseConfig",
         sourceUrl  = Some(s"https://github.com/hmrc/app-config-base/blob/main/${serviceName.asString}.conf"),
@@ -360,7 +360,7 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def appConfigCommonOverridable(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def appConfigCommonOverridable(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "appConfigCommonOverridable",
         sourceUrl  = serviceType.map(st => s"https://github.com/hmrc/app-config-common/blob/main/${environment.asString}-$st-common.yaml"),
@@ -368,7 +368,7 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def appConfigEnvironment(environment: Environment, serviceName: ServiceName)(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def appConfigEnvironment(environment: Environment, serviceName: ServiceName)(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "appConfigEnvironment",
         sourceUrl  = Some(s"https://github.com/hmrc/app-config-${environment.asString}/blob/main/${serviceName.asString}.yaml"),
@@ -376,7 +376,7 @@ object ConfigService {
         suppressed = suppressed
       )
 
-    def appConfigCommonFixed(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, MyConfigValue]): ConfigSourceConfig =
+    def appConfigCommonFixed(environment: Environment, serviceType: Option[String])(config: Config, suppressed: Map[String, ConfigValue]): ConfigSourceConfig =
       ConfigSourceConfig(
         "appConfigCommonFixed",
         sourceUrl  = serviceType.map(st => s"https://github.com/hmrc/app-config-common/blob/main/${environment.asString}-$st-common.yaml"),
@@ -388,13 +388,13 @@ object ConfigService {
   case class ConfigSourceEntries(
     source    : String,
     sourceUrl : Option[String],
-    entries   : Map[KeyName, MyConfigValue]
+    entries   : Map[KeyName, ConfigValue]
   )
 
   case class ConfigSourceValue(
     source    : String,
     sourceUrl : Option[String],
-    value     : MyConfigValue
+    value     : ConfigValue
   )
 
   sealed trait ConfigEnvironment {

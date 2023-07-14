@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
 
@@ -34,15 +34,15 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
             source     = "baseConfig",
             sourceUrl  = None,
             entries    = Map(
-                           "entry1" -> MyConfigValue("configEntry-1"),
-                           "entry2" -> MyConfigValue("configEntry-2")
+                           "entry1" -> ConfigValue("configEntry-1"),
+                           "entry2" -> ConfigValue("configEntry-2")
                          )
           ),
           ConfigSourceEntries(
             source    = "appConfig",
             sourceUrl = Some("https://github.com/hmrc/appConfig"),
             entries   = Map(
-                          "entry3" -> MyConfigValue("configEntry-3")
+                          "entry3" -> ConfigValue("configEntry-3")
                         )
           )
         )
@@ -80,12 +80,12 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
             ConfigService.ConfigSourceValue(
               source    = "baseConfig",
               sourceUrl = None,
-              value     = MyConfigValue("configEntry1")
+              value     = ConfigValue("configEntry1")
             ),
             ConfigService.ConfigSourceValue(
               source    = "appConfig",
               sourceUrl = Some("https://github.com/hmrc/appConfig"),
-              value     = MyConfigValue("configEntry2")
+              value     = ConfigValue("configEntry2")
             )
           )
         )

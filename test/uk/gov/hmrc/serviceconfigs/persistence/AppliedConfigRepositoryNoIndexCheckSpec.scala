@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.MyConfigValue
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceValue
 
 import scala.concurrent.ExecutionContext.Implicits.global
