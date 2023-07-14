@@ -60,19 +60,20 @@ sealed trait InternalAuthEnvironment{ def asString: String }
 object InternalAuthEnvironment {
 
   case object Prod extends InternalAuthEnvironment {
-    val asString = "PROD"
+    val asString = "production"
   }
 
   case object Qa extends InternalAuthEnvironment {
-    val asString = "QA"
+    val asString = "qa"
   }
 
  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
     override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
 
+   //todo make this correct
     override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = json match {
-      case JsString("PROD") => JsSuccess(Prod)
-      case JsString("QA") => JsSuccess(Qa)
+      case JsString("production") => JsSuccess(Prod)
+      case JsString("qa") => JsSuccess(Qa)
       case _ => JsError("Invalid Internal Auth Environment")
     }
   }
