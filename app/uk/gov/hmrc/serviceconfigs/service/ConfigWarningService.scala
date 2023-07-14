@@ -134,7 +134,7 @@ class ConfigWarningService @Inject()(
                 )
                   false
                 else {
-//                  println(s">>> k $k: ${v2.valueType} (${v2.render}) -> ${v.valueType} $v (${v.render})")
+//                  println(s">>> k $k: ${v2.valueType} (${v2.asString}) -> ${v.valueType} $v (${v.asString})")
                   true
                 }
               } else false
@@ -155,22 +155,24 @@ class ConfigWarningService @Inject()(
 
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.render.contains) => k -> csv
+      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.asString.contains) => k -> csv
     }.toSeq
 
   private def useOfDebug(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if k.startsWith("logger.") && csv.value.render == "DEBUG" => k -> csv
+      case k -> csv if k.startsWith("logger.") && csv.value.asString == "DEBUG" => k -> csv
     }.toSeq
 
   private def testOnlyRoutes(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if List("application.router", "play.http.router").contains(k) && csv.value.render.contains("testOnly") => k -> csv
+      case k -> csv if List("application.router", "play.http.router").contains(k) && csv.value.asString.contains("testOnly") => k -> csv
     }.toSeq
 
   private def reactiveMongoConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if k == "mongodb.uri" && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.render.toLowerCase.contains) => k -> csv
+      case k -> csv if k == "mongodb.uri"
+                    && List("writeconcernw", "writeconcernj", "writeConcernTimeout", "rm.failover", "rm.monitorrefreshms").exists(csv.value.asString.toLowerCase.contains)
+                    => k -> csv
     }.toSeq
 
   def hasFunkyChars(c: Char) =
@@ -180,8 +182,8 @@ class ConfigWarningService @Inject()(
     resultingConfig.collect {
       case k -> csv if (List("key", "secret", "pass", "token").exists(k.toLowerCase.contains))
                     && csv.value.valueType == MyConfigValueType.SimpleValue
-                    && csv.value.render.exists(hasFunkyChars)
-                    && !csv.value.render.contains("ENC[")
+                    && csv.value.asString.exists(hasFunkyChars)
+                    && !csv.value.asString.contains("ENC[")
                     => k -> csv
     }.toSeq
 }

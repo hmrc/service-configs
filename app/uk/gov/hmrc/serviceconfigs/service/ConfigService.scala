@@ -133,7 +133,7 @@ class ConfigService @Inject()(
     lastConfig match {
       case Some(config) =>
         val base64 = ConfigParser.flattenConfigToDotNotation(config).flatMap {
-          case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> MyConfigValue.FromString(Try(new String(Base64.getDecoder.decode(v.render), "UTF-8")).getOrElse("<<Invalid base64>>")))
+          case (k, v) if k.endsWith(".base64") => Map(k.replaceAll("\\.base64$", "") -> MyConfigValue(Try(new String(Base64.getDecoder.decode(v.asString), "UTF-8")).getOrElse("<<Invalid base64>>")))
           case _                               => Map.empty
         }
         cses :+ ConfigSourceEntries("base64", sourceUrl = None, base64)

@@ -93,7 +93,7 @@ trait ConfigParser extends Logging {
         (for {
            node  <- (xml  \ "root"  ).headOption
            level <- (node \ "@level").headOption
-         } yield Map("logger.root" -> MyConfigValue.FromString(level.text))
+         } yield Map("logger.root" -> MyConfigValue(level.text))
         ).getOrElse(Map.empty)
       val logger =
           (xml \ "logger")
@@ -101,7 +101,7 @@ trait ConfigParser extends Logging {
               for {
                 k <- (x \ "@name" ).headOption
                 v <- (x \ "@level").headOption
-              } yield s"logger.${k.text}" -> MyConfigValue.FromString(v.text)
+              } yield s"logger.${k.text}" -> MyConfigValue(v.text)
             )
             .toMap
       root ++ logger
@@ -140,9 +140,10 @@ trait ConfigParser extends Logging {
                                     // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
                                     // can we resolve first?
                                     (if (Try(config.getIsNull(key)).getOrElse(false))
-                                       MyConfigValue.FromNull
-                                     else
-                                       MyConfigValue.FromConfigValue(e.getValue)
+                                       MyConfigValue.Null
+                                     else {
+                                       MyConfigValue.apply(e.getValue)
+                                     }
                                     )
                                   )
         }
@@ -212,7 +213,7 @@ trait ConfigParser extends Logging {
      val config     = ConfigFactory.parseProperties(newProps)
      val suppressed = newProps.asScala.view
                         .filterKeys(!flattenConfigToDotNotation(config).contains(_))
-                        .mapValues(MyConfigValue.FromString)
+                        .mapValues(MyConfigValue.apply)
                         .toMap
      (config, suppressed)
    }
@@ -235,7 +236,7 @@ trait ConfigParser extends Logging {
     val confAsMap2 = confAsMap.foldLeft(Map.empty[String, MyConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now... (TODO Try could be avoided by checking type Unmerged)
-        if (previousConfMap.get(k).fold(true)(_.render != v.render) ||
+        if (previousConfMap.get(k).fold(true)(_.asString != v.asString) ||
           scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
         )
           acc ++ Seq(k -> v) // and not explicitly included in previousConf
@@ -260,53 +261,41 @@ trait ConfigParser extends Logging {
 
 object ConfigParser extends ConfigParser
 
-sealed trait MyConfigValue {
-  def render   : String
-  def valueType: MyConfigValueType
-}
+case class MyConfigValue(
+  asString : String,
+  valueType: MyConfigValueType
+)
 
 object MyConfigValue {
-  case class FromString(
-    s: String
-  ) extends MyConfigValue {
-    override def render    = s
-    override def valueType = MyConfigValueType.SimpleValue
-  }
+  val Null: MyConfigValue =
+    MyConfigValue(asString = "<<NULL>>", MyConfigValueType.Null)
 
-  // we can't interrogate ConfigValue to this extent (only ConfigObject, ConfigList, ConfigValue) are in public api of config library
-  case object FromNull extends MyConfigValue {
-    override lazy val render    = "<<NULL>>"
-    override lazy val valueType = MyConfigValueType.Null
-  }
+  val Suppressed: MyConfigValue =
+    MyConfigValue(asString = "<<SUPPRESSED>>", MyConfigValueType.Suppressed)
 
-  case object Suppressed extends MyConfigValue {
-    override lazy val render    = "<<SUPPRESSED>>"
-    override lazy val valueType = MyConfigValueType.Suppressed
-  }
+  def apply(s: String): MyConfigValue =
+    MyConfigValue(asString = s, valueType = MyConfigValueType.SimpleValue)
 
-  case class FromConfigValue(
-    value: ConfigValue
-  ) extends MyConfigValue {
-    override lazy val render: String =
-      suppressEncryption(removeQuotes(value.render(ConfigRenderOptions.concise)))
+  def apply(value: ConfigValue): MyConfigValue =
+    // TODO should we also store value.origin (filename, lineNumber etc.)
+    MyConfigValue(
+      asString  = suppressEncryption(removeQuotes(value.render(ConfigRenderOptions.concise))),
+      valueType = Try {
+                    value.valueType match {
+                      case ConfigValueType.LIST   => MyConfigValueType.List
+                      case ConfigValueType.OBJECT => MyConfigValueType.Object
+                      case _                      => MyConfigValueType.SimpleValue
+                    }
+                  }.getOrElse(MyConfigValueType.Unmerged)
+    )
 
-    override lazy val valueType: MyConfigValueType =
-      Try {
-        value.valueType match {
-          case ConfigValueType.LIST   => MyConfigValueType.List
-          case ConfigValueType.OBJECT => MyConfigValueType.Object
-          case _                      => MyConfigValueType.SimpleValue
-        }
-      }.getOrElse(MyConfigValueType.Unmerged)
-  }
-
-  private[MyConfigValue] def removeQuotes(input: String): String =
+  private def removeQuotes(input: String): String =
     if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"'))
       input.substring(1, input.length - 1)
     else
       input
 
-  private[MyConfigValue] def suppressEncryption(input: String): String =
+  private def suppressEncryption(input: String): String =
     if (input.startsWith("ENC[")) "ENC[...]" else input
 }
 

@@ -29,9 +29,8 @@ import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, Deployed
 import AppliedConfigRepository.RenderedConfigSourceValue
 import ConfigService.ConfigSourceEntries
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
-import org.mockito.MockitoSugar.mock
 
-import java.time.{Clock, Instant, LocalDate, ZoneOffset}
+import java.time.{Clock, Instant, ZoneOffset}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -301,7 +300,7 @@ class SlugInfoServiceSpec
 
       when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
         .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) =>
-          Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> MyConfigValue.FromString("v")))))
+          Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> MyConfigValue("v")))))
         )
 
       when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
@@ -457,8 +456,6 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-
-
     }
 
     "Not update deployedConfig when:" +
@@ -503,10 +500,7 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-
-
     }
-
   }
 
   trait Setup {
@@ -521,22 +515,22 @@ class SlugInfoServiceSpec
     val mockedConfigConnector          = mock[ConfigConnector]
     val mockedConfigService            = mock[ConfigService]
 
+    val now = Instant.now()
 
-    val now = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant
-
-    val service = new SlugInfoService(
-                        mockedSlugInfoRepository
-                      , mockedSlugVersionRepository
-                      , mockedAppliedConfigRepository
-                      , mockedAppConfigService
-                      , mockedDeployedConfigRepository
-                      , mockedReleasesApiConnector
-                      , mockedTeamsAndReposConnector
-                      , mockedGithubRawConnector
-                      , mockedConfigConnector
-                      , mockedConfigService
-                      , Clock.fixed(now, ZoneOffset.UTC)
-                      )
+    val service =
+      new SlugInfoService(
+        mockedSlugInfoRepository
+      , mockedSlugVersionRepository
+      , mockedAppliedConfigRepository
+      , mockedAppConfigService
+      , mockedDeployedConfigRepository
+      , mockedReleasesApiConnector
+      , mockedTeamsAndReposConnector
+      , mockedGithubRawConnector
+      , mockedConfigConnector
+      , mockedConfigService
+      , Clock.fixed(now, ZoneOffset.UTC)
+      )
 
     def toSlugInfo(name: ServiceName): SlugInfo =
       SlugInfo(
@@ -553,36 +547,9 @@ class SlugInfoServiceSpec
       )
   }
 
-  trait SetupUpdateDeployment {
-    val mockedSlugInfoRepository       = mock[SlugInfoRepository]
-    val mockedSlugVersionRepository    = mock[SlugVersionRepository]
-    val mockedAppliedConfigRepository  = mock[AppliedConfigRepository]
-    val mockedAppConfigService         = mock[AppConfigService]
-    val mockedDeployedConfigRepository = mock[DeployedConfigRepository]
-    val mockedReleasesApiConnector     = mock[ReleasesApiConnector]
-    val mockedTeamsAndReposConnector   = mock[TeamsAndRepositoriesConnector]
-    val mockedGithubRawConnector       = mock[GithubRawConnector]
-    val mockedConfigConnector          = mock[ConfigConnector]
-    val mockedConfigService            = mock[ConfigService]
-
-
-    val now = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant
-
-    val service = new SlugInfoService(
-      mockedSlugInfoRepository
-      , mockedSlugVersionRepository
-      , mockedAppliedConfigRepository
-      , mockedAppConfigService
-      , mockedDeployedConfigRepository
-      , mockedReleasesApiConnector
-      , mockedTeamsAndReposConnector
-      , mockedGithubRawConnector
-      , mockedConfigConnector
-      , mockedConfigService
-      , Clock.fixed(now, ZoneOffset.UTC)
-    )
-
+  trait SetupUpdateDeployment extends Setup {
     val serviceName1 = ServiceName("service1")
+
     when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
       .thenReturn(Future.unit)
 
@@ -598,10 +565,17 @@ class SlugInfoServiceSpec
     when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
       .thenReturn(Future.unit)
 
-    when(mockedConfigService.resultingConfig(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
-      .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) => Future.successful(Map(s"${configEnvironment.name}.${serviceName.asString}" -> ConfigService.ConfigSourceValue("s", Some("u"), "v"))))
+    when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
+      .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, latest: Boolean) =>
+        Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> MyConfigValue("v")))))
+      )
 
-    when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, ConfigService.ConfigSourceValue]]))
+    when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
+      .thenAnswer((cses: Seq[ConfigSourceEntries]) =>
+        cses.headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
+      )
+
+    when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
       .thenReturn(Future.unit)
 
     val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(

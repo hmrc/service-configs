@@ -80,7 +80,7 @@ class ServiceRelationshipService @Inject()(
             slugInfo.slugConfig.replace("include \"application.conf\"", "")
           )
         )
-        .view.mapValues(_.render).toMap
+        .view.mapValues(_.asString).toMap
 
       appConfig.map(
         _.flatMap(_.entries)

@@ -209,6 +209,6 @@ class ServiceRelationshipServiceSpec
     ConfigSourceEntries(
       source    = "applicationConf",
       sourceUrl = None,
-      entries   = entries.view.mapValues(MyConfigValue.FromString).toMap
+      entries   = entries.view.mapValues(MyConfigValue.apply).toMap
     )
 }

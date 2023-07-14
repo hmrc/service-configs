@@ -79,7 +79,6 @@ class DeployedConfigRepository @Inject()(
       )
       .toFuture()
       .map(_ => ())
-
 }
 
 object DeployedConfigRepository {
@@ -111,6 +110,6 @@ object DeployedConfigRepository {
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
     ~ (__ \ "lastUpdated"    ).format[Instant]
-      )(DeployedConfig.apply, unlift(DeployedConfig.unapply))
+    )(DeployedConfig.apply, unlift(DeployedConfig.unapply))
   }
 }

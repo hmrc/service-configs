@@ -33,6 +33,6 @@ class Module extends AbstractModule {
     bind(classOf[SlugMetadataUpdateScheduler ]).asEagerSingleton()
     bind(classOf[ServiceRelationshipScheduler]).asEagerSingleton()
     bind(classOf[FrontendRouteParser         ]).to(classOf[NginxConfigParser]).asEagerSingleton()
-    bind(classOf[Clock]).toInstance(Clock.systemUTC())
+    bind(classOf[Clock                       ]).toInstance(Clock.systemUTC())
   }
 }

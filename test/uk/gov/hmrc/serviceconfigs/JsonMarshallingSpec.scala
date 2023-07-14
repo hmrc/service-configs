@@ -34,15 +34,15 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
             source     = "baseConfig",
             sourceUrl  = None,
             entries    = Map(
-                           "entry1" -> MyConfigValue.FromString("configEntry-1"),
-                           "entry2" -> MyConfigValue.FromString("configEntry-2")
+                           "entry1" -> MyConfigValue("configEntry-1"),
+                           "entry2" -> MyConfigValue("configEntry-2")
                          )
           ),
           ConfigSourceEntries(
             source    = "appConfig",
             sourceUrl = Some("https://github.com/hmrc/appConfig"),
             entries   = Map(
-                          "entry3" -> MyConfigValue.FromString("configEntry-3")
+                          "entry3" -> MyConfigValue("configEntry-3")
                         )
           )
         )
@@ -80,12 +80,12 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
             ConfigService.ConfigSourceValue(
               source    = "baseConfig",
               sourceUrl = None,
-              value     = MyConfigValue.FromString("configEntry1")
+              value     = MyConfigValue("configEntry1")
             ),
             ConfigService.ConfigSourceValue(
               source    = "appConfig",
               sourceUrl = Some("https://github.com/hmrc/appConfig"),
-              value     = MyConfigValue.FromString("configEntry2")
+              value     = MyConfigValue("configEntry2")
             )
           )
         )

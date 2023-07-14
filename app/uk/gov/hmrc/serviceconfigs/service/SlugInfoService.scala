@@ -47,7 +47,6 @@ class SlugInfoService @Inject()(
 )(implicit
   ec: ExecutionContext
 ) {
-
   private val logger = Logger(getClass)
 
   private case class Count(
@@ -212,7 +211,7 @@ class SlugInfoService @Inject()(
                                      AppliedConfigRepository.RenderedConfigSourceValue(
                                        cse.source,
                                        cse.sourceUrl,
-                                       cse.value.render
+                                       cse.value.asString
                                      )
                                    ).toMap
         _                 <- if (deploymentConfig.nonEmpty)
@@ -220,5 +219,4 @@ class SlugInfoService @Inject()(
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()
-
 }

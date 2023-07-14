@@ -26,13 +26,13 @@ trait ConfigJson {
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "entries"  ).write[Map[KeyName, String]]
-                        .contramap[Map[KeyName, MyConfigValue]](_.view.mapValues(_.render).toMap)
+                        .contramap[Map[KeyName, MyConfigValue]](_.view.mapValues(_.asString).toMap)
     )(unlift(ConfigSourceEntries.unapply))
 
   implicit val configSourceValueWrites: Writes[ConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
-                        .contramap[MyConfigValue](_.render)
+                        .contramap[MyConfigValue](_.asString)
     )(unlift(ConfigSourceValue.unapply))
 }

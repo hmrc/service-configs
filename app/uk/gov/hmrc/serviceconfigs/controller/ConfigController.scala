@@ -33,8 +33,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import scala.util.Success
-import scala.util.Failure
 
 @Singleton
 @Api("Github Config")
@@ -124,8 +122,8 @@ class ConfigController @Inject()(
     Action.async { implicit request =>
       //calculateAllWarnings()
       //  .onComplete {
-      //    case Success(_)  => logger.info("calculateAllWarnings - finished")
-      //    case Failure(ex) => logger.error(s"calculateAllWarnings - failed: ${ex.getMessage()}", ex)
+      //    case scala.util.Success(_)  => logger.info("calculateAllWarnings - finished")
+      //    case scala.util.Failure(ex) => logger.error(s"calculateAllWarnings - failed: ${ex.getMessage()}", ex)
       //  }
 
       configWarningService
@@ -155,7 +153,7 @@ class ConfigController @Inject()(
               .map { ws =>
                 val w =
                   ws.map { case ConfigWarning(k, cse, r) =>
-                    s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(cse.value.render)},${cse.source},$r"
+                    s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(cse.value.asString)},${cse.source},$r"
                   }.mkString("\n")
                 val warnings = if (w.nonEmpty) w + "\n" else w
                 Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
