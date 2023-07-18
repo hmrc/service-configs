@@ -64,7 +64,7 @@ class ConfigWarningService @Inject()(
     def checkOverrides(overrideSource: String, overridableSources: Seq[String]): Seq[(KeyName, ConfigSourceValue)] = {
       val (overrides, overrideable) =
         configSourceEntries.collect {
-          case cse if cse.source == overrideSource => Left(cse)
+          case cse if cse.source == overrideSource            => Left(cse)
           case cse if overridableSources.contains(cse.source) => Right(cse)
         }.partitionMap(identity)
 

@@ -16,23 +16,21 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import cats.implicits._
 import io.swagger.annotations.{Api, ApiOperation, ApiParam}
-import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.mvc._
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.ConfigJson
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceValue, KeyName}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
-import scala.concurrent.{ExecutionContext, Future}
-import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.ExecutionContext
 
 @Singleton
 @Api("Github Config")
@@ -120,47 +118,8 @@ class ConfigController @Inject()(
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      //calculateAllWarnings()
-      //  .onComplete {
-      //    case scala.util.Success(_)  => logger.info("calculateAllWarnings - finished")
-      //    case scala.util.Failure(ex) => logger.error(s"calculateAllWarnings - failed: ${ex.getMessage()}", ex)
-      //  }
-
       configWarningService
         .warnings(environment, serviceName, latest = false)
         .map(res => Ok(Json.toJson(res)))
     }
-
-  private val logger = play.api.Logger(getClass)
-
-  import java.nio.charset.StandardCharsets
-  import java.nio.file.{Files, StandardOpenOption}
-  private val path = new java.io.File("warnings.csv").toPath
-  println(s"Writing to $path")
-  Files.write(path, "".getBytes(StandardCharsets.UTF_8))
-
-  private def escapeCsv(s: String): String =
-    "\"" + s.replaceAll("\"", "\"\"") + "\""
-
-  def calculateAllWarnings()(implicit hc: HeaderCarrier): Future[Unit] =
-    releasesApiConnector.getWhatsRunningWhere()
-      .map { repos =>
-        println(s"Processing ${repos.size} repos")
-        repos.zipWithIndex.toList.foldLeftM[Future, Unit](()) { case (acc, (repo, i)) =>
-          println(s">>>> repo: ${repo.serviceName.asString} ($i/${repos.size})")
-          repo.deployments.flatMap(_.optEnvironment.toList).foldLeftM[Future, Unit](acc) { (acc, env) =>
-            configWarningService.warnings(env, repo.serviceName, latest = false)
-              .map { ws =>
-                val w =
-                  ws.map { case ConfigWarning(k, cse, r) =>
-                    s"${repo.serviceName.asString},${env.asString},$k,${escapeCsv(cse.value.asString)},${cse.source},$r"
-                  }.mkString("\n")
-                val warnings = if (w.nonEmpty) w + "\n" else w
-                Files.write(path, warnings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
-                println(warnings)
-              }
-              .recover { case ex => logger.error(s"Failed to get warnings for $repo, $env: ${ex.getMessage}", ex) }
-          }
-        }
-      }
 }

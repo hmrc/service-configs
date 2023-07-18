@@ -1,3 +1,6 @@
+# Migration to 0.192.0
+db.getCollection('deployedConfig').updateMany({}, {$set: {"lastUpdated": new ISODate("2023-07-12T00:00:00Z")}})()
+
 # Migration to 0.167.0
 
 ```javascript

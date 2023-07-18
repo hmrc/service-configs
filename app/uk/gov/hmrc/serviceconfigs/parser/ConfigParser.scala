@@ -22,11 +22,10 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
 
+import java.util.Map.Entry
 import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
-import java.util.Map.Entry
-import scala.annotation.tailrec
 
 trait ConfigParser extends Logging {
 
@@ -121,13 +120,21 @@ trait ConfigParser extends Logging {
     )
     .toMap
 
-  def hasFunkyChars(c: Char) =
+  // replicating https://github.com/lightbend/config/blob/5d6a46631c7ca1d617de02459bd62af5b875073b/config/src/main/java/com/typesafe/config/impl/Path.java#L178
+  private def hasFunkyChars(c: Char) =
     !(Character.isLetterOrDigit(c) || c == '-' || c == '_')
 
+  private case class Acc(
+    acc         : Set[(String, ConfigValue)],
+    configObject: ConfigObject,
+    path        : String
+  )
+
   /** calling config.entrySet will strip out keys with null values */
-  def entrySetWithNull(config: Config): Set[(String, ConfigValue)] = {
-    //@tailrec
-    def go(acc: Set[(String, ConfigValue)], configObject: ConfigObject, path: String): Set[(String, ConfigValue)] =
+  def entrySetWithNull(config: Config): Set[(String, ConfigValue)] =
+    alleycats.std.set.alleyCatsStdSetMonad.tailRecM[Acc, (String, ConfigValue)](
+      Acc(acc = Set.empty[(String, ConfigValue)], configObject = config.root(), path = "")
+    ) { case Acc(acc, configObject, path) =>
       configObject.entrySet().asScala.toSet[Entry[String, TSConfigValue]].flatMap { e =>
         val key =
           path +
@@ -135,20 +142,18 @@ trait ConfigParser extends Logging {
           (if (e.getKey.exists(hasFunkyChars)) s"\"${e.getKey}\"" else e.getKey)
 
         e.getValue match {
-          case o: ConfigObject => go(acc, o, key)
-          case other           => acc ++ Set(key ->
-                                    // Try to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
-                                    // can we resolve first?
+          case o: ConfigObject => Set(Left(Acc(acc = acc, o, key)))
+          case other           => (acc ++ Set(key ->
+                                    // `Try` to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
                                     (if (Try(config.getIsNull(key)).getOrElse(false))
-                                       ConfigValue.Null
-                                     else {
-                                       ConfigValue.apply(e.getValue)
-                                     }
+                                      ConfigValue.Null
+                                    else {
+                                      ConfigValue.apply(e.getValue)
+                                    }
                                     )
-                                  )
-        }
+                                  )).map(Right.apply)
       }
-    go(Set.empty[(String, ConfigValue)], config.root(), "")
+    }
   }
 
   private def flattenYamlToDotNotation(
@@ -234,7 +239,7 @@ trait ConfigParser extends Logging {
     val confAsMap = ConfigParser.flattenConfigToDotNotation(conf).view
     val confAsMap2 = confAsMap.foldLeft(Map.empty[String, ConfigValue]){ case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
-        // keep it for now... (TODO Try could be avoided by checking type Unmerged)
+        // keep it for now...
         if (previousConfMap.get(k).fold(true)(_.asString != v.asString) ||
           scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
         )
