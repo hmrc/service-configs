@@ -299,8 +299,9 @@ object ConfigValue {
     else
       input
 
+  private val encryptionRegex = "ENC\\[[^]]*]".r
   private def suppressEncryption(input: String): String =
-    if (input.startsWith("ENC[")) "ENC[...]" else input
+    encryptionRegex.replaceAllIn(input, "ENC[...]")
 }
 
 // We don't use TSConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties

@@ -110,6 +110,22 @@ class ConfigParserSpec
         "param2" -> ConfigValue(s"$${play.http.parser.maxMemoryBuffer}", ConfigValueType.Unmerged)
       )
     }
+
+    "suppress encryptions" in {
+      // encryptions are provided via System.properties (yaml), so to be embedded in a list/object
+      // like this requires the use of placeholders pointing to the encryption
+      val config = ConfigParser.parseConfString(s"""
+        |string="ENC[123]"
+        |list1=["ENC[123]"]
+        |list2=[{"k":"ENC[123]"}]
+        |""".stripMargin)
+
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.asString).toMap shouldBe Map(
+        "string" -> "ENC[...]",
+        "list1"  -> "[\"ENC[...]\"]",
+        "list2"  -> "[{\"k\":\"ENC[...]\"}]"
+      )
+    }
   }
 
   "ConfigParser.parseYamlStringAsProperties" should {
