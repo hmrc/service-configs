@@ -19,7 +19,9 @@ package uk.gov.hmrc.serviceconfigs.parser
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.{Logger, Logging}
-import uk.gov.hmrc.serviceconfigs.model.InternalAuthConfig
+import uk.gov.hmrc.serviceconfigs.model.GrantType.{Grantee, Grantor}
+import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment.{Prod, Qa}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
 
 import java.util.zip.ZipInputStream
 
@@ -30,11 +32,65 @@ class InternalAuthConfigParserSpec
   lazy val configZip = new ZipInputStream(this.getClass.getResource("/internal-auth-config-main.zip").openStream())
   lazy val parser = new InternalAuthConfigParser
 
+  val grants =
+    """
+      |- grantees:
+      |    service: [
+      |      hello-world-object-store,
+      |      internal-auth-perf-test,
+      |    ]
+      |    permissions:
+      |    - resourceType: object-store
+      |      resourceLocation: '{service}'
+      |      actions: [ '*' ]
+      |- grantees:
+      |    owners-of-service: [
+      |      advance-valuation-rulings-frontend,
+      |      advance-valuation-rulings,
+      |      child-benefit-service
+      |    ]
+      |    permissions:
+      |    - resourceType: object-store
+      |      resourceLocation: '{service}'
+      |      actions: [ '*' ]
+      |""".stripMargin
+
+
+  val resourceTypes =
+    """
+      |- resourceType: internal-auth
+      |  actions: [ READ, WRITE, DELETE ]
+      |  granteeTypes: [ members-of-team ]
+      |- resourceType: internal-auth-admin-frontend
+      |  actions: [ READ ]
+      |  granteeTypes: [ user ]
+      |- resourceType: object-store
+      |  actions: [ READ, WRITE, DELETE ]
+      |  granteeTypes: [ members-of-team, owners-of-service, service ]
+      |""".stripMargin
+
+
   "An InternalAuthConfigParser" should {
     "parse a zip file " in {
       val result: Set[InternalAuthConfig] = parser.parseZip(configZip)
+      result.size shouldBe 218
+    }
 
-      result.size shouldBe 218 //todo make this a better test reduce the size of the zip and assert on values
+    "parse grants as grantees" in {
+      parser.parseGrants(grants, Qa) shouldBe
+        Set(
+            InternalAuthConfig(ServiceName("hello-world-object-store"), Qa, Grantee),
+            InternalAuthConfig(ServiceName("internal-auth-perf-test"), Qa, Grantee)
+        )
+    }
+
+    "parse resources definitions as grantors" in {
+      parser.parseGrants(resourceTypes, Prod) shouldBe
+        Set(
+          InternalAuthConfig(ServiceName("internal-auth"), Prod, Grantor),
+          InternalAuthConfig(ServiceName("internal-auth-admin-frontend"), Prod, Grantor),
+          InternalAuthConfig(ServiceName("object-store"), Prod, Grantor)
+        )
     }
   }
 
