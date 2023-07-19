@@ -31,10 +31,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class InternalAuthConfigRepository @Inject()(
-                                           override val mongoComponent: MongoComponent
-                                         )(implicit
-                                           ec: ExecutionContext
-                                         ) extends PlayMongoRepository(
+  override val mongoComponent: MongoComponent
+)(implicit
+  ec: ExecutionContext
+) extends PlayMongoRepository(
   mongoComponent = mongoComponent,
   collectionName = "internalAuthConfig",
   domainFormat   = InternalAuthConfig.format,
