@@ -16,9 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsValue, __}
+import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsValue, Reads, __}
 import play.api.libs.functional.syntax._
 
+case class Services (serviceName: Seq[String], grant: GrantType)
+
+object Services {
+  val serviceReads: Reads[Option[Services]] = (
+    (__ \ "grantees" \ "service").read[Seq[String]].map(v => Some(Services(v, GrantType.Grantee))) or
+      (__ \ "resourceType").read[String].map(v => Some(Services(List(v), GrantType.Grantor))) or
+      Reads.pure(None)
+    )
+}
 
 case class InternalAuthConfig(service: ServiceName, environment: InternalAuthEnvironment, grantType: GrantType)
 
@@ -30,6 +39,8 @@ object InternalAuthConfig {
       ~ (__ \ "grantType").format[GrantType]
       )(InternalAuthConfig.apply, unlift(InternalAuthConfig.unapply))
   }
+  
+
 }
 
 sealed trait GrantType{ def asString: String }
@@ -70,7 +81,6 @@ object InternalAuthEnvironment {
  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
     override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
 
-   //todo make this correct
     override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = json match {
       case JsString("production") => JsSuccess(Prod)
       case JsString("qa") => JsSuccess(Qa)
