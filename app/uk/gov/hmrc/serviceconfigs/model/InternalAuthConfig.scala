@@ -81,7 +81,6 @@ object InternalAuthEnvironment {
  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
     override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
 
-   //todo make this correct
     override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = json match {
       case JsString("production") => JsSuccess(Prod)
       case JsString("qa") => JsSuccess(Qa)
