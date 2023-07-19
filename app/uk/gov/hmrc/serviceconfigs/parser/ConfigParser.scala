@@ -22,7 +22,6 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
 
-import java.util.Map.Entry
 import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try

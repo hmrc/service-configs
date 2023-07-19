@@ -21,9 +21,11 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, RenderedConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.persistence.ConfigWarningRepository
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -37,7 +39,7 @@ class ConfigWarningServiceSpec
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  "ConfigWarningService.warnings" when {
+  "ConfigWarningService.calculateWarnings" when {
     val env         = Environment.Production
     val serviceName = ServiceName("service")
 
@@ -54,7 +56,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> value2))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, key1, RenderedConfigSourceValue("baseConfig"          , None, value1.asString), "NotOverriding"),
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, value2.asString), "NotOverriding")
         )
@@ -71,7 +73,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("baseConfig"          , None, Map("user.timezone"      -> value))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
       "ignore if enabled key exists" in new Setup {
@@ -81,7 +83,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("referenceConf"       , None, Map("k.enabled" -> ConfigValue("false")))
           )))
 
-        service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
       "ignore list positional notation overriding list" in new Setup {
@@ -92,7 +94,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.0" -> value))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
       "ignore list positional notation overriding positional notation" in new Setup {
@@ -103,7 +105,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.1" -> value))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
       "ignore list positional notation with sub-objects" in new Setup {
@@ -114,7 +116,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.0.key" -> value))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
       "ignore base64 overrides" in new Setup {
@@ -125,7 +127,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map("k.base64" -> value))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
     }
 
@@ -148,7 +150,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map(key3 -> ConfigValue("{}", ConfigValueType.Object)))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, key1, RenderedConfigSourceValue("appConfigEnvironment", None, "s" ), "TypeChange"),
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "s" ), "TypeChange"),
           ConfigWarning(env, serviceName, key3, RenderedConfigSourceValue("appConfigEnvironment", None, "{}"), "TypeChange")
@@ -178,7 +180,7 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue.Suppressed))
           )))
 
-        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
     }
 
@@ -195,7 +197,7 @@ class ConfigWarningServiceSpec
             key2 -> value2
           ))
 
-        service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq(
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, key2, value2.toRenderedConfigSourceValue, "Localhost"),
           ConfigWarning(env, serviceName, key1, value1.toRenderedConfigSourceValue, "Localhost")
         )
@@ -214,7 +216,7 @@ class ConfigWarningServiceSpec
             "k2.enabled" -> falseValue,
           ))
 
-        service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq(
+        service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, "k1.k", value.toRenderedConfigSourceValue, "Localhost")
         )
       }
@@ -227,7 +229,7 @@ class ConfigWarningServiceSpec
             "k" -> value
           ))
 
-        service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
+        service.calculateWarnings(env, ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
       }
     }
 
@@ -240,7 +242,7 @@ class ConfigWarningServiceSpec
           key -> value
         ))
 
-      service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+      service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Debug")
       )
     }
@@ -256,7 +258,7 @@ class ConfigWarningServiceSpec
           key2 -> value,
         ))
 
-      service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+      service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key1, value.toRenderedConfigSourceValue, "TestOnlyRoutes"),
         ConfigWarning(env, serviceName, key2, value.toRenderedConfigSourceValue, "TestOnlyRoutes")
       )
@@ -271,7 +273,7 @@ class ConfigWarningServiceSpec
           key -> value
         ))
 
-      service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+      service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "ReactiveMongoConfig")
       )
     }
@@ -285,14 +287,16 @@ class ConfigWarningServiceSpec
           key -> value
         ))
 
-      service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
+      service.calculateWarnings(env, serviceName, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Unencrypted")
       )
     }
   }
 
   trait Setup {
-    val mockedConfigService = mock[ConfigService]
+    val mockedConfigService           = mock[ConfigService]
+    val mockedReleasesApiConnector    = mock[ReleasesApiConnector]
+    val mockedConfigWarningRepository = mock[ConfigWarningRepository]
 
     when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
       .thenReturn(Future.successful(Seq.empty))
@@ -302,7 +306,9 @@ class ConfigWarningServiceSpec
 
     val service =
       new ConfigWarningService(
-        mockedConfigService
+        mockedConfigService,
+        mockedReleasesApiConnector,
+        mockedConfigWarningRepository
       )
   }
 }

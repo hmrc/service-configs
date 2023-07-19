@@ -19,10 +19,9 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries}
+
 
 class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
   import ConfigController._

@@ -22,7 +22,6 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
@@ -38,8 +37,7 @@ class ConfigController @Inject()(
   configuration       : Configuration,
   configService       : ConfigService,
   configWarningService: ConfigWarningService,
-  cc                  : ControllerComponents,
-  releasesApiConnector: ReleasesApiConnector
+  cc                  : ControllerComponents
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc) {
@@ -97,9 +95,9 @@ class ConfigController @Inject()(
     environments: Seq[Environment],
     latest      : Boolean
   ): Action[AnyContent] =
-    Action.async { implicit request =>
+    Action.async {
       configWarningService
-        .warnings(environments, serviceName, latest = latest)
+        .warnings(Some(environments), Some(Seq(serviceName))) // TODO optional, and look up by team
         .map(res => Ok(Json.toJson(res)))
     }
 }

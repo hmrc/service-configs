@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.model.Environment
@@ -40,12 +41,15 @@ class MissedWebhookEventsScheduler @Inject()(
   nginxService            : NginxService,
   routesConfigService     : RoutesConfigService,
   outagePageService       : OutagePageService,
+  configWarningService    : ConfigWarningService,
   timestampSupport        : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
 ) extends SchedulerUtils with Logging {
+
+  private implicit val hc = HeaderCarrier()
 
   scheduleWithTimePeriodLock(
     label           = "MissedWebhookEventsScheduler",
@@ -66,6 +70,7 @@ class MissedWebhookEventsScheduler @Inject()(
         _ <- accumulateErrors("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
         _ <- accumulateErrors("BobbyRulesUpdater"            , bobbyRulesService.update())
         _ <- accumulateErrors("OutagePageUpdater"            , outagePageService.update())
+        _ <- accumulateErrors("ConfigWarningUpdater"         , configWarningService.update())
       } yield logger.info("Finished updating incase of missed webhook event")
     )
   }
