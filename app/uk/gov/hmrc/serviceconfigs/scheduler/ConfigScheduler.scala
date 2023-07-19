@@ -51,8 +51,8 @@ class ConfigScheduler @Inject()(
     logger.info("Updating config")
     runAllAndFailWithFirstError(
       for {
-        //_ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
-        //_ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+        _ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
+        _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
       } yield logger.info("Finished updating config")
     )
