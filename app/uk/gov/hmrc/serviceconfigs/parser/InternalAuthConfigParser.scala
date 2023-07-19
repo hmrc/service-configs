@@ -16,18 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import play.api.libs.json.Reads
-import uk.gov.hmrc.serviceconfigs.model.GrantType.{Grantee, Grantor}
 import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment._
 import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, InternalAuthEnvironment, ServiceName, Services}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import java.io.ByteArrayOutputStream
-import java.util
 import java.util.zip.{ZipEntry, ZipInputStream}
-import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 class InternalAuthConfigParser extends Logging {

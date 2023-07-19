@@ -18,10 +18,10 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.{Logger, Logging}
+import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.GrantType.{Grantee, Grantor}
 import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment.{Prod, Qa}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
 
 import java.util.zip.ZipInputStream
 
