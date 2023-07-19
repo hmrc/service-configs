@@ -1,6 +1,6 @@
 # microservice specific routes
 
-GET     /internal-auth-config/:serviceName              uk.gov.hmrc.serviceconfigs.controller.InternalAuthConfigController.serviceConfig(serviceName: ServiceName)
+GET     /internal-auth-config/:serviceName              uk.gov.hmrc.serviceconfigs.controller.InternalAuthConfigController.internalAuthConfig(serviceName: ServiceName)
 GET     /config-by-env/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceConfig(serviceName: ServiceName, latest: Boolean ?= true)
 GET     /config-by-key/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.configByKey(serviceName: ServiceName, latest: Boolean ?= true)
 GET     /search                                         uk.gov.hmrc.serviceconfigs.controller.ConfigController.search(key: Option[String], keyFilterType: FilterType ?= FilterType.Contains, value: Option[String], valueFilterType: FilterType ?= FilterType.Contains, environment: Seq[Environment], teamName: Option[TeamName], serviceType: Option[ServiceType], tag: List[Tag])
