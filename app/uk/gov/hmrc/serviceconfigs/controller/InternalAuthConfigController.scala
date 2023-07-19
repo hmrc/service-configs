@@ -29,10 +29,10 @@ import scala.concurrent.ExecutionContext
 @Singleton
 class InternalAuthConfigController @Inject()(
   internalAuthConfigRepository : InternalAuthConfigRepository,
-  mcc                          : MessagesControllerComponents
+  cc                           : ControllerComponents
 )(implicit
   ec: ExecutionContext
-) extends BackendController(mcc) with Logging {
+) extends BackendController(cc) with Logging {
 
   private implicit val format = uk.gov.hmrc.serviceconfigs.model.InternalAuthConfig.format
 
