@@ -22,6 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationship, ServiceRelationships, SlugDependency, SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceEntries
 
@@ -208,6 +209,6 @@ class ServiceRelationshipServiceSpec
     ConfigSourceEntries(
       source    = "applicationConf",
       sourceUrl = None,
-      entries   = entries
+      entries   = entries.view.mapValues(ConfigValue.apply).toMap
     )
 }

@@ -19,8 +19,10 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+
 
 class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
 
@@ -29,19 +31,20 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val cbe: ConfigByEnvironment = Map(
         "environmentName" -> Seq(
           ConfigSourceEntries(
-            "baseConfig",
-            sourceUrl  =  None,
-            Map(
-              "entry1" -> "configEntry-1",
-              "entry2" -> "configEntry-2"
-            )
+            source     = "baseConfig",
+            sourceUrl  = None,
+            entries    = Map(
+                           "entry1" -> ConfigValue("configEntry-1"),
+                           "entry2" -> ConfigValue("configEntry-2")
+                         )
           ),
           ConfigSourceEntries(
-            "appConfig",
-            Some("https://github.com/hmrc/appConfig"),
-            Map(
-            "entry3" -> "configEntry-3"
-          ))
+            source    = "appConfig",
+            sourceUrl = Some("https://github.com/hmrc/appConfig"),
+            entries   = Map(
+                          "entry3" -> ConfigValue("configEntry-3")
+                        )
+          )
         )
       )
 
@@ -74,8 +77,16 @@ class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
       val configByKey = Map("key1" ->
         Map("environmentName" ->
           Seq(
-            ConfigService.ConfigSourceValue("baseConfig", sourceUrl = None                         , "configEntry1"),
-            ConfigService.ConfigSourceValue("appConfig" , Some("https://github.com/hmrc/appConfig"), "configEntry2")
+            ConfigService.ConfigSourceValue(
+              source    = "baseConfig",
+              sourceUrl = None,
+              value     = ConfigValue("configEntry1")
+            ),
+            ConfigService.ConfigSourceValue(
+              source    = "appConfig",
+              sourceUrl = Some("https://github.com/hmrc/appConfig"),
+              value     = ConfigValue("configEntry2")
+            )
           )
         )
       )

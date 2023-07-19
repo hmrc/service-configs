@@ -47,7 +47,6 @@ class SlugInfoService @Inject()(
 )(implicit
   ec: ExecutionContext
 ) {
-
   private val logger = Logger(getClass)
 
   private case class Count(
@@ -56,12 +55,11 @@ class SlugInfoService @Inject()(
     updated: Int
   )
 
-  // TODO should we listen to deployment events directly, rather than polling releases-api?
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       dataTimestamp          =  Instant.now(clock)
-      serviceDeploymentInfos <- releasesApiConnector.getWhatIsRunningWhere()
+      serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.name)))
       decommissionedServices <- githubRawConnector.decommissionedServices()
@@ -207,11 +205,18 @@ class SlugInfoService @Inject()(
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
         // now we have stored the deployment configs, we can calculate the resulting configs
-        deploymentConfig  <- EitherT.right(configService.resultingConfig(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false))
+        cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false))
+        deploymentConfig  =  configService.resultingConfig(cses)
+        renderedDeploymentConfig = deploymentConfig.view.mapValues(cse =>
+                                     AppliedConfigRepository.RenderedConfigSourceValue(
+                                       cse.source,
+                                       cse.sourceUrl,
+                                       cse.value.asString
+                                     )
+                                   ).toMap
         _                 <- if (deploymentConfig.nonEmpty)
-                                EitherT.right[String](appliedConfigRepository.put(serviceName, env, deploymentConfig))
+                                EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()
-
 }

@@ -19,21 +19,20 @@ package uk.gov.hmrc.serviceconfigs
 import play.api.libs.json.{Writes, __}
 import play.api.libs.functional.syntax._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 
 trait ConfigJson {
   implicit val configSourceEntriesWrites: Writes[ConfigSourceEntries] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "entries"  ).write[Map[KeyName, String]]
-                        .contramap[Map[KeyName, String]](_.map {
-                          case (k, v) if v.startsWith("ENC[") => k -> "ENC[...]"
-                          case (k, v)                         => k -> v
-                        })
+                        .contramap[Map[KeyName, ConfigValue]](_.view.mapValues(_.asString).toMap)
     )(unlift(ConfigSourceEntries.unapply))
 
   implicit val configSourceValueWrites: Writes[ConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
-    ~ (__ \ "value"    ).write[String].contramap[String](s => if (s.startsWith("ENC[")) "ENC[...]" else s)
+    ~ (__ \ "value"    ).write[String]
+                        .contramap[ConfigValue](_.asString)
     )(unlift(ConfigSourceValue.unapply))
 }

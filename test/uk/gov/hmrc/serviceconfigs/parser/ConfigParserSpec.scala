@@ -51,12 +51,12 @@ class ConfigParserSpec
       )
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "controllers.confidenceLevel" -> "300",
-        "appName" -> "service-configs",
-        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth" -> "false",
-        "play.application.loader" -> "uk.gov.hmrc.play.bootstrap.ApplicationLoader",
-        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuditing" -> "false",
-        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging" -> "false"
+        "controllers.confidenceLevel"                                              -> ConfigValue("300"),
+        "appName"                                                                  -> ConfigValue("service-configs"),
+        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuth"     -> ConfigValue("false"),
+        "play.application.loader"                                                  -> ConfigValue("uk.gov.hmrc.play.bootstrap.ApplicationLoader"),
+        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsAuditing" -> ConfigValue("false"),
+        "controllers.uk.gov.hmrc.serviceconfigs.CatalogueController.needsLogging"  -> ConfigValue("false")
       )
     }
 
@@ -67,8 +67,8 @@ class ConfigParserSpec
         |""".stripMargin)
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "param1" -> s"$${akka.http.version}",
-        "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
+        "param1" -> ConfigValue(s"$${akka.http.version}"               , ConfigValueType.Unmerged),
+        "param2" -> ConfigValue(s"$${play.http.parser.maxMemoryBuffer}", ConfigValueType.Unmerged)
       )
     }
 
@@ -93,10 +93,10 @@ class ConfigParserSpec
         |}""".stripMargin)
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "cookie.encryption.key" -> "1",
-        "queryParameter.encryption.key" -> "P5xsJ9Nt+quxGZzB4DeLfw==",
-        "queryParameter.encryption.previousKeys" -> "[]",
-        "cookie.encryption.previousKeys" -> "[\"2\"]"
+        "cookie.encryption.key"                  -> ConfigValue("1"),
+        "queryParameter.encryption.key"          -> ConfigValue("P5xsJ9Nt+quxGZzB4DeLfw=="),
+        "queryParameter.encryption.previousKeys" -> ConfigValue("[]"     , ConfigValueType.List),
+        "cookie.encryption.previousKeys"         -> ConfigValue("[\"2\"]", ConfigValueType.List)
       )
     }
 
@@ -107,7 +107,23 @@ class ConfigParserSpec
         |""".stripMargin)
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "param2" -> s"$${play.http.parser.maxMemoryBuffer}"
+        "param2" -> ConfigValue(s"$${play.http.parser.maxMemoryBuffer}", ConfigValueType.Unmerged)
+      )
+    }
+
+    "suppress encryptions" in {
+      // encryptions are provided via System.properties (yaml), so to be embedded in a list/object
+      // like this requires the use of placeholders pointing to the encryption
+      val config = ConfigParser.parseConfString(s"""
+        |string="ENC[123]"
+        |list1=["ENC[123]"]
+        |list2=[{"k":"ENC[123]"}]
+        |""".stripMargin)
+
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.asString).toMap shouldBe Map(
+        "string" -> "ENC[...]",
+        "list1"  -> "[\"ENC[...]\"]",
+        "list2"  -> "[{\"k\":\"ENC[...]\"}]"
       )
     }
   }
@@ -174,9 +190,9 @@ class ConfigParserSpec
         """
       ) shouldBe Some(
         Map(
-          "logger.root"        -> "INFO",
-          "logger.uk.gov"      -> "DEBUG",
-          "logger.application" -> "DEBUG"
+          "logger.root"        -> ConfigValue("INFO"),
+          "logger.uk.gov"      -> ConfigValue("DEBUG"),
+          "logger.application" -> ConfigValue("DEBUG")
         )
       )
     }
@@ -200,9 +216,9 @@ class ConfigParserSpec
         """
       ) shouldBe Some(
         Map(
-          "logger.root"        -> f"$${logger.root:-WARN}",
-          "logger.uk.gov"      -> f"$${logger.uk.gov:-WARN}",
-          "logger.application" -> f"$${logger.application:-WARN}"
+          "logger.root"        -> ConfigValue(f"$${logger.root:-WARN}"),
+          "logger.uk.gov"      -> ConfigValue(f"$${logger.uk.gov:-WARN}"),
+          "logger.application" -> ConfigValue(f"$${logger.application:-WARN}")
         )
       )
     }
@@ -214,35 +230,58 @@ class ConfigParserSpec
 
   "ConfigParser.extractAsConfig" should {
     "strip and return entries under prefix" in {
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a" -> "1", "b" -> "2")), Map.empty[String, String])
+      val (config, suppressed) =
+        ConfigParser.extractAsConfig(
+          properties      = toProperties(Seq("prefix.a" -> "1", "prefix.b" -> "2"))
+        , prefix          = "prefix."
+        )
+      config     shouldBe toConfig(Map("a" -> "1", "b" -> "2"))
+      suppressed shouldBe Map.empty[String, ConfigValue]
     }
 
     "handle object and value conflicts by ignoring values" in {
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2"))
+          , prefix          = "prefix."
+          )
+        config     shouldBe toConfig(Map("a.b" -> "2"))
+        suppressed shouldBe Map("a" -> ConfigValue("1"))
+      }
 
       // Check not affected by order
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b" -> "2")), Map("a" -> "1"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a.b" -> "2", "prefix.a" -> "1"))
+          , prefix          = "prefix."
+          )
+        config     shouldBe toConfig(Map("a.b" -> "2"))
+        suppressed shouldBe Map("a" -> ConfigValue("1"))
+      }
 
       // Check nested
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("a.b.c" -> "3")), Map("a" -> "1", "a.b" -> "2"))
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.a" -> "1", "prefix.a.b" -> "2", "prefix.a.b.c" -> "3"))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("a.b.c" -> "3"))
+        suppressed shouldBe Map("a" -> ConfigValue("1"), "a.b" -> ConfigValue("2"))
+      }
 
       // Ensure diff by key since Play Config applies its escaping
-      ConfigParser.extractAsConfig(
-        properties      = toProperties(Seq("prefix.Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
-      , prefix          = "prefix."
-      ) shouldBe (toConfig(Map("Prod.http-client.audit.disabled-for" -> """http://.*\.service""")), Map.empty[String, String])
+      {
+        val (config, suppressed) =
+          ConfigParser.extractAsConfig(
+            properties      = toProperties(Seq("prefix.Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
+          , prefix          = "prefix."
+          )
+        config                                    shouldBe toConfig(Map("Prod.http-client.audit.disabled-for" -> """http://.*\.service"""))
+        suppressed shouldBe Map.empty[String, ConfigValue]
+      }
     }
   }
 
@@ -256,7 +295,7 @@ class ConfigParserSpec
                                |c=3
                                |""".stripMargin
                           ))
-      ) shouldBe Map("a" -> "1")
+      ) shouldBe Map("a" -> ConfigValue("1"))
     }
 
     "work on many levels" in {
@@ -268,7 +307,7 @@ class ConfigParserSpec
                                |c=3
                                |""".stripMargin
                           ))
-      ) shouldBe Map("a" -> "1")
+      ) shouldBe Map("a" -> ConfigValue("1"))
     }
   }
 
@@ -363,8 +402,8 @@ class ConfigParserSpec
       )
       // entries should have substitutions applied
       entries shouldBe Map(
-        "param1" -> s"yyy",
-        "param2" -> s"yyy"
+        "param1" -> ConfigValue("yyy"),
+        "param2" -> ConfigValue("yyy")
       )
     }
 
@@ -388,7 +427,7 @@ class ConfigParserSpec
       )
       // entries should only include effective changes from latestConf
       entries shouldBe Map(
-        "param1" -> s"yyy"
+        "param1" -> ConfigValue("yyy")
       )
     }
 
@@ -411,7 +450,7 @@ class ConfigParserSpec
       )
       // and entries should preserve the update from latestConf, even though it hasn't changed from previousConf
       entries shouldBe Map(
-        "param1" -> s"yyy"
+        "param1" -> ConfigValue("yyy")
       )
     }
   }
