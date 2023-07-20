@@ -70,7 +70,7 @@ class MissedWebhookEventsScheduler @Inject()(
         _ <- accumulateErrors("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
         _ <- accumulateErrors("BobbyRulesUpdater"            , bobbyRulesService.update())
         _ <- accumulateErrors("OutagePageUpdater"            , outagePageService.update())
-        _ <- accumulateErrors("ConfigWarningUpdater"         , configWarningService.update())
+        _ <- accumulateErrors("ConfigWarningUpdater"         , configWarningService.updateAll())
       } yield logger.info("Finished updating incase of missed webhook event")
     )
   }

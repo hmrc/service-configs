@@ -311,6 +311,9 @@ class SlugInfoServiceSpec
       when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
         .thenReturn(Future.unit)
 
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
+
       service.updateMetadata().futureValue
 
       verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.ForEnvironment(Environment.QA)        , serviceName1, Version("1.0.0"))
@@ -361,9 +364,9 @@ class SlugInfoServiceSpec
   }
 
   "SlugInfoService.updateDeployment" should {
-    "updateDeployedConfig when :" +
-      "1. The current deployedConfig configID differs from the latest Deployment ConfigID" +
-      "2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp." in new SetupUpdateDeployment {
+    """updateDeployedConfig when:
+      1. The current deployedConfig configId differs from the latest Deployment ConfigId
+      2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp.""" in new SetupUpdateDeployment {
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           Some(
@@ -379,6 +382,12 @@ class SlugInfoServiceSpec
             )
           )
         ))
+
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
+
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
 
       service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
 
@@ -400,6 +409,9 @@ class SlugInfoServiceSpec
           None
         ))
 
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
+
       service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
@@ -414,9 +426,9 @@ class SlugInfoServiceSpec
       ))
     }
 
-    "Not update deployedConfig when :" +
-      "1. The current deployedConfig lastUpdated timestamp is after the latest Deployment timestamp" +
-      "2. The config Ids differ" in new Setup {
+    """Not update deployedConfig when:
+      1. The current deployedConfig lastUpdated timestamp is after the latest Deployment timestamp
+      2. The config Ids differ""" in new Setup {
       val serviceName1 = ServiceName("service1")
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
@@ -438,6 +450,9 @@ class SlugInfoServiceSpec
           )
         ))
 
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
+
       val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
@@ -458,9 +473,9 @@ class SlugInfoServiceSpec
       ))
     }
 
-    "Not update deployedConfig when:" +
-      "1. the latest Deployment configId is the same as that of the current deployedConfig, " +
-      "2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp" in new Setup {
+    """Not update deployedConfig when:
+      1. the latest Deployment configId is the same as that of the current deployedConfig
+      2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp""" in new Setup {
       val serviceName1 = ServiceName("service1")
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
@@ -481,6 +496,9 @@ class SlugInfoServiceSpec
             )
           )
         ))
+
+      when(mockedConfigWarningService.update(any[Environment], any[ServiceName])(any[HeaderCarrier]))
+        .thenReturn(Future.unit)
 
       val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
@@ -514,6 +532,7 @@ class SlugInfoServiceSpec
     val mockedGithubRawConnector       = mock[GithubRawConnector]
     val mockedConfigConnector          = mock[ConfigConnector]
     val mockedConfigService            = mock[ConfigService]
+    val mockedConfigWarningService     = mock[ConfigWarningService]
 
     val now = Instant.now()
 
@@ -529,6 +548,7 @@ class SlugInfoServiceSpec
       , mockedGithubRawConnector
       , mockedConfigConnector
       , mockedConfigService
+      , mockedConfigWarningService
       , Clock.fixed(now, ZoneOffset.UTC)
       )
 

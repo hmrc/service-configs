@@ -97,7 +97,7 @@ class ConfigController @Inject()(
   ): Action[AnyContent] =
     Action.async {
       configWarningService
-        .warnings(Some(environments), Some(Seq(serviceName))) // TODO optional, and look up by team
+        .warnings(Some(environments), Some(Seq(serviceName))) // TODO optional params, and look up by team
         .map(res => Ok(Json.toJson(res)))
     }
 }

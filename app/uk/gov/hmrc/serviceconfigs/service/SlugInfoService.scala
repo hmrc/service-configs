@@ -42,8 +42,9 @@ class SlugInfoService @Inject()(
 , teamsAndReposConnector   : TeamsAndRepositoriesConnector
 , githubRawConnector       : GithubRawConnector
 , configConnector          : ConfigConnector
-, configService            : ConfigService,
-  clock                    : Clock
+, configService            : ConfigService
+, configWarningService     : ConfigWarningService
+, clock                    : Clock
 )(implicit
   ec: ExecutionContext
 ) {
@@ -133,7 +134,7 @@ class SlugInfoService @Inject()(
         _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
         currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
         requiresUpdate        =  currentDeploymentInfo match {
-                                    case None  =>
+                                   case None  =>
                                      logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
                                      true
                                    case Some(config) if config.configId.equals(deployment.configId) =>
@@ -153,6 +154,7 @@ class SlugInfoService @Inject()(
                                      .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
                                  else
                                    Future.unit
+        _                     <- configWarningService.update(env, serviceName) // we could skip for redeployments, but we don't store the version in deploymentInfo (it's embedded in configId though)
       } yield requiresUpdate
 
     private def updateDeployedConfig(

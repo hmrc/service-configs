@@ -41,8 +41,9 @@ class ConfigWarningService @Inject()(
   def warnings(environments: Option[Seq[Environment]], serviceNames: Option[Seq[ServiceName]]): Future[Seq[ConfigWarning]] =
     configWarningRepository.find(environments, serviceNames)
 
-  def update()(implicit hc: HeaderCarrier): Future[Unit] =
+  def updateAll()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
+      _        <- Future.successful(logger.info(s"Updating all Config Warnings"))
       repos    <- releasesApiConnector.getWhatsRunningWhere()
       warnings <- repos.toList.foldLeftM[Future, Seq[ConfigWarning]](Seq.empty) { case (acc, repo) =>
                     // TODO calculate envs in parallel?
@@ -50,12 +51,44 @@ class ConfigWarningService @Inject()(
                       calculateWarnings(env, repo.serviceName, latest = true)
                         .map(acc ++ _)
                         .recover {
-                          case ex => logger.error(s"Failed to get warnings for $repo, $env: ${ex.getMessage}", ex)
+                          case ex => logger.error(s"Failed to get warnings for ${repo.serviceName}, $env: ${ex.getMessage}", ex)
                                      acc
                         }
                     }
                   }
       _        <- configWarningRepository.putAll(warnings) // Or store for service/env as we go through?
+      _        =  logger.info(s"Finished updating all Config Warnings")
+    } yield ()
+
+  // TODO call when latest has changed (e.g. webhook)
+  def update(environment: Environment, serviceName: ServiceName)(implicit hc: HeaderCarrier): Future[Unit] =
+    for {
+      _        <- Future.successful(logger.info(s"Updating Config Warnings for $serviceName, $environment"))
+      warnings <- calculateWarnings(environment, serviceName, latest = true)
+                    .recover {
+                      case ex => logger.error(s"Failed to get warnings for $serviceName, $environment: ${ex.getMessage}", ex)
+                                 Seq.empty
+                    }
+      _        <- configWarningRepository.put(environment, serviceName, warnings)
+      _        =  logger.info(s"Finished updating Config Warnings for $serviceName, $environment")
+    } yield ()
+
+  def update(environment: Environment)(implicit hc: HeaderCarrier): Future[Unit] =
+    for {
+      _        <- Future.successful(logger.info(s"Updating Config Warnings for $environment"))
+      repos    <- releasesApiConnector.getWhatsRunningWhere()
+      warnings <- repos
+                    .filter(_.deployments.exists(_.optEnvironment.exists(_ == environment)))
+                    .toList.foldLeftM[Future, Seq[ConfigWarning]](Seq.empty) { case (acc, repo) =>
+                      calculateWarnings(environment, repo.serviceName, latest = true)
+                        .map(acc ++ _)
+                        .recover {
+                          case ex => logger.error(s"Failed to get warnings for ${repo.serviceName}, $environment: ${ex.getMessage}", ex)
+                                     acc
+                        }
+                    }
+      _        <- configWarningRepository.putAll(warnings) // Or store for service/env as we go through?
+      _        =  logger.info(s"Finished updating Config Warnings for $environment")
     } yield ()
 
   private[service] def calculateWarnings(

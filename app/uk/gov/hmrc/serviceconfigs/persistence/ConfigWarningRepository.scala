@@ -49,7 +49,10 @@ class ConfigWarningRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def find(environments: Option[Seq[Environment]], serviceNames: Option[Seq[ServiceName]]): Future[Seq[ConfigWarning]] =
+  def find(
+    environments: Option[Seq[Environment]],
+    serviceNames: Option[Seq[ServiceName]]
+  ): Future[Seq[ConfigWarning]] =
     collection.find(
       Filters.and(
         serviceNames.fold(Filters.empty())(sn => Filters.in("serviceName", sn: _*)),
@@ -61,6 +64,24 @@ class ConfigWarningRepository @Inject()(
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
+        r <- collection.insertMany(session, warnings).toFuture()
+      } yield ()
+    }
+
+  def put(
+    environment: Environment,
+    serviceName: ServiceName,
+    warnings   : Seq[ConfigWarning]
+  ): Future[Unit] =
+    withSessionAndTransaction { session =>
+      for {
+        _ <- collection.deleteMany(
+               session,
+               Filters.and(
+                 Filters.equal("serviceName", serviceName),
+                 Filters.equal("environment", environment)
+               )
+             ).toFuture()
         r <- collection.insertMany(session, warnings).toFuture()
       } yield ()
     }
