@@ -39,8 +39,6 @@ object InternalAuthConfig {
       ~ (__ \ "grantType").format[GrantType]
       )(InternalAuthConfig.apply, unlift(InternalAuthConfig.unapply))
   }
-  
-
 }
 
 sealed trait GrantType{ def asString: String }
@@ -66,29 +64,31 @@ object GrantType {
       }
   }
 }
+
 sealed trait InternalAuthEnvironment {
     def asString: String
 }
 
-  object InternalAuthEnvironment {
-    case object Prod extends InternalAuthEnvironment {
-      val asString = "production"
-    }
+object InternalAuthEnvironment {
 
-    case object Qa extends InternalAuthEnvironment {
-      val asString = "qa"
-    }
+  case object Prod extends InternalAuthEnvironment {
+    val asString = "production"
+  }
 
-    implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
-      override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
+  case object Qa extends InternalAuthEnvironment {
+    val asString = "qa"
+  }
 
-      override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = {
-        json.validate[String].flatMap {
-          case "production" => JsSuccess(Prod)
-          case "qa" => JsSuccess(Qa)
-          case _ => JsError("Invalid Internal Auth Environment")
-        }
+  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
+    override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
+
+    override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = {
+      json.validate[String].flatMap {
+        case "production" => JsSuccess(Prod)
+        case "qa" => JsSuccess(Qa)
+        case _ => JsError("Invalid Internal Auth Environment")
       }
     }
+  }
 }
 
