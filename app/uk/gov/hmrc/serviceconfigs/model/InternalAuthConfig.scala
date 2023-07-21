@@ -58,33 +58,37 @@ object GrantType {
   implicit val format: Format[GrantType] = new Format[GrantType] {
     override def writes(grantType: GrantType): JsValue = JsString(grantType.asString)
 
-    override def reads(json: JsValue): JsResult[GrantType] = json match {
-      case JsString("grantee") => JsSuccess(Grantee)
-      case JsString("grantor") => JsSuccess(Grantor)
-      case _ => JsError("Invalid grant type")
-    }
+    override def reads(json: JsValue): JsResult[GrantType] =
+      json.validate[String].flatMap {
+        case "grantee" => JsSuccess(Grantee)
+        case "grantor" => JsSuccess(Grantor)
+        case _ => JsError("Invalid Grant Type")
+      }
   }
 }
-
-sealed trait InternalAuthEnvironment{ def asString: String }
-
-object InternalAuthEnvironment {
-
-  case object Prod extends InternalAuthEnvironment {
-    val asString = "production"
-  }
-
-  case object Qa extends InternalAuthEnvironment {
-    val asString = "qa"
-  }
-
- implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
-    override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
-
-    override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = json match {
-      case JsString("production") => JsSuccess(Prod)
-      case JsString("qa") => JsSuccess(Qa)
-      case _ => JsError("Invalid Internal Auth Environment")
-    }
-  }
+sealed trait InternalAuthEnvironment {
+    def asString: String
 }
+
+  object InternalAuthEnvironment {
+    case object Prod extends InternalAuthEnvironment {
+      val asString = "production"
+    }
+
+    case object Qa extends InternalAuthEnvironment {
+      val asString = "qa"
+    }
+
+    implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
+      override def writes(o: InternalAuthEnvironment): JsValue = JsString(o.asString)
+
+      override def reads(json: JsValue): JsResult[InternalAuthEnvironment] = {
+        json.validate[String].flatMap {
+          case "production" => JsSuccess(Prod)
+          case "qa" => JsSuccess(Qa)
+          case _ => JsError("Invalid Internal Auth Environment")
+        }
+      }
+    }
+}
+

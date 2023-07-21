@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 import play.api.Logging
 import play.api.libs.json.Reads
 import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment._
-import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, InternalAuthEnvironment, ServiceName, GrantGroup}
+import uk.gov.hmrc.serviceconfigs.model.{GrantGroup, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import java.io.ByteArrayOutputStream
@@ -43,7 +43,7 @@ class InternalAuthConfigParser extends Logging {
   def parseGrants(parsedYaml: String, env: InternalAuthEnvironment):Set[InternalAuthConfig] = {
     implicit val reads: Reads[Option[GrantGroup]] = GrantGroup.grantGroupReads
 
-    fromYaml[List[Option[GrantGroup]]](parsedYaml).flatten.toSet.flatMap{
+    fromYaml[List[Option[GrantGroup]]](parsedYaml).flatten.toSet[GrantGroup].flatMap{
       case GrantGroup(services, grant) => services.map(s => InternalAuthConfig(ServiceName(s), env, grant))
     }
   }
