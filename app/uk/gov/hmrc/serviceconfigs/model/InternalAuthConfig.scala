@@ -19,12 +19,12 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsValue, Reads, __}
 import play.api.libs.functional.syntax._
 
-case class Services (serviceName: Seq[String], grant: GrantType)
+case class GrantGroup(services: Seq[String], grant: GrantType)
 
-object Services {
-  val serviceReads: Reads[Option[Services]] = (
-    (__ \ "grantees" \ "service").read[Seq[String]].map(v => Some(Services(v, GrantType.Grantee))) or
-      (__ \ "resourceType").read[String].map(v => Some(Services(List(v), GrantType.Grantor))) or
+object GrantGroup {
+  val grantGroupReads: Reads[Option[GrantGroup]] = (
+    (__ \ "grantees" \ "service").read[Seq[String]].map(v => Some(GrantGroup(v, GrantType.Grantee))) or
+      (__ \ "resourceType").read[String].map(v => Some(GrantGroup(List(v), GrantType.Grantor))) or
       Reads.pure(None)
     )
 }
