@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
@@ -26,7 +25,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class LatestConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with MockitoSugar
      with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig] {
 
   override protected val repository = new LatestConfigRepository(mongoComponent)

@@ -28,16 +28,13 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
-import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.model.{SlugInfo, Version}
 import uk.gov.hmrc.mongo.test.MongoSupport
-import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.controller.ConfigController
+import uk.gov.hmrc.serviceconfigs.persistence.{DeployedConfigRepository, LatestConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, MongoSlugInfoFormats, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, MongoSlugInfoFormats, ServiceName, SlugInfo, Version}
 
 import java.time.Instant
-import uk.gov.hmrc.serviceconfigs.persistence.DeployedConfigRepository
-
 import java.time.temporal.ChronoUnit
 
 class ConfigServiceSpec
@@ -48,8 +45,7 @@ class ConfigServiceSpec
      with BeforeAndAfterAll
      with GuiceOneAppPerSuite
      with WireMockSupport
-     with MongoSupport
-     with uk.gov.hmrc.serviceconfigs.ConfigJson {
+     with MongoSupport {
   import ConfigService._
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
@@ -72,11 +68,8 @@ class ConfigServiceSpec
   private val latestConfigCollection   = mongoDatabase.getCollection(LatestConfigRepository.collectionName)
   private val deployedConfigCollection = mongoDatabase.getCollection(DeployedConfigRepository.collectionName)
 
-  implicit val slugInfoFormat = MongoSlugInfoFormats.slugInfoFormat
-
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     dropDatabase()
-  }
 
   "ConfigService.configByKey" should {
     List(true, false).foreach { latest =>
@@ -88,6 +81,7 @@ class ConfigServiceSpec
 
         val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
         def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
+        import ConfigController._
         Json.toJson(configByKey.futureValue) shouldBe Json.parse(s"""
           {
           "a": {
@@ -233,6 +227,7 @@ class ConfigServiceSpec
       withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa , now.minus(2, ChronoUnit.DAYS))
     }
 
+    implicit val sif = MongoSlugInfoFormats.slugInfoFormat
     slugInfoCollection
       .insertOne {
         val json =

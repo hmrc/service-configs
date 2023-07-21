@@ -43,7 +43,7 @@ class DashboardService @Inject()(
       blob    = "https://github.com/hmrc/grafana-dashboards/blob"
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
-                  .map { case (repo, location) => Dashboard(service = ServiceName(repo.name), location = location) }
+                  .map { case (repo, location) => Dashboard(serviceName = ServiceName(repo.name), location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
       count  <- grafanaDashboardRepo.putAll(items)
@@ -59,7 +59,7 @@ class DashboardService @Inject()(
       blob    = "https://github.com/hmrc/kibana-dashboards/blob"
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
-                  .map { case (repo, location) => Dashboard(service = ServiceName(repo.name), location = location) }
+                  .map { case (repo, location) => Dashboard(serviceName = ServiceName(repo.name), location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")
       count  <- kibanaDashboardRepo.putAll(items)

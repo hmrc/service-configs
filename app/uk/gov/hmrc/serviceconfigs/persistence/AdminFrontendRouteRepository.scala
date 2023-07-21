@@ -33,7 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class AdminFrontendRouteRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[AdminFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "adminFrontendRoutes",
   domainFormat   = AdminFrontendRoute.format,
@@ -54,12 +54,12 @@ class AdminFrontendRouteRepository @Inject()(
       .find(equal("service", serviceName))
       .toFuture()
 
-  def putAll(routes: Seq[AdminFrontendRoute]): Future[Int] =
+  def putAll(routes: Seq[AdminFrontendRoute]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         r <- collection.insertMany(session, routes).toFuture()
-      } yield r.getInsertedIds.size
+      } yield ()
     }
 
   def findAllAdminFrontendServices(): Future[Seq[ServiceName]] =

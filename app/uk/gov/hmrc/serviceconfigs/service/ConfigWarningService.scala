@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValueType
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,30 +31,33 @@ class ConfigWarningService @Inject()(
   ec: ExecutionContext
 ){
 
-  def warnings(env: Environment, serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] =
+  def warnings(
+    environment: Environment,
+    serviceName: ServiceName,
+    latest     : Boolean
+  )(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] =
     for {
-      configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest)
+      configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
       resultingConfig     =  configService.resultingConfig(configSourceEntries)
       nov                 =  configNotOverriding(configSourceEntries)
       ctc                 =  configTypeChange(configSourceEntries)
       ulh                 =  useOfLocalhost(resultingConfig)
-      udb                 =  if (env == Environment.Production)
+      udb                 =  if (environment == Environment.Production)
                                useOfDebug(resultingConfig)
                              else Seq.empty
-      tor                 =  if (env == Environment.Production)
+      tor                 =  if (environment == Environment.Production)
                                testOnlyRoutes(resultingConfig)
                              else Seq.empty
       rmc                 =  reactiveMongoConfig(resultingConfig)
       uec                 =  unencryptedConfig(resultingConfig)
     } yield
-      (
-        nov.map { case (k, csv) => ConfigWarning(k, csv, "NotOverriding"      ) } ++
-        ctc.map { case (k, csv) => ConfigWarning(k, csv, "TypeChange"         ) } ++
-        ulh.map { case (k, csv) => ConfigWarning(k, csv, "Localhost"          ) } ++
-        udb.map { case (k, csv) => ConfigWarning(k, csv, "DEBUG"              ) } ++
-        tor.map { case (k, csv) => ConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
-        rmc.map { case (k, csv) => ConfigWarning(k, csv, "ReactiveMongoConfig") } ++
-        uec.map { case (k, csv) => ConfigWarning(k, csv, "Unencrypted"        ) }
+      ( nov.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "NotOverriding"      ) } ++
+        ctc.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "TypeChange"         ) } ++
+        ulh.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "Localhost"          ) } ++
+        udb.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "DEBUG"              ) } ++
+        tor.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "TestOnlyRoutes"     ) } ++
+        rmc.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "ReactiveMongoConfig") } ++
+        uec.map { case (k, csv) => ConfigWarning(k, csv.toRenderedConfigSourceValue, "Unencrypted"        ) }
       ).sortBy(w => (w.warning, w.key))
 
   private val ArrayRegex = "(.*)\\.\\d+(?:\\..+)?".r
@@ -145,8 +148,8 @@ class ConfigWarningService @Inject()(
        }
       }
 
-    checkTypeOverrides(overrideSource = "baseConfig", overridableSources = List("referenceConf", "applicationConf")) ++
-      checkTypeOverrides(overrideSource = "appConfigEnvironment", overridableSources = List("referenceConf", "applicationConf", "baseConfig", "appConfigCommonOverridable"))
+    checkTypeOverrides(overrideSource = "baseConfig", overridableSources = List("referenceConf", "bootstrapFrontendConf", "bootstrapBackendConf", "applicationConf")) ++
+      checkTypeOverrides(overrideSource = "appConfigEnvironment", overridableSources = List("referenceConf", "bootstrapFrontendConf", "bootstrapBackendConf", "applicationConf", "baseConfig", "appConfigCommonOverridable"))
   }
 
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
@@ -172,7 +175,7 @@ class ConfigWarningService @Inject()(
     }.toSeq
 
   def hasFunkyChars(c: Char) =
-    !(Character.isLetterOrDigit(c) || c == '-' || c == '_' || c == '.' || c == '*' || c == '/' || c == ':' || c == ',')
+    !(Character.isLetterOrDigit(c) || c == '-' || c == '_' || c == '.' || c == '*' || c == '/' || c == ':' || c == ',' || c == ' ')
 
   private def unencryptedConfig(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
@@ -185,7 +188,7 @@ class ConfigWarningService @Inject()(
 }
 
 case class ConfigWarning(
-  key    : KeyName,
-  value  : ConfigSourceValue,
-  warning: String
+  key        : KeyName,
+  value      : RenderedConfigSourceValue,
+  warning    : String
 )

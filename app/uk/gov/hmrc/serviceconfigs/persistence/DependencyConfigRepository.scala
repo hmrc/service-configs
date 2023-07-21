@@ -30,7 +30,7 @@ class DependencyConfigRepository @Inject()(
   mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[DependencyConfig](
   mongoComponent = mongoComponent,
   collectionName = "dependencyConfigs",
   domainFormat   = MongoSlugInfoFormats.dependencyConfigFormat,

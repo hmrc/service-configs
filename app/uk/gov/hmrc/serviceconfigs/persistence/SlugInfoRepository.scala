@@ -33,7 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugInfoRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[SlugInfo](
   mongoComponent = mongoComponent,
   collectionName = SlugInfoRepository.collectionName,
   domainFormat   = MongoSlugInfoFormats.slugInfoFormat,

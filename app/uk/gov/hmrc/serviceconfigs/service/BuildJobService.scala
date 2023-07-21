@@ -42,7 +42,7 @@ class BuildJobService @Inject()(
       blob    = "https://github.com/hmrc/build-jobs/blob"
       items   = ZipUtil
                   .findRepos(zip, repos, regex, blob)
-                  .map { case (repo, location) => BuildJob(service = ServiceName(repo.name), location = location) }
+                  .map { case (repo, location) => BuildJob(serviceName = ServiceName(repo.name), location = location) }
       _       = zip.close()
       _       = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
       count  <- buildJobRepository.putAll(items)

@@ -32,7 +32,7 @@ class ServiceRelationshipRepository @Inject()(
   override val mongoComponent: MongoComponent,
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[ServiceRelationship](
   mongoComponent = mongoComponent,
   collectionName = "serviceRelationships",
   domainFormat   = ServiceRelationship.serviceRelationshipFormat,

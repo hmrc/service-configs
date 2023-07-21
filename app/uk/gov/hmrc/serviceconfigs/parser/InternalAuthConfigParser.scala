@@ -28,10 +28,15 @@ import scala.util.matching.Regex
 
 class InternalAuthConfigParser extends Logging {
 
-  private def readEntry(zipInputStream: ZipInputStream, entry: ZipEntry, env: InternalAuthEnvironment, path: String): Set[InternalAuthConfig] = {
+  private def readEntry(
+    zipInputStream: ZipInputStream,
+    entry         : ZipEntry,
+    env           : InternalAuthEnvironment,
+    path          : String
+  ): Set[InternalAuthConfig] = {
     val outputStream = new ByteArrayOutputStream
-    val buffer = new Array[Byte](4096)
-    var bytesRead = zipInputStream.read(buffer)
+    val buffer       = new Array[Byte](4096)
+    var bytesRead    = zipInputStream.read(buffer)
     while (bytesRead != -1) {
       outputStream.write(buffer, 0, bytesRead)
       bytesRead = zipInputStream.read(buffer)
@@ -40,17 +45,20 @@ class InternalAuthConfigParser extends Logging {
     parseGrants(output, env)
   }
 
-  def parseGrants(parsedYaml: String, env: InternalAuthEnvironment):Set[InternalAuthConfig] = {
+  def parseGrants(parsedYaml: String, env: InternalAuthEnvironment): Set[InternalAuthConfig] = {
     implicit val reads: Reads[Option[GrantGroup]] = GrantGroup.grantGroupReads
 
-    fromYaml[List[Option[GrantGroup]]](parsedYaml).flatten.toSet[GrantGroup].flatMap{
-      case GrantGroup(services, grant) => services.map(s => InternalAuthConfig(ServiceName(s), env, grant))
-    }
+    fromYaml[List[Option[GrantGroup]]](parsedYaml)
+      .flatten
+      .toSet[GrantGroup]
+      .flatMap {
+        case GrantGroup(services, grant) => services.map(s => InternalAuthConfig(ServiceName(s), env, grant))
+      }
   }
 
   def parseZip(z: ZipInputStream): Set[InternalAuthConfig] = {
     val prodConfigRegex: Regex = """prod/([^index].*).yaml""".r
-    val qaConfigRegex: Regex = """qa/([^index].*).yaml""".r
+    val qaConfigRegex  : Regex = """qa/([^index].*).yaml""".r
 
     Iterator
       .continually(z.getNextEntry)
@@ -59,8 +67,8 @@ class InternalAuthConfigParser extends Logging {
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
         path match {
           case prodConfigRegex(_) => acc ++ readEntry(z, entry, Prod, path)
-          case qaConfigRegex(_) => acc ++ readEntry(z, entry, Qa, path)
-          case _ => acc
+          case qaConfigRegex(_)   => acc ++ readEntry(z, entry, Qa, path)
+          case _                  => acc
         }
       }
   }

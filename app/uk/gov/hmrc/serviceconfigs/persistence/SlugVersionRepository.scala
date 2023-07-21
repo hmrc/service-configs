@@ -30,7 +30,7 @@ class SlugVersionRepository @Inject()(
   mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[Version](
   mongoComponent = mongoComponent,
   collectionName = SlugInfoRepository.collectionName,
   domainFormat   = Version.mongoVersionRepositoryFormat,
@@ -42,7 +42,7 @@ class SlugVersionRepository @Inject()(
   // we delete explicitly when we get a delete notification
   override lazy val requiresTtlIndex = false
 
-  def getMaxVersion(name: ServiceName) : Future[Option[Version]] =
+  def getMaxVersion(name: ServiceName): Future[Option[Version]] =
     collection
       .find(equal("name", name))
       .projection(include("version"))

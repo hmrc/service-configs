@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs
+package uk.gov.hmrc.serviceconfigs.controller
 
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
-import uk.gov.hmrc.serviceconfigs.service.ConfigService._
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigByEnvironment, ConfigSourceEntries}
 
-
-class JsonMarshallingSpec extends AnyWordSpec with Matchers with ConfigJson {
+class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
+  import ConfigController._
 
   "ConfigByEnvironment" should {
     "unmarshal" in {

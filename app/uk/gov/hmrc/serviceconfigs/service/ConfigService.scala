@@ -395,6 +395,19 @@ object ConfigService {
     source    : String,
     sourceUrl : Option[String],
     value     : ConfigValue
+  ) {
+    def toRenderedConfigSourceValue =
+      RenderedConfigSourceValue(
+        source,
+        sourceUrl,
+        value.asString
+      )
+  }
+
+  case class RenderedConfigSourceValue(
+    source   : String,
+    sourceUrl: Option[String],
+    value    : String
   )
 
   sealed trait ConfigEnvironment {

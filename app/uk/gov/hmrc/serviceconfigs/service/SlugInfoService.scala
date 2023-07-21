@@ -84,9 +84,12 @@ class SlugInfoService @Inject()(
                                     case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
                                                                              .map(_ => acc.copy(removed = acc.removed + 1))
                                     case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment, dataTimestamp)
-                                                                             .map(requiresUpdate => if (requiresUpdate)
-                                                                                               acc.copy(updated = acc.updated + 1)
-                                                                                             else acc.copy(skipped = acc.skipped + 1))
+                                                                             .map(requiresUpdate =>
+                                                                               if (requiresUpdate)
+                                                                                 acc.copy(updated = acc.updated + 1)
+                                                                               else
+                                                                                acc.copy(skipped = acc.skipped + 1)
+                                                                             )
                                   }
                                 }
       _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
@@ -130,23 +133,21 @@ class SlugInfoService @Inject()(
         _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
         currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
         requiresUpdate        =  currentDeploymentInfo match {
-                                    case None         =>
-                                      logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
-                                      true
-                                    case Some(config) =>
-                                      if (config.configId.equals(deployment.configId)) {
-                                        logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
-                                        false
-                                      } else if (config.lastUpdated.isAfter(dataTimestamp)) {
-                                        logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
-                                          s"as the latest update occurred after the current process began.")
-                                        false
-                                      } else {
-                                        logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
-                                        true
-                                      }
-                                }
-      _                       <- if (requiresUpdate)
+                                    case None  =>
+                                     logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
+                                     true
+                                   case Some(config) if config.configId.equals(deployment.configId) =>
+                                     logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
+                                     false
+                                   case Some(config) if config.lastUpdated.isAfter(dataTimestamp) =>
+                                     logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
+                                       s"as the latest update occurred after the current process began.")
+                                     false
+                                   case _    =>
+                                     logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
+                                     true
+                                 }
+        _                     <- if (requiresUpdate)
                                    updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), dataTimestamp)
                                      .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
                                      .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
@@ -207,13 +208,7 @@ class SlugInfoService @Inject()(
         // now we have stored the deployment configs, we can calculate the resulting configs
         cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false))
         deploymentConfig  =  configService.resultingConfig(cses)
-        renderedDeploymentConfig = deploymentConfig.view.mapValues(cse =>
-                                     AppliedConfigRepository.RenderedConfigSourceValue(
-                                       cse.source,
-                                       cse.sourceUrl,
-                                       cse.value.asString
-                                     )
-                                   ).toMap
+        renderedDeploymentConfig = deploymentConfig.view.mapValues(_.toRenderedConfigSourceValue).toMap
         _                 <- if (deploymentConfig.nonEmpty)
                                 EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
                              else

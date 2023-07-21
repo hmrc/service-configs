@@ -32,7 +32,7 @@ class DeploymentConfigRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[DeploymentConfig](
   mongoComponent = mongoComponent,
   collectionName = "deploymentConfig",
   domainFormat   = DeploymentConfig.mongoFormat,
