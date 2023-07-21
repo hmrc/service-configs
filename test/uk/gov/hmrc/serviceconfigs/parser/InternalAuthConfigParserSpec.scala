@@ -27,7 +27,7 @@ import java.util.zip.ZipInputStream
 
 class InternalAuthConfigParserSpec
   extends AnyWordSpec
-  with Matchers with Logging {
+  with Matchers {
 
   lazy val configZip = new ZipInputStream(this.getClass.getResource("/internal-auth-config-main.zip").openStream())
   lazy val parser = new InternalAuthConfigParser

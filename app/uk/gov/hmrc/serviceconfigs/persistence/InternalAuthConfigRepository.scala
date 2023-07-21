@@ -41,9 +41,7 @@ class InternalAuthConfigRepository @Inject()(
   indexes        = Seq(
     IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("intAuthServiceNameIdx"))
   ),
-  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format),
-                       Codecs.playFormatCodec(InternalAuthEnvironment.format),
-                       Codecs.playFormatCodec(GrantType.format))
+  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ) with Transactions with Logging {
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
