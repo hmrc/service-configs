@@ -19,8 +19,8 @@ package uk.gov.hmrc.serviceconfigs.model
 sealed trait ServiceType { def asString: String }
 
 object ServiceType {
-  case object Frontend extends ServiceType { val asString = "FrontendService" }
-  case object Backend  extends ServiceType { val asString = "BackendService" }
+  case object Frontend extends ServiceType { val asString = "frontend" }
+  case object Backend  extends ServiceType { val asString = "backend" }
 
   val values: List[ServiceType] =
     List(Frontend, Backend)
