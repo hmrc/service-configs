@@ -207,20 +207,20 @@ trait ConfigParser extends Logging {
       .reduceLeft(_ withFallback _)
 
   def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, ConfigValue]) = {
-     val newProps = new Properties
+    val newProps = new Properties
 
-     properties
-       .entrySet
-       .asScala
-       .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+    properties
+      .entrySet
+      .asScala
+      .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
-     val config     = ConfigFactory.parseProperties(newProps)
-     val suppressed = newProps.asScala.view
-                        .filterKeys(!flattenConfigToDotNotation(config).contains(_))
-                        .mapValues(ConfigValue.apply)
-                        .toMap
-     (config, suppressed)
-   }
+    val config     = ConfigFactory.parseProperties(newProps)
+    val suppressed = newProps.asScala.view
+                       .filterKeys(!flattenConfigToDotNotation(config).contains(_))
+                       .mapValues(ConfigValue.apply)
+                       .toMap
+    (config, suppressed)
+  }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -

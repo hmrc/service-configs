@@ -19,17 +19,18 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.Json
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigByEnvironment, ConfigSourceEntries}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries}
 
 class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
   import ConfigController._
 
   "ConfigByEnvironment" should {
     "unmarshal" in {
-      val cbe: ConfigByEnvironment = Map(
-        "environmentName" -> Seq(
+      val cbe: Map[ConfigEnvironment, Seq[ConfigSourceEntries]] = Map(
+        ConfigEnvironment.Local -> Seq(
           ConfigSourceEntries(
             source     = "baseConfig",
             sourceUrl  = None,
@@ -50,7 +51,7 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
 
       Json.toJson(cbe) shouldBe Json.parse("""
         {
-          "environmentName":[
+          "local":[
             {
               "source": "baseConfig",
               "entries": {
@@ -71,11 +72,10 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  // type ConfigByKey = SortedMap[String, Map[EnvironmentConfigSource, ConfigEntry]]
   "ConfigByKey" should {
     "write to json" in {
       val configByKey = Map("key1" ->
-        Map("environmentName" ->
+        Map(ConfigEnvironment.ForEnvironment(Environment.QA) ->
           Seq(
             ConfigService.ConfigSourceValue(
               source    = "baseConfig",
@@ -94,7 +94,7 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
       Json.toJson(configByKey) shouldBe Json.parse("""
         {
           "key1": {
-            "environmentName": [
+            "qa": [
               {
                 "source": "baseConfig",
                 "value": "configEntry1"

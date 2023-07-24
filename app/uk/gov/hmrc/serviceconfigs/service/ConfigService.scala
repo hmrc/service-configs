@@ -238,9 +238,9 @@ class ConfigService @Inject()(
           )
     }
 
-  def configByEnvironment(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByEnvironment] =
+  def configByEnvironment(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
     ConfigEnvironment.values.map(e =>
-      configSourceEntries(e, serviceName, latest).map(e.name -> _)
+      configSourceEntries(e, serviceName, latest).map(e -> _)
     ).sequence.map(_.toMap)
 
   def resultingConfig(
@@ -290,9 +290,9 @@ class ConfigService @Inject()(
     }
 
   // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
-  def configByKey(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[ConfigByKey] =
+  def configByKey(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[KeyName, Map[ConfigEnvironment, Seq[ConfigSourceValue]]]] =
     ConfigEnvironment.values.toList
-      .foldLeftM[Future, ConfigByKey](Map.empty) {
+      .foldLeftM[Future, Map[KeyName, Map[ConfigEnvironment, Seq[ConfigSourceValue]]]](Map.empty) {
         case (map, e) =>
           configSourceEntries(e, serviceName, latest).map { cses =>
             cses.foldLeft(map) {
@@ -300,8 +300,8 @@ class ConfigService @Inject()(
                 subMap ++ cse.entries.map {
                   case (key, value) =>
                     val envMap = subMap.getOrElse(key, Map.empty)
-                    val values = envMap.getOrElse(e.name, Seq.empty)
-                    key -> (envMap + (e.name -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value))))
+                    val values = envMap.getOrElse(e, Seq.empty)
+                    key -> (envMap + (e -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value))))
                 }
             }
           }
@@ -322,11 +322,7 @@ class ConfigService @Inject()(
 }
 
 object ConfigService {
-  type EnvironmentName = String
   type KeyName         = String
-
-  type ConfigByEnvironment = Map[EnvironmentName, Seq[ConfigSourceEntries]]
-  type ConfigByKey         = Map[KeyName, Map[EnvironmentName, Seq[ConfigSourceValue]]]
 
   case class ConfigSourceConfig(
     name         : String,

@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceValue, KeyName, RenderedConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import javax.inject.{Inject, Singleton}
@@ -143,4 +143,7 @@ object ConfigController {
     ~ (__ \ "value"      ).write[RenderedConfigSourceValue]
     ~ (__ \ "warning"    ).write[String]
     )(unlift(ConfigWarning.unapply))
+
+  implicit def envMapWrites[A <: ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
+    implicitly[Writes[Map[String, B]]].contramap(m => m.map { case (e, a) => (e.name, a) })
 }
