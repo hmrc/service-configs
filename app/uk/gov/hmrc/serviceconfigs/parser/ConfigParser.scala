@@ -125,25 +125,25 @@ trait ConfigParser extends Logging {
     !(Character.isLetterOrDigit(c) || c == '-' || c == '_')
 
   private case class Acc(
-    acc         : Set[(String, ConfigValue)],
+    acc         : Seq[(String, ConfigValue)],
     configObject: ConfigObject,
     path        : String
   )
 
   /** calling config.entrySet will strip out keys with null values */
   def entrySetWithNull(config: Config): Set[(String, ConfigValue)] =
-    alleycats.std.set.alleyCatsStdSetMonad.tailRecM[Acc, (String, ConfigValue)](
-      Acc(acc = Set.empty[(String, ConfigValue)], configObject = config.root(), path = "")
+    (implicitly[cats.Monad[Seq]].tailRecM[Acc, (String, ConfigValue)](
+      Acc(acc = Seq.empty[(String, ConfigValue)], configObject = config.root(), path = "")
     ) { case Acc(acc, configObject, path) =>
-      configObject.entrySet().asScala.toSet[Entry[String, TSConfigValue]].flatMap { e =>
+      configObject.entrySet().asScala.toSeq.flatMap { e =>
         val key =
           path +
           (if (path.nonEmpty) "." else "") +
           (if (e.getKey.exists(hasFunkyChars)) s"\"${e.getKey}\"" else e.getKey)
 
         e.getValue match {
-          case o: ConfigObject => Set(Left(Acc(acc = acc, o, key)))
-          case other           => (acc ++ Set(key ->
+          case o: ConfigObject => Seq(Left(Acc(acc = acc, o, key)))
+          case other           => (acc ++ Seq(key ->
                                     // `Try` to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
                                     (if (Try(config.getIsNull(key)).getOrElse(false))
                                       ConfigValue.Null
@@ -154,7 +154,7 @@ trait ConfigParser extends Logging {
                                   )).map(Right.apply)
       }
     }
-  }
+  }).toSet
 
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
