@@ -154,7 +154,11 @@ class ConfigWarningService @Inject()(
 
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
-      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.asString.contains) => k -> csv
+      case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.asString.contains)
+                    && !List("play.http.forwarded.trustedProxies", // https://www.playframework.com/documentation/2.8.x/HTTPServer#Configuring-trusted-proxies
+                             "play.filters.hosts.allowed" // provided for https://www.playframework.com/documentation/2.8.x/AllowedHostsFilter which isn't used
+                        ).contains(k)
+                    => k -> csv
     }.toSeq
 
   private def useOfDebug(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
