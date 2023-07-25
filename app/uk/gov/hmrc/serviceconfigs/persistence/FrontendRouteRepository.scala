@@ -143,7 +143,7 @@ object FrontendRouteRepository {
       .mkString(
         "^(\\^)?(\\/)?", // match from beginning, tolerating [^/]. match
         "\\/", // path segment separator
-        "(\\/|$)" // match until end, or '/''
+        "(\\/|[^-A-Za-z0-9]|$)" // match until end, or '/'' or a non alpha expression e.g. a regex
       )
 
   def toQuery(paths: Seq[String]): Bson =

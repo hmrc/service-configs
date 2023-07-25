@@ -23,13 +23,20 @@ class FrontendRouteRepositorySpec extends AnyWordSpec with Matchers {
 
   "FrontendRouteRepository.pathsToRegex" should {
     "create regex from paths" in {
-      FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|$)"
-      FrontendRouteRepository.pathsToRegex(Seq("account"))            shouldBe "^(\\^)?(\\/)?account(\\/|$)"
-      FrontendRouteRepository.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|$)"
+      FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|[^-A-Za-z0-9]|$)"
+
+      val regexp = FrontendRouteRepository.pathsToRegex(Seq("account"))
+      regexp shouldBe "^(\\^)?(\\/)?account(\\/|[^-A-Za-z0-9]|$)"
+
+      FrontendRouteRepository.pathsToRegex(Seq("account", "welcome")) shouldBe "^(\\^)?(\\/)?account\\/welcome(\\/|[^-A-Za-z0-9]|$)"
+
+      regexp.r.findFirstIn("^/account(/.*)?$").isDefined shouldBe true
+      regexp.r.findFirstIn("/account/some/path").isDefined shouldBe true
+
     }
 
     "escape '-'" in {
-      FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|$)"
+      FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|[^-A-Za-z0-9]|$)"
     }
   }
 
