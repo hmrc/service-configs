@@ -19,46 +19,47 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
-import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{GrantType, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-
 
 @Singleton
 class InternalAuthConfigRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[InternalAuthConfig](
   mongoComponent = mongoComponent,
   collectionName = "internalAuthConfig",
   domainFormat   = InternalAuthConfig.format,
   indexes        = Seq(
-    IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("intAuthServiceNameIdx"))
-  ),
+                     IndexModel(
+                       Indexes.hashed("serviceName"),
+                       IndexOptions().background(true).name("intAuthServiceNameIdx")
+                     )
+                   ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions with Logging {
+) with Transactions {
+
+  // we replace all the data for each call to putAll
+  override lazy val requiresTtlIndex = false
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
-
 
   def findByService(serviceName: ServiceName): Future[Seq[InternalAuthConfig]] =
     collection
       .find(equal("serviceName", serviceName))
       .toFuture()
 
-  def putAll(internalAuthConfigs: Set[InternalAuthConfig]) : Future[Int] = {
+  def putAll(internalAuthConfigs: Set[InternalAuthConfig]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         r <- collection.insertMany(session, internalAuthConfigs.toSeq).toFuture()
-      } yield r.getInsertedIds.size()
+      } yield ()
     }
-  }
-
 }

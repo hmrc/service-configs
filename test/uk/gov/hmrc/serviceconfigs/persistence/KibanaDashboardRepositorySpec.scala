@@ -32,16 +32,16 @@ class KibabaDashboardRepositorySpec
 
   "KibanaDashboardRepository" should {
     "put and retrieve" in {
-      val dashboard1 = Dashboard(service = ServiceName("testName1"), location = "1")
-      val dashboard2 = Dashboard(service = ServiceName("testName2"), location = "2")
+      val dashboard1 = Dashboard(serviceName = ServiceName("testName1"), location = "1")
+      val dashboard2 = Dashboard(serviceName = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(dashboard1, dashboard2)).futureValue
 
-      repository.findByService(dashboard1.service).futureValue shouldBe Some(dashboard1)
-      repository.findByService(dashboard2.service).futureValue shouldBe Some(dashboard2)
+      repository.findByService(dashboard1.serviceName).futureValue shouldBe Some(dashboard1)
+      repository.findByService(dashboard2.serviceName).futureValue shouldBe Some(dashboard2)
 
       repository.putAll(Seq(dashboard1.copy(location = "2"))).futureValue
-      repository.findByService(dashboard1.service).futureValue shouldBe Some(dashboard1.copy(location = "2"))
-      repository.findByService(dashboard2.service).futureValue shouldBe None
+      repository.findByService(dashboard1.serviceName).futureValue shouldBe Some(dashboard1.copy(location = "2"))
+      repository.findByService(dashboard2.serviceName).futureValue shouldBe None
     }
   }
 }

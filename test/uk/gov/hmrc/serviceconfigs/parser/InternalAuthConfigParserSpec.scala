@@ -18,10 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.Logging
-import uk.gov.hmrc.serviceconfigs.model.GrantType.{Grantee, Grantor}
-import uk.gov.hmrc.serviceconfigs.model.InternalAuthEnvironment.{Prod, Qa}
-import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, InternalAuthEnvironment, GrantType, ServiceName}
 
 import java.util.zip.ZipInputStream
 
@@ -30,7 +27,7 @@ class InternalAuthConfigParserSpec
   with Matchers {
 
   lazy val configZip = new ZipInputStream(this.getClass.getResource("/internal-auth-config-main.zip").openStream())
-  lazy val parser = new InternalAuthConfigParser
+  lazy val parser    = new InternalAuthConfigParser
 
   val grants =
     """
@@ -77,21 +74,20 @@ class InternalAuthConfigParserSpec
     }
 
     "parse grants as grantees" in {
-      parser.parseGrants(grants, Qa) shouldBe
+      parser.parseGrants(grants, InternalAuthEnvironment.Qa) shouldBe
         Set(
-            InternalAuthConfig(ServiceName("hello-world-object-store"), Qa, Grantee),
-            InternalAuthConfig(ServiceName("internal-auth-perf-test"), Qa, Grantee)
+          InternalAuthConfig(ServiceName("hello-world-object-store"), InternalAuthEnvironment.Qa, GrantType.Grantee),
+          InternalAuthConfig(ServiceName("internal-auth-perf-test") , InternalAuthEnvironment.Qa, GrantType.Grantee)
         )
     }
 
     "parse resources definitions as grantors" in {
-      parser.parseGrants(resourceTypes, Prod) shouldBe
+      parser.parseGrants(resourceTypes, InternalAuthEnvironment.Prod) shouldBe
         Set(
-          InternalAuthConfig(ServiceName("internal-auth"), Prod, Grantor),
-          InternalAuthConfig(ServiceName("internal-auth-admin-frontend"), Prod, Grantor),
-          InternalAuthConfig(ServiceName("object-store"), Prod, Grantor)
+          InternalAuthConfig(ServiceName("internal-auth")               , InternalAuthEnvironment.Prod, GrantType.Grantor),
+          InternalAuthConfig(ServiceName("internal-auth-admin-frontend"), InternalAuthEnvironment.Prod, GrantType.Grantor),
+          InternalAuthConfig(ServiceName("object-store")                , InternalAuthEnvironment.Prod, GrantType.Grantor)
         )
     }
   }
-
 }

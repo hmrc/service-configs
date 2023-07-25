@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class LastHashRepository @Inject()(
   mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[LastHash](
   mongoComponent = mongoComponent,
   collectionName = "lastHashString",
   domainFormat   = LastHash.formats,

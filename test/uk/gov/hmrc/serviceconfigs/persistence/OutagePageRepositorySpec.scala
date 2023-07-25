@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
@@ -27,7 +26,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class OutagePageRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with MockitoSugar
      with DefaultPlayMongoRepositorySupport[OutagePage] {
 
   override protected val repository = new OutagePageRepository(mongoComponent)

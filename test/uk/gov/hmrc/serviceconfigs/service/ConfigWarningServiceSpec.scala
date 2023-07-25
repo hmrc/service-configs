@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, RenderedConfigSourceValue}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -52,8 +52,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-          ConfigWarning(key1, ConfigSourceValue("baseConfig"          , None, value1), "NotOverriding"),
-          ConfigWarning(key2, ConfigSourceValue("appConfigEnvironment", None, value2), "NotOverriding")
+          ConfigWarning(key1, RenderedConfigSourceValue("baseConfig"          , None, value1.asString), "NotOverriding"),
+          ConfigWarning(key2, RenderedConfigSourceValue("appConfigEnvironment", None, value2.asString), "NotOverriding")
         )
       }
 
@@ -125,9 +125,9 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-          ConfigWarning(key1, ConfigSourceValue("appConfigEnvironment", None, ConfigValue("s" , ConfigValueType.SimpleValue)), "TypeChange"),
-          ConfigWarning(key2, ConfigSourceValue("appConfigEnvironment", None, ConfigValue("s" , ConfigValueType.SimpleValue)), "TypeChange"),
-          ConfigWarning(key3, ConfigSourceValue("appConfigEnvironment", None, ConfigValue("{}", ConfigValueType.Object     )), "TypeChange")
+          ConfigWarning(key1, RenderedConfigSourceValue("appConfigEnvironment", None, "s" ), "TypeChange"),
+          ConfigWarning(key2, RenderedConfigSourceValue("appConfigEnvironment", None, "s" ), "TypeChange"),
+          ConfigWarning(key3, RenderedConfigSourceValue("appConfigEnvironment", None, "{}"), "TypeChange")
         )
       }
 
@@ -171,8 +171,8 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-        ConfigWarning(key2, value2, "Localhost"),
-        ConfigWarning(key1, value1, "Localhost")
+        ConfigWarning(key2, value2.toRenderedConfigSourceValue, "Localhost"),
+        ConfigWarning(key1, value1.toRenderedConfigSourceValue, "Localhost")
       )
     }
 
@@ -186,7 +186,7 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-        ConfigWarning(key, value, "DEBUG")
+        ConfigWarning(key, value.toRenderedConfigSourceValue, "DEBUG")
       )
     }
 
@@ -202,8 +202,8 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-        ConfigWarning(key1, value, "TestOnlyRoutes"),
-        ConfigWarning(key2, value, "TestOnlyRoutes")
+        ConfigWarning(key1, value.toRenderedConfigSourceValue, "TestOnlyRoutes"),
+        ConfigWarning(key2, value.toRenderedConfigSourceValue, "TestOnlyRoutes")
       )
     }
 
@@ -217,7 +217,7 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-        ConfigWarning(key, value, "ReactiveMongoConfig")
+        ConfigWarning(key, value.toRenderedConfigSourceValue, "ReactiveMongoConfig")
       )
     }
 
@@ -231,7 +231,7 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
-        ConfigWarning(key, value, "Unencrypted")
+        ConfigWarning(key, value.toRenderedConfigSourceValue, "Unencrypted")
       )
     }
   }

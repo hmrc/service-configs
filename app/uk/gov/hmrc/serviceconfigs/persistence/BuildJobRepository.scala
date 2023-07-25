@@ -33,7 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class BuildJobRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[BuildJob](
   mongoComponent = mongoComponent,
   collectionName = "buildJobs",
   domainFormat   = BuildJob.format,
@@ -53,11 +53,11 @@ class BuildJobRepository @Inject()(
       .find(equal("service", serviceName))
       .headOption()
 
-  def putAll(jobs: Seq[BuildJob]): Future[Int] =
+  def putAll(jobs: Seq[BuildJob]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         r <- collection.insertMany(session, jobs).toFuture()
-      } yield r.getInsertedIds.size
+      } yield ()
     }
 }

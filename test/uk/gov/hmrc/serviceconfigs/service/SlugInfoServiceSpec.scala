@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
-import AppliedConfigRepository.RenderedConfigSourceValue
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
 import ConfigService.ConfigSourceEntries
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 

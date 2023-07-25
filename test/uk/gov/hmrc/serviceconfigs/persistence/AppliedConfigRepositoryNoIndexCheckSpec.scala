@@ -16,20 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mockito.MockitoSugar
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigSourceValue
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class AppliedConfigRepositoryNoIndexCheckSpec
   extends AnyWordSpec
      with Matchers
-     with MockitoSugar
      with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig] {
   import AppliedConfigRepository._
 

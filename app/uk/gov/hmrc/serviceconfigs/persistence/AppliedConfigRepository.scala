@@ -22,6 +22,7 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -131,12 +132,6 @@ class AppliedConfigRepository @Inject()(
 object AppliedConfigRepository {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, Json, Reads, Writes, __}
-
-  case class RenderedConfigSourceValue(
-    source   : String,
-    sourceUrl: Option[String],
-    value    : String
-  )
 
   case class AppliedConfig(
     serviceName  : ServiceName

@@ -38,7 +38,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class FrontendRouteRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[MongoFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "frontendRoutes",
   domainFormat   = MongoFrontendRoute.formats,

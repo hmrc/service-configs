@@ -20,7 +20,7 @@ import play.api.Logging
 import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model._
+import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.InternalAuthConfigRepository
 
 import javax.inject.{Inject, Singleton}
@@ -32,16 +32,14 @@ class InternalAuthConfigController @Inject()(
   cc                           : ControllerComponents
 )(implicit
   ec: ExecutionContext
-) extends BackendController(cc) with Logging {
+) extends BackendController(cc)
+     with Logging {
 
-  private implicit val format = uk.gov.hmrc.serviceconfigs.model.InternalAuthConfig.format
+  private implicit val format = InternalAuthConfig.format
 
-  def internalAuthConfig(
-     serviceName: ServiceName
-  ): Action[AnyContent] = Action.async { implicit request =>
-    internalAuthConfigRepository.findByService(serviceName).map { e =>
-      Ok(Json.toJson(e))
+  def internalAuthConfig(serviceName: ServiceName): Action[AnyContent] =
+    Action.async {
+      internalAuthConfigRepository.findByService(serviceName)
+        .map(e => Ok(Json.toJson(e)))
     }
-  }
-
 }

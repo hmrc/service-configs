@@ -34,7 +34,7 @@ class KibanaDashboardRepository @Inject()(
   override val mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
-) extends PlayMongoRepository(
+) extends PlayMongoRepository[Dashboard](
   mongoComponent = mongoComponent,
   collectionName = "kibanaDashboards",
   domainFormat   = Dashboard.format,
@@ -54,11 +54,11 @@ class KibanaDashboardRepository @Inject()(
       .find(equal("service", serviceName))
       .headOption()
 
-  def putAll(dashboards: Seq[Dashboard]): Future[Int] =
+  def putAll(dashboards: Seq[Dashboard]): Future[Unit] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, BsonDocument()).toFuture()
         r <- collection.insertMany(session, dashboards).toFuture()
-      } yield r.getInsertedIds.size()
+      } yield ()
     }
 }

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.parser.InternalAuthConfigParser
 import uk.gov.hmrc.serviceconfigs.persistence.InternalAuthConfigRepository
@@ -25,19 +24,15 @@ import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
 class InternalAuthConfigService @Inject()(
-configAsCodeConnector: ConfigAsCodeConnector
+  configAsCodeConnector       : ConfigAsCodeConnector
 , internalAuthConfigRepository: InternalAuthConfigRepository
-, parser: InternalAuthConfigParser
+, parser                      : InternalAuthConfigParser
 )(implicit ec: ExecutionContext
-) extends Logging {
+) {
 
-  def updateInternalAuth(): Future[Unit] = {
+  def updateInternalAuth(): Future[Unit] =
     for {
       zip <- configAsCodeConnector.streamInternalAuth()
-      - <- internalAuthConfigRepository.putAll(parser.parseZip(zip))
+      _   <- internalAuthConfigRepository.putAll(parser.parseZip(zip))
     } yield ()
-  }
-
-
-
 }

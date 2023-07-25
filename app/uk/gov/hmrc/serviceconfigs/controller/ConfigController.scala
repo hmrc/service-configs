@@ -22,11 +22,11 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.ConfigJson
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceValue, KeyName}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import javax.inject.{Inject, Singleton}
@@ -42,8 +42,8 @@ class ConfigController @Inject()(
   releasesApiConnector: ReleasesApiConnector
 )(implicit
   ec: ExecutionContext
-) extends BackendController(cc)
-     with ConfigJson {
+) extends BackendController(cc) {
+  import ConfigController._
 
   @ApiOperation(
     value = "Retrieves all of the config for a given service, broken down by environment",
@@ -105,13 +105,6 @@ class ConfigController @Inject()(
       .map(res => Ok(Json.toJson(res)))
   }
 
-  private implicit val cww: Writes[ConfigWarning] =
-    ( (__ \ "key"    ).write[KeyName]
-    ~ (__ \ "value"  ).write[ConfigSourceValue]
-    ~ (__ \ "warning").write[String]
-    )(unlift(ConfigWarning.unapply))
-
-
   def warnings(
     serviceName: ServiceName,
     environment: Environment,
@@ -122,4 +115,35 @@ class ConfigController @Inject()(
         .warnings(environment, serviceName, latest = false)
         .map(res => Ok(Json.toJson(res)))
     }
+}
+
+object ConfigController {
+  implicit val csew: Writes[ConfigService.ConfigSourceEntries] =
+    ( (__ \ "source"   ).write[String]
+    ~ (__ \ "sourceUrl").writeNullable[String]
+    ~ (__ \ "entries"  ).write[Map[KeyName, String]]
+                        .contramap[Map[KeyName, ConfigValue]](_.view.mapValues(_.asString).toMap)
+    )(unlift(ConfigService.ConfigSourceEntries.unapply))
+
+  implicit val csvw: Writes[ConfigSourceValue] =
+    ( (__ \ "source"   ).write[String]
+    ~ (__ \ "sourceUrl").writeNullable[String]
+    ~ (__ \ "value"    ).write[String]
+                        .contramap[ConfigValue](_.asString)
+    )(unlift(ConfigSourceValue.unapply))
+
+  implicit val rcsvw: Writes[RenderedConfigSourceValue] =
+    ( (__ \ "source"   ).write[String]
+    ~ (__ \ "sourceUrl").writeNullable[String]
+    ~ (__ \ "value"    ).write[String]
+    )(unlift(RenderedConfigSourceValue.unapply))
+
+  private implicit val cww: Writes[ConfigWarning] =
+    ( (__ \ "key"        ).write[KeyName]
+    ~ (__ \ "value"      ).write[RenderedConfigSourceValue]
+    ~ (__ \ "warning"    ).write[String]
+    )(unlift(ConfigWarning.unapply))
+
+  implicit def envMapWrites[A <: ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
+    implicitly[Writes[Map[String, B]]].contramap(m => m.map { case (e, a) => (e.name, a) })
 }
