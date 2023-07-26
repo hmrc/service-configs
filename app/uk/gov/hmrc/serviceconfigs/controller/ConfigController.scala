@@ -112,7 +112,7 @@ class ConfigController @Inject()(
   ): Action[AnyContent] =
     Action.async { implicit request =>
       configWarningService
-        .warnings(environment, serviceName, latest = false)
+        .warnings(environment, serviceName, latest = latest)
         .map(res => Ok(Json.toJson(res)))
     }
 }
@@ -138,11 +138,16 @@ object ConfigController {
     ~ (__ \ "value"    ).write[String]
     )(unlift(RenderedConfigSourceValue.unapply))
 
-  private implicit val cww: Writes[ConfigWarning] =
-    ( (__ \ "key"        ).write[KeyName]
+  private implicit val cww: Writes[ConfigWarning] = {
+    implicit val ef  = Environment.format
+    implicit val snf = ServiceName.format
+    ( (__ \ "environment").write[Environment]
+    ~ (__ \ "serviceName").write[ServiceName]
+    ~ (__ \ "key"        ).write[KeyName]
     ~ (__ \ "value"      ).write[RenderedConfigSourceValue]
     ~ (__ \ "warning"    ).write[String]
     )(unlift(ConfigWarning.unapply))
+  }
 
   implicit def envMapWrites[A <: ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
     implicitly[Writes[Map[String, B]]].contramap(m => m.map { case (e, a) => (e.name, a) })
