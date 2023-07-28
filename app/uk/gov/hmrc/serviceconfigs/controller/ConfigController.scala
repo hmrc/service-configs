@@ -23,14 +23,14 @@ import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, SlugInfoFlag, Tag, TeamName, FilterType}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, ConfigSourceValueWithWarnings, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 
 @Singleton
 @Api("Github Config")
@@ -58,17 +58,51 @@ class ConfigController @Inject()(
     }
   }
 
-  @ApiOperation(
-    value = "Retrieves all of the config for a given service, broken down by config key",
-    notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
-  )
+  // @ApiOperation(
+  //   value = "Retrieves all of the config for a given service, broken down by config key",
+  //   notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
+  // )
+  // def configByKey(
+  //   @ApiParam(value = "The service name to query") serviceName: ServiceName,
+  //   @ApiParam(value = "Latest or As Deployed")     latest     : Boolean,
+  //   showWarnings: Boolean
+  // ): Action[AnyContent] = Action.async { implicit request =>
+  //   configService.configByKey(serviceName, latest).map { k =>
+  //     Ok(Json.toJson(k))
+  //   }
+  // }
+
+  import cats.implicits._
   def configByKey(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName,
-    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
+    serviceName : ServiceName,
+    latest      : Boolean,
+    showWarnings: Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByKey(serviceName, latest).map { k =>
-      Ok(Json.toJson(k))
-    }
+    ConfigService.ConfigEnvironment
+      .values
+      .toList
+      .foldLeftM[Future, Map[KeyName, Map[ConfigEnvironment, Seq[ConfigSourceValueWithWarnings]]]](Map.empty) {
+        case (acc, environment) =>
+          for {
+            configSourceEntries <- configService.configSourceEntries(environment, serviceName, latest)
+            resultingConfig     =  configService.resultingConfig(configSourceEntries)
+            allWarnings         <- environment.slugInfoFlag match {
+                                     case SlugInfoFlag.ForEnvironment(env)
+                                       if showWarnings => configWarningService.warnings(env, serviceName, latest = latest, configSourceEntries, resultingConfig)
+                                     case _            => Future.successful(Nil)
+                                   }
+            res                 =  configSourceEntries.foldLeft(acc) {
+                                     case (acc2, cse) =>
+                                       acc2 ++ cse.entries.map {
+                                         case (key, value)  =>
+                                           val envMap   = acc2.getOrElse(key, Map.empty)
+                                           val values   = envMap.getOrElse(environment, Seq.empty)
+                                           val warnings = allWarnings.collect { case x if x.key == key => x.warning }
+                                           key -> (envMap + (environment -> (values :+ ConfigSourceValueWithWarnings(cse.source, cse.sourceUrl, value, warnings))))
+                                       }
+                                   }
+          } yield res
+      }.map(xs => Ok(Json.toJson(scala.collection.immutable.ListMap(xs.toSeq.sortBy(_._1): _*)))) // sort by keys
   }
 
   private def maxSearchLimit = configuration.get[Int]("config-search.max-limit")
@@ -94,6 +128,7 @@ class ConfigController @Inject()(
         case k                              => Ok(Json.toJson(k))
       }
   }
+
   @ApiOperation(
     value = "Retrieves all config keys, unless filtered."
   )
@@ -111,9 +146,11 @@ class ConfigController @Inject()(
     latest     : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
-      configWarningService
-        .warnings(environment, serviceName, latest = latest)
-        .map(res => Ok(Json.toJson(res)))
+      for {
+        configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
+        resultingConfig     =  configService.resultingConfig(configSourceEntries)
+        warnings            <- configWarningService.warnings(environment, serviceName, latest = latest, configSourceEntries, resultingConfig)
+      } yield Ok(Json.toJson(warnings))
     }
 }
 
@@ -125,12 +162,20 @@ object ConfigController {
                         .contramap[Map[KeyName, ConfigValue]](_.view.mapValues(_.asString).toMap)
     )(unlift(ConfigService.ConfigSourceEntries.unapply))
 
-  implicit val csvw: Writes[ConfigSourceValue] =
+  // implicit val csvw: Writes[ConfigSourceValue] =
+  //   ( (__ \ "source"   ).write[String]
+  //   ~ (__ \ "sourceUrl").writeNullable[String]
+  //   ~ (__ \ "value"    ).write[String]
+  //                       .contramap[ConfigValue](_.asString)
+  //   )(unlift(ConfigSourceValue.unapply))
+
+  implicit val csvww: Writes[ConfigSourceValueWithWarnings] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
                         .contramap[ConfigValue](_.asString)
-    )(unlift(ConfigSourceValue.unapply))
+    ~ (__ \ "warnings" ).write[Seq[String]]
+    )(unlift(ConfigSourceValueWithWarnings.unapply))
 
   implicit val rcsvw: Writes[RenderedConfigSourceValue] =
     ( (__ \ "source"   ).write[String]

@@ -32,10 +32,12 @@ class ConfigWarningService @Inject()(
 ){
 
   def warnings(
-    environment: Environment,
-    serviceName: ServiceName,
-    latest     : Boolean
-  )(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] = {
+    environment        : Environment,
+    serviceName        : ServiceName,
+    latest             : Boolean,
+    configSourceEntries: Seq[ConfigSourceEntries],
+    resultingConfig    : Map[String, ConfigSourceValue],
+  ): Future[Seq[ConfigWarning]] = {
     def toConfigWarning(k: String, csv: ConfigSourceValue, warning: String) =
       ConfigWarning(
         environment = environment
@@ -45,20 +47,43 @@ class ConfigWarningService @Inject()(
       , warning     = warning
       )
 
+    // println(environment.asString)
+    // val t0 = System.nanoTime()
     for {
-      configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
-      resultingConfig     =  configService.resultingConfig(configSourceEntries)
+      // configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
+      // t1 = System.nanoTime()
+      // _ = println(s"configSourceEntries took ${(t1 - t0) / 1000000} ms")
+      // resultingConfig     <-  Future.successful(configService.resultingConfig(configSourceEntries))
+      // t2 = System.nanoTime()
+      // _ = println(s"resultingConfig took ${(t2 - t1) / 1000000} ms")
+
+      _ <- Future.unit // TODO no need for: for comp
       nov                 =  configNotOverriding(configSourceEntries)
+      // t3 = System.nanoTime()
+      // _ = println(s"nov took ${(t3 - t2) / 1000000} ms")
       ctc                 =  configTypeChange(configSourceEntries)
+      // t4 = System.nanoTime()
+      // _ = println(s"ctc took ${(t4 - t3) / 1000000} ms")
       ulh                 =  useOfLocalhost(resultingConfig)
+      // t5 = System.nanoTime()
+      // _ = println(s"ulh took ${(t5 - t4) / 1000000} ms")
+
       udb                 =  if (environment == Environment.Production)
                                useOfDebug(resultingConfig)
                              else Seq.empty
+      // t6 = System.nanoTime()
+      // _ = println(s"udb took ${(t6 - t5) / 1000000} ms")
       tor                 =  if (environment == Environment.Production)
                                testOnlyRoutes(resultingConfig)
                              else Seq.empty
+      // t7 = System.nanoTime()
+      // _ = println(s"tor took ${(t7 - t6) / 1000000} ms")
       rmc                 =  reactiveMongoConfig(resultingConfig)
+      // t8 = System.nanoTime()
+      // _ = println(s"rmc took ${(t8 - t7) / 1000000} ms")
       uec                 =  unencryptedConfig(resultingConfig)
+      // t9 = System.nanoTime()
+      // _ = println(s"uec took ${(t9 - t8) / 1000000} ms")
     } yield
       ( nov.map { case (k, csv) => toConfigWarning(k, csv, "NotOverriding"      ) } ++
         ctc.map { case (k, csv) => toConfigWarning(k, csv, "TypeChange"         ) } ++

@@ -166,32 +166,55 @@ class ConfigService @Inject()(
           Nil
         )
       case SlugInfoFlag.ForEnvironment(env) =>
+        println(env.asString)
+        // val t0 = System.nanoTime()
         for {
           optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+          // t1 = System.nanoTime()
+          // _ = println(s"optSlugInfo took ${(t1 - t0) / 1000000} ms")
+
           loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
+          // t2 = System.nanoTime()
+          // _ = println(s"loggerConfMap took ${(t2 - t1) / 1000000} ms")
 
           dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
+          // t3 = System.nanoTime()
+          // _ = println(s"dependencyConfigs took ${(t3 - t2) / 1000000} ms")
+
           referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
+          // t4 = System.nanoTime()
+          // _ = println(s"referenceConf took ${(t4 - t3) / 1000000} ms")
 
           (applicationConf, bootstrapConf)
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-
+          // t5 = System.nanoTime()
+          // _ = println(s"lookupApplicationConf took ${(t5 - t4) / 1000000} ms")
 
           (optAppConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll) <-
             if (latest)
               for {
                 optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName)
+                // t6 = System.nanoTime()
+                // _ = println(s"optAppConfigEnvRaw took ${(t6 - t5) / 1000000} ms")
 
                 appConfigEnvEntriesAll      =  ConfigParser
                                                 .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+                // t7 = System.nanoTime()
+                // _ = println(s"appConfigEnvEntriesAll took ${(t7 - t6) / 1000000} ms")
+
                 serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+                // t8 = System.nanoTime()
+                // _ = println(s"serviceType took ${(t8 - t7) / 1000000} ms")
 
                 optAppConfigBase            <- appConfigService.appConfigBaseConf(serviceName)
+                // t9 = System.nanoTime()
+                // _ = println(s"optAppConfigBase took ${(t9 - t8) / 1000000} ms")
 
                 optRaw                      <- serviceType.fold(Future.successful(None: Option[String]))(st =>
                                                  appConfigService.appConfigCommonYaml(env, st)
                                                )
-
+                // t10 = System.nanoTime()
+                // _ = println(s"optRaw took ${(t10 - t9) / 1000000} ms")
               } yield
                 ( optAppConfigBase
                 , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
@@ -207,19 +230,35 @@ class ConfigService @Inject()(
                   )
                 ))
 
+          // t10 = System.nanoTime()
           serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+          // t11 = System.nanoTime()
+          // _ = println(s"serviceType took ${(t11 - t10) / 1000000} ms")
+
           (appConfigEnvironment, appConfigEnvironmentSuppressed)
                                       =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+          // t12 = System.nanoTime()
+          // _ = println(s"extractAsConfig took ${(t12 - t11) / 1000000} ms")
 
           appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
                                          // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
                                          optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
+          // t13 = System.nanoTime()
+          // _ = println(s"appConfigBase took ${(t13 - t12) / 1000000} ms")
+
           baseConf                    =  ConfigParser.parseConfString(appConfigBase.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
+          // t14 = System.nanoTime()
+          // _ = println(s"baseConf took ${(t14 - t13) / 1000000} ms")
 
           (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
                                       =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
+          // t15 = System.nanoTime()
+          // _ = println(s"configSourceEntries took ${(t15 - t14) / 1000000} ms")
+
           (appConfigCommonFixed, appConfigCommonFixedSuppressed)
                                       =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
+          // t16 = System.nanoTime()
+          // _ = println(s"extractAsConfig took ${(t16 - t15) / 1000000} ms")
         } yield
           ConfigSourceEntries(
             "loggerConf",
@@ -398,6 +437,20 @@ object ConfigService {
         sourceUrl,
         value.asString
       )
+  }
+
+  case class ConfigSourceValueWithWarnings(
+    source    : String,
+    sourceUrl : Option[String],
+    value     : ConfigValue,
+    warnings  : Seq[String]
+  ) {
+    // def toRenderedConfigSourceValue =
+    //   RenderedConfigSourceValue(
+    //     source,
+    //     sourceUrl,
+    //     value.asString
+    //   )
   }
 
   case class RenderedConfigSourceValue(
