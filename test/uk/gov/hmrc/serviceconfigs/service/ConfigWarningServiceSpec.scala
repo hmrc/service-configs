@@ -74,6 +74,16 @@ class ConfigWarningServiceSpec
         service.warnings(env, serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
+      "ignore if enabled key exists" in new Setup {
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Seq(
+            ConfigSourceEntries("baseConfig"          , None, Map("k.k"       -> ConfigValue("v"))),
+            ConfigSourceEntries("referenceConf"       , None, Map("k.enabled" -> ConfigValue("false")))
+          )))
+
+        service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
+      }
+
       "ignore list positional notation" in new Setup {
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
@@ -161,22 +171,42 @@ class ConfigWarningServiceSpec
       }
     }
 
-    "detect Localhost" in new Setup {
-      val key1 = "url"
-      val key2 = "array"
-      val value1 = ConfigSourceValue("baseConfig", None, ConfigValue("[\"^.*\\.service$\",\"^localhost$\"]", ConfigValueType.List))
-      val value2 = ConfigSourceValue("baseConfig", None, ConfigValue("http://localhost:123"))
+    "detecting Localhost" should {
+      "detect Localhost" in new Setup {
+        val key1 = "url"
+        val key2 = "array"
+        val value1 = ConfigSourceValue("baseConfig", None, ConfigValue("[\"^.*\\.service$\",\"^localhost$\"]", ConfigValueType.List))
+        val value2 = ConfigSourceValue("baseConfig", None, ConfigValue("http://localhost:123"))
 
-      when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
-        .thenReturn(Map(
-          key1 -> value1,
-          key2 -> value2
-        ))
+        when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
+          .thenReturn(Map(
+            key1 -> value1,
+            key2 -> value2
+          ))
 
-      service.warnings(env, serviceName, latest = true).futureValue shouldBe Seq(
-        ConfigWarning(env, serviceName, key2, value2.toRenderedConfigSourceValue, "Localhost"),
-        ConfigWarning(env, serviceName, key1, value1.toRenderedConfigSourceValue, "Localhost")
-      )
+        service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
+          ConfigWarning(env, serviceName, key2, value2.toRenderedConfigSourceValue, "Localhost"),
+          ConfigWarning(env, serviceName, key1, value1.toRenderedConfigSourceValue, "Localhost")
+        )
+      }
+
+      "ignore if disabled" in new Setup {
+        val value = ConfigSourceValue("baseConfig", None, ConfigValue("http://localhost:123"))
+        val trueValue = ConfigSourceValue("baseConfig", None, ConfigValue("true"))
+        val falseValue = ConfigSourceValue("baseConfig", None, ConfigValue("false"))
+
+        when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
+          .thenReturn(Map(
+            "k1.k"       -> value,
+            "k1.enabled" -> trueValue,
+            "k2.k"       -> value,
+            "k2.enabled" -> falseValue,
+          ))
+
+        service.warnings(Environment.Production, ServiceName("service"), latest = true).futureValue shouldBe Seq(
+          ConfigWarning(env, serviceName, "k1.k", value.toRenderedConfigSourceValue, "Localhost")
+        )
+      }
     }
 
     "detect DEBUG" in new Setup {

@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.parser.ConfigValueType
+import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 
 import javax.inject.{Inject, Singleton}
@@ -167,6 +167,7 @@ class ConfigWarningService @Inject()(
   private def useOfLocalhost(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
       case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.asString.contains)
+                    // should we suppress all in reference.conf, since they may not be used?
                     && !List("play.http.forwarded.trustedProxies", // https://www.playframework.com/documentation/2.8.x/HTTPServer#Configuring-trusted-proxies
                              "play.filters.hosts.allowed", // provided for https://www.playframework.com/documentation/2.8.x/AllowedHostsFilter which isn't used
                              // the following provided by play-frontend-hmrc (could there be a common override?)
@@ -176,6 +177,17 @@ class ConfigWarningService @Inject()(
                         ).contains(k)
                     => k -> csv
     }.toSeq
+     .collect {
+       case k -> csv
+         if // ignore, if there's a related `.enabled` key and it's disabled
+            !{ val i = k.lastIndexWhere(_ == '.')
+               if (i >= 0) {
+                 val enabledKey = k.substring(0, i) + ".enabled"
+                 resultingConfig.get(enabledKey).fold(false)(_.value == ConfigValue("false"))
+               } else false
+             }
+         => k -> csv
+     }
 
   private def useOfDebug(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
     resultingConfig.collect {
