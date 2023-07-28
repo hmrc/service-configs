@@ -95,6 +95,8 @@ class ConfigWarningService @Inject()(
                   overrideable.exists(_.entries.exists(_._1 == enabledKey))
                 } else false
               }
+          && !(List("proxy.username", "proxy.password").contains(k)) // `enabled` doesn't cover this one since they enabled key is slightly different (later versions have null in reference.conf)
+          && !k.endsWith(".proxyRequiredForThisEnvironment") // deprecated http-verbs config (it has flexible prefix)
           && !{ k match {
             case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
                                     key.endsWith(".previousKeys") // crypto defaults to [] // TODO require definition in application.conf
@@ -108,8 +110,8 @@ class ConfigWarningService @Inject()(
        }
     }
 
-    checkOverrides(overrideSource = "baseConfig", overridableSources = List("referenceConf", "applicationConf")) ++
-      checkOverrides(overrideSource = "appConfigEnvironment", overridableSources = List("referenceConf", "applicationConf", "baseConfig", "appConfigCommonOverridable"))
+    checkOverrides(overrideSource = "baseConfig", overridableSources = List("referenceConf", "bootstrapFrontendConf", "bootstrapBackendConf", "applicationConf")) ++
+      checkOverrides(overrideSource = "appConfigEnvironment", overridableSources = List("referenceConf", "bootstrapFrontendConf", "bootstrapBackendConf", "applicationConf", "baseConfig", "appConfigCommonOverridable"))
   }
 
   private def configTypeChange(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] = {
@@ -156,7 +158,11 @@ class ConfigWarningService @Inject()(
     resultingConfig.collect {
       case k -> csv if List("localhost", "127.0.0.1").exists(csv.value.asString.contains)
                     && !List("play.http.forwarded.trustedProxies", // https://www.playframework.com/documentation/2.8.x/HTTPServer#Configuring-trusted-proxies
-                             "play.filters.hosts.allowed" // provided for https://www.playframework.com/documentation/2.8.x/AllowedHostsFilter which isn't used
+                             "play.filters.hosts.allowed", // provided for https://www.playframework.com/documentation/2.8.x/AllowedHostsFilter which isn't used
+                             // the following provided by play-frontend-hmrc (could there be a common override?)
+                             "accessibility-statement.host",
+                             "contact-frontend.host",
+                             "tracking-consent-frontend.host"
                         ).contains(k)
                     => k -> csv
     }.toSeq
