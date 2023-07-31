@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import cats.syntax.all._
+
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
@@ -32,42 +34,43 @@ class ConfigWarningService @Inject()(
 ){
 
   def warnings(
-    environment: Environment,
-    serviceName: ServiceName,
-    latest     : Boolean
+    environments: Seq[Environment],
+    serviceName : ServiceName,
+    latest      : Boolean
   )(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] = {
-    def toConfigWarning(k: String, csv: ConfigSourceValue, warning: String) =
-      ConfigWarning(
-        environment = environment
-      , serviceName = serviceName
-      , key         = k
-      , value       = csv.toRenderedConfigSourceValue
-      , warning     = warning
-      )
-
-    for {
-      configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
-      resultingConfig     =  configService.resultingConfig(configSourceEntries)
-      nov                 =  configNotOverriding(configSourceEntries)
-      ctc                 =  configTypeChange(configSourceEntries)
-      ulh                 =  useOfLocalhost(resultingConfig)
-      udb                 =  if (environment == Environment.Production)
-                               useOfDebug(resultingConfig)
-                             else Seq.empty
-      tor                 =  if (environment == Environment.Production)
-                               testOnlyRoutes(resultingConfig)
-                             else Seq.empty
-      rmc                 =  reactiveMongoConfig(resultingConfig)
-      uec                 =  unencryptedConfig(resultingConfig)
-    } yield
-      ( nov.map { case (k, csv) => toConfigWarning(k, csv, "NotOverriding"      ) } ++
-        ctc.map { case (k, csv) => toConfigWarning(k, csv, "TypeChange"         ) } ++
-        ulh.map { case (k, csv) => toConfigWarning(k, csv, "Localhost"          ) } ++
-        udb.map { case (k, csv) => toConfigWarning(k, csv, "DEBUG"              ) } ++
-        tor.map { case (k, csv) => toConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
-        rmc.map { case (k, csv) => toConfigWarning(k, csv, "ReactiveMongoConfig") } ++
-        uec.map { case (k, csv) => toConfigWarning(k, csv, "Unencrypted"        ) }
-      ).sortBy(w => (w.warning, w.key))
+    environments.traverse { environment =>
+      def toConfigWarning(k: String, csv: ConfigSourceValue, warning: String) =
+        ConfigWarning(
+          environment = environment
+        , serviceName = serviceName
+        , key         = k
+        , value       = csv.toRenderedConfigSourceValue
+        , warning     = warning
+        )
+      for {
+        configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
+        resultingConfig     =  configService.resultingConfig(configSourceEntries)
+        nov                 =  configNotOverriding(configSourceEntries)
+        ctc                 =  configTypeChange(configSourceEntries)
+        ulh                 =  useOfLocalhost(resultingConfig)
+        udb                 =  if (environment == Environment.Production)
+                                useOfDebug(resultingConfig)
+                              else Seq.empty
+        tor                 =  if (environment == Environment.Production)
+                                testOnlyRoutes(resultingConfig)
+                              else Seq.empty
+        rmc                 =  reactiveMongoConfig(resultingConfig)
+        uec                 =  unencryptedConfig(resultingConfig)
+      } yield
+        ( nov.map { case (k, csv) => toConfigWarning(k, csv, "NotOverriding"      ) } ++
+          ctc.map { case (k, csv) => toConfigWarning(k, csv, "TypeChange"         ) } ++
+          ulh.map { case (k, csv) => toConfigWarning(k, csv, "Localhost"          ) } ++
+          udb.map { case (k, csv) => toConfigWarning(k, csv, "DEBUG"              ) } ++
+          tor.map { case (k, csv) => toConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
+          rmc.map { case (k, csv) => toConfigWarning(k, csv, "ReactiveMongoConfig") } ++
+          uec.map { case (k, csv) => toConfigWarning(k, csv, "Unencrypted"        ) }
+        ).sortBy(w => (w.warning, w.key))
+    }.map(_.flatten)
   }
 
   private val ArrayRegex = "(.*)\\.\\d+(?:\\..+)?".r

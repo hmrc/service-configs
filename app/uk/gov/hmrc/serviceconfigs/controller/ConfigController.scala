@@ -93,13 +93,13 @@ class ConfigController @Inject()(
   }
 
   def warnings(
-    serviceName: ServiceName,
-    environment: Environment,
-    latest     : Boolean
+    serviceName : ServiceName,
+    environments: Seq[Environment],
+    latest      : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
       configWarningService
-        .warnings(environment, serviceName, latest = latest)
+        .warnings(environments, serviceName, latest = latest)
         .map(res => Ok(Json.toJson(res)))
     }
 }
