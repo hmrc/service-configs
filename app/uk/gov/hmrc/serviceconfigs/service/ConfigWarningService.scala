@@ -111,7 +111,8 @@ class ConfigWarningService @Inject()(
           && !(List("proxy.username", "proxy.password").contains(k)) // `enabled` doesn't cover this one since they enabled key is slightly different (later versions have null in reference.conf)
           && !k.endsWith(".proxyRequiredForThisEnvironment") // deprecated http-verbs config (it has flexible prefix)
           && !{ k match {
-            case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) ||
+            case ArrayRegex(key) => overrideable.exists(_.entries.exists(_._1 == key)) || // key without the positional notation
+                                    overrideable.exists(_.entries.exists(e => ArrayRegex.findAllMatchIn(e._1).exists(_.group(1) == key))) || // key with a different position
                                     key.endsWith(".previousKeys") // crypto defaults to [] // TODO require definition in application.conf
             case _               => false
           } }
