@@ -239,9 +239,10 @@ class ConfigService @Inject()(
     }
 
   def configByEnvironment(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
-    ConfigEnvironment.values.map(e =>
-      configSourceEntries(e, serviceName, latest).map(e -> _)
-    ).sequence.map(_.toMap)
+    ConfigEnvironment
+      .values
+      .map(e => configSourceEntries(e, serviceName, latest).map(e -> _))
+      .sequence.map(_.toMap)
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
@@ -288,28 +289,6 @@ class ConfigService @Inject()(
                      configKeys   <- appliedConfigRepository.findConfigKeys(Some(serviceNames))
                    } yield configKeys
     }
-
-  // TODO consideration for deprecated naming? e.g. application.secret -> play.crypto.secret -> play.http.secret.key
-  def configByKey(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[KeyName, Map[ConfigEnvironment, Seq[ConfigSourceValue]]]] =
-    ConfigEnvironment.values.toList
-      .foldLeftM[Future, Map[KeyName, Map[ConfigEnvironment, Seq[ConfigSourceValue]]]](Map.empty) {
-        case (map, e) =>
-          configSourceEntries(e, serviceName, latest).map { cses =>
-            cses.foldLeft(map) {
-              case (subMap, cse) =>
-                subMap ++ cse.entries.map {
-                  case (key, value) =>
-                    val envMap = subMap.getOrElse(key, Map.empty)
-                    val values = envMap.getOrElse(e, Seq.empty)
-                    key -> (envMap + (e -> (values :+ ConfigSourceValue(cse.source, cse.sourceUrl, value))))
-                }
-            }
-          }
-        // sort by keys
-      }
-      .map { map =>
-        scala.collection.immutable.ListMap(map.toSeq.sortBy(_._1): _*)
-      }
 
   def appConfig(slugInfo: SlugInfo)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     for {

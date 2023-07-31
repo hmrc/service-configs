@@ -71,70 +71,78 @@ class ConfigServiceSpec
   override def beforeEach(): Unit =
     dropDatabase()
 
-  "ConfigService.configByKey" should {
+  "ConfigService.configByEnvironment" should {
     List(true, false).foreach { latest =>
       s"show config changes per key for each environment for latest $latest" in {
         val serviceName = ServiceName("test-service")
         setup(serviceName, latest)
 
-        val configByKey = configService.configByKey(serviceName, latest = latest)
+        val configByEnvironment = configService.configByEnvironment(serviceName, latest = latest)
 
-        val appConfUrl = "https://github.com/hmrc/test-service/blob/main/conf/application.conf"
-        def appConfEnv(env: String) = s"https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml"
         import ConfigController._
-        Json.toJson(configByKey.futureValue) shouldBe Json.parse(s"""
-          {
-          "a": {
-            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
-            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }
-                          ],
-            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
-                          ]
-          },
-          "a.b": {
-            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" } ]
-          },
-          "b": {
-            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" } ],
-            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" },
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "4" }
-                          ],
-            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "2" }]
-          },
-          "c": {
-            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" }],
-            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1"},
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3"}
-                          ],
-            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "1" },
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" }
-                          ]
-          },
-          "c.b": {
-            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "6" }]
-          },
-          "d": {
-            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "<<SUPPRESSED>>" },
-                            { "source": "base64"                                                           , "value": "2" }
-                          ]
-          },
-          "d.base64": {
-            "qa"         : [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("qa")}"         , "value": "Mg=="}]
-          },
-          "list": {
-            "local"      : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }],
-            "development": [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" },
-                            { "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "<<SUPPRESSED>>" }
-                          ],
-            "qa"         : [{ "source": "applicationConf"     , "sourceUrl": "$appConfUrl"                 , "value": "[1,2]" }]
-          },
-          "list.2": {
-            "development": [{ "source": "appConfigEnvironment", "sourceUrl": "${appConfEnv("development")}", "value": "3" }]
-          }
-        }
-        """")
+
+        val applicationConf = """
+          { "source": "applicationConf",
+            "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application.conf",
+            "entries": {"a": "1", "b": "2", "c": "1", "list": "[1,2]"} }"""
+
+        def other(env: String) = s"""
+          "$env": [
+            { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
+            { "source": "referenceConf", "entries": {} },
+            { "source": "applicationConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application.conf", "entries": {} },
+            { "source": "baseConfig", "sourceUrl": "https://github.com/hmrc/app-config-base/blob/main/test-service.conf", "entries": {} },
+            { "source": "appConfigCommonOverridable", "entries": {} },
+            { "source": "appConfigEnvironment", "sourceUrl": "https://github.com/hmrc/app-config-$env/blob/main/test-service.yaml", "entries": {}},
+            { "source": "appConfigCommonFixed", "entries": {} },
+            { "source": "base64", "entries": {} }
+          ]"""
+
+        // val localEntries = """{"a": "1", "b": "2", "c": "1", "list": "[1,2]"}"""
+        Json.toJson(configByEnvironment.futureValue) shouldBe Json.parse(s"""{
+          "local": [
+            { "source": "referenceConf", "entries": {}},
+            $applicationConf,
+            { "source": "base64", "entries": {} }
+          ],
+          "development": [
+            { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
+            { "source": "referenceConf", "entries": {} },
+            $applicationConf,
+            { "source": "baseConfig", "sourceUrl": "https://github.com/hmrc/app-config-base/blob/main/test-service.conf", "entries": {} },
+            { "source": "appConfigCommonOverridable", "entries": {} },
+            { "source": "appConfigEnvironment", "sourceUrl": "https://github.com/hmrc/app-config-development/blob/main/test-service.yaml", "entries": {
+                "list.2": "3",
+                "a": "3",
+                "b": "4",
+                "c": "3",
+                "list": "<<SUPPRESSED>>"
+            }},
+            { "source": "appConfigCommonFixed", "entries": {} },
+            { "source": "base64", "entries": {} }
+          ],
+          "qa": [
+            { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
+            { "source": "referenceConf", "entries": {} },
+            $applicationConf,
+            { "source": "baseConfig", "sourceUrl": "https://github.com/hmrc/app-config-base/blob/main/test-service.conf", "entries": {} },
+            { "source": "appConfigCommonOverridable", "entries": {} },
+            { "source": "appConfigEnvironment", "sourceUrl": "https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml", "entries": {
+                "a": "<<SUPPRESSED>>",
+                "d.base64": "Mg==",
+                "c": "<<SUPPRESSED>>",
+                "d": "<<SUPPRESSED>>",
+                "a.b": "6",
+                "c.b": "6"
+            }},
+            { "source": "appConfigCommonFixed", "entries": {} },
+            { "source": "base64", "entries": { "d": "2" }}
+          ],
+          ${other("integration")},
+          ${other("staging")},
+          ${other("externaltest")},
+          ${other("production")}
+        }""")
       }
     }
   }
