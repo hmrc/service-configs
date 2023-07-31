@@ -71,43 +71,4 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
       """)
     }
   }
-
-  "ConfigByKey" should {
-    "write to json" in {
-      val configByKey = Map("key1" ->
-        Map(ConfigEnvironment.ForEnvironment(Environment.QA) ->
-          Seq(
-            ConfigService.ConfigSourceValue(
-              source    = "baseConfig",
-              sourceUrl = None,
-              value     = ConfigValue("configEntry1")
-            ),
-            ConfigService.ConfigSourceValue(
-              source    = "appConfig",
-              sourceUrl = Some("https://github.com/hmrc/appConfig"),
-              value     = ConfigValue("configEntry2")
-            )
-          )
-        )
-      )
-
-      Json.toJson(configByKey) shouldBe Json.parse("""
-        {
-          "key1": {
-            "qa": [
-              {
-                "source": "baseConfig",
-                "value": "configEntry1"
-              },
-              {
-                "source": "appConfig",
-                "sourceUrl": "https://github.com/hmrc/appConfig",
-                "value": "configEntry2"
-              }
-            ]
-          }
-        }
-      """)
-    }
-  }
 }

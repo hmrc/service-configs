@@ -58,19 +58,6 @@ class ConfigController @Inject()(
     }
   }
 
-  @ApiOperation(
-    value = "Retrieves all of the config for a given service, broken down by config key",
-    notes = """Searches all config sources for all environments and pulls out the the value of each config key"""
-  )
-  def configByKey(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName,
-    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
-  ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByKey(serviceName, latest).map { k =>
-      Ok(Json.toJson(k))
-    }
-  }
-
   private def maxSearchLimit = configuration.get[Int]("config-search.max-limit")
   @ApiOperation(
     value = "Search for config using the list query params below.",
@@ -106,13 +93,13 @@ class ConfigController @Inject()(
   }
 
   def warnings(
-    serviceName: ServiceName,
-    environment: Environment,
-    latest     : Boolean
+    serviceName : ServiceName,
+    environments: Seq[Environment],
+    latest      : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
       configWarningService
-        .warnings(environment, serviceName, latest = latest)
+        .warnings(environments, serviceName, latest = latest)
         .map(res => Ok(Json.toJson(res)))
     }
 }
