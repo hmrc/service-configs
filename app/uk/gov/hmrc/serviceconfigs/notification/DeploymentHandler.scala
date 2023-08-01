@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.notification
 
+import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.stream.{ActorAttributes, Materializer, Supervision}
 import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
-import akka.stream.{ActorAttributes, Materializer, Supervision}
+import akka.stream.scaladsl.Source
 import cats.Applicative
 import cats.data.EitherT
 import cats.implicits._
@@ -72,7 +74,7 @@ class DeploymentHandler @Inject()(
     }.get
 
   if (config.isEnabled)
-    SqsSource(queueUrl.toString, settings)(awsSqsClient)
+    dedupe(SqsSource(queueUrl.toString, settings)(awsSqsClient))
       .mapAsync(10)(processMessage)
       .withAttributes(ActorAttributes.supervisionStrategy {
         case t: Throwable => logger.error(s"Failed to process sqs messages: ${t.getMessage}", t); Supervision.Restart
@@ -80,6 +82,18 @@ class DeploymentHandler @Inject()(
       .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
   else
     logger.warn("DeploymentHandler is disabled.")
+
+  def dedupe(source: Source[Message, NotUsed]): Source[Message, NotUsed] =
+    Source.single(Message.builder.messageId("----------").build) // dummy value since the dedupe will ignore the first entry
+    .concat(source)
+    .sliding(2, 1)
+    .mapConcat { case prev +: current +: _=>
+      if (prev.messageId == current.messageId) {
+        logger.warn(s"Read the same slug message ID twice ${prev.messageId} - ignoring duplicate")
+        List.empty
+      }
+      else List(current)
+    }
 
   private def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing Deployment message with ID '${message.messageId()}'")

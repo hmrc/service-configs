@@ -84,7 +84,7 @@ class ConfigWarningServiceSpec
         service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
       }
 
-      "ignore list positional notation" in new Setup {
+      "ignore list positional notation overriding list" in new Setup {
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
@@ -95,7 +95,18 @@ class ConfigWarningServiceSpec
         service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
       }
 
-      "ignore list positional notation 2" in new Setup {
+      "ignore list positional notation overriding positional notation" in new Setup {
+        val value = ConfigValue("v")
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Seq(
+            ConfigSourceEntries("referenceConf"       , None, Map("list.0" -> value)),
+            ConfigSourceEntries("appConfigEnvironment", None, Map("list.1" -> value))
+          )))
+
+        service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq.empty
+      }
+
+      "ignore list positional notation with sub-objects" in new Setup {
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Boolean])(any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
