@@ -65,7 +65,7 @@ class ConfigWarningService @Inject()(
         ( nov.map { case (k, csv) => toConfigWarning(k, csv, "NotOverriding"      ) } ++
           ctc.map { case (k, csv) => toConfigWarning(k, csv, "TypeChange"         ) } ++
           ulh.map { case (k, csv) => toConfigWarning(k, csv, "Localhost"          ) } ++
-          udb.map { case (k, csv) => toConfigWarning(k, csv, "DEBUG"              ) } ++
+          udb.map { case (k, csv) => toConfigWarning(k, csv, "Debug"              ) } ++
           tor.map { case (k, csv) => toConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
           rmc.map { case (k, csv) => toConfigWarning(k, csv, "ReactiveMongoConfig") } ++
           uec.map { case (k, csv) => toConfigWarning(k, csv, "Unencrypted"        ) }
