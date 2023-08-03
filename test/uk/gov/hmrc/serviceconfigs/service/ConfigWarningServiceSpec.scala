@@ -220,7 +220,7 @@ class ConfigWarningServiceSpec
       }
     }
 
-    "detect DEBUG" in new Setup {
+    "detect Debug" in new Setup {
       val key   = "logger.application"
       val value = ConfigSourceValue("baseConfig", None, ConfigValue("DEBUG"))
 
@@ -230,7 +230,7 @@ class ConfigWarningServiceSpec
         ))
 
       service.warnings(Seq(env), serviceName, latest = true).futureValue shouldBe Seq(
-        ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "DEBUG")
+        ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Debug")
       )
     }
 
