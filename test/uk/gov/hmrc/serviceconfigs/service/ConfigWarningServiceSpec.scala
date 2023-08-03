@@ -218,6 +218,17 @@ class ConfigWarningServiceSpec
           ConfigWarning(env, serviceName, "k1.k", value.toRenderedConfigSourceValue, "Localhost")
         )
       }
+
+      "ignore if provided by referenceConf" in new Setup {
+        val value = ConfigSourceValue("referenceConf", None, ConfigValue("http://localhost:123"))
+
+        when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
+          .thenReturn(Map(
+            "k" -> value
+          ))
+
+        service.warnings(Seq(env), ServiceName("service"), latest = true).futureValue shouldBe Seq.empty
+      }
     }
 
     "detect Debug" in new Setup {
