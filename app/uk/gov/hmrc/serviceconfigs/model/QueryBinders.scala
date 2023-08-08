@@ -76,4 +76,8 @@ object QueryBinders {
 
   implicit def teamNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[TeamName] =
     strBinder.transform(TeamName.apply, _.asString)
+
+  implicit def verisonBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[Version] =
+    strBinder.transform(Version.apply, _.original)
+
 }

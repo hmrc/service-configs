@@ -23,7 +23,7 @@ import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
@@ -95,11 +95,12 @@ class ConfigController @Inject()(
   def warnings(
     serviceName : ServiceName,
     environments: Seq[Environment],
+    version     : Option[Version],
     latest      : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
       configWarningService
-        .warnings(environments, serviceName, latest = latest)
+        .warnings(environments, serviceName, version, latest)
         .map(res => Ok(Json.toJson(res)))
     }
 }
