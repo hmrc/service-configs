@@ -51,9 +51,11 @@ class ConfigController @Inject()(
   )
   def serviceConfig(
     @ApiParam(value = "The service name to query") serviceName: ServiceName,
-    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
+    @ApiParam(value = "Environment filter"       ) environment: Seq[Environment],
+    @ApiParam(value = "Version filter"           ) version    : Option[Version],
+    @ApiParam(value = "Latest or As Deployed"    ) latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName, latest).map { e =>
+    configService.configByEnvironment(serviceName, environment, version, latest).map { e =>
       Ok(Json.toJson(e))
     }
   }

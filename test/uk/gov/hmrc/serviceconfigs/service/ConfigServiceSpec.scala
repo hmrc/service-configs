@@ -77,7 +77,7 @@ class ConfigServiceSpec
         val serviceName = ServiceName("test-service")
         setup(serviceName, latest)
 
-        val configByEnvironment = configService.configByEnvironment(serviceName, latest = latest)
+        val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = latest)
 
         import ConfigController._
 
