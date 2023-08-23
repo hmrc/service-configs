@@ -68,6 +68,18 @@ object QueryBinders {
         strBinder.unbind(key, value.asString)
     }
 
+  implicit def versionBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[Version] =
+    new QueryStringBindable[Version] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Version]] =
+        strBinder.bind(key, params)
+          .map(_.flatMap(s =>
+            Version.parse(s).toRight(s"Invalid Version '$s'")
+          ))
+
+      override def unbind(key: String, value: Version): String =
+        strBinder.unbind(key, value.original)
+    }
+
   implicit def serviceNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
     strBinder.transform(ServiceName.apply, _.asString)
 

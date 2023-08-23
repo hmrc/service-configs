@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.syntax.all._
 
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigValue, ConfigValueType}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 
@@ -36,6 +36,7 @@ class ConfigWarningService @Inject()(
   def warnings(
     environments: Seq[Environment],
     serviceName : ServiceName,
+    version     : Option[Version],
     latest      : Boolean
   )(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] = {
     environments.traverse { environment =>
@@ -48,7 +49,7 @@ class ConfigWarningService @Inject()(
         , warning     = warning
         )
       for {
-        configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, latest)
+        configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, version, latest)
         resultingConfig     =  configService.resultingConfig(configSourceEntries)
         nov                 =  configNotOverriding(configSourceEntries)
         ctc                 =  configTypeChange(configSourceEntries)

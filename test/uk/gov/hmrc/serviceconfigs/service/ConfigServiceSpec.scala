@@ -77,7 +77,7 @@ class ConfigServiceSpec
         val serviceName = ServiceName("test-service")
         setup(serviceName, latest)
 
-        val configByEnvironment = configService.configByEnvironment(serviceName, latest = latest)
+        val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = latest)
 
         import ConfigController._
 
@@ -153,7 +153,7 @@ class ConfigServiceSpec
       val latest = false
       setup(serviceName, latest)
 
-      val cseDev = configService.configSourceEntries(ConfigEnvironment.ForEnvironment(Environment.Development), serviceName, latest).futureValue
+      val cseDev = configService.configSourceEntries(ConfigEnvironment.ForEnvironment(Environment.Development), serviceName, version = None, latest).futureValue
 
       configService.resultingConfig(cseDev) shouldBe Map(
         "list.2" -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), ConfigValue("3"))
@@ -163,7 +163,7 @@ class ConfigServiceSpec
       , "list"   -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-development/blob/main/test-service.yaml"), ConfigValue.Suppressed)
       )
 
-      val csaQa = configService.configSourceEntries(ConfigEnvironment.ForEnvironment(Environment.QA), serviceName, latest).futureValue
+      val csaQa = configService.configSourceEntries(ConfigEnvironment.ForEnvironment(Environment.QA), serviceName, version = None, latest).futureValue
       configService.resultingConfig(csaQa) shouldBe Map(
         "a"        -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , ConfigValue.Suppressed)
       , "c"        -> ConfigSourceValue("appConfigEnvironment", Some("https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml")   , ConfigValue.Suppressed)

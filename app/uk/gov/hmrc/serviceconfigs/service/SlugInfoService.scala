@@ -206,7 +206,7 @@ class SlugInfoService @Inject()(
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
         // now we have stored the deployment configs, we can calculate the resulting configs
-        cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, latest = false))
+        cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
         deploymentConfig  =  configService.resultingConfig(cses)
         renderedDeploymentConfig = deploymentConfig.view.mapValues(_.toRenderedConfigSourceValue).toMap
         _                 <- if (deploymentConfig.nonEmpty)

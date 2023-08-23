@@ -23,7 +23,7 @@ import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
@@ -51,9 +51,11 @@ class ConfigController @Inject()(
   )
   def serviceConfig(
     @ApiParam(value = "The service name to query") serviceName: ServiceName,
-    @ApiParam(value = "Latest or As Deployed")     latest     : Boolean
+    @ApiParam(value = "Environment filter"       ) environment: Seq[Environment],
+    @ApiParam(value = "Version filter"           ) version    : Option[Version],
+    @ApiParam(value = "Latest or As Deployed"    ) latest     : Boolean
   ): Action[AnyContent] = Action.async { implicit request =>
-    configService.configByEnvironment(serviceName, latest).map { e =>
+    configService.configByEnvironment(serviceName, environment, version, latest).map { e =>
       Ok(Json.toJson(e))
     }
   }
@@ -95,11 +97,12 @@ class ConfigController @Inject()(
   def warnings(
     serviceName : ServiceName,
     environments: Seq[Environment],
+    version     : Option[Version],
     latest      : Boolean
   ): Action[AnyContent] =
     Action.async { implicit request =>
       configWarningService
-        .warnings(environments, serviceName, latest = latest)
+        .warnings(environments, serviceName, version, latest)
         .map(res => Ok(Json.toJson(res)))
     }
 }

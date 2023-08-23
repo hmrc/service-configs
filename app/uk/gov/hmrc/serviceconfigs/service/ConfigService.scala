@@ -143,17 +143,20 @@ class ConfigService @Inject()(
   }
 
   def configSourceEntries(
-    environment: ConfigEnvironment,
-    serviceName: ServiceName,
-    latest     : Boolean // true - latest (as would be deployed), false - as currently deployed
+    environment : ConfigEnvironment,
+    serviceName : ServiceName,
+    version     : Option[Version],
+    latest      : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(implicit
     hc: HeaderCarrier
   ): Future[Seq[ConfigSourceEntries]] =
     environment.slugInfoFlag match {
       case SlugInfoFlag.Latest =>
         for {
-          optSlugInfo               <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
-
+          optSlugInfo               <- version match {
+                                         case Some(v) => slugInfoRepository.getSlugInfos(serviceName, version).map(_.headOption)
+                                         case None    => slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+                                       }
           dependencyConfigs         <- lookupDependencyConfigs(optSlugInfo)
           referenceConf             =  ConfigParser.reduceConfigs(dependencyConfigs)
 
@@ -167,7 +170,10 @@ class ConfigService @Inject()(
         )
       case SlugInfoFlag.ForEnvironment(env) =>
         for {
-          optSlugInfo                 <- slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+          optSlugInfo                 <- version match {
+                                           case Some(v) => slugInfoRepository.getSlugInfos(serviceName, version).map(_.headOption)
+                                           case None    => slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
+                                         }
           loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
           dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
@@ -175,7 +181,6 @@ class ConfigService @Inject()(
 
           (applicationConf, bootstrapConf)
                                       <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-
 
           (optAppConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll) <-
             if (latest)
@@ -238,10 +243,14 @@ class ConfigService @Inject()(
           )
     }
 
-  def configByEnvironment(serviceName: ServiceName, latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
+  def configByEnvironment(serviceName: ServiceName, environments: Seq[Environment], version: Option[Version], latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
     ConfigEnvironment
       .values
-      .map(e => configSourceEntries(e, serviceName, latest).map(e -> _))
+      .filter {
+        case ConfigEnvironment.Local             => environments.isEmpty
+        case ConfigEnvironment.ForEnvironment(e) => environments.contains(e) || environments.isEmpty
+      }
+      .map(e => configSourceEntries(e, serviceName, version, latest).map(e -> _))
       .sequence.map(_.toMap)
 
   def resultingConfig(
