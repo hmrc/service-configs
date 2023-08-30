@@ -43,10 +43,10 @@ class DeploymentConfigRepositorySpec
       )
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
-      repository.findAll().futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs)
+      repository.find().futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs)
 
-      repository.findAllForEnv(Environment.Development).futureValue shouldBe developmentDeploymentConfigs
-      repository.findAllForEnv(Environment.Production ).futureValue shouldBe productionDeploymentConfigs
+      repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs
+      repository.find(Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
 
       val developmentDeploymentConfigs2 = Seq(
         mkDeploymentConfig(ServiceName("service3"), Environment.Development),
@@ -55,11 +55,11 @@ class DeploymentConfigRepositorySpec
 
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2.map(toBson)).futureValue
 
-      repository.findAllForEnv(Environment.Development).futureValue shouldBe developmentDeploymentConfigs2
-      repository.findAllForEnv(Environment.Production ).futureValue shouldBe productionDeploymentConfigs
+      repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
+      repository.find(Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
     }
 
-    "find one by matching service name" in {
+    "find one by matching service name and environment" in {
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
@@ -74,8 +74,26 @@ class DeploymentConfigRepositorySpec
       repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
 
-      repository.findByName(Environment.Development, serviceName1).futureValue shouldBe developmentDeploymentConfigs.find(_.serviceName == serviceName1)
-      repository.findByName(Environment.Production , serviceName1).futureValue shouldBe productionDeploymentConfigs .find(_.serviceName == serviceName1)
+      repository.find(Seq(Environment.Development), Some(serviceName1)).futureValue shouldBe developmentDeploymentConfigs.filter(_.serviceName == serviceName1)
+      repository.find(Seq(Environment.Production) , Some(serviceName1)).futureValue shouldBe productionDeploymentConfigs .filter(_.serviceName == serviceName1)
+    }
+
+    "find by matching service name" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+      val serviceName3 = ServiceName("serviceName3")
+      val developmentDeploymentConfigs = Seq(
+        mkDeploymentConfig(serviceName1, Environment.Development),
+        mkDeploymentConfig(serviceName2, Environment.Development)
+      )
+      val productionDeploymentConfigs = Seq(
+        mkDeploymentConfig(serviceName2, Environment.Production),
+        mkDeploymentConfig(serviceName3, Environment.Production)
+      )
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
+
+      repository.find(serviceName = Some(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
     }
   }
 

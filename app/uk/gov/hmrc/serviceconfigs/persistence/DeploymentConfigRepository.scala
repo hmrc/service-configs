@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.Filters.{and, empty, equal, in}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -57,25 +57,20 @@ class DeploymentConfigRepository @Inject()(
       } yield r.getInsertedIds.size
     }
 
-  def findAll(): Future[Seq[DeploymentConfig]] =
-    collection
-      .find()
-      .toFuture()
+  def find(environments: Seq[Environment] = Seq.empty, serviceName: Option[ServiceName] = None): Future[Seq[DeploymentConfig]] = {
+    val filters = Seq(
+      Option.when(environments.nonEmpty)(in("environment", environments:_*)),
+      serviceName.map(sn => equal("name", sn))
+    ).flatten
+    val filter = if (filters.nonEmpty)
+        and(filters:_*)
+      else
+        empty()
 
-  def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
     collection
-      .find(equal("environment", environment))
+      .find(filter)
       .toFuture()
-
-  def findByName(environment: Environment, serviceName: ServiceName): Future[Option[DeploymentConfig]] =
-    collection
-      .find(
-        and(
-          equal("name"       , serviceName),
-          equal("environment", environment)
-        )
-      )
-      .headOption()
+  }
 
   // Test only
   def add(deploymentConfig: DeploymentConfig): Future[Unit] =
