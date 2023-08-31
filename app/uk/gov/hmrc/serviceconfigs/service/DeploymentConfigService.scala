@@ -53,14 +53,8 @@ class DeploymentConfigService @Inject()(
       _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
-  def findAll(): Future[Seq[DeploymentConfig]] =
-    deploymentConfigRepository.findAll()
-
-  def findAllForEnv(environment: Environment): Future[Seq[DeploymentConfig]] =
-    deploymentConfigRepository.findAllForEnv(environment)
-
-  def find(environment: Environment, serviceName: ServiceName): Future[Option[DeploymentConfig]] =
-    deploymentConfigRepository.findByName(environment, serviceName)
+  def find(environments: Seq[Environment], serviceName: Option[ServiceName]): Future[Seq[DeploymentConfig]] =
+      deploymentConfigRepository.find(environments, serviceName)
 }
 
 object DeploymentConfigService extends Logging {

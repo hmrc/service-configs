@@ -39,20 +39,13 @@ class DeploymentConfigController @Inject()(
   implicit val dcw = DeploymentConfig.apiFormat
   implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
-  def deploymentConfigAll: Action[AnyContent] =
+  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName]): Action[AnyContent] =
     Action.async {
-     deploymentConfigService.findAll().map(res => Ok(Json.toJson(res)))
-    }
-
-  def deploymentConfigForEnv(environment: Environment): Action[AnyContent] =
-    Action.async {
-      deploymentConfigService.findAllForEnv(environment).map(res => Ok(Json.toJson(res)))
-    }
-
-  def deploymentConfigForService(environment: Environment, serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      deploymentConfigService
-        .find(environment, serviceName)
-          .map(_.fold(NotFound(s"Service: ${serviceName.asString} not found"))(cfg => Ok(Json.toJson(cfg))))
+      deploymentConfigService.find(environments, serviceName)
+        .map(deploymentConfigs => (deploymentConfigs, serviceName) match {
+          case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
+          case (Nil, _) => NotFound("No deployment configurations found")
+          case _        => Ok(Json.toJson(deploymentConfigs))
+        })
     }
 }
