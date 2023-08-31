@@ -35,12 +35,13 @@ class BobbyRulesRepositorySpec
     "putAll correctly" in {
       locally {
         val config = BobbyRules(
-          libraries = Seq(BobbyRule(
-            organisation = "uk.gov.hmrc",
-            name         = "name1",
-            range        = "(,3.1.0)",
-            reason       = "reason1",
-            from         = LocalDate.parse("2015-11-01")
+         libraries      = Seq(BobbyRule(
+            organisation   = "uk.gov.hmrc",
+            name           = "name1",
+            range          = "(,3.1.0)",
+            reason         = "reason1",
+            from           = LocalDate.parse("2015-11-01"),
+            exemptProjects = Seq("service-one-frontend", "service-two-front-end")
           )),
           plugins   = Seq(BobbyRule(
             organisation = "uk.gov.hmrc",
