@@ -69,18 +69,20 @@ class BobbyRulesControllerSpec
       contentAsJson(response) shouldBe Json.parse(
         s"""{
           "libraries": [ {
-            "organisation": "uk.gov.hmrc",
-            "name"        : "name1",
-            "range"       : "(,3.1.0)",
-            "reason"      : "reason1",
-            "from"        : "2015-11-01"
+            "organisation"  : "uk.gov.hmrc",
+            "name"          : "name1",
+            "range"         : "(,3.1.0)",
+            "reason"        : "reason1",
+            "from"          : "2015-11-01",
+            "exemptProjects" : []
           } ],
           "plugins": [ {
-            "organisation": "uk.gov.hmrc",
-            "name"        : "name2",
-            "range"       : "(,3.2.0)",
-            "reason"      : "reason2",
-            "from"        : "2015-11-02"
+            "organisation"  : "uk.gov.hmrc",
+            "name"          : "name2",
+            "range"         : "(,3.2.0)",
+            "reason"        : "reason2",
+            "from"          : "2015-11-02",
+            "exemptProjects" : []
           } ]
         }"""
       )

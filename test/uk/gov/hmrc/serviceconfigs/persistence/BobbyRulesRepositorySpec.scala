@@ -41,7 +41,7 @@ class BobbyRulesRepositorySpec
             range          = "(,3.1.0)",
             reason         = "reason1",
             from           = LocalDate.parse("2015-11-01"),
-            exemptProjects = Some(Seq("service-one-frontend", "service-two-front-end"))
+            exemptProjects = Seq("service-one-frontend", "service-two-front-end")
           )),
           plugins   = Seq(BobbyRule(
             organisation = "uk.gov.hmrc",
