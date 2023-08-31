@@ -29,12 +29,12 @@ case class BobbyRules(
 object BobbyRules {
 
   private def bobbyRuleFormat(implicit dateFormat: Format[LocalDate]): Format[BobbyRule] =
-    ( (__ \ "organisation").format[String]
-    ~ (__ \ "name"        ).format[String]
-    ~ (__ \ "range"       ).format[String]
-    ~ (__ \ "reason"      ).format[String]
-    ~ (__ \ "from"        ).format[LocalDate]
-      ~ (__ \ "exemptProjects").formatNullable[Seq[String]]
+    ( (__ \ "organisation"  ).format[String]
+    ~ (__ \ "name"          ).format[String]
+    ~ (__ \ "range"         ).format[String]
+    ~ (__ \ "reason"        ).format[String]
+    ~ (__ \ "from"          ).format[LocalDate]
+    ~ (__ \ "exemptProjects").formatNullable[Seq[String]]
     )(BobbyRule.apply, unlift(BobbyRule.unapply))
 
   val mongoFormat: Format[BobbyRules] = {
