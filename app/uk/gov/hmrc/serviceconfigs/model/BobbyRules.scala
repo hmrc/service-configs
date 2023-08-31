@@ -34,6 +34,7 @@ object BobbyRules {
     ~ (__ \ "range"       ).format[String]
     ~ (__ \ "reason"      ).format[String]
     ~ (__ \ "from"        ).format[LocalDate]
+      ~ (__ \ "exemptProjects").formatNullable[Seq[String]]
     )(BobbyRule.apply, unlift(BobbyRule.unapply))
 
   val mongoFormat: Format[BobbyRules] = {
@@ -63,5 +64,6 @@ final case class BobbyRule(
   name        : String,
   range       : String,
   reason      : String,
-  from        : LocalDate
+  from        : LocalDate,
+  exemptProjects: Option[Seq[String]] = None
 )
