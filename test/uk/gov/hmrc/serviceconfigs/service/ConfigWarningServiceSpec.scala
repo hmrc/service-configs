@@ -155,7 +155,7 @@ class ConfigWarningServiceSpec
         )
       }
 
-      "ignore Null, Unmerged and Suppressed" in new Setup {
+      "ignore Null and Unmerged " in new Setup {
         val key1 = "k1"
         val key2 = "k2"
 
@@ -172,13 +172,50 @@ class ConfigWarningServiceSpec
             ConfigSourceEntries("appConfigEnvironment", None, Map(key1 -> ConfigValue("${s}", ConfigValueType.Unmerged))),
             // unmerged -> simple
             ConfigSourceEntries("applicationConf"     , None, Map(key2 -> ConfigValue("${s}", ConfigValueType.Unmerged))),
-            ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue("s"   , ConfigValueType.SimpleValue))),
-            // simple -> suppressed
-            ConfigSourceEntries("applicationConf"     , None, Map(key2 -> ConfigValue("s"   , ConfigValueType.SimpleValue))),
-            ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue.Suppressed))
+            ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue("s"   , ConfigValueType.SimpleValue)))
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
+      }
+
+      "ignore Suppressed of List if caused by array positional syntax" in new Setup {
+        val key1 = "k1"
+        val key2 = "k2"
+
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Seq(
+            // suppressed by array positional syntax
+            ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("[]", ConfigValueType.List))),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(key1 -> ConfigValue.Suppressed)),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(s"$key1.0" -> ConfigValue("s", ConfigValueType.SimpleValue))),
+            // suppressed without array positional syntax
+            ConfigSourceEntries("applicationConf"     , None, Map(key2 -> ConfigValue("[]", ConfigValueType.List))),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue.Suppressed))
+          )))
+
+        service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
+          ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "<<SUPPRESSED>>"), "TypeChange")
+        )
+      }
+
+      "ignore Suppressed of SimpleValue if caused by base64" in new Setup {
+        val key1 = "k1"
+        val key2 = "k2"
+
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Seq(
+            // suppressed by array positional syntax
+            ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("s", ConfigValueType.SimpleValue))),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(key1 -> ConfigValue.Suppressed)),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(s"$key1.base64" -> ConfigValue("===s", ConfigValueType.SimpleValue))),
+            // suppressed without array positional syntax
+            ConfigSourceEntries("applicationConf"     , None, Map(key2 -> ConfigValue("s", ConfigValueType.SimpleValue))),
+            ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> ConfigValue.Suppressed))
+          )))
+
+        service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
+          ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "<<SUPPRESSED>>"), "TypeChange")
+        )
       }
     }
 

@@ -147,7 +147,10 @@ class ConfigWarningService @Inject()(
                 if (
                  v.valueType == ConfigValueType.Null       || v2.valueType == ConfigValueType.Null     ||
                  v.valueType == ConfigValueType.Unmerged   || v2.valueType == ConfigValueType.Unmerged ||
-                 v.valueType == ConfigValueType.Suppressed || v2.valueType == ConfigValueType.Suppressed
+                 // was a list but now suppressed by positional notation
+                 (v2.valueType == ConfigValueType.List && v.valueType == ConfigValueType.Suppressed && overrides.exists(_.entries.exists(e => ArrayRegex.findAllMatchIn(e._1).exists(_.group(1) == k)))) ||
+                 // was a simple value but now suppressed by base64
+                 (v2.valueType == ConfigValueType.SimpleValue && v.valueType == ConfigValueType.Suppressed && overrides.exists(_.entries.exists(e => Base64Regex.findAllMatchIn(e._1).exists(_.group(1) == k))))
                 )
                   false
                 else
