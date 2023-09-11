@@ -42,7 +42,7 @@ class ServiceDependenciesConnector @Inject() (
 
   def getDependentTeams(group: String, artefact: String, versionRange: String): Future[Seq[String]] =
     httpClientV2.get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRang=${URLEncoder.encode(versionRange,"UTF8")}&scope=compile")
-      .execute[Seq[ServiceDependencies]] //todo make this a Seq of String if that is all we need
+      .execute[Seq[ServiceDependencies]]
       .map(_.flatMap(_.teams))
 
 }
