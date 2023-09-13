@@ -22,7 +22,6 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.DependencyConfig
 import uk.gov.hmrc.serviceconfigs.util.SafeXml
 
-import java.util.Map.Entry
 import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -214,12 +213,26 @@ trait ConfigParser extends Logging {
       .asScala
       .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
 
-    val config     = ConfigFactory.parseProperties(newProps)
+    val config = ConfigFactory.parseProperties(newProps)
+
+    // logger is actually loaded from System.properties, and preserves the `.` within the String rather as a subpath
+    val configWithPreservedLogger = config
+      .withoutPath("logger")
+      .withFallback(
+        ConfigFactory.parseMap(
+          newProps.entrySet.asScala
+            .map(e => (e.getKey.toString, e.getValue.toString))
+            .collect {
+              case (k, v) if k.startsWith("logger.") => (s"logger.\"${k.stripPrefix("logger.")}\"", v)
+            }.toMap.asJava
+        )
+      )
+
     val suppressed = newProps.asScala.view
-                       .filterKeys(!flattenConfigToDotNotation(config).contains(_))
+                       .filterKeys(!flattenConfigToDotNotation(configWithPreservedLogger).contains(_))
                        .mapValues(ConfigValue.apply)
                        .toMap
-    (config, suppressed)
+    (configWithPreservedLogger, suppressed)
   }
 
   /** Config is processed relative to the previous one.
