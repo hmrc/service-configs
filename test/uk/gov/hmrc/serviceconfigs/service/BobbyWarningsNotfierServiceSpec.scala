@@ -51,6 +51,9 @@ class BobbyWarningsNotfierServiceSpec
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
     "be run if the last time the service was run before the notifications period" in new Setup {
+
+      when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
+
       when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(eightDays))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
@@ -65,13 +68,13 @@ class BobbyWarningsNotfierServiceSpec
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
-
     }
   }
 }
 
-trait Setup {
 
+
+trait Setup  {
 
   val hc = HeaderCarrier()
 
@@ -96,15 +99,13 @@ trait Setup {
   val mockSlackNotificationsConnector = mock[SlackNotificationsConnector]
 
 
-  val configuration = mock[Configuration]
+  val mockConfiguration = mock[Configuration]
 
-  when(configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Period.ofMonths(2))
-  when(configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Period.ofWeeks(1))
-
-
-    Map("bobby-warnings-notifier.rule-notification-window" -> "2.months")
+  when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Period.ofMonths(2))
+  when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Period.ofWeeks(1))
 
 
-  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, configuration)
+
+  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockConfiguration)
 }
 
