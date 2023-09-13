@@ -45,6 +45,7 @@ class BobbyWarningsNotifierService @Inject()(
   val futureDatedRuleWindow: TemporalAmount = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")
   val endWindow = LocalDate.now().plus(futureDatedRuleWindow)
   val lastRunPeriod = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")
+  lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
   def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] =
       runNotificationsIfInWindow {
@@ -58,17 +59,27 @@ class BobbyWarningsNotifierService @Inject()(
                                              .map(teams => acc ++ teams.map(t => (t, rule)))
                                          }
           grouped                  = rulesWithTeams.groupMap(_._1)(_._2)
-          _                        = grouped.toList.foldLeftM{List.empty[(String,SlackNotificationResponse)]}{ case (acc,(team, rules)) =>
+          slackResponses           <- grouped.toList.foldLeftM{List.empty[(String,SlackNotificationResponse)]}{ case (acc,(team, rules)) =>
                                           val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", "emoji",
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
-                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(team), message)).map(resp => acc :+ (team, resp))
+                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
                                        }
-                                   //todo what sort of checking do we need here on the Slack Responses?
-          -                        <- bobbyWarningsRepository.updateLastWarningDate()
+          _                        = reportOnSlackResponses(slackResponses)
+          _                        = bobbyWarningsRepository.updateLastWarningDate()
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
-
   }
 
+
+  private def reportOnSlackResponses(slackResponses: List[(String, SlackNotificationResponse)]): Unit = {
+    slackResponses.foreach {
+      case (team, response) =>
+        if (response.errors.nonEmpty) {
+          logger.warn(s"Sending Bobby Warning message to $team had errors ${response.errors.mkString(" : ")}")
+        } else {
+          logger.debug(s"Successfully sent Bobby Warning message to ${response.successfullySentTo}")
+        }
+    }
+  }
 
   private def runNotificationsIfInWindow(f: => Future[Unit]): Future[Unit] =
     bobbyWarningsRepository.getLastWarningsDate().flatMap {
