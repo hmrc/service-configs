@@ -16,31 +16,26 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import akka.actor.ActorSystem
-import play.api.Logging
+import cats.implicits._
+import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{Attachment, ChannelLookup, MessageDetails, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationsConnector, UserManagementConnector}
+import uk.gov.hmrc.serviceconfigs.connector._
+import uk.gov.hmrc.serviceconfigs.model.BobbyRule
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
 
 import java.time.LocalDate
+import java.time.temporal.{ChronoUnit, TemporalAmount}
 import java.time.temporal.ChronoUnit.{MONTHS, WEEKS}
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import cats.syntax.flatMap._
-import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.TimestampSupport
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
-import uk.gov.hmrc.serviceconfigs.scheduler.{MongoLockRepository, SchedulerUtils, TimePeriodLockService}
 
-import scala.concurrent.duration.DurationInt
-
+@Singleton
 class BobbyWarningsNotifierService @Inject()(
   bobbyRulesService          : BobbyRulesService,
   serviceDependencies        : ServiceDependenciesConnector,
   bobbyWarningsRepository    : BobbyWarningsRepository,
   slackNotificationsConnector: SlackNotificationsConnector,
-  userManagementConnector    : UserManagementConnector
+  configuration : Configuration
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
@@ -48,50 +43,42 @@ class BobbyWarningsNotifierService @Inject()(
   implicit val hc = HeaderCarrier()
 
 
-  //todo make this a value in config
-  val endWindow = LocalDate.now().plus(2L, MONTHS)
+  val futureDatedRuleWindow: TemporalAmount = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")
+  val endWindow = LocalDate.now().plus(futureDatedRuleWindow)
+  val lastRunPeriod = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")
 
-
-  def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] = {
-      runNotificationsIfInWindow(bobbyWarningsRepository.getLastWarningsDate()) {
+  def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] =
+      runNotificationsIfInWindow {
         for {
           futureDatedRules         <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
                                         rule.from.isAfter(LocalDate.now()) && rule.from.isBefore(endWindow)
                                       })
-          _                        <- Future.successful(logger.info(s"There are ${futureDatedRules.size} future dated rules becoming active"))
-          rulesWithTeams           <- Future.sequence {
-                                         futureDatedRules.map { rule =>
+          _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
+          rulesWithTeams           <- futureDatedRules.foldLeftM{List.empty[(String,BobbyRule)]}{ (acc,rule) =>
                                            serviceDependencies.getDependentTeams(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
-                                             .map(teams => teams.map(t => (t, rule)))
+                                             .map(teams => acc ++ teams.map(t => (t, rule)))
                                          }
-                                       }
-          grouped                  <- Future.successful(rulesWithTeams.flatten.groupMap(_._1)(_._2))
-          groupedWithSlackChannel  <- Future.sequence {
-                                        grouped.map { case (team, rules) =>
-                                           userManagementConnector.getSlackChannelByTeam(team).map((_,rules))
-                                        }
-                                      }
-          _                        <- Future.sequence {
-                                        groupedWithSlackChannel.map { case (team, rules) =>
+          grouped                  = rulesWithTeams.groupMap(_._1)(_._2)
+          _                        = grouped.map { case (team, rules) =>
                                           val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", "emoji",
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
-                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.SlackChannel(List(team)), message))
+                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(team), message))
                                        }
-                                     }
                                    //todo what sort of checking do we need here on the Slack Responses?
           -                        <- bobbyWarningsRepository.updateLastWarningDate()
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
-      }
+
   }
 
 
-  private def runNotificationsIfInWindow(lastRunDate: Future[LocalDate])(f: => Future[Unit]): Future[Unit] =
-    lastRunDate.flatMap {
-      date =>
-        if (date.isBefore(LocalDate.now().minus(1L, WEEKS))) {
+  private def runNotificationsIfInWindow(f: => Future[Unit]): Future[Unit] =
+    bobbyWarningsRepository.getLastWarningsDate().flatMap {
+      lastRunDate =>
+        if (lastRunDate.isBefore(LocalDate.now().minus(lastRunPeriod))) {
+          logger.info(s"Running Bobby Warning Notifications. Last run date was ${lastRunDate.toString}")
           f
         } else {
-          logger.info(s"Not running Bobby Warning Notifications as they were run on ${date.toString}")
+          logger.debug(s"Not running Bobby Warning Notifications as they were run on ${lastRunDate.toString}")
           Future.unit
         }
     }

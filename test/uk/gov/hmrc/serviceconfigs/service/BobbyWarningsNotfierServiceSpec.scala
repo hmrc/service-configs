@@ -16,18 +16,20 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.MockitoSugar.mock
+import org.mockito.MockitoSugar.{mock, when}
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{LdapTeam, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, UserManagementConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector}
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
 
-import java.time.LocalDate
 import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
+import java.time.temporal.TemporalAmount
+import java.time.{LocalDate, Period}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -55,9 +57,6 @@ class BobbyWarningsNotfierServiceSpec
 
       when(mockServiceDependenciesConnector.getDependentTeams(organisation,"exampleLib", range)).thenReturn(Future.successful(Seq(team1, team2)))
       when(mockServiceDependenciesConnector.getDependentTeams(organisation,"exampleLib2", range)).thenReturn(Future.successful(Seq(team1)))
-
-      when(mockUserManagementConnector.getSlackChannelByTeam(team1)).thenReturn(Future.successful("TeamOne"))
-      when(mockUserManagementConnector.getSlackChannelByTeam(team2)).thenReturn(Future.successful("TeamTwo"))
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
@@ -96,8 +95,16 @@ trait Setup {
   val mockBobbyWarningsRepository = mock[BobbyWarningsRepository]
   val mockSlackNotificationsConnector = mock[SlackNotificationsConnector]
 
-  val mockUserManagementConnector: UserManagementConnector = mock[UserManagementConnector]
 
-  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockUserManagementConnector)
+  val configuration = mock[Configuration]
+
+  when(configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Period.ofMonths(2))
+  when(configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Period.ofWeeks(1))
+
+
+    Map("bobby-warnings-notifier.rule-notification-window" -> "2.months")
+
+
+  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, configuration)
 }
 

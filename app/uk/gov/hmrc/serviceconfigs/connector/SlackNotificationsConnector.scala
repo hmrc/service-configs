@@ -57,18 +57,18 @@ class SlackNotificationsConnector @Inject()(
   import HttpReads.Implicits._
 
 
-  val url: String = servicesConfig.baseUrl("slack-notifications")
+  private val serviceUrl: String = servicesConfig.baseUrl("slack-notifications")
 
   private val authorizationHeaderValue = {
-    val username = configuration.get[String]("alerts.slack.basicAuth.username")
-    val password = configuration.get[String]("alerts.slack.basicAuth.password")
+    val username = configuration.get[String]("microservices.slack-notifications.basicAuth.username")
+    val password = configuration.get[String]("microservices.slack-notifications.basicAuth.password")
 
     s"Basic ${BaseEncoding.base64().encode(s"$username:$password".getBytes("UTF-8"))}"
   }
 
   def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] =
     httpClientV2
-      .post(url"$url/slack-notifications/notification")
+      .post(url"$serviceUrl/slack-notifications/notification")
       .withBody(Json.toJson(message))
       .setHeader("Authorization" -> authorizationHeaderValue)
       .execute[SlackNotificationResponse]
@@ -107,26 +107,15 @@ sealed trait ChannelLookup {
 }
 
 object ChannelLookup {
-  //todo get rid of channels we don't ever use here
-  final case class TeamsOfGithubUser(
-                                      githubUsername: String,
-                                      by            : String = "teams-of-github-user"
-                                    ) extends ChannelLookup
 
-  final case class GithubRepository(
-                                     repositoryName: String,
-                                     by            : String = "github-repository"
-                                   ) extends ChannelLookup
+  final case class GithubTeam(
+                              repositoryName: String,
+                              by            : String = "github-team"
+                              ) extends ChannelLookup
 
-  final case class SlackChannel(
-                                 slackChannels: List[String],
-                                 by           : String = "slack-channel"
-                               ) extends ChannelLookup
 
   implicit val writes: Writes[ChannelLookup] = Writes {
-    case s: SlackChannel      => Json.toJson(s)(Json.writes[SlackChannel])
-    case s: TeamsOfGithubUser => Json.toJson(s)(Json.writes[TeamsOfGithubUser])
-    case s: GithubRepository => Json.toJson(s)(Json.writes[GithubRepository])
+    case s: GithubTeam => Json.toJson(s)(Json.writes[GithubTeam])
   }
 }
 

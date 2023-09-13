@@ -25,9 +25,9 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.net.URLEncoder
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-
+@Singleton
 class ServiceDependenciesConnector @Inject() (
   httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig)
@@ -41,7 +41,7 @@ class ServiceDependenciesConnector @Inject() (
   private val serviceUrl = servicesConfig.baseUrl("service-dependencies")
 
   def getDependentTeams(group: String, artefact: String, versionRange: String): Future[Seq[String]] =
-    httpClientV2.get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRang=${URLEncoder.encode(versionRange,"UTF8")}&scope=compile")
+    httpClientV2.get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=${URLEncoder.encode(versionRange,"UTF8")}&scope=compile")
       .execute[Seq[ServiceDependencies]]
       .map(_.flatMap(_.teams))
 
