@@ -24,8 +24,7 @@ import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
 
 import java.time.LocalDate
-import java.time.temporal.{ChronoUnit, TemporalAmount}
-import java.time.temporal.ChronoUnit.{MONTHS, WEEKS}
+import java.time.temporal.TemporalAmount
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -59,10 +58,10 @@ class BobbyWarningsNotifierService @Inject()(
                                              .map(teams => acc ++ teams.map(t => (t, rule)))
                                          }
           grouped                  = rulesWithTeams.groupMap(_._1)(_._2)
-          _                        = grouped.map { case (team, rules) =>
+          _                        = grouped.toList.foldLeftM{List.empty[(String,SlackNotificationResponse)]}{ case (acc,(team, rules)) =>
                                           val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", "emoji",
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
-                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(team), message))
+                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(team), message)).map(resp => acc :+ (team, resp))
                                        }
                                    //todo what sort of checking do we need here on the Slack Responses?
           -                        <- bobbyWarningsRepository.updateLastWarningDate()
