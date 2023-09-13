@@ -145,10 +145,67 @@ class ConfigServiceSpec
         }""")
       }
     }
+
+    "preserve loggers from app-config-env" in {
+      val serviceName = ServiceName("test-service")
+      val now      = Instant.now()
+      val slugInfo = SlugInfo(
+        uri               = "some/uri"
+      , created           = now
+      , name              = serviceName
+      , version           = Version(major = 0, minor = 1, patch = 0, original = "0.1.0")
+      , classpath         = ""  // not stored in Mongo - used to order dependencies before storing
+      , dependencies      = Nil
+      , applicationConfig = List("logger.resource =\"logback.conf\"").mkString("\n")
+      , includedAppConfig = Map.empty
+      , loggerConfig      = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\n    <appender name=\"STDOUT\" class=\"ch.qos.logback.core.ConsoleAppender\">\n        <encoder class=\"uk.gov.hmrc.play.logging.JsonEncoder\"/>\n    </appender>\n\n    <root level=\"WARN\">\n        <appender-ref ref=\"STDOUT\"/>\n    </root>\n</configuration>\n"
+      , slugConfig        = ""
+      )
+
+      val appConfigQa = """
+        |hmrc_config.logger.uk.gov: DEBUG
+        |hmrc_config.logger.uk.gov.hmrc: DEBUG
+        """.stripMargin
+      withAppConfigEnvForHEAD("qa", serviceName, appConfigQa)
+
+      implicit val sif = MongoSlugInfoFormats.slugInfoFormat
+      slugInfoCollection
+        .insertOne {
+          val json =
+            Json.toJson(slugInfo).as[JsObject] ++
+            Json.obj(
+              "latest"       -> JsBoolean(true)
+            , "qa"           -> JsBoolean(true)
+            )
+          Document(json.toString)
+        }.toFuture()
+          .futureValue
+
+      val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = true)
+
+      import ConfigController._
+
+
+      (Json.toJson(configByEnvironment.futureValue) \ "qa").as[JsValue] shouldBe Json.parse(s"""[
+        { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
+        { "source": "referenceConf", "entries": {} },
+        { "source": "applicationConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application.conf", "entries": {
+            "logger.resource": "logback.conf"
+        }},
+        { "source": "baseConfig", "sourceUrl": "https://github.com/hmrc/app-config-base/blob/main/test-service.conf", "entries": {} },
+        { "source": "appConfigCommonOverridable", "entries": {} },
+        { "source": "appConfigEnvironment", "sourceUrl": "https://github.com/hmrc/app-config-qa/blob/main/test-service.yaml", "entries": {
+            "logger.\\"uk.gov.hmrc\\"":"DEBUG",
+            "logger.\\"uk.gov\\"":"DEBUG"
+        }},
+        { "source": "appConfigCommonFixed", "entries": {} },
+        { "source": "base64", "entries": {}}
+      ]""")
+    }
   }
 
   "ConfigService.resultingConfig" should {
-    s"flatten ConfigByEnvironment" in {
+    "flatten ConfigByEnvironment" in {
       val serviceName = ServiceName("test-service")
       val latest = false
       setup(serviceName, latest)
