@@ -45,7 +45,9 @@ class BobbyWarningsNotifierService @Inject()(
   val futureDatedRuleWindow: TemporalAmount = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")
   val endWindow = LocalDate.now().plus(futureDatedRuleWindow)
   val lastRunPeriod = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")
+  val slackIcon = configuration.get[String]("bobby-warnings-notifier-service.slack-icon")
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
+
 
   def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] =
       runNotificationsIfInWindow {
@@ -60,7 +62,7 @@ class BobbyWarningsNotifierService @Inject()(
                                          }
           grouped                  = rulesWithTeams.groupMap(_._1)(_._2)
           slackResponses           <- grouped.toList.foldLeftM{List.empty[(String,SlackNotificationResponse)]}{ case (acc,(team, rules)) =>
-                                          val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", "emoji",
+                                          val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", slackIcon,
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
                                        }

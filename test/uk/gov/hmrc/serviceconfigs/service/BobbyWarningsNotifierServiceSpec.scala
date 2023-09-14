@@ -34,7 +34,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class BobbyWarningsNotfierServiceSpec
+class BobbyWarningsNotifierServiceSpec
   extends AnyWordSpec
   with Matchers
   with ScalaFutures
@@ -103,6 +103,7 @@ trait Setup  {
 
   when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Period.ofMonths(2))
   when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Period.ofWeeks(1))
+  when(mockConfiguration.get[String]("bobby-warnings-notifier-service.slack-icon")).thenReturn(":some-icon:")
 
 
 
