@@ -21,7 +21,7 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.BobbyRule
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
 import java.time.LocalDate
 import java.time.temporal.TemporalAmount
@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class BobbyWarningsNotifierService @Inject()(
   bobbyRulesService          : BobbyRulesService,
   serviceDependencies        : ServiceDependenciesConnector,
-  bobbyWarningsRepository    : BobbyWarningsRepository,
+  bobbyWarningsRepository    : BobbyWarningsNotificationsRepository,
   slackNotificationsConnector: SlackNotificationsConnector,
   configuration : Configuration
 )(implicit
@@ -85,7 +85,7 @@ class BobbyWarningsNotifierService @Inject()(
 
   private def runNotificationsIfInWindow(f: => Future[Unit]): Future[Unit] =
     bobbyWarningsRepository.getLastWarningsDate().flatMap {
-      lastRunDate =>
+      case Some(lastRunDate) =>
         if (lastRunDate.isBefore(LocalDate.now().minus(lastRunPeriod))) {
           logger.info(s"Running Bobby Warning Notifications. Last run date was ${lastRunDate.toString}")
           f
@@ -93,5 +93,8 @@ class BobbyWarningsNotifierService @Inject()(
           logger.debug(s"Not running Bobby Warning Notifications as they were run on ${lastRunDate.toString}")
           Future.unit
         }
+      case _ =>
+        logger.debug(s"Last Run Date has not been set")
+        Future.unit
     }
 }

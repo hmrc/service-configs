@@ -25,7 +25,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector}
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsRepository
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
 import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
 import java.time.temporal.TemporalAmount
@@ -44,7 +44,7 @@ class BobbyWarningsNotifierServiceSpec
 
   "The BobbyWarningsNotifierService" should {
     "do nothing if the service has already been run in the notifications period " in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(yesterday))
+      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(yesterday)))
 
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
@@ -54,7 +54,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
 
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(eightDays))
+      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
 
@@ -95,7 +95,7 @@ trait Setup  {
 
   val mockBobbyRulesService = mock[BobbyRulesService]
   val mockServiceDependenciesConnector = mock[ServiceDependenciesConnector]
-  val mockBobbyWarningsRepository = mock[BobbyWarningsRepository]
+  val mockBobbyWarningsRepository = mock[BobbyWarningsNotificationsRepository]
   val mockSlackNotificationsConnector = mock[SlackNotificationsConnector]
 
 
