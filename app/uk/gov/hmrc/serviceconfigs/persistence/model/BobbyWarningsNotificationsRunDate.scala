@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.persistence
+package uk.gov.hmrc.serviceconfigs.persistence.model
+
+import play.api.libs.json.Json
 
 import java.time.LocalDate
-import scala.concurrent.Future
 
-class BobbyWarningsRepository {
+case class BobbyWarningsNotificationsRunDate(lastRunDate: LocalDate) extends AnyVal
 
-  def updateLastWarningDate(): Future[Unit] = Future.unit
-
-  def getLastWarningsDate(): Future[LocalDate] = Future.successful(LocalDate.now())
-
+object BobbyWarningsNotificationsRunDate {
+  val format = Json.format[BobbyWarningsNotificationsRunDate]
 }

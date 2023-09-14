@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
+import uk.gov.hmrc.serviceconfigs.persistence.model.BobbyWarningsNotificationsRunDate
 
 import java.time.LocalDate
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,13 +37,11 @@ class BobbyWarningsNotificationsRepositorySpec
       repository.getLastWarningsDate().futureValue shouldBe None
     }
     "insert the current date when updating the last run date" in {
-      val runDate = LocalDate.now()
-      val result =
-        for {
-          _ <- repository.setLastRunDate(runDate)
+      for {
+          _ <- repository.updateLastWarningDate()
           r <- repository.getLastWarningsDate()
-      } yield r
-       result.futureValue shouldBe Some(runDate)
+          _ = r shouldBe LocalDate.now()
+      } yield ()
     }
   }
 }

@@ -16,48 +16,40 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions}
-import play.api.libs.json._
+import org.mongodb.scala.bson.BsonDocument
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
+import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.persistence.model.BobbyWarningsNotificationsRunDate
 
 import java.time.LocalDate
-import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-import play.api.libs.functional.syntax._
-
-@Singleton
-class BobbyWarningsNotificationsRepository @Inject() (
-  mongoComponent: MongoComponent
+class BobbyWarningsNotificationsRepository(
+  override val mongoComponent: MongoComponent
 )(
 implicit
 ec: ExecutionContext
 ) extends PlayMongoRepository[BobbyWarningsNotificationsRunDate](
   mongoComponent = mongoComponent,
-  collectionName = "bobbyWarningsNotificationsRunDate",
+  collectionName = "internalAuthConfig",
   domainFormat = BobbyWarningsNotificationsRunDate.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
-) {
+) with Transactions {
 
   // we replace all the data for each call to updateLastWarningDate()
   override lazy val requiresTtlIndex = false
 
+  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def setLastRunDate(lastRunDate: LocalDate): Future[Unit] =
-    collection.findOneAndReplace(
-      filter = Filters.empty(),
-      replacement = BobbyWarningsNotificationsRunDate(lastRunDate),
-      options = FindOneAndReplaceOptions().upsert(true)
-   )
-     .toFutureOption()
-     .map(_ => ())
-      .recover {
-        case lastError => throw new RuntimeException(s"failed to update last Rundate ${lastError.getMessage()}", lastError)
-      }
+  def updateLastWarningDate(): Future[Unit] =
+    withSessionAndTransaction { session =>
+      for {
+        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
+        r <- collection.insertOne(BobbyWarningsNotificationsRunDate(LocalDate.now())).toFuture()
+      } yield ()
+    }
 
   def getLastWarningsDate(): Future[Option[LocalDate]] =
     collection
@@ -67,17 +59,5 @@ ec: ExecutionContext
 
 
 }
-
-object BobbyWarningsNotificationsRepository {
-  case class BobbyWarningsNotificationsRunDate(lastRunDate: LocalDate) extends AnyVal
-
-  object BobbyWarningsNotificationsRunDate {
-    val format: OFormat[BobbyWarningsNotificationsRunDate] = {
-      import MongoJavatimeFormats.Implicits.jatLocalDateFormat
-      Format.at[LocalDate](__ \ "lastRunDate").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRunDate)
-    }
-  }
-}
-
 
 
