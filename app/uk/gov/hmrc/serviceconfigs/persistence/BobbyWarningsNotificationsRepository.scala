@@ -18,21 +18,22 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.bson.BsonDocument
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.persistence.model.BobbyWarningsNotificationsRunDate
 
 import java.time.LocalDate
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-
-class BobbyWarningsNotificationsRepository(
+@Singleton
+class BobbyWarningsNotificationsRepository @Inject() (
   override val mongoComponent: MongoComponent
 )(
 implicit
 ec: ExecutionContext
 ) extends PlayMongoRepository[BobbyWarningsNotificationsRunDate](
   mongoComponent = mongoComponent,
-  collectionName = "internalAuthConfig",
+  collectionName = "bobbyWarningsNotificationsRunDate",
   domainFormat = BobbyWarningsNotificationsRunDate.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty

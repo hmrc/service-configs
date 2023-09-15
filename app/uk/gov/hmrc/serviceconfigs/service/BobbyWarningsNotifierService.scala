@@ -66,21 +66,22 @@ class BobbyWarningsNotifierService @Inject()(
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
                                        }
-          _                        = reportOnSlackResponses(slackResponses)
-          _                        = bobbyWarningsRepository.updateLastWarningDate()
+          _                         = reportOnSlackResponses(slackResponses)
+          _                         <- bobbyWarningsRepository.updateLastWarningDate()
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
   }
 
 
-  private def reportOnSlackResponses(slackResponses: List[(String, SlackNotificationResponse)]): Unit = {
-    slackResponses.foreach {
-      case (team, response) =>
-        if (response.errors.nonEmpty) {
-          logger.warn(s"Sending Bobby Warning message to $team had errors ${response.errors.mkString(" : ")}")
-        } else {
-          logger.debug(s"Successfully sent Bobby Warning message to ${response.successfullySentTo}")
-        }
-    }
+  private def reportOnSlackResponses(slackResponses: List[(String, SlackNotificationResponse)]) =
+    Future.successful {
+     slackResponses.map {
+       case (team, response) =>
+         if (response.errors.nonEmpty) {
+           logger.warn(s"Sending Bobby Warning message to $team had errors ${response.errors.mkString(" : ")}")
+         } else {
+           logger.info(s"Successfully sent Bobby Warning message to ${response.successfullySentTo}")
+         }
+     }
   }
 
   private def runNotificationsIfInWindow(f: => Future[Unit]): Future[Unit] =
@@ -90,11 +91,11 @@ class BobbyWarningsNotifierService @Inject()(
           logger.info(s"Running Bobby Warning Notifications. Last run date was ${lastRunDate.toString}")
           f
         } else {
-          logger.debug(s"Not running Bobby Warning Notifications as they were run on ${lastRunDate.toString}")
+          logger.info(s"Not running Bobby Warning Notifications as they were run on ${lastRunDate.toString}")
           Future.unit
         }
       case _ =>
-        logger.debug(s"Last Run Date has not been set")
-        Future.unit
+        logger.info(s"Last Run Date has not been set running for the first time")
+        f
     }
 }
