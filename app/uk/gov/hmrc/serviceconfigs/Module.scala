@@ -19,20 +19,21 @@ package uk.gov.hmrc.serviceconfigs
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.notification.{DeadLetterHandler, DeploymentHandler, SlugConfigUpdateHandler}
-import uk.gov.hmrc.serviceconfigs.scheduler.{ConfigScheduler, MissedWebhookEventsScheduler, ServiceRelationshipScheduler, SlugMetadataUpdateScheduler}
+import uk.gov.hmrc.serviceconfigs.scheduler.{BobbyWarningsNotifierScheduler, ConfigScheduler, MissedWebhookEventsScheduler, ServiceRelationshipScheduler, SlugMetadataUpdateScheduler}
 
 import java.time.Clock
 
 class Module extends AbstractModule {
   override def configure(): Unit = {
-    bind(classOf[SlugConfigUpdateHandler     ]).asEagerSingleton()
-    bind(classOf[DeploymentHandler           ]).asEagerSingleton()
-    bind(classOf[DeadLetterHandler           ]).asEagerSingleton()
-    bind(classOf[ConfigScheduler             ]).asEagerSingleton()
-    bind(classOf[MissedWebhookEventsScheduler]).asEagerSingleton()
-    bind(classOf[SlugMetadataUpdateScheduler ]).asEagerSingleton()
-    bind(classOf[ServiceRelationshipScheduler]).asEagerSingleton()
-    bind(classOf[FrontendRouteParser         ]).to(classOf[NginxConfigParser]).asEagerSingleton()
-    bind(classOf[Clock                       ]).toInstance(Clock.systemUTC())
+    bind(classOf[SlugConfigUpdateHandler       ]).asEagerSingleton()
+    bind(classOf[DeploymentHandler             ]).asEagerSingleton()
+    bind(classOf[DeadLetterHandler             ]).asEagerSingleton()
+    bind(classOf[ConfigScheduler               ]).asEagerSingleton()
+    bind(classOf[BobbyWarningsNotifierScheduler]).asEagerSingleton()
+    bind(classOf[MissedWebhookEventsScheduler  ]).asEagerSingleton()
+    bind(classOf[SlugMetadataUpdateScheduler   ]).asEagerSingleton()
+    bind(classOf[ServiceRelationshipScheduler  ]).asEagerSingleton()
+    bind(classOf[FrontendRouteParser           ]).to(classOf[NginxConfigParser]).asEagerSingleton()
+    bind(classOf[Clock                         ]).toInstance(Clock.systemUTC())
   }
 }

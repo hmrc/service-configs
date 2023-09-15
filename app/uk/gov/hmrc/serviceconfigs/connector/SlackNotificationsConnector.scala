@@ -60,8 +60,8 @@ class SlackNotificationsConnector @Inject()(
   private val serviceUrl: String = servicesConfig.baseUrl("slack-notifications")
 
   private val authorizationHeaderValue = {
-    val username = configuration.get[String]("microservices.slack-notifications.basicAuth.username")
-    val password = configuration.get[String]("microservices.slack-notifications.basicAuth.password")
+    val username = configuration.get[String]("microservice.services.slack-notifications.basicAuth.username")
+    val password = configuration.get[String]("microservice.services.slack-notifications.basicAuth.password")
 
     s"Basic ${BaseEncoding.base64().encode(s"$username:$password".getBytes("UTF-8"))}"
   }

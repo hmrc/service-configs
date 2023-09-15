@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence.model
 
-import play.api.libs.json.Json
+import play.api.libs.json._
 
 import java.time.LocalDate
 
@@ -25,3 +25,4 @@ case class BobbyWarningsNotificationsRunDate(lastRunDate: LocalDate) extends Any
 object BobbyWarningsNotificationsRunDate {
   val format = Json.format[BobbyWarningsNotificationsRunDate]
 }
+
