@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import com.google.common.io.BaseEncoding
 import play.api.libs.json._
 import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
+import java.util.Base64.getEncoder
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -45,7 +45,7 @@ class SlackNotificationsConnector @Inject()(
     val username = configuration.get[String]("microservice.services.slack-notifications.basicAuth.username")
     val password = configuration.get[String]("microservice.services.slack-notifications.basicAuth.password")
 
-    s"Basic ${BaseEncoding.base64().encode(s"$username:$password".getBytes("UTF-8"))}"
+    s"Basic ${getEncoder.encode(s"$username:$password".getBytes("UTF-8"))}"
   }
 
   def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] =

@@ -37,12 +37,13 @@ class BobbyWarningsNotificationsRepositorySpec
       repository.getLastWarningsDate.futureValue shouldBe None
     }
     "insert the current date when updating the last run date" in {
+      val runDate = LocalDate.now()
       val result =
         for {
-          _ <- repository.updateLastWarningDate()
+          _ <- repository.setLastRunDate(runDate)
           r <- repository.getLastWarningsDate
       } yield r
-       result.futureValue shouldBe Some(LocalDate.now())
+       result.futureValue shouldBe Some(runDate)
     }
   }
 }

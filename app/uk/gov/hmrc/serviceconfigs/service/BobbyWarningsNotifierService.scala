@@ -49,11 +49,12 @@ class BobbyWarningsNotifierService @Inject()(
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
 
-  def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] =
-      runNotificationsIfInWindow {
+  def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] = {
+      val runDate = LocalDate.now()
+      runNotificationsIfInWindow(runDate) {
         for {
           futureDatedRules         <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
-                                        rule.from.isAfter(LocalDate.now()) && rule.from.isBefore(endWindow)
+                                        rule.from.isAfter(runDate) && rule.from.isBefore(endWindow)
                                       })
           _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
           rulesWithTeams           <- futureDatedRules.foldLeftM{List.empty[(String,BobbyRule)]}{ (acc,rule) =>
@@ -66,9 +67,10 @@ class BobbyWarningsNotifierService @Inject()(
                                             attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
                                        }
-          _                         = reportOnSlackResponses(slackResponses)
-          _                         <- bobbyWarningsRepository.updateLastWarningDate()
+          _                         <- reportOnSlackResponses(slackResponses)
+          _                         <- bobbyWarningsRepository.setLastRunDate(runDate)
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
+    }
   }
 
 
@@ -84,16 +86,14 @@ class BobbyWarningsNotifierService @Inject()(
      }
   }
 
-  private def runNotificationsIfInWindow(f: => Future[Unit]): Future[Unit] =
+  private def runNotificationsIfInWindow(now: LocalDate)(f: => Future[Unit]): Future[Unit] =
     bobbyWarningsRepository.getLastWarningsDate.flatMap {
-      case Some(lastRunDate) =>
-        if (lastRunDate.isBefore(LocalDate.now().minus(lastRunPeriod))) {
+      case Some(lastRunDate)  if lastRunDate.isBefore(now.minus(lastRunPeriod)) =>
           logger.info(s"Running Bobby Warning Notifications. Last run date was ${lastRunDate.toString}")
           f
-        } else {
+      case Some(lastRunDate)  if !lastRunDate.isBefore(now.minus(lastRunPeriod)) =>
           logger.info(s"Not running Bobby Warning Notifications as they were run on ${lastRunDate.toString}")
           Future.unit
-        }
       case _ =>
         logger.info(s"Last Run Date has not been set running for the first time")
         f
