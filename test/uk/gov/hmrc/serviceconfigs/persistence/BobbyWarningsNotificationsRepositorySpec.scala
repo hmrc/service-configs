@@ -34,14 +34,14 @@ class BobbyWarningsNotificationsRepositorySpec
 
   "BobbyWarningsRepository" should {
     "return None for the last run date when the notifications have never been run" in {
-      repository.getLastWarningsDate.futureValue shouldBe None
+      repository.getLastWarningsDate().futureValue shouldBe None
     }
     "insert the current date when updating the last run date" in {
       val runDate = LocalDate.now()
       val result =
         for {
           _ <- repository.setLastRunDate(runDate)
-          r <- repository.getLastWarningsDate
+          r <- repository.getLastWarningsDate()
       } yield r
        result.futureValue shouldBe Some(runDate)
     }
