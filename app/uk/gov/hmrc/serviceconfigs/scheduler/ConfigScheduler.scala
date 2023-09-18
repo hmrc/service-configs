@@ -41,7 +41,7 @@ class ConfigScheduler @Inject()(
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils with Logging {
+) extends SchedulerUtils with Logging { //todo remove with Logging SchedulerUtils extends it already
 
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
