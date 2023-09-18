@@ -52,7 +52,7 @@ ec: ExecutionContext
      .toFutureOption()
      .map(_ => ())
 
-  def getLastWarningsDate: Future[Option[LocalDate]] =
+  def getLastWarningsDate(): Future[Option[LocalDate]] =
     collection
       .find()
       .map(_.lastRunDate)
