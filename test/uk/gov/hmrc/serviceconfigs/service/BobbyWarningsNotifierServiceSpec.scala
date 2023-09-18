@@ -44,7 +44,7 @@ class BobbyWarningsNotifierServiceSpec
 
   "The BobbyWarningsNotifierService" should {
     "do nothing if the service has already been run in the notifications period " in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(yesterday)))
+      when(mockBobbyWarningsRepository.getLastWarningsDate).thenReturn(Future.successful(Some(yesterday)))
 
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
@@ -54,7 +54,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
 
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(eightDays)))
+      when(mockBobbyWarningsRepository.getLastWarningsDate).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
 

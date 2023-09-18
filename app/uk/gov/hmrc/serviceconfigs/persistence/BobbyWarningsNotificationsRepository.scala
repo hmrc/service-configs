@@ -16,18 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
+import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions}
+import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.persistence.model.BobbyWarningsNotificationsRunDate
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
 
 import java.time.LocalDate
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class BobbyWarningsNotificationsRepository @Inject() (
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(
 implicit
 ec: ExecutionContext
@@ -37,28 +37,36 @@ ec: ExecutionContext
   domainFormat = BobbyWarningsNotificationsRunDate.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
-) with Transactions {
+) {
 
   // we replace all the data for each call to updateLastWarningDate()
   override lazy val requiresTtlIndex = false
 
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def updateLastWarningDate(): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertOne(BobbyWarningsNotificationsRunDate(LocalDate.now())).toFuture()
-      } yield ()
-    }
+    collection.findOneAndReplace(
+      filter = Filters.empty(),
+      replacement = BobbyWarningsNotificationsRunDate(LocalDate.now()),
+      options = FindOneAndReplaceOptions().upsert(true)
+   )
+     .toFutureOption()
+     .map(_ => ())
 
-  def getLastWarningsDate(): Future[Option[LocalDate]] =
+  def getLastWarningsDate: Future[Option[LocalDate]] =
     collection
       .find()
       .map(_.lastRunDate)
       .headOption()
 
 
+}
+
+object BobbyWarningsNotificationsRepository {
+  case class BobbyWarningsNotificationsRunDate(lastRunDate: LocalDate) extends AnyVal
+
+  object BobbyWarningsNotificationsRunDate {
+    val format = Json.format[BobbyWarningsNotificationsRunDate]
+  }
 }
 
 
