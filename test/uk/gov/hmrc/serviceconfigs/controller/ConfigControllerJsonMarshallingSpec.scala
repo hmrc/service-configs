@@ -16,12 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.json.Json
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import org.scalatest.wordspec.AnyWordSpec
+import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.service.ConfigService
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries}
 
 class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {

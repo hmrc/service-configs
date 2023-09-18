@@ -16,15 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import akka.stream.Materializer
 import play.api.Logging
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.{Reads, __}
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
-import java.net.URLEncoder
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 @Singleton
@@ -33,8 +31,9 @@ class ServiceDependenciesConnector @Inject() (
   servicesConfig: ServicesConfig)
 (implicit
   ec : ExecutionContext,
-  mat: Materializer
 ) extends Logging {
+
+  import HttpReads.Implicits._
 
   private implicit val hc: HeaderCarrier = HeaderCarrier()
 
