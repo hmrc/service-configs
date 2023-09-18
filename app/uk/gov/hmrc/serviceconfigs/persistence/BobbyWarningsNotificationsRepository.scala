@@ -43,7 +43,7 @@ ec: ExecutionContext
   override lazy val requiresTtlIndex = false
 
 
-  def updateLastWarningDate(): Future[Unit] =
+  def setLastRunDate(lastRunDate: LocalDate): Future[Unit] =
     collection.findOneAndReplace(
       filter = Filters.empty(),
       replacement = BobbyWarningsNotificationsRunDate(LocalDate.now()),
