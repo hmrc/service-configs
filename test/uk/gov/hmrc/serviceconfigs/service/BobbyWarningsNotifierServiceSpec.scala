@@ -57,6 +57,27 @@ class BobbyWarningsNotifierServiceSpec
 
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
+
+
+    "run for the first time" in new Setup {
+
+      when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
+
+      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(None))
+      when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
+
+
+      when(mockServiceDependenciesConnector.getDependentTeams(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(team1, team2)))
+      when(mockServiceDependenciesConnector.getDependentTeams(organisation, "exampleLib2", range)).thenReturn(Future.successful(Seq(team1)))
+
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
+
+      when(mockBobbyWarningsRepository.setLastRunDate(now)).thenReturn(Future.unit)
+
+      underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
+
+      verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
+    }
     "be run if the last time the service was run before the notifications period" in new Setup {
 
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)

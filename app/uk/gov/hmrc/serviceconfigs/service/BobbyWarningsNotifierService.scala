@@ -88,12 +88,12 @@ class BobbyWarningsNotifierService @Inject()(
 
   private def runNotificationsIfInWindow(now: LocalDate)(f: => Future[Unit]): Future[Unit] =
     bobbyWarningsRepository.getLastWarningsDate().flatMap {
-      case Some(lrd)  if lrd.isBefore(now.minus(lastRunPeriod)) =>
-        logger.info(s"Running Bobby Warning Notifications. Last run date was $lrd")
+      case Some(lrd) if lrd.isAfter(now.minus(lastRunPeriod)) || lrd == now =>
+        logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
+        Future.unit
+      case optLrd =>
+        logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last ran $d"))
         f
-      case optLastRunDate =>
-       logger.info(optLastRunDate.fold("Last Run Date has not been set, running for the first time")(lrd => s"Not run this time. Last run date was  $lrd"))
-       Future.unit
     }
 
 }
