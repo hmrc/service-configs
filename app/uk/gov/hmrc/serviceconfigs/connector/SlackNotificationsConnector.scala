@@ -45,7 +45,7 @@ class SlackNotificationsConnector @Inject()(
     val username = configuration.get[String]("microservice.services.slack-notifications.basicAuth.username")
     val password = configuration.get[String]("microservice.services.slack-notifications.basicAuth.password")
 
-    s"Basic ${getEncoder.encode(s"$username:$password".getBytes("UTF-8"))}"
+    s"Basic ${getEncoder.encodeToString(s"$username:$password".getBytes("UTF-8"))}"
   }
 
   def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] =
@@ -61,54 +61,43 @@ class SlackNotificationsConnector @Inject()(
       }
 }
 
-final case class SlackNotificationError(
-                                         code   : String,
-                                         message: String
-                                       )
+final case class SlackNotificationError (
+ code   : String,
+ message: String
+)
 
 object SlackNotificationError {
   implicit val format: OFormat[SlackNotificationError] =
     Json.format[SlackNotificationError]
 }
 
-final case class SlackNotificationResponse(
-                                            successfullySentTo: Seq[String]                  = Nil,
-                                            errors            : List[SlackNotificationError] = Nil
-                                          ) {
-  def hasSentMessages: Boolean = successfullySentTo.nonEmpty
+final case class SlackNotificationResponse (
+  successfullySentTo: Seq[String]                  = Nil,
+  errors            : List[SlackNotificationError] = Nil
+ ) {
 }
 
 object SlackNotificationResponse {
-
   implicit val format: OFormat[SlackNotificationResponse] =
     Json.format[SlackNotificationResponse]
 }
 
-sealed trait ChannelLookup {
-  def by: String
-}
-
-object ChannelLookup {
-
-  final case class GithubTeam(
-                              repositoryName: String,
-                              by            : String = "github-team"
-                              ) extends ChannelLookup
-
-
-  implicit val writes: Writes[ChannelLookup] = Writes {
-    case s: GithubTeam => Json.toJson(s)(Json.writes[GithubTeam])
-  }
+final case class GithubTeam(
+  teamName: String,
+  by: String = "github-team"
+ )
+object GithubTeam {
+  implicit val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
 }
 
 final case class Attachment(text: String, fields: Seq[Attachment.Field] = Nil)
 
 object Attachment {
-  final case class Field(
-                          title: String,
-                          value: String,
-                          short: Boolean
-                        )
+  final case class Field (
+    title: String,
+    value: String,
+    short: Boolean
+  )
 
   object Field {
     implicit val format: OFormat[Field] = Json.format[Field]
@@ -118,19 +107,17 @@ object Attachment {
 
 }
 
-final case class MessageDetails(
-                                 text                : String,
-                                 username            : String,
-                                 iconEmoji           : String,
-                                 attachments         : Seq[Attachment],
-                                 showAttachmentAuthor: Boolean
-                               )
+final case class MessageDetails (
+  text                : String,
+  attachments         : Seq[Attachment],
+  showAttachmentAuthor: Boolean = false
+ )
 
 object MessageDetails {
   implicit val writes: OWrites[MessageDetails] = Json.writes[MessageDetails]
 }
 
-final case class SlackNotificationRequest(channelLookup : ChannelLookup, messageDetails: MessageDetails)
+final case class SlackNotificationRequest(channelLookup: GithubTeam, messageDetails: MessageDetails)
 
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]

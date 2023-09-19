@@ -64,9 +64,9 @@ class BobbyWarningsNotifierService @Inject()(
                                          }
           grouped                  = rulesWithTeams.groupMap(_._1)(_._2)
           slackResponses           <- grouped.toList.foldLeftM{List.empty[(String,SlackNotificationResponse)]}{ case (acc,(team, rules)) =>
-                                          val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}", "username", slackIcon,
-                                            attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} will fail  with: ${r.reason} on and after the: ${r.from}")), showAttachmentAuthor = true)
-                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(ChannelLookup.GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
+                                          val message = MessageDetails(s"Please be aware your team has Bobby Rule Warnings that will become failures after ${endWindow.toString}",
+                                            attachments = rules.map(r => Attachment(s"${r.organisation}.${r.name} with version range = ${r.range} will fail with: ${r.reason} on and after the: ${r.from}")))
+                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team)), message)).map(resp => acc :+ (team, resp))
                                        }
           _                         <- reportOnSlackResponses(slackResponses)
           _                         <- bobbyWarningsRepository.setLastRunDate(runDate)
