@@ -27,11 +27,12 @@ import uk.gov.hmrc.serviceconfigs.connector.{ServiceDependenciesConnector, Slack
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
-import java.time.temporal.TemporalAmount
-import java.time.{LocalDate, Period}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 
 class BobbyWarningsNotifierServiceSpec
@@ -128,8 +129,8 @@ trait Setup  {
 
   val mockConfiguration = mock[Configuration]
 
-  when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Period.ofMonths(2))
-  when(mockConfiguration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Period.ofWeeks(1))
+  when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
+  when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
   when(mockConfiguration.get[String]("bobby-warnings-notifier-service.slack-icon")).thenReturn(":some-icon:")
 
 
