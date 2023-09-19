@@ -24,8 +24,9 @@ import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
 import java.time.LocalDate
-import java.time.temporal.TemporalAmount
+import java.time.temporal.ChronoUnit
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -42,9 +43,9 @@ class BobbyWarningsNotifierService @Inject()(
   implicit val hc = HeaderCarrier()
 
 
-  val futureDatedRuleWindow: TemporalAmount = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.rule-notification-window")
-  val endWindow = LocalDate.now().plus(futureDatedRuleWindow)
-  val lastRunPeriod = configuration.get[TemporalAmount]("bobby-warnings-notifier-service.last-run-period")
+  val futureDatedRuleWindow  = configuration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")
+  val endWindow = LocalDate.now().plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
+  val lastRunPeriod = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
   val slackIcon = configuration.get[String]("bobby-warnings-notifier-service.slack-icon")
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
@@ -88,7 +89,7 @@ class BobbyWarningsNotifierService @Inject()(
 
   private def runNotificationsIfInWindow(now: LocalDate)(f: => Future[Unit]): Future[Unit] =
     bobbyWarningsRepository.getLastWarningsDate().flatMap {
-      case Some(lrd) if lrd.isAfter(now.minus(lastRunPeriod)) =>
+      case Some(lrd) if lrd.isAfter(now.minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
         logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
         Future.unit
       case optLrd =>
