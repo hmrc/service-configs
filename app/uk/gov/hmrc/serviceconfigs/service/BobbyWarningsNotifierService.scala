@@ -46,7 +46,6 @@ class BobbyWarningsNotifierService @Inject()(
   val futureDatedRuleWindow  = configuration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")
   val endWindow = LocalDate.now().plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
   val lastRunPeriod = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
-  val slackIcon = configuration.get[String]("bobby-warnings-notifier-service.slack-icon")
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
 

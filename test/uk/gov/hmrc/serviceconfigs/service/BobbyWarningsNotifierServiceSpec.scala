@@ -131,7 +131,6 @@ trait Setup  {
 
   when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
   when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
-  when(mockConfiguration.get[String]("bobby-warnings-notifier-service.slack-icon")).thenReturn(":some-icon:")
 
 
 
