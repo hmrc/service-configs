@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.implicits._
 import play.api.{Configuration, Logging}
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
@@ -74,7 +74,7 @@ class BobbyWarningsNotifierService @Inject()(
                                             text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules"
                                           , attachments =
                                               drs.map(dr => Attachment(s"${dr._1.slugName} breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
-                                               url"https://catalogue.tax.service.gov.uk/bobbyrules#rule-${dr._2.organisation}:${dr._2.name}:${dr._2.range}"))
+                                               s"https://catalogue.tax.service.gov.uk/bobbyrules#rule-${dr._2.organisation}:${dr._2.name}:${enc(dr._2.range)}"))
                                           )
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
