@@ -62,11 +62,11 @@ class BobbyWarningsNotifierService @Inject()(
                                         rule.from.isAfter(runDate) && rule.from.isBefore(endWindow)
                                       })
           _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
-          rulesWithServiceDeps     <- futureDatedRules.foldLeftM{List.empty[(Team, (Dependency,BobbyRule))]}{ (acc, rule) =>
+          rulesWithServiceDeps     <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
                                            serviceDependencies.getServiceDependencies(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
                                              .map(sds => acc ++ sds.flatMap(sd => sd.teams.map(team => (team, (sd.dependency, rule)))))
                                          }
-          grouped: List[(Team, List[(Dependency, BobbyRule)])]
+          grouped: List[(Team, List[(Service, BobbyRule)])]
                                   = rulesWithServiceDeps.groupMap(_._1)(_._2).toList
           slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
                                         case (acc,(team, drs)) =>

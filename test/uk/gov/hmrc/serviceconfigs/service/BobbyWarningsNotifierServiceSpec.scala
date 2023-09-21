@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{Dependency, ServiceDependencies, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, Team}
+import uk.gov.hmrc.serviceconfigs.connector.{Service, ServiceDependencies, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, Team}
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
@@ -110,8 +110,8 @@ trait Setup  {
   val team1 = Team("Team1")
   val team2 = Team("Team2")
 
-  val sd1 = ServiceDependencies(dependency = Dependency("some-service"), teams = List(team1, team2))
-  val sd2 = ServiceDependencies(dependency = Dependency("some-other-service"), teams = List(team1))
+  val sd1 = ServiceDependencies(dependency = Service("some-service"), teams = List(team1, team2))
+  val sd2 = ServiceDependencies(dependency = Service("some-other-service"), teams = List(team1))
 
   val organisation = "uk.gov.hmrc"
   val range = "[0.0.0,)"

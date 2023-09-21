@@ -45,19 +45,18 @@ class ServiceDependenciesConnector @Inject() (
 
 }
 
-case class ServiceDependencies(dependency: Dependency, teams: List[Team])
+case class ServiceDependencies(dependency: Service, teams: List[Team])
 
 object ServiceDependencies {
 
-  implicit val reads: Reads[ServiceDependencies] = {
-    ((__ \ "slugName" ).read[String].map(Dependency)
-      ~ (__ \ "teams").read[List[String]].map(ts => ts.map(t => Team(t)))
+  implicit val reads: Reads[ServiceDependencies] =
+    ((__ \ "slugName" ).read[String].map(Service.apply)
+      ~ (__ \ "teams").read[List[String]].map(_.map(Team.apply))
    )(ServiceDependencies.apply _)
-  }
 }
 
-case class Team(teamName: String)
+case class Team(teamName: String) extends AnyVal
 
-case class Dependency(slugName: String)
+case class Service(slugName: String) extends AnyVal
 
 
