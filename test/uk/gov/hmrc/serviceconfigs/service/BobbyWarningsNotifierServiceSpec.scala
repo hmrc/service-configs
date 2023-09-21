@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{Service, ServiceDependencies, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, Team}
+import uk.gov.hmrc.serviceconfigs.connector.{Service, AffectedService, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, Team}
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
@@ -69,8 +69,8 @@ class BobbyWarningsNotifierServiceSpec
 
 
 
-      when(mockServiceDependenciesConnector.getServiceDependencies(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
-      when(mockServiceDependenciesConnector.getServiceDependencies(organisation, "exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
@@ -88,8 +88,8 @@ class BobbyWarningsNotifierServiceSpec
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
 
-      when(mockServiceDependenciesConnector.getServiceDependencies(organisation,"exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
-      when(mockServiceDependenciesConnector.getServiceDependencies(organisation,"exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
@@ -110,8 +110,8 @@ trait Setup  {
   val team1 = Team("Team1")
   val team2 = Team("Team2")
 
-  val sd1 = ServiceDependencies(dependency = Service("some-service"), teams = List(team1, team2))
-  val sd2 = ServiceDependencies(dependency = Service("some-other-service"), teams = List(team1))
+  val sd1 = AffectedService(service = Service("some-service"), teams = List(team1, team2))
+  val sd2 = AffectedService(service = Service("some-other-service"), teams = List(team1))
 
   val organisation = "uk.gov.hmrc"
   val range = "[0.0.0,)"

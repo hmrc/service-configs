@@ -39,20 +39,20 @@ class ServiceDependenciesConnector @Inject() (
 
   private val serviceUrl = servicesConfig.baseUrl("service-dependencies")
 
-  def getServiceDependencies(group: String, artefact: String, versionRange: String): Future[Seq[ServiceDependencies]] =
+  def getAffectedServices(group: String, artefact: String, versionRange: String): Future[Seq[AffectedService]] =
     httpClientV2.get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=${versionRange}&scope=compile")
-      .execute[Seq[ServiceDependencies]]
+      .execute[Seq[AffectedService]]
 
 }
 
-case class ServiceDependencies(dependency: Service, teams: List[Team])
+case class AffectedService(service: Service, teams: List[Team])
 
-object ServiceDependencies {
+object AffectedService {
 
-  implicit val reads: Reads[ServiceDependencies] =
+  implicit val reads: Reads[AffectedService] =
     ((__ \ "slugName" ).read[String].map(Service.apply)
       ~ (__ \ "teams").read[List[String]].map(_.map(Team.apply))
-   )(ServiceDependencies.apply _)
+   )(AffectedService.apply _)
 }
 
 case class Team(teamName: String) extends AnyVal
