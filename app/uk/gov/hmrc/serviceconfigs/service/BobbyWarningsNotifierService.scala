@@ -62,19 +62,19 @@ class BobbyWarningsNotifierService @Inject()(
                                         rule.from.isAfter(runDate) && rule.from.isBefore(endWindow)
                                       })
           _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
-          rulesWithServiceDeps     <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
+          rulesWithAffectedServices     <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
                                            serviceDependencies.getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
                                              .map(sds => acc ++ sds.flatMap(sd => sd.teams.map(team => (team, (sd.service, rule)))))
                                          }
           grouped: List[(Team, List[(Service, BobbyRule)])]
-                                  = rulesWithServiceDeps.groupMap(_._1)(_._2).toList
+                                  = rulesWithAffectedServices.groupMap(_._1)(_._2).toList
           slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
                                         case (acc,(team, drs)) =>
                                           val message = MessageDetails(
                                             text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules"
                                           , attachments =
-                                              drs.map(dr => Attachment(s"${dr._1.slugName} breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
-                                               s"https://catalogue.tax.service.gov.uk/bobbyrules#rule-${dr._2.organisation}:${dr._2.name}:${enc(dr._2.range)}"))
+                                              drs.map(dr => Attachment(s"${dr._1.serviceName} breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
+                                               s"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
                                           )
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
