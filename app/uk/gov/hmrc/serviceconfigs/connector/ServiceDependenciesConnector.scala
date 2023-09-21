@@ -57,6 +57,6 @@ object AffectedService {
 
 case class Team(teamName: String) extends AnyVal
 
-case class Service(slugName: String) extends AnyVal
+case class Service(serviceName: String) extends AnyVal
 
 
