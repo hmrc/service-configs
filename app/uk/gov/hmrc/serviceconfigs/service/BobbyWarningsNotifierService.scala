@@ -18,12 +18,11 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.implicits._
 import play.api.{Configuration, Logging}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 
-import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import javax.inject.{Inject, Singleton}
@@ -51,10 +50,6 @@ class BobbyWarningsNotifierService @Inject()(
 
 
   def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] = {
-
-    def enc(s: String) =
-      URLEncoder.encode(s, "UTF-8")
-
       val runDate = LocalDate.now()
       runNotificationsIfInWindow(runDate) {
         for {
@@ -73,8 +68,8 @@ class BobbyWarningsNotifierService @Inject()(
                                           val message = MessageDetails(
                                             text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules"
                                           , attachments =
-                                              drs.map(dr => Attachment(s"${dr._1.serviceName} breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
-                                               s"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
+                                              drs.map(dr => Attachment(s"*${dr._1.serviceName}* breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
+                                               url"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
                                           )
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
