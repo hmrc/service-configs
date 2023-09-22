@@ -23,9 +23,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{Service, AffectedService, ServiceDependenciesConnector, SlackNotificationRequest, SlackNotificationResponse, SlackNotificationsConnector, Team}
+import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
+import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
@@ -52,7 +53,7 @@ class BobbyWarningsNotifierServiceSpec
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
     "do nothing if the service has already been run today" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(now)))
+      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(nowAsInstant)))
 
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
@@ -74,7 +75,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(now)).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
@@ -93,7 +94,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(now)).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
 
@@ -115,7 +116,9 @@ trait Setup  {
 
   val organisation = "uk.gov.hmrc"
   val range = "[0.0.0,)"
+
   val now: LocalDate = LocalDate.now()
+  val nowAsInstant = now.toInstant
 
   val futureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib", range =range, reason = "Bad Practice", from = now.plus(1L, WEEKS) , exemptProjects = Seq.empty)
   val secondFutureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib2", range =range, reason = "Bad Practice", from = now.plus(1L, WEEKS) , exemptProjects = Seq.empty)
@@ -123,8 +126,8 @@ trait Setup  {
 
   val bobbyRules = BobbyRules(libraries = Seq(futureDatedBobbyRule1Week, secondFutureDatedBobbyRule1Week, futureDatedRule3Months), plugins = Seq.empty)
 
-  val eightDays = now.minus(8L, DAYS)
-  val yesterday = now.minus(1L, DAYS)
+  val eightDays = now.minus(8L, DAYS).toInstant
+  val yesterday = now.minus(1L, DAYS).toInstant
 
   val mockBobbyRulesService = mock[BobbyRulesService]
   val mockServiceDependenciesConnector = mock[ServiceDependenciesConnector]

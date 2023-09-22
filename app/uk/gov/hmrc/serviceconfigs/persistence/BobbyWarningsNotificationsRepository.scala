@@ -17,17 +17,16 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions}
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
 
-import java.time.LocalDate
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-
-import play.api.libs.functional.syntax._
 
 @Singleton
 class BobbyWarningsNotificationsRepository @Inject() (
@@ -47,7 +46,7 @@ ec: ExecutionContext
   override lazy val requiresTtlIndex = false
 
 
-  def setLastRunDate(lastRunDate: LocalDate): Future[Unit] =
+  def setLastRunDate(lastRunDate: Instant): Future[Unit] =
     collection.findOneAndReplace(
       filter = Filters.empty(),
       replacement = BobbyWarningsNotificationsRunDate(lastRunDate),
@@ -59,22 +58,22 @@ ec: ExecutionContext
         case lastError => throw new RuntimeException(s"failed to update last Rundate ${lastError.getMessage()}", lastError)
       }
 
-  def getLastWarningsDate(): Future[Option[LocalDate]] =
+  def getLastWarningsDate(): Future[Option[Instant]] =
     collection
       .find()
-      .map(_.lastRunDate)
+      .map(_.lastRun)
       .headOption()
 
 
 }
 
 object BobbyWarningsNotificationsRepository {
-  case class BobbyWarningsNotificationsRunDate(lastRunDate: LocalDate) extends AnyVal
+  case class BobbyWarningsNotificationsRunDate(lastRun: Instant) extends AnyVal
 
   object BobbyWarningsNotificationsRunDate {
     val format: OFormat[BobbyWarningsNotificationsRunDate] = {
-      import MongoJavatimeFormats.Implicits.jatLocalDateFormat
-      Format.at[LocalDate](__ \ "lastRunDate").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRunDate)
+      import MongoJavatimeFormats.Implicits.jatInstantFormat
+      Format.at[Instant](__ \ "lastRunDate").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRun)
     }
   }
 }

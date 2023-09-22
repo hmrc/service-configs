@@ -21,7 +21,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
 
-import java.time.LocalDate
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class BobbyWarningsNotificationsRepositorySpec
@@ -37,13 +38,13 @@ class BobbyWarningsNotificationsRepositorySpec
       repository.getLastWarningsDate().futureValue shouldBe None
     }
     "insert the current date when updating the last run date" in {
-      val runDate = LocalDate.now()
+      val runDate = Instant.now().truncatedTo(ChronoUnit.DAYS)
       val result =
         for {
           _ <- repository.setLastRunDate(runDate)
           r <- repository.getLastWarningsDate()
       } yield r
-       result.futureValue shouldBe Some(runDate)
+      result.futureValue shouldBe Some(runDate)
     }
   }
 }
