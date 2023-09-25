@@ -32,5 +32,12 @@ object DateAndTimeOps {
       val day = localDateTime.toLocalDate.get(ChronoField.DAY_OF_WEEK)
       day < 6 && hour >= 9 && hour <= 17
     }
+
+    def maybeWorkingHours: Option[Instant] =
+      if (instant.isInWorkingHours)
+        Some(instant)
+      else
+        None
+
   }
 }

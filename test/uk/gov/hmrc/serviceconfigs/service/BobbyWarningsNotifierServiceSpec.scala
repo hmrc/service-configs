@@ -28,7 +28,8 @@ import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
 import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
-import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -45,17 +46,23 @@ class BobbyWarningsNotifierServiceSpec
 
 
   "The BobbyWarningsNotifierService" should {
+    "do nothing if out of hours" in new Setup{
+      val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
+      underTest.sendNotificationsForFutureDatedBobbyViolations(outOfHoursInstant)
+
+      verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector)
+    }
     "do nothing if the service has already been run in the notifications period" in new Setup {
       when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(yesterday)))
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
+      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
     "do nothing if the service has already been run today" in new Setup {
       when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(nowAsInstant)))
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
+      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
@@ -75,9 +82,9 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant)).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
+      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
     }
@@ -94,9 +101,9 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant)).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations.futureValue
+      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
     }
@@ -117,17 +124,21 @@ trait Setup  {
   val organisation = "uk.gov.hmrc"
   val range = "[0.0.0,)"
 
-  val now: LocalDate = LocalDate.now()
-  val nowAsInstant = now.toInstant
+  val now: LocalDateTime = LocalDateTime.of(2023, 9, 22, 9, 0, 0)
+  val nowAsInstant = now.toInstant(ZoneOffset.UTC)
 
-  val futureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib", range =range, reason = "Bad Practice", from = now.plus(1L, WEEKS) , exemptProjects = Seq.empty)
-  val secondFutureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib2", range =range, reason = "Bad Practice", from = now.plus(1L, WEEKS) , exemptProjects = Seq.empty)
-  val futureDatedRule3Months: BobbyRule = BobbyRule(organisation = organisation, name = "anotherExampleLib", range = range, reason = "Bad Practice", from = now.plus(3L, MONTHS) , exemptProjects = Seq.empty)
+  val eightDays = now.minus(8L, DAYS).toInstant(ZoneOffset.UTC)
+  val yesterday = now.minus(1L, DAYS).toInstant(ZoneOffset.UTC)
+  val oneWeek = now.plusWeeks(1L).toLocalDate
+  val threeMonths = now.plusMonths(3L).toLocalDate
+
+  val futureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib", range =range, reason = "Bad Practice", from = oneWeek , exemptProjects = Seq.empty)
+  val secondFutureDatedBobbyRule1Week: BobbyRule = BobbyRule(organisation = organisation, name = "exampleLib2", range =range, reason = "Bad Practice", from = oneWeek , exemptProjects = Seq.empty)
+  val futureDatedRule3Months: BobbyRule = BobbyRule(organisation = organisation, name = "anotherExampleLib", range = range, reason = "Bad Practice", from = threeMonths , exemptProjects = Seq.empty)
 
   val bobbyRules = BobbyRules(libraries = Seq(futureDatedBobbyRule1Week, secondFutureDatedBobbyRule1Week, futureDatedRule3Months), plugins = Seq.empty)
 
-  val eightDays = now.minus(8L, DAYS).toInstant
-  val yesterday = now.minus(1L, DAYS).toInstant
+
 
   val mockBobbyRulesService = mock[BobbyRulesService]
   val mockServiceDependenciesConnector = mock[ServiceDependenciesConnector]

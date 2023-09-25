@@ -39,13 +39,13 @@ class DateAndTimeOpsSpec
 
   "Given an Instant.now().isInWorkingHours" when {
     "the time is between 0900 and 1700 and the day is Mon to Fri " should {
-      "return true" in {
+      "return Some(Instant.now())" in {
         
         val monday18Sept2020 = LocalDateTime.of(2023, Month.SEPTEMBER, 18, 9, 0)
         val instant = monday18Sept2020.atZone(ZoneOffset.UTC).toInstant
 
-        instant.isInWorkingHours shouldBe true
-        
+        instant.maybeWorkingHours shouldBe Some(instant)
+
       }
     }
     "the time is outside 0900 to 1700 and the day is Sat or Sun" should {
@@ -53,7 +53,7 @@ class DateAndTimeOpsSpec
         val sunday17Sept2020 = LocalDateTime.of(2023, Month.SEPTEMBER, 17, 9, 0)
         val instant = sunday17Sept2020.atZone(ZoneOffset.UTC).toInstant
 
-        instant.isInWorkingHours shouldBe false
+        instant.maybeWorkingHours shouldBe None
       }
     }
   }

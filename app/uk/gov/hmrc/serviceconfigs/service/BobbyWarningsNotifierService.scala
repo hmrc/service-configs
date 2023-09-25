@@ -51,8 +51,7 @@ class BobbyWarningsNotifierService @Inject()(
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
 
-  def sendNotificationsForFutureDatedBobbyViolations: Future[Unit] = {
-      val runDate = Instant.now()
+  def sendNotificationsForFutureDatedBobbyViolations(runDate: Instant): Future[Unit] = {
       runNotificationsIfInWindow(runDate) {
         for {
           futureDatedRules         <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
@@ -94,14 +93,19 @@ class BobbyWarningsNotifierService @Inject()(
   }
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
-    bobbyWarningsRepository.getLastWarningsDate().flatMap {
-      case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
-        logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
-        Future.unit
-      case optLrd =>
-        logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last ran $d"))
-        f
-    }
-
+      now.maybeWorkingHours match {
+        case Some(workingHours) =>
+            bobbyWarningsRepository.getLastWarningsDate().flatMap {
+              case Some(lrd) if lrd.isAfter(workingHours.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
+                logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
+                Future.unit
+              case optLrd =>
+                logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last ran $d"))
+                f
+            }
+        case _ =>
+          logger.info(s"Not running Bobby Warnings Notifications out of hours")
+          Future.unit
+      }
 
 }
