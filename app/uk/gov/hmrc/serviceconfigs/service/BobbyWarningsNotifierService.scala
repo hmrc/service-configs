@@ -66,9 +66,9 @@ class BobbyWarningsNotifierService @Inject()(
           slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
                                         case (acc,(team, drs)) =>
                                           val message = MessageDetails(
-                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules"
+                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules:"
                                           , attachments =
-                                              drs.map(dr => Attachment(s"*${dr._1.serviceName}* breaks rule for ${dr._2.organisation}.${dr._2.name} with banned versions: *${dr._2.range}* see " +
+                                              drs.map(dr => Attachment(s"`${dr._1.serviceName}` affected by ${dr._2.organisation}.${dr._2.name} ${dr._2.range} - see " +
                                                url"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
                                           )
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
