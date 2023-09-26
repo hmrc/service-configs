@@ -16,17 +16,24 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
-import DateAndTimeOps._
+import org.scalacheck.Gen
+import org.scalactic.anyvals.PosInt
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
-import java.time.{Instant, LocalDate, LocalDateTime, Month, ZoneId, ZoneOffset}
+import java.time._
 
 
 class DateAndTimeOpsSpec
   extends AnyWordSpec
-    with Matchers {
+    with Matchers
+    with ScalaCheckPropertyChecks {
+
+  implicit override val generatorDrivenConfig =
+    PropertyCheckConfiguration(minSuccessful = PosInt(100))
 
   "A LocalDate" should {
     "be converted to an Instant at the start of the day" in {
@@ -37,25 +44,35 @@ class DateAndTimeOpsSpec
     }
   }
 
-  "Given an Instant.now().isInWorkingHours" when {
-    "the time is between 0900 and 1700 and the day is Mon to Fri " should {
-      "return Some(Instant.now())" in {
-        
-        val monday18Sept2020 = LocalDateTime.of(2023, Month.SEPTEMBER, 18, 9, 0)
-        val instant = monday18Sept2020.atZone(ZoneOffset.UTC).toInstant
+  "An evaluation of an Instant" should {
+      "return Some(localDate) when in Working hours 9 - 17 Monday to Friday None if not" in {
 
-        instant.maybeWorkingHours shouldBe Some(instant)
+        val yearDays = for (yearDay <- Gen.choose(1, 366)) yield yearDay
+        val years    = for (year <- Gen.choose(2023, 2030)) yield year
+        val hours    = for (hour <- Gen.choose(0, 23)) yield hour
+        val minutes  = for (minute <- Gen.choose(0, 59)) yield minute
 
+
+        forAll (yearDays, years, hours, minutes) { (yearDay: Int, year: Int, hour: Int, minute: Int) =>
+
+            val date = LocalDate.ofYearDay(year, yearDay)
+            val time = LocalTime.of(hour, minute, 0)
+
+            val dateTime = LocalDateTime.of(date, time)
+            val instant = dateTime.atZone(ZoneOffset.UTC).toInstant
+
+            if (date.getDayOfWeek != DayOfWeek.SATURDAY
+              && date.getDayOfWeek != DayOfWeek.SUNDAY
+              && time.getHour <= 17
+              && time.getHour >= 9
+            ) {
+              instant.maybeWorkingHours() shouldBe Some(instant)
+              println(s"${LocalDateTime.ofInstant(instant, ZoneOffset.UTC)}")
+            } else {
+              println("None")
+              instant.maybeWorkingHours() shouldBe None
+            }
+          }
       }
     }
-    "the time is outside 0900 to 1700 and the day is Sat or Sun" should {
-      "return false" in {
-        val sunday17Sept2020 = LocalDateTime.of(2023, Month.SEPTEMBER, 17, 9, 0)
-        val instant = sunday17Sept2020.atZone(ZoneOffset.UTC).toInstant
-
-        instant.maybeWorkingHours shouldBe None
-      }
-    }
-  }
-
 }

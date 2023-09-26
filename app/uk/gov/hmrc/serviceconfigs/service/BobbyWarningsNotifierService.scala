@@ -22,14 +22,13 @@ import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
+import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
-import java.time.{Instant, LocalDate, ZoneOffset}
+import java.time.{Instant, LocalDate}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
-
-import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 @Singleton
 class BobbyWarningsNotifierService @Inject()(
@@ -93,18 +92,18 @@ class BobbyWarningsNotifierService @Inject()(
   }
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
-      now.maybeWorkingHours match {
+      now.maybeWorkingHours() match {
         case Some(workingHours) =>
             bobbyWarningsRepository.getLastWarningsDate().flatMap {
               case Some(lrd) if lrd.isAfter(workingHours.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
                 logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
                 Future.unit
               case optLrd =>
-                logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last ran $d"))
+                logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last run date was $d"))
                 f
             }
         case _ =>
-          logger.info(s"Not running Bobby Warnings Notifications out of hours")
+          logger.info(s"Not running Bobby Warnings Notifications. Out of hours")
           Future.unit
       }
 

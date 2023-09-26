@@ -26,11 +26,10 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
-import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
-import java.time.temporal.ChronoUnit.{DAYS, MONTHS, WEEKS}
+import java.time.temporal.ChronoUnit.DAYS
+import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

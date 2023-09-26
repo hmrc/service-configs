@@ -26,15 +26,15 @@ object DateAndTimeOps {
   }
 
   implicit class InstantOps(private val instant: Instant) {
-    def isInWorkingHours: Boolean = {
+    protected def isInWorkingHours(): Boolean = {
       val localDateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC)
       val hour = localDateTime.toLocalTime.get(ChronoField.HOUR_OF_DAY)
       val day = localDateTime.toLocalDate.get(ChronoField.DAY_OF_WEEK)
       day < 6 && hour >= 9 && hour <= 17
     }
 
-    def maybeWorkingHours: Option[Instant] =
-      if (instant.isInWorkingHours)
+    def maybeWorkingHours(): Option[Instant] =
+      if (instant.isInWorkingHours())
         Some(instant)
       else
         None
