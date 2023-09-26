@@ -191,7 +191,7 @@ class ConfigParserSpec
       ) shouldBe Some(
         Map(
           "logger.root"        -> ConfigValue("INFO"),
-          "logger.uk.gov"      -> ConfigValue("DEBUG"),
+          "logger.\"uk.gov\""  -> ConfigValue("DEBUG"),
           "logger.application" -> ConfigValue("DEBUG")
         )
       )
@@ -217,7 +217,7 @@ class ConfigParserSpec
       ) shouldBe Some(
         Map(
           "logger.root"        -> ConfigValue(f"$${logger.root:-WARN}"),
-          "logger.uk.gov"      -> ConfigValue(f"$${logger.uk.gov:-WARN}"),
+          "logger.\"uk.gov\""  -> ConfigValue(f"$${logger.uk.gov:-WARN}"),
           "logger.application" -> ConfigValue(f"$${logger.application:-WARN}")
         )
       )
