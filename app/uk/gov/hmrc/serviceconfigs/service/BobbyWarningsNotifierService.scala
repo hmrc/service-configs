@@ -74,7 +74,7 @@ class BobbyWarningsNotifierService @Inject()(
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
           _                         <- reportOnSlackResponses(slackResponses)
-          _                         <- bobbyWarningsRepository.setLastRunTime(runTime.truncatedTo(ChronoUnit.DAYS))
+          _                         <- bobbyWarningsRepository.setLastRunTime(runTime)
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
     }
   }

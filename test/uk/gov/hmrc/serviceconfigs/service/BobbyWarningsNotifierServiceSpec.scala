@@ -81,7 +81,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
@@ -100,7 +100,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 

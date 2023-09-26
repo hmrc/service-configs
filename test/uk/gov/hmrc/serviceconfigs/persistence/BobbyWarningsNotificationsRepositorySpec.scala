@@ -38,7 +38,7 @@ class BobbyWarningsNotificationsRepositorySpec
       repository.getLastWarningsRunTime().futureValue shouldBe None
     }
     "insert the current time when updating the last run time" in {
-      val runTime = Instant.now().truncatedTo(ChronoUnit.DAYS)
+      val runTime = Instant.now().truncatedTo(ChronoUnit.MILLIS)
       val result =
         for {
           _ <- repository.setLastRunTime(runTime)
