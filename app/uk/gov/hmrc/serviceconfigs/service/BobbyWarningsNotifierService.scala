@@ -65,8 +65,9 @@ class BobbyWarningsNotifierService @Inject()(
                                   = rulesWithAffectedServices.groupMap(_._1)(_._2).toList
           slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
                                         case (acc,(team, drs)) =>
+                                          val minFailure = drs.minBy{case (_,r) => r.from}._2.from
                                           val message = MessageDetails(
-                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${endWindow.toString}* because of new Bobby Rules:"
+                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${minFailure.toString}* because of new Bobby Rules:"
                                           , attachments =
                                               drs.map(dr => Attachment(s"`${dr._1.serviceName}` affected by ${dr._2.organisation}.${dr._2.name} ${dr._2.range} - see " +
                                                url"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))

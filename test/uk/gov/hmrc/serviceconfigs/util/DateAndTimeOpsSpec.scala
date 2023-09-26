@@ -67,9 +67,7 @@ class DateAndTimeOpsSpec
               && time.getHour >= 9
             ) {
               instant.maybeWorkingHours() shouldBe Some(instant)
-              println(s"${LocalDateTime.ofInstant(instant, ZoneOffset.UTC)}")
             } else {
-              println("None")
               instant.maybeWorkingHours() shouldBe None
             }
           }
