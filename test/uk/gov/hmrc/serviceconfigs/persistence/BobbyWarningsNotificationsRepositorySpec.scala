@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunTime
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -28,23 +28,23 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class BobbyWarningsNotificationsRepositorySpec
   extends AnyWordSpec
   with Matchers
-  with DefaultPlayMongoRepositorySupport[BobbyWarningsNotificationsRunDate] {
+  with DefaultPlayMongoRepositorySupport[BobbyWarningsNotificationsRunTime] {
 
   override protected val repository: BobbyWarningsNotificationsRepository = new BobbyWarningsNotificationsRepository(mongoComponent)
 
 
   "BobbyWarningsRepository" should {
-    "return None for the last run date when the notifications have never been run" in {
-      repository.getLastWarningsDate().futureValue shouldBe None
+    "return None for the last run time when the notifications have never been run" in {
+      repository.getLastWarningsRunTime().futureValue shouldBe None
     }
-    "insert the current date when updating the last run date" in {
-      val runDate = Instant.now().truncatedTo(ChronoUnit.DAYS)
+    "insert the current time when updating the last run time" in {
+      val runTime = Instant.now().truncatedTo(ChronoUnit.DAYS)
       val result =
         for {
-          _ <- repository.setLastRunDate(runDate)
-          r <- repository.getLastWarningsDate()
+          _ <- repository.setLastRunTime(runTime)
+          r <- repository.getLastWarningsRunTime()
       } yield r
-      result.futureValue shouldBe Some(runDate)
+      result.futureValue shouldBe Some(runTime)
     }
   }
 }

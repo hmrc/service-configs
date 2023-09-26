@@ -52,14 +52,14 @@ class BobbyWarningsNotifierServiceSpec
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector)
     }
     "do nothing if the service has already been run in the notifications period" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(yesterday)))
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(yesterday)))
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
     "do nothing if the service has already been run today" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(nowAsInstant)))
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(nowAsInstant)))
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
@@ -71,7 +71,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
 
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(None))
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
 
@@ -81,7 +81,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 
@@ -91,7 +91,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
 
-      when(mockBobbyWarningsRepository.getLastWarningsDate()).thenReturn(Future.successful(Some(eightDays)))
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
 
@@ -100,7 +100,7 @@ class BobbyWarningsNotifierServiceSpec
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunDate(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant.truncatedTo(ChronoUnit.DAYS))).thenReturn(Future.unit)
 
       underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
 

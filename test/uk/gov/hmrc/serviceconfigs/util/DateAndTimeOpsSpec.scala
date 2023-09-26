@@ -23,8 +23,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
-import java.time.temporal.ChronoUnit
 import java.time._
+import java.time.temporal.ChronoUnit
 
 
 class DateAndTimeOpsSpec
@@ -44,8 +44,8 @@ class DateAndTimeOpsSpec
     }
   }
 
-  "An evaluation of an Instant" should {
-    "return Some(localDate) when in Working hours 9 - 17 Monday to Friday None if not" in {
+  "DateAndTimeOps.isWorkingHours" should {
+    "return true when in Working hours 9 - 17 Monday to Friday" in {
 
       val yearDays = for (yearDay <- Gen.choose(1, 365)) yield yearDay
       val years = for (year <- Gen.choose(2023, 2030)) yield year

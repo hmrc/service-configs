@@ -74,7 +74,7 @@ class BobbyWarningsNotifierService @Inject()(
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
           _                         <- reportOnSlackResponses(slackResponses)
-          _                         <- bobbyWarningsRepository.setLastRunDate(runTime.truncatedTo(ChronoUnit.DAYS))
+          _                         <- bobbyWarningsRepository.setLastRunTime(runTime.truncatedTo(ChronoUnit.DAYS))
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
     }
   }
@@ -93,7 +93,7 @@ class BobbyWarningsNotifierService @Inject()(
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
       if (isInWorkingHours(now)) {
-          bobbyWarningsRepository.getLastWarningsDate().flatMap {
+          bobbyWarningsRepository.getLastWarningsRunTime().flatMap {
             case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
               logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
               Future.unit

@@ -22,7 +22,7 @@ import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunDate
+import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunTime
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -34,10 +34,10 @@ class BobbyWarningsNotificationsRepository @Inject() (
 )(
 implicit
 ec: ExecutionContext
-) extends PlayMongoRepository[BobbyWarningsNotificationsRunDate](
+) extends PlayMongoRepository[BobbyWarningsNotificationsRunTime](
   mongoComponent = mongoComponent,
   collectionName = "bobbyWarningsNotificationsRunDate",
-  domainFormat = BobbyWarningsNotificationsRunDate.format,
+  domainFormat = BobbyWarningsNotificationsRunTime.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
 ) {
@@ -46,10 +46,10 @@ ec: ExecutionContext
   override lazy val requiresTtlIndex = false
 
 
-  def setLastRunDate(lastRunDate: Instant): Future[Unit] =
+  def setLastRunTime(lastRunTime: Instant): Future[Unit] =
     collection.findOneAndReplace(
       filter = Filters.empty(),
-      replacement = BobbyWarningsNotificationsRunDate(lastRunDate),
+      replacement = BobbyWarningsNotificationsRunTime(lastRunTime),
       options = FindOneAndReplaceOptions().upsert(true)
    )
      .toFutureOption()
@@ -58,22 +58,22 @@ ec: ExecutionContext
         case lastError => throw new RuntimeException(s"failed to update last Rundate ${lastError.getMessage()}", lastError)
       }
 
-  def getLastWarningsDate(): Future[Option[Instant]] =
+  def getLastWarningsRunTime(): Future[Option[Instant]] =
     collection
       .find()
-      .map(_.lastRun)
+      .map(_.lastRunTime)
       .headOption()
 
 
 }
 
 object BobbyWarningsNotificationsRepository {
-  case class BobbyWarningsNotificationsRunDate(lastRun: Instant) extends AnyVal
+  case class BobbyWarningsNotificationsRunTime(lastRunTime: Instant) extends AnyVal
 
-  object BobbyWarningsNotificationsRunDate {
-    val format: OFormat[BobbyWarningsNotificationsRunDate] = {
+  object BobbyWarningsNotificationsRunTime {
+    val format: OFormat[BobbyWarningsNotificationsRunTime] = {
       import MongoJavatimeFormats.Implicits.jatInstantFormat
-      Format.at[Instant](__ \ "lastRunTime").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRun)
+      Format.at[Instant](__ \ "lastRunTime").inmap[BobbyWarningsNotificationsRunTime](BobbyWarningsNotificationsRunTime.apply, _.lastRunTime)
     }
   }
 }
