@@ -97,9 +97,10 @@ trait ConfigParser extends Logging {
           (xml \ "logger")
             .flatMap(x =>
               for {
-                k <- (x \ "@name" ).headOption
-                v <- (x \ "@level").headOption
-              } yield s"logger.${k.text}" -> ConfigValue(v.text)
+                k          <- (x \ "@name" ).headOption
+                v          <- (x \ "@level").headOption
+                loggerName =  if (k.text.contains(".")) s"\"${k.text}\"" else k.text
+              } yield s"logger.$loggerName" -> ConfigValue(v.text)
             )
             .toMap
       root ++ logger
