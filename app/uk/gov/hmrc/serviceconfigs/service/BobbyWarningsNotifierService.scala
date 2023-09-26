@@ -50,11 +50,11 @@ class BobbyWarningsNotifierService @Inject()(
   lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
 
-  def sendNotificationsForFutureDatedBobbyViolations(runDate: Instant): Future[Unit] = {
-      runNotificationsIfInWindow(runDate) {
+  def sendNotificationsForFutureDatedBobbyViolations(runTime: Instant): Future[Unit] = {
+      runNotificationsIfInWindow(runTime) {
         for {
           futureDatedRules         <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
-                                        rule.from.toInstant.isAfter(runDate) && rule.from.toInstant.isBefore(endWindow)
+                                        rule.from.toInstant.isAfter(runTime) && rule.from.toInstant.isBefore(endWindow)
                                       })
           _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
           rulesWithAffectedServices     <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
@@ -65,17 +65,16 @@ class BobbyWarningsNotifierService @Inject()(
                                   = rulesWithAffectedServices.groupMap(_._1)(_._2).toList
           slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
                                         case (acc,(team, drs)) =>
-                                          val minFailure = drs.minBy{case (_,r) => r.from}._2.from
                                           val message = MessageDetails(
-                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail after *${minFailure.toString}* because of new Bobby Rules:"
+                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail soon because of new Bobby Rules:"
                                           , attachments =
-                                              drs.map(dr => Attachment(s"`${dr._1.serviceName}` affected by ${dr._2.organisation}.${dr._2.name} ${dr._2.range} - see " +
+                                              drs.map(dr => Attachment(s"`${dr._1.serviceName}` will fail from *${dr._2.from}* with dependency on ${dr._2.organisation}.${dr._2.name} ${dr._2.range} - see " +
                                                url"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
                                           )
                                           slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
                                        }
           _                         <- reportOnSlackResponses(slackResponses)
-          _                         <- bobbyWarningsRepository.setLastRunDate(runDate.truncatedTo(ChronoUnit.DAYS))
+          _                         <- bobbyWarningsRepository.setLastRunDate(runTime.truncatedTo(ChronoUnit.DAYS))
         } yield logger.info("Completed sending Slack messages for Bobby Warnings")
     }
   }
@@ -93,17 +92,16 @@ class BobbyWarningsNotifierService @Inject()(
   }
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
-      now.maybeWorkingHours() match {
-        case Some(workingHours) =>
-            bobbyWarningsRepository.getLastWarningsDate().flatMap {
-              case Some(lrd) if lrd.isAfter(workingHours.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
-                logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
-                Future.unit
-              case optLrd =>
-                logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last run date was $d"))
-                f
-            }
-        case _ =>
+      if (isInWorkingHours(now)) {
+          bobbyWarningsRepository.getLastWarningsDate().flatMap {
+            case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
+              logger.info(s"Not running Bobby Warning Notifications. Last run date was $lrd")
+              Future.unit
+            case optLrd =>
+              logger.info(optLrd.fold(s"Running Bobby Warning Notifications for the first time")(d => s"Running Bobby Warnings Notifications. Last run date was $d"))
+              f
+          }
+      } else {
           logger.info(s"Not running Bobby Warnings Notifications. Out of hours")
           Future.unit
       }

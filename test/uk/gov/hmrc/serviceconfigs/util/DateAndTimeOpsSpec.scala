@@ -45,32 +45,34 @@ class DateAndTimeOpsSpec
   }
 
   "An evaluation of an Instant" should {
-      "return Some(localDate) when in Working hours 9 - 17 Monday to Friday None if not" in {
+    "return Some(localDate) when in Working hours 9 - 17 Monday to Friday None if not" in {
 
-        val yearDays = for (yearDay <- Gen.choose(1, 366)) yield yearDay
-        val years    = for (year <- Gen.choose(2023, 2030)) yield year
-        val hours    = for (hour <- Gen.choose(0, 23)) yield hour
-        val minutes  = for (minute <- Gen.choose(0, 59)) yield minute
+      val yearDays = for (yearDay <- Gen.choose(1, 365)) yield yearDay
+      val years = for (year <- Gen.choose(2023, 2030)) yield year
+      val hours = for (hour <- Gen.choose(0, 23)) yield hour
+      val minutes = for (minute <- Gen.choose(0, 59)) yield minute
 
 
-        forAll (yearDays, years, hours, minutes) { (yearDay: Int, year: Int, hour: Int, minute: Int) =>
+      forAll(yearDays, years, hours, minutes) { (yearDay: Int, year: Int, hour: Int, minute: Int) =>
 
-            val date = LocalDate.ofYearDay(year, yearDay)
-            val time = LocalTime.of(hour, minute, 0)
+        whenever((LocalDate.of(year, 1, 1).isLeapYear && yearDay < 366) || !LocalDate.of(year, 1, 1).isLeapYear) {
+          val date = LocalDate.ofYearDay(year, yearDay)
+          val time = LocalTime.of(hour, minute, 0)
 
-            val dateTime = LocalDateTime.of(date, time)
-            val instant = dateTime.atZone(ZoneOffset.UTC).toInstant
+          val dateTime = LocalDateTime.of(date, time)
+          val instant = dateTime.atZone(ZoneOffset.UTC).toInstant
 
-            if (date.getDayOfWeek != DayOfWeek.SATURDAY
-              && date.getDayOfWeek != DayOfWeek.SUNDAY
-              && time.getHour <= 17
-              && time.getHour >= 9
-            ) {
-              instant.maybeWorkingHours() shouldBe Some(instant)
-            } else {
-              instant.maybeWorkingHours() shouldBe None
-            }
+          if (date.getDayOfWeek != DayOfWeek.SATURDAY
+            && date.getDayOfWeek != DayOfWeek.SUNDAY
+            && time.getHour <= 17
+            && time.getHour >= 9
+          ) {
+            isInWorkingHours(instant) shouldBe true
+          } else {
+            isInWorkingHours(instant) shouldBe false
           }
+        }
       }
     }
+  }
 }

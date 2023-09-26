@@ -16,28 +16,23 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
+import java.time.DayOfWeek._
 import java.time.temporal.ChronoField
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
 object DateAndTimeOps {
 
+  private val workingDays = List(MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY)
+
   implicit class LocalDateOps(private val localDate: LocalDate) {
     def toInstant: Instant = localDate.atStartOfDay().toInstant(ZoneOffset.UTC)
   }
 
-  implicit class InstantOps(private val instant: Instant) {
-    protected def isInWorkingHours(): Boolean = {
-      val localDateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC)
-      val hour = localDateTime.toLocalTime.get(ChronoField.HOUR_OF_DAY)
-      val day = localDateTime.toLocalDate.get(ChronoField.DAY_OF_WEEK)
-      day < 6 && hour >= 9 && hour <= 17
-    }
-
-    def maybeWorkingHours(): Option[Instant] =
-      if (instant.isInWorkingHours())
-        Some(instant)
-      else
-        None
-
+  def isInWorkingHours(instant: Instant): Boolean = {
+    val localDateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC)
+    val hour = localDateTime.toLocalTime.get(ChronoField.HOUR_OF_DAY)
+    val dayOfWeek = localDateTime.toLocalDate.getDayOfWeek
+    workingDays.contains(dayOfWeek) && hour >= 9 && hour <= 17
   }
+
 }

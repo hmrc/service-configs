@@ -73,7 +73,7 @@ object BobbyWarningsNotificationsRepository {
   object BobbyWarningsNotificationsRunDate {
     val format: OFormat[BobbyWarningsNotificationsRunDate] = {
       import MongoJavatimeFormats.Implicits.jatInstantFormat
-      Format.at[Instant](__ \ "lastRunDate").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRun)
+      Format.at[Instant](__ \ "lastRunTime").inmap[BobbyWarningsNotificationsRunDate](BobbyWarningsNotificationsRunDate.apply, _.lastRun)
     }
   }
 }
