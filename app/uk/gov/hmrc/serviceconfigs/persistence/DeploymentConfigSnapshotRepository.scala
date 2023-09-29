@@ -132,14 +132,20 @@ class DeploymentConfigSnapshotRepository @Inject()(
   private[persistence] def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
     logger.debug(s"Processing `DeploymentConfigSnapshot`s for ${environment.asString}")
 
-    def bulkInsertSnapshots(snapshots: List[DeploymentConfigSnapshot]) =
-      if (snapshots.isEmpty)
-        Future.unit
-      else
-        withSessionAndTransaction { session =>
+    def insertSnapshot(snapshot: DeploymentConfigSnapshot) =
+      withSessionAndTransaction { session =>
         for {
-          _ <- removeLatestFlagForNonDeletedSnapshotsInEnvironment(environment, session)
-          _ <- collection.insertMany(session, snapshots).toFuture()
+          res <- collection.updateMany(
+                  session,
+                  filter = and(
+                            equal("deploymentConfig.name"       , snapshot.deploymentConfig.serviceName),
+                            equal("deploymentConfig.environment", snapshot.deploymentConfig.environment),
+                            equal("latest"                      , true)
+                          ),
+                  update = set("latest", false)
+                )
+                .toFuture()
+          _ <- collection.insertOne(session, snapshot).toFuture()
         } yield ()
       }
 
@@ -158,7 +164,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
     }
 
     for {
-      _ <- bulkInsertSnapshots(planOfWork.snapshots)
+      _ <- planOfWork.snapshots.foldLeftM(()) { case (_, snapshot) => insertSnapshot(snapshot) }
            // reintroductions are treated separately to ensure latest flag is removed from previously deleted entries -
            // not covered by above bulk flag removal
       _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
