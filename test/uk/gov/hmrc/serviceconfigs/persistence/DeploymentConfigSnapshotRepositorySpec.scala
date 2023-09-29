@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import akka.actor.ActorSystem
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers
@@ -38,8 +39,10 @@ class DeploymentConfigSnapshotRepositorySpec
   private val mockedDeploymentConfigRepository: DeploymentConfigRepository =
     mock[DeploymentConfigRepository]
 
+  private val as = ActorSystem()
+
   override lazy val repository =
-    new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent)
+    new DeploymentConfigSnapshotRepository(mockedDeploymentConfigRepository, mongoComponent, as)
 
   "DeploymentConfigSnapshotRepository" should {
     "Persist and retrieve `DeploymentConfigSnapshot`s" in {
