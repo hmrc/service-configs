@@ -48,4 +48,10 @@ class DeploymentConfigController @Inject()(
           case _        => Ok(Json.toJson(deploymentConfigs))
         })
     }
+
+  def cleanupDuplicates(): Action[AnyContent] =
+    Action {
+      deploymentConfigSnapshotRepository.cleanupDuplicates()
+      Accepted("")
+    }
 }
