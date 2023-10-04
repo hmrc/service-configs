@@ -16,24 +16,41 @@
 
 package uk.gov.hmrc.serviceconfigs
 
-import com.google.inject.AbstractModule
+import play.api.inject.Binding
+import play.api.{Configuration, Environment, Logger}
 import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
-import uk.gov.hmrc.serviceconfigs.notification.{DeadLetterHandler, DeploymentHandler, SlugConfigUpdateHandler}
+import uk.gov.hmrc.serviceconfigs.notification.{DeploymentHandler, DeploymentDeadLetterHandler, SlugHandler, SlugDeadLetterHandler}
 import uk.gov.hmrc.serviceconfigs.scheduler.{BobbyWarningsNotifierScheduler, ConfigScheduler, MissedWebhookEventsScheduler, ServiceRelationshipScheduler, SlugMetadataUpdateScheduler}
 
 import java.time.Clock
 
-class Module extends AbstractModule {
-  override def configure(): Unit = {
-    bind(classOf[SlugConfigUpdateHandler       ]).asEagerSingleton()
-    bind(classOf[DeploymentHandler             ]).asEagerSingleton()
-    bind(classOf[DeadLetterHandler             ]).asEagerSingleton()
-    bind(classOf[ConfigScheduler               ]).asEagerSingleton()
-    bind(classOf[BobbyWarningsNotifierScheduler]).asEagerSingleton()
-    bind(classOf[MissedWebhookEventsScheduler  ]).asEagerSingleton()
-    bind(classOf[SlugMetadataUpdateScheduler   ]).asEagerSingleton()
-    bind(classOf[ServiceRelationshipScheduler  ]).asEagerSingleton()
-    bind(classOf[FrontendRouteParser           ]).to(classOf[NginxConfigParser]).asEagerSingleton()
-    bind(classOf[Clock                         ]).toInstance(Clock.systemUTC())
+class Module extends play.api.inject.Module {
+
+  private val logger = Logger(getClass)
+
+  private def ecsDeploymentsBindings(configuration: Configuration): Seq[Binding[_]] = {
+    if (configuration.get[Boolean]("artefact.receiver.enabled"))
+      Seq(
+        bind[DeploymentHandler          ].toSelf.eagerly()
+      , bind[DeploymentDeadLetterHandler].toSelf.eagerly()
+      , bind[SlugHandler                ].toSelf.eagerly()
+      , bind[SlugDeadLetterHandler      ].toSelf.eagerly()
+      )
+    else {
+      logger.warn("SQS handlers are disabled")
+      Seq.empty
+    }
   }
+
+  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
+    Seq(
+      bind[ConfigScheduler               ].toSelf.eagerly()
+    , bind[BobbyWarningsNotifierScheduler].toSelf.eagerly()
+    , bind[MissedWebhookEventsScheduler  ].toSelf.eagerly()
+    , bind[SlugMetadataUpdateScheduler   ].toSelf.eagerly()
+    , bind[ServiceRelationshipScheduler  ].toSelf.eagerly()
+    , bind[FrontendRouteParser           ].to[NginxConfigParser].eagerly()
+    , bind[Clock                         ].toInstance(Clock.systemUTC())
+    ) ++
+    ecsDeploymentsBindings(configuration)
 }
