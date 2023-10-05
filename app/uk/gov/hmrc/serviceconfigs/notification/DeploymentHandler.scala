@@ -21,10 +21,10 @@ import cats.Applicative
 import cats.data.EitherT
 import cats.implicits._
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import play.api.libs.json.Json
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.config.DeploymentSqsConfig
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
@@ -35,7 +35,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentHandler @Inject()(
-  config         : DeploymentSqsConfig,
+  configuration  : Configuration,
   slugInfoService: SlugInfoService,
   clock          : Clock
 )(implicit
@@ -43,7 +43,7 @@ class DeploymentHandler @Inject()(
   ec             : ExecutionContext
 ) extends SqsConsumer(
   name           = "Deployment"
-, config         = config
+, config         = SqsConfig("aws.sqs.deployment", configuration)
 )(actorSystem, ec) {
   import DeploymentHandler._
 

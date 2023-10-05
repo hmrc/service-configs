@@ -19,19 +19,19 @@ package uk.gov.hmrc.serviceconfigs.notification
 import akka.actor.ActorSystem
 import javax.inject.{Inject, Singleton}
 import software.amazon.awssdk.services.sqs.model.Message
-import uk.gov.hmrc.serviceconfigs.config.{DeploymentDeadLetterSqsConfig, SlugDeadLetterSqsConfig}
 
 import scala.concurrent.{ExecutionContext, Future}
+import play.api.Configuration
 
 @Singleton
 class DeploymentDeadLetterHandler @Inject()(
-  config      : DeploymentDeadLetterSqsConfig
+  configuration: Configuration
 )(implicit
-  actorSystem : ActorSystem,
-  ec          : ExecutionContext
+  actorSystem  : ActorSystem,
+  ec           : ExecutionContext
 ) extends SqsConsumer(
-  name        = "Deployment Dead Letter"
-, config      = config
+  name         = "Deployment Dead Letter"
+, config       = SqsConfig("aws.sqs.deploymentDeadLetter", configuration)
 )(actorSystem, ec) {
 
   protected def processMessage(message: Message) = {
@@ -46,13 +46,13 @@ class DeploymentDeadLetterHandler @Inject()(
 
 @Singleton
 class SlugDeadLetterHandler @Inject()(
-  config      : SlugDeadLetterSqsConfig
+  configuration: Configuration
 )(implicit
-  actorSystem : ActorSystem,
-  ec          : ExecutionContext
+  actorSystem  : ActorSystem,
+  ec           : ExecutionContext
 ) extends SqsConsumer(
-  name   = "Slug Dead Letter"
-, config = config
+  name         = "Slug Dead Letter"
+, config       = SqsConfig("aws.sqs.slugDeadLetter", configuration)
 )(actorSystem, ec) {
 
   protected def processMessage(message: Message) = {

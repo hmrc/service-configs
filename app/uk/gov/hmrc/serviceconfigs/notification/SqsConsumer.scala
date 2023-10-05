@@ -18,17 +18,22 @@ package uk.gov.hmrc.serviceconfigs.notification
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
-import play.api.Logging
+import play.api.{Configuration, Logging}
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageRequest, Message, ReceiveMessageRequest}
-
-import uk.gov.hmrc.serviceconfigs.config.SqsConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationLong
 import scala.jdk.CollectionConverters._
 import scala.jdk.FutureConverters._
 import scala.util.control.NonFatal
+import java.net.URL
+
+case class SqsConfig(keyPrefix: String, configuration: Configuration) {
+  lazy val queueUrl           : URL = new URL(configuration.get[String](s"$keyPrefix.queueUrl"))
+  lazy val maxNumberOfMessages: Int = configuration.get[Int](s"$keyPrefix.maxNumberOfMessages")
+  lazy val waitTimeSeconds    : Int = configuration.get[Int](s"$keyPrefix.waitTimeSeconds")
+}
 
 abstract class SqsConsumer(
   name       : String

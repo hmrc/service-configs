@@ -20,11 +20,11 @@ import akka.actor.ActorSystem
 import cats.data.EitherT
 import cats.implicits._
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import play.api.libs.json.Json
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ArtefactProcessorConnector
-import uk.gov.hmrc.serviceconfigs.config.SlugSqsConfig
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.service.SlugConfigurationService
 
@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugHandler @Inject()(
-  config                    : SlugSqsConfig,
+  configuration             : Configuration,
   slugConfigurationService  : SlugConfigurationService,
   artefactProcessorConnector: ArtefactProcessorConnector
 )(implicit
@@ -40,7 +40,7 @@ class SlugHandler @Inject()(
   ec                        : ExecutionContext
 ) extends SqsConsumer(
   name                      = "SlugInfo"
-, config                    = config
+, config                    = SqsConfig("aws.sqs.slug", configuration)
 )(actorSystem, ec) {
 
   private implicit val hc = HeaderCarrier()
@@ -103,10 +103,10 @@ class SlugHandler @Inject()(
                                      Left(s"$errorMessage ${e.getMessage}")
                                  }
                              )
-                       } yield {
-                         logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
-                         MessageAction.Delete(message)
-                       }
+                      } yield {
+                        logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
+                        MessageAction.Delete(message)
+                      }
                   }
      } yield action
     ).value.map {
