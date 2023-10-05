@@ -17,67 +17,35 @@
 package uk.gov.hmrc.serviceconfigs.notification
 
 import akka.actor.ActorSystem
-import akka.stream.alpakka.sqs.{MessageAction, SqsSourceSettings}
-import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
-import akka.stream.{ActorAttributes, Materializer, Supervision}
 import cats.data.EitherT
 import cats.implicits._
-import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import javax.inject.{Inject, Singleton}
-import play.api.Logging
+import play.api.Configuration
 import play.api.libs.json.Json
-import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.config.ArtefactReceivingConfig
 import uk.gov.hmrc.serviceconfigs.connector.ArtefactProcessorConnector
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.service.SlugConfigurationService
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
 
 @Singleton
-class SlugConfigUpdateHandler @Inject()(
+class SlugHandler @Inject()(
+  configuration             : Configuration,
   slugConfigurationService  : SlugConfigurationService,
-  config                    : ArtefactReceivingConfig,
   artefactProcessorConnector: ArtefactProcessorConnector
 )(implicit
-  actorSystem : ActorSystem,
-  materializer: Materializer,
-  ec          : ExecutionContext
-) extends Logging {
-
-  private lazy val queueUrl = config.sqsSlugQueue
-  private lazy val settings = SqsSourceSettings()
+  actorSystem               : ActorSystem,
+  ec                        : ExecutionContext
+) extends SqsConsumer(
+  name                      = "SlugInfo"
+, config                    = SqsConfig("aws.sqs.slug", configuration)
+)(actorSystem, ec) {
 
   private implicit val hc = HeaderCarrier()
 
-  private lazy val awsSqsClient =
-    Try {
-      val client = SqsAsyncClient
-        .builder()
-        .httpClient(AkkaHttpClient.builder().withActorSystem(actorSystem).build())
-        .build()
-
-      actorSystem.registerOnTermination(client.close())
-      client
-    }.recoverWith {
-      case NonFatal(e) => logger.error(s"Failed to set up awsSqsClient: ${e.getMessage}", e); Failure(e)
-    }.get
-
-  if (config.isEnabled)
-    SqsSource(queueUrl.toString, settings)(awsSqsClient)
-      .mapAsync(1)(processMessage)
-      .withAttributes(ActorAttributes.supervisionStrategy {
-        case t: Throwable => logger.error(s"Failed to process sqs messages: ${t.getMessage}", t); Supervision.Restart
-      })
-      .runWith(SqsAckSink(queueUrl.toString)(awsSqsClient))
-  else
-    logger.warn("SlugConfigUpdateHandler is disabled.")
-
-  private def processMessage(message: Message): Future[MessageAction] = {
+  override protected def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing SlugInfo message with ID '${message.messageId()}'")
     (for {
        payload <- EitherT.fromEither[Future](
@@ -135,10 +103,10 @@ class SlugConfigUpdateHandler @Inject()(
                                      Left(s"$errorMessage ${e.getMessage}")
                                  }
                              )
-                       } yield {
-                         logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
-                         MessageAction.Delete(message)
-                       }
+                      } yield {
+                        logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
+                        MessageAction.Delete(message)
+                      }
                   }
      } yield action
     ).value.map {
