@@ -77,7 +77,9 @@ class AppliedConfigRepositoryNoIndexCheckSpec
         serviceName1,
         Environment.Development,
         Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
-            "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
+            "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"),
+            "k3" -> RenderedConfigSourceValue("some-source", Some("some-url"), "av2"),
+            "k4" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2a"))
       ).futureValue
       repository.put(
         serviceName1,
@@ -109,7 +111,9 @@ class AppliedConfigRepositoryNoIndexCheckSpec
         serviceName1,
         Environment.Development,
         Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
-            "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
+            "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"),
+            "k3" -> RenderedConfigSourceValue("some-source", Some("some-url"), "av2"),
+            "k4" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2a"))
       ).futureValue
       repository.put(
         serviceName1,
@@ -131,6 +135,18 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           "k1",
           Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
               Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")),
+          false
+        ),
+        AppliedConfig(
+          serviceName1,
+          "k3",
+          Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "av2")),
+          false
+        ),
+        AppliedConfig(
+          serviceName1,
+          "k4",
+          Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2a")),
           false
         )
       )

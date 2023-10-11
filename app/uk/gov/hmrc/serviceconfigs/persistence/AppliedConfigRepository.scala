@@ -86,9 +86,9 @@ class AppliedConfigRepository @Inject()(
       case (Some(v), FilterType.DoesNotContain)           => Filters.not(Filters.regex(field, Pattern.quote(v).r))
       case (Some(v), FilterType.DoesNotContainIgnoreCase) => Filters.not(Filters.regex(field, s"(?i)${Pattern.quote(v)}".r))
       case (Some(v), FilterType.EqualTo)                  => Filters.equal(field, v)
-      case (Some(v), FilterType.EqualToIgnoreCase)        => Filters.regex(field, s"(?i)${Pattern.quote(v)}$$".r)
+      case (Some(v), FilterType.EqualToIgnoreCase)        => Filters.regex(field, s"(?i)^${Pattern.quote(v)}$$".r)
       case (Some(v), FilterType.NotEqualTo)               => Filters.notEqual(field, v)
-      case (Some(v), FilterType.NotEqualToIgnoreCase)     => Filters.not(Filters.regex(field, s"(?i)${Pattern.quote(v)}$$".r))
+      case (Some(v), FilterType.NotEqualToIgnoreCase)     => Filters.not(Filters.regex(field, s"(?i)^${Pattern.quote(v)}$$".r))
       case (_      , FilterType.IsEmpty)                  => Filters.equal(field, "")
       case _                                              => Filters.empty()
     }
