@@ -21,8 +21,8 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 
-import java.util.Base64.getEncoder
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -38,21 +38,15 @@ class SlackNotificationsConnector @Inject()(
 
   import HttpReads.Implicits._
 
-
   private val serviceUrl: String = servicesConfig.baseUrl("slack-notifications")
 
-  private val authorizationHeaderValue = {
-    val username = configuration.get[String]("microservice.services.slack-notifications.basicAuth.username")
-    val password = configuration.get[String]("microservice.services.slack-notifications.basicAuth.password")
-
-    s"Basic ${getEncoder.encodeToString(s"$username:$password".getBytes("UTF-8"))}"
-  }
+  private val internalAuthToken = configuration.get[String]("internal-auth.token")
 
   def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] =
     httpClientV2
-      .post(url"$serviceUrl/slack-notifications/notification")
+      .post(url"$serviceUrl/slack-notifications/v2/notification")
       .withBody(Json.toJson(message))
-      .setHeader("Authorization" -> authorizationHeaderValue)
+      .setHeader("Authorization" -> internalAuthToken)
       .execute[SlackNotificationResponse]
       .recoverWith {
         case NonFatal(ex) =>
@@ -90,36 +84,51 @@ object GithubTeam {
   implicit val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
 }
 
-final case class Attachment(text: String, fields: Seq[Attachment.Field] = Nil)
-
-object Attachment {
-  final case class Field (
-    title: String,
-    value: String,
-    short: Boolean
-  )
-
-  object Field {
-    implicit val format: OFormat[Field] = Json.format[Field]
-  }
-
-  implicit val format: OFormat[Attachment] = Json.format[Attachment]
-
-}
-
-final case class MessageDetails (
-  text                : String,
-  attachments         : Seq[Attachment],
-  showAttachmentAuthor: Boolean = false
- )
-
-object MessageDetails {
-  implicit val writes: OWrites[MessageDetails] = Json.writes[MessageDetails]
-}
-
-final case class SlackNotificationRequest(channelLookup: GithubTeam, messageDetails: MessageDetails)
+final case class SlackNotificationRequest(
+  channelLookup: GithubTeam,
+  displayName  : String,
+  emoji        : String,
+  text         : String,
+  blocks       : Seq[JsObject]
+)
 
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
+
+  def bobbyWarning(channelLookup: GithubTeam, teamName: String, warnings: List[(Service, BobbyRule)]): SlackNotificationRequest = {
+    val msg: JsObject = Json.parse(
+      s"""
+         |{
+         |  "type": "section",
+         |  "text": {
+         |    "type": "mrkdwn",
+         |    "text": "Hello $teamName, please be aware that the following builds will fail soon because of new Bobby Rules:"
+         |  }
+         |}
+         |""".stripMargin
+    ).as[JsObject]
+
+    val rules = warnings.map { case (service, rule) =>
+      Json.parse(
+        s"""
+           |{
+           |  "type": "section",
+           |  "text": {
+           |    "type": "mrkdwn",
+           |    "text": "`${service.serviceName}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${service.serviceName}#environmentTabs|Catalogue>"
+           |  }
+           |}
+           |""".stripMargin
+      ).as[JsObject]
+    }
+
+    SlackNotificationRequest(
+      channelLookup,
+      "BobbyWarnings",
+      ":platops-bobby:",
+      "There are upcoming Bobby Rules affecting your service(s)",
+      msg :: rules
+    )
+  }
 }
 

@@ -21,6 +21,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
+import play.api.libs.json.JsObject
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
@@ -36,12 +37,12 @@ class SlackNotificationsConnectorSpec
   with HttpClientV2Support {
 
     "Connector" should {
-      "use basic auth" in {
+      "use internal auth" in {
         val hc = HeaderCarrier(authorization = None)
         val expectedResponse = SlackNotificationResponse(errors = Nil)
 
         stubFor(
-          post(urlEqualTo("/slack-notifications/notification"))
+          post(urlEqualTo("/slack-notifications/v2/notification"))
             .willReturn(
               aResponse()
                 .withStatus(200)
@@ -57,10 +58,9 @@ class SlackNotificationsConnectorSpec
 
         val configuration =
           Configuration(
-            "microservice.services.slack-notifications.basicAuth.username" -> "services-config",
-            "microservice.services.slack-notifications.basicAuth.password" -> "development",
             "microservice.services.slack-notifications.host" -> wireMockHost,
-            "microservice.services.slack-notifications.port" -> wireMockPort
+            "microservice.services.slack-notifications.port" -> wireMockPort,
+            "internal-auth.token"                            -> "token"
           )
 
         val connector = new SlackNotificationsConnector(
@@ -72,7 +72,10 @@ class SlackNotificationsConnectorSpec
         val slackMessage =
           SlackNotificationRequest(
             channelLookup = GithubTeam(teamName = "PlatOps"),
-            messageDetails = MessageDetails("text",  Nil)
+            displayName   = "BobbyWarnings",
+            emoji         = ":platops-bobby:",
+            text          = "text",
+            blocks        = Seq.empty[JsObject]
           )
 
         val response = connector.sendMessage(slackMessage)(hc).futureValue
@@ -80,21 +83,20 @@ class SlackNotificationsConnectorSpec
         response shouldBe expectedResponse
 
         verify(
-          postRequestedFor(urlEqualTo("/slack-notifications/notification"))
+          postRequestedFor(urlEqualTo("/slack-notifications/v2/notification"))
             .withRequestBody(equalToJson(
               """{
              "channelLookup": {
                "teamName": "PlatOps",
                "by"      : "github-team"
              },
-             "messageDetails": {
-               "text"       : "text",
-               "attachments": [],
-               "showAttachmentAuthor": false
-             }
+             "displayName": "BobbyWarnings",
+             "emoji": ":platops-bobby:",
+             "text": "text",
+             "blocks": []
            }"""
             ))
-            .withHeader("Authorization", equalTo("Basic c2VydmljZXMtY29uZmlnOmRldmVsb3BtZW50")) // service-configs:development base64 encoded
+            .withHeader("Authorization", equalTo("token"))
         )
       }
     }
