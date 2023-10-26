@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.implicits._
 import play.api.{Configuration, Logging}
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.BobbyRule
 import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
@@ -41,37 +41,34 @@ class BobbyWarningsNotifierService @Inject()(
   ec: ExecutionContext
 ) extends Logging {
 
-  implicit val hc = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
 
-  val futureDatedRuleWindow  = configuration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")
-  val endWindow = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
-  val lastRunPeriod = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
-  lazy val testTeam = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
+  private val futureDatedRuleWindow  = configuration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")
+  private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
+  private val lastRunPeriod          = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
+  private lazy val testTeam          = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
 
   def sendNotificationsForFutureDatedBobbyViolations(runTime: Instant): Future[Unit] = {
       runNotificationsIfInWindow(runTime) {
         for {
-          futureDatedRules         <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
+          futureDatedRules          <- bobbyRulesService.findAllRules().map(_.libraries.filter { rule =>
                                         rule.from.toInstant.isAfter(runTime) && rule.from.toInstant.isBefore(endWindow)
                                       })
-          _                        = logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [${futureDatedRuleWindow}] to send slack notifications for.")
-          rulesWithAffectedServices     <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
+          _                         =  logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [$futureDatedRuleWindow] to send slack notifications for.")
+          rulesWithAffectedServices <- futureDatedRules.foldLeftM{List.empty[(Team, (Service,BobbyRule))]}{ (acc, rule) =>
                                            serviceDependencies.getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
                                              .map(sds => acc ++ sds.flatMap(sd => sd.teams.map(team => (team, (sd.service, rule)))))
                                          }
           grouped: List[(Team, List[(Service, BobbyRule)])]
-                                  = rulesWithAffectedServices.groupMap(_._1)(_._2).toList
-          slackResponses           <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
-                                        case (acc,(team, drs)) =>
-                                          val message = MessageDetails(
-                                            text = s"Hello ${team.teamName}, please be aware that the following builds will fail soon because of new Bobby Rules:"
-                                          , attachments =
-                                              drs.map(dr => Attachment(s"`${dr._1.serviceName}` will fail from *${dr._2.from}* with dependency on ${dr._2.organisation}.${dr._2.name} ${dr._2.range} - see " +
-                                               url"https://catalogue.tax.service.gov.uk/repositories/${dr._1.serviceName}#environmentTabs"))
-                                          )
-                                          slackNotificationsConnector.sendMessage(SlackNotificationRequest(GithubTeam(testTeam.getOrElse(team.teamName)), message)).map(resp => acc :+ (team, resp))
+                                    =  rulesWithAffectedServices.groupMap(_._1)(_._2).toList
+          slackResponses            <- grouped.foldLeftM{List.empty[(Team,SlackNotificationResponse)]}{
+                                         case (acc,(team, drs)) =>
+                                           val channelLookup = GithubTeam(testTeam.getOrElse(team.teamName))
+                                           val request = SlackNotificationRequest.bobbyWarning(channelLookup, team.teamName, drs)
+
+                                           slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (team, resp))
                                        }
           _                         <- reportOnSlackResponses(slackResponses)
           _                         <- bobbyWarningsRepository.setLastRunTime(runTime)
