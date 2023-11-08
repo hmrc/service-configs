@@ -30,18 +30,19 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class WebhookController @Inject()(
-  config                  : Configuration,
-  nginxConfig             : NginxConfig,
-  alertConfigService      : AlertConfigService,
-  appConfigService        : AppConfigService,
-  bobbyRulesService       : BobbyRulesService,
-  deploymentConfigService : DeploymentConfigService,
-  nginxService            : NginxService,
-  routesConfigService     : RoutesConfigService,
-  buildJobService         : BuildJobService,
-  dashboardService        : DashboardService,
-  outagePageService       : OutagePageService,
-  cc                      : ControllerComponents
+  config                   : Configuration,
+  nginxConfig              : NginxConfig,
+  alertConfigService       : AlertConfigService,
+  appConfigService         : AppConfigService,
+  bobbyRulesService        : BobbyRulesService,
+  deploymentConfigService  : DeploymentConfigService,
+  internalAuthConfigService: InternalAuthConfigService,
+  nginxService             : NginxService,
+  routesConfigService      : RoutesConfigService,
+  buildJobService          : BuildJobService,
+  dashboardService         : DashboardService,
+  outagePageService        : OutagePageService,
+  cc                       : ControllerComponents
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc)
@@ -71,6 +72,7 @@ class WebhookController @Inject()(
                                                      })
         case Push("bobby-config"        , "main") => EitherT.right[Unit](bobbyRulesService.update())
         case Push("build-jobs"          , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
+        case Push("internal-auth-config", "main") => EitherT.right[Unit](internalAuthConfigService.updateInternalAuth())
         case Push("grafana-dashboards"  , "main") => EitherT.right[Unit](dashboardService.updateGrafanaDashboards())
         case Push("kibana-dashboards"   , "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
         case Push(nginxConfig.configRepo, "main") => EitherT.right[Unit](nginxService.update(Environment.values))
