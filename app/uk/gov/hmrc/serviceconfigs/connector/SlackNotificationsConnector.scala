@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -42,7 +43,8 @@ class SlackNotificationsConnector @Inject()(
 
   private val internalAuthToken = configuration.get[String]("internal-auth.token")
 
-  def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] =
+  def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] = {
+    implicit val snrR: Reads[SlackNotificationResponse] = SlackNotificationResponse.reads
     httpClientV2
       .post(url"$serviceUrl/slack-notifications/v2/notification")
       .withBody(Json.toJson(message))
@@ -53,27 +55,29 @@ class SlackNotificationsConnector @Inject()(
           logger.error(s"Unable to notify ${message.channelLookup} on Slack", ex)
           Future.failed(ex)
       }
+  }
 }
 
-final case class SlackNotificationError (
- code   : String,
- message: String
+final case class SlackNotificationError(
+  code   : String,
+  message: String
 )
 
-object SlackNotificationError {
-  implicit val format: OFormat[SlackNotificationError] =
-    Json.format[SlackNotificationError]
-}
-
-final case class SlackNotificationResponse (
-  successfullySentTo: Seq[String]                  = Nil,
-  errors            : List[SlackNotificationError] = Nil
- ) {
-}
+final case class SlackNotificationResponse(
+  errors: List[SlackNotificationError]
+)
 
 object SlackNotificationResponse {
-  implicit val format: OFormat[SlackNotificationResponse] =
-    Json.format[SlackNotificationResponse]
+  val reads: Reads[SlackNotificationResponse] = {
+    implicit val sneReads: Reads[SlackNotificationError] =
+      ( (__ \ "code"   ).read[String]
+      ~ (__ \ "message").read[String]
+      )(SlackNotificationError.apply _)
+
+    (__ \ "errors")
+      .readWithDefault[List[SlackNotificationError]](List.empty)
+      .map(SlackNotificationResponse.apply)
+  }
 }
 
 final case class GithubTeam(
