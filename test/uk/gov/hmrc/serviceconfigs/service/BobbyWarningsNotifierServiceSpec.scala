@@ -78,7 +78,7 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
 
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
@@ -97,7 +97,7 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
 
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(Seq.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 

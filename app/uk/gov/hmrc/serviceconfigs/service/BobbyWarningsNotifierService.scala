@@ -83,7 +83,7 @@ class BobbyWarningsNotifierService @Inject()(
          if (response.errors.nonEmpty) {
            logger.warn(s"Sending Bobby Warning message to $team had errors ${response.errors.mkString(" : ")}")
          } else {
-           logger.info(s"Successfully sent Bobby Warning message to ${response.successfullySentTo}")
+           logger.info(s"Successfully sent Bobby Warning message to $team")
          }
      }
   }
