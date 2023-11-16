@@ -145,33 +145,35 @@ class WebhookControllerSpec
 
     implicit val as = ActorSystem()
 
-    val mockConfiguration             = mock[Configuration            ]
-    val mockNginxConfig               = mock[NginxConfig              ]
-    val mockAlertConfigService        = mock[AlertConfigService       ]
-    val mockAppConfigService          = mock[AppConfigService         ]
-    val mockBobbyRulesService         = mock[BobbyRulesService        ]
-    val mockDeploymentConfigService   = mock[DeploymentConfigService  ]
-    val mockInternalAuthConfigService = mock[InternalAuthConfigService]
-    val mockNginxService              = mock[NginxService             ]
-    val mockRoutesConfigService       = mock[RoutesConfigService      ]
-    val mockBuildJobService           = mock[BuildJobService          ]
-    val mockDashboardService          = mock[DashboardService         ]
-    val mockOutagePageService         = mock[OutagePageService        ]
+    val mockConfiguration               = mock[Configuration            ]
+    val mockNginxConfig                 = mock[NginxConfig              ]
+    val mockAlertConfigService          = mock[AlertConfigService       ]
+    val mockAppConfigService            = mock[AppConfigService         ]
+    val mockBobbyRulesService           = mock[BobbyRulesService        ]
+    val mockDeploymentConfigService     = mock[DeploymentConfigService  ]
+    val mockInternalAuthConfigService   = mock[InternalAuthConfigService]
+    val mockNginxService                = mock[NginxService             ]
+    val mockRoutesConfigService         = mock[RoutesConfigService      ]
+    val mockBuildJobService             = mock[BuildJobService          ]
+    val mockDashboardService            = mock[DashboardService         ]
+    val mockOutagePageService           = mock[OutagePageService        ]
+    val mockServiceManagerConfigService = mock[ServiceManagerConfigService]
 
     val controller = new WebhookController(
-      config                    = mockConfiguration,
-      nginxConfig               = mockNginxConfig,
-      alertConfigService        = mockAlertConfigService,
-      appConfigService          = mockAppConfigService,
-      bobbyRulesService         = mockBobbyRulesService,
-      deploymentConfigService   = mockDeploymentConfigService,
-      internalAuthConfigService = mockInternalAuthConfigService,
-      nginxService              = mockNginxService,
-      routesConfigService       = mockRoutesConfigService,
-      buildJobService           = mockBuildJobService,
-      dashboardService          = mockDashboardService,
-      outagePageService         = mockOutagePageService,
-      cc                        = stubControllerComponents()
+      config                      = mockConfiguration,
+      nginxConfig                 = mockNginxConfig,
+      alertConfigService          = mockAlertConfigService,
+      appConfigService            = mockAppConfigService,
+      bobbyRulesService           = mockBobbyRulesService,
+      deploymentConfigService     = mockDeploymentConfigService,
+      internalAuthConfigService   = mockInternalAuthConfigService,
+      nginxService                = mockNginxService,
+      routesConfigService         = mockRoutesConfigService,
+      buildJobService             = mockBuildJobService,
+      dashboardService            = mockDashboardService,
+      outagePageService           = mockOutagePageService,
+      serviceManagerConfigService = mockServiceManagerConfigService,
+      cc                          = stubControllerComponents()
     )
 
     def postWebhook(repository: String, branch: String): Future[Result] =
