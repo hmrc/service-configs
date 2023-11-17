@@ -30,17 +30,18 @@ import scala.concurrent.duration.DurationInt
 
 @Singleton
 class MissedWebhookEventsScheduler @Inject()(
-  schedulerConfigs        : SchedulerConfigs,
-  mongoLockRepository     : MongoLockRepository,
-  appConfigService        : AppConfigService,
-  bobbyRulesService       : BobbyRulesService,
-  buildJobService         : BuildJobService,
-  dashboardService        : DashboardService,
-  deploymentConfigService : DeploymentConfigService,
-  nginxService            : NginxService,
-  routesConfigService     : RoutesConfigService,
-  outagePageService       : OutagePageService,
-  timestampSupport        : TimestampSupport
+  schedulerConfigs           : SchedulerConfigs,
+  mongoLockRepository        : MongoLockRepository,
+  appConfigService           : AppConfigService,
+  bobbyRulesService          : BobbyRulesService,
+  buildJobService            : BuildJobService,
+  dashboardService           : DashboardService,
+  deploymentConfigService    : DeploymentConfigService,
+  nginxService               : NginxService,
+  routesConfigService        : RoutesConfigService,
+  serviceManagerConfigService: ServiceManagerConfigService,
+  outagePageService          : OutagePageService,
+  timestampSupport           : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -64,6 +65,7 @@ class MissedWebhookEventsScheduler @Inject()(
         _ <- accumulateErrors("AppConfigBaseUpdater"         , appConfigService.updateAppConfigBase())
         _ <- accumulateErrors("AppConfigCommonUpdater"       , appConfigService.updateAppConfigCommon())
         _ <- accumulateErrors("AppConfigEnvUpdater"          , appConfigService.updateAllAppConfigEnv())
+        _ <- accumulateErrors("update Service Manager Config", serviceManagerConfigService.update())
         _ <- accumulateErrors("BobbyRulesUpdater"            , bobbyRulesService.update())
         _ <- accumulateErrors("OutagePageUpdater"            , outagePageService.update())
       } yield logger.info("Finished updating incase of missed webhook event")

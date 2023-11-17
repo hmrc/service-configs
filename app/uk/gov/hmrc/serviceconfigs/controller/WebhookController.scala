@@ -30,18 +30,20 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class WebhookController @Inject()(
-  config                  : Configuration,
-  nginxConfig             : NginxConfig,
-  alertConfigService      : AlertConfigService,
-  appConfigService        : AppConfigService,
-  bobbyRulesService       : BobbyRulesService,
-  deploymentConfigService : DeploymentConfigService,
-  nginxService            : NginxService,
-  routesConfigService     : RoutesConfigService,
-  buildJobService         : BuildJobService,
-  dashboardService        : DashboardService,
-  outagePageService       : OutagePageService,
-  cc                      : ControllerComponents
+  config                     : Configuration,
+  nginxConfig                : NginxConfig,
+  alertConfigService         : AlertConfigService,
+  appConfigService           : AppConfigService,
+  bobbyRulesService          : BobbyRulesService,
+  deploymentConfigService    : DeploymentConfigService,
+  internalAuthConfigService  : InternalAuthConfigService,
+  nginxService               : NginxService,
+  routesConfigService        : RoutesConfigService,
+  buildJobService            : BuildJobService,
+  dashboardService           : DashboardService,
+  outagePageService          : OutagePageService,
+  serviceManagerConfigService: ServiceManagerConfigService,
+  cc                         : ControllerComponents
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc)
@@ -60,23 +62,25 @@ class WebhookController @Inject()(
   val processGithubWebhook =
     Action(parse.json[Push]){ implicit request =>
       (request.body match {
-        case Push("alert-config"        , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
-        case Push("app-config-base"     , "main") => EitherT.right[Unit](appConfigService.updateAppConfigBase())
-        case Push("app-config-common"   , "main") => EitherT.right[Unit](appConfigService.updateAppConfigCommon())
-        case Push(s"app-config-$x"      , "main") => EitherT.right[Unit](Environment.parse(x).traverse { env =>
-                                                       for {
-                                                         _ <- deploymentConfigService.update(env)
-                                                         _ <- appConfigService.updateAppConfigEnv(env)
-                                                       } yield ()
-                                                     })
-        case Push("bobby-config"        , "main") => EitherT.right[Unit](bobbyRulesService.update())
-        case Push("build-jobs"          , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
-        case Push("grafana-dashboards"  , "main") => EitherT.right[Unit](dashboardService.updateGrafanaDashboards())
-        case Push("kibana-dashboards"   , "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
-        case Push(nginxConfig.configRepo, "main") => EitherT.right[Unit](nginxService.update(Environment.values))
-        case Push("admin-frontend-proxy", "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
-        case Push("outage-pages",         "main") => EitherT.right[Unit](outagePageService.update())
-        case _                                    => EitherT.left[Unit](Future.unit)
+        case Push("alert-config"           , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
+        case Push("app-config-base"        , "main") => EitherT.right[Unit](appConfigService.updateAppConfigBase())
+        case Push("app-config-common"      , "main") => EitherT.right[Unit](appConfigService.updateAppConfigCommon())
+        case Push(s"app-config-$x"         , "main") => EitherT.right[Unit](Environment.parse(x).traverse { env =>
+                                                          for {
+                                                            _ <- deploymentConfigService.update(env)
+                                                            _ <- appConfigService.updateAppConfigEnv(env)
+                                                          } yield ()
+                                                        })
+        case Push("bobby-config"           , "main") => EitherT.right[Unit](bobbyRulesService.update())
+        case Push("build-jobs"             , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
+        case Push("internal-auth-config"   , "main") => EitherT.right[Unit](internalAuthConfigService.updateInternalAuth())
+        case Push("grafana-dashboards"     , "main") => EitherT.right[Unit](dashboardService.updateGrafanaDashboards())
+        case Push("kibana-dashboards"      , "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
+        case Push(nginxConfig.configRepo   , "main") => EitherT.right[Unit](nginxService.update(Environment.values))
+        case Push("admin-frontend-proxy"   , "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
+        case Push("outage-pages"           , "main") => EitherT.right[Unit](outagePageService.update())
+        case Push("service-manager-configs", "main") => EitherT.right[Unit](serviceManagerConfigService.update())
+        case _                                       => EitherT.left[Unit](Future.unit)
       }).fold(
         _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
       , _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")

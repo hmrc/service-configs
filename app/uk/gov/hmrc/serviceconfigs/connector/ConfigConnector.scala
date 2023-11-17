@@ -49,6 +49,9 @@ class ConfigConnector @Inject()(
   def applicationConf(serviceName: ServiceName, commitId: CommitId)(implicit hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/${serviceName.asString}/${commitId.asString}/conf/application.conf")
 
+  def serviceManagerConfig()(implicit hc: HeaderCarrier): Future[Option[String]] =
+    doCall(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/services.json")
+
   private def doCall(url: URL)(implicit hc: HeaderCarrier) =
     httpClientV2
       .get(url)
