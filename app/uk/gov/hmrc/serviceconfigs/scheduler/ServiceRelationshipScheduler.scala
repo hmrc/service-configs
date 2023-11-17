@@ -24,7 +24,6 @@ import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.ExecutionContext
 
 @Singleton
@@ -42,7 +41,7 @@ class ServiceRelationshipScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "ServiceRelationshipScheduler",
     schedulerConfig = schedulerConfigs.serviceRelationshipScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfigs.serviceRelationshipScheduler.interval.plus(1.minutes))
+    lock            = ScheduledLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfigs.serviceRelationshipScheduler.interval)
   ) {
     logger.info("Updating service relationships")
     for {

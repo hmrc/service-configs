@@ -26,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.service._
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
 
 @Singleton
 class MissedWebhookEventsScheduler @Inject()(
@@ -51,7 +50,7 @@ class MissedWebhookEventsScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "MissedWebhookEventsScheduler",
     schedulerConfig = schedulerConfigs.missedWebhookEventsScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "missed-webhook-events", timestampSupport, schedulerConfigs.missedWebhookEventsScheduler.interval.plus(1.minutes))
+    lock            = ScheduledLockService(mongoLockRepository, "missed-webhook-events", timestampSupport, schedulerConfigs.missedWebhookEventsScheduler.interval)
   ) {
     logger.info("Updating incase of missed webhook event")
     runAllAndFailWithFirstError(

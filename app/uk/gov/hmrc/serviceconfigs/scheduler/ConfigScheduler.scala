@@ -27,7 +27,6 @@ import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfi
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
 
 @Singleton
 class ConfigScheduler @Inject()(
@@ -46,7 +45,7 @@ class ConfigScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = TimePeriodLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval.plus(1.minutes))
+    lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval)
   ) {
     logger.info("Updating config")
     runAllAndFailWithFirstError(

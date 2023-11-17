@@ -24,7 +24,7 @@ import uk.gov.hmrc.serviceconfigs.config.SchedulerConfig
 import scala.concurrent.{ExecutionContext, Future}
 
 trait SchedulerUtils extends Logging {
-  def schedule(
+  private def schedule(
     label          : String
   , schedulerConfig: SchedulerConfig
   )(f: => Future[Unit]
@@ -57,7 +57,7 @@ trait SchedulerUtils extends Logging {
   def scheduleWithTimePeriodLock(
     label          : String
   , schedulerConfig: SchedulerConfig
-  , lock           : TimePeriodLockService
+  , lock           : ScheduledLockService
   )(f: => Future[Unit]
   )(implicit
     actorSystem         : ActorSystem,
@@ -65,7 +65,7 @@ trait SchedulerUtils extends Logging {
     ec                  : ExecutionContext
   ): Unit =
     schedule(label, schedulerConfig) {
-      lock.withRenewedLock(f).map {
+      lock.withLock(f).map {
         case Some(_) => logger.debug(s"$label finished - releasing lock")
         case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
       }
