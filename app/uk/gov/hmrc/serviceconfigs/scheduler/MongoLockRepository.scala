@@ -16,18 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
-import java.time.{Duration => JavaDuration}
-
-import uk.gov.hmrc.mongo.lock.Lock
 import com.google.inject.ImplementedBy
-import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Updates
 import play.api.Logger
-import uk.gov.hmrc.mongo.{MongoComponent, TimestampSupport}
 import uk.gov.hmrc.mongo.MongoUtils.DuplicateKey
+import uk.gov.hmrc.mongo.lock.Lock
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.{MongoComponent, TimestampSupport}
 
+import java.time.{Instant, Duration => JavaDuration}
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,7 +36,7 @@ trait LockRepository {
 
   def releaseLock(lockId: String, owner: String): Future[Unit]
 
-  def abandonLock(lockId: String): Future[Unit]
+  def abandonLock(lockId: String, expiry: Option[Instant]): Future[Unit]
 
   def refreshExpiry(lockId: String, owner: String, ttl: Duration): Future[Boolean]
 
@@ -99,21 +98,24 @@ class MongoLockRepository @Inject()(
     logger.debug(s"Releasing lock '$lockId' for '$owner'")
     collection
       .deleteOne(
-         and(
-           equal(Lock.id, lockId),
-           equal(Lock.owner, owner)
-         )
-       )
+        and(
+          equal(Lock.id, lockId),
+          equal(Lock.owner, owner)
+        )
+      )
       .toFuture()
       .map(_ => ())
   }
 
-  def abandonLock(lockId: String): Future[Unit] = {
-    logger.debug(s"Abandoning lock '$lockId'")
+  def abandonLock(lockId: String, expiry: Option[Instant]): Future[Unit] = {
+    logger.debug(s"Abandoning lock '$lockId'" + expiry.map(exp => s" and setting expiryTime to '$exp'").getOrElse(""))
+    val expiryUpdate = expiry.map(exp => Updates.set(Lock.expiryTime, exp)).toSeq
     collection
       .findOneAndUpdate(
         filter = equal(Lock.id, lockId),
-        update = Updates.set(Lock.owner, "abandoned")
+        update = Seq(
+          Updates.set(Lock.owner, "abandoned")
+        ) ++ expiryUpdate
       )
       .toFuture()
       .map(_ => ())
@@ -127,10 +129,10 @@ class MongoLockRepository @Inject()(
     collection
       .findOneAndUpdate(
         filter = and(
-                   equal(Lock.id, lockId),
-                   equal(Lock.owner, owner),
-                   gte(Lock.expiryTime, now)
-                 ),
+          equal(Lock.id, lockId),
+          equal(Lock.owner, owner),
+          gte(Lock.expiryTime, now)
+        ),
         update = Updates.set(Lock.expiryTime, expiryTime)
       )
       .toFutureOption()
@@ -157,7 +159,7 @@ class MongoLockRepository @Inject()(
           equal(Lock.owner, owner),
           gt(Lock.expiryTime, timestampSupport.timestamp())
         )
-       )
+      )
       .toFuture()
       .map(_.nonEmpty)
 }

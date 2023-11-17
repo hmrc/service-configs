@@ -25,7 +25,6 @@ import uk.gov.hmrc.serviceconfigs.service.BobbyWarningsNotifierService
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
 
 @Singleton
 class BobbyWarningsNotifierScheduler @Inject()(
@@ -43,7 +42,7 @@ class BobbyWarningsNotifierScheduler @Inject()(
   scheduleWithTimePeriodLock(
     label = "BobbyWarningsNotifier",
     schedulerConfig = schedulerConfigs.bobbyWarningsNotifierScheduler,
-    lock = TimePeriodLockService(mongoLockRepository, "bobby-warnings-scheduler", timestampSupport, schedulerConfigs.bobbyWarningsNotifierScheduler.interval.plus(1.minutes))
+    lock = ScheduledLockService(mongoLockRepository, "bobby-warnings-scheduler", timestampSupport, schedulerConfigs.bobbyWarningsNotifierScheduler.interval)
   ) {
     logger.info("Running Bobby Warnings Notifier")
     bobbyWarningsNotifierService.sendNotificationsForFutureDatedBobbyViolations(Instant.now())
