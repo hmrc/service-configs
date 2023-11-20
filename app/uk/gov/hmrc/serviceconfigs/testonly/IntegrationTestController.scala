@@ -25,7 +25,7 @@ import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, LatestConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -38,6 +38,7 @@ class IntegrationTestController @Inject()(
   deploymentConfigRepo         : DeploymentConfigRepository,
   deploymentConfigSnapshotRepo : DeploymentConfigSnapshotRepository,
   appliedConfigRepository      : AppliedConfigRepository,
+  latestConfigRepository       : LatestConfigRepository,
   mcc                          : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
@@ -51,6 +52,7 @@ class IntegrationTestController @Inject()(
       case "deploymentConfigs"         => deploymentConfigRepo
       case "deploymentConfigHistories" => deploymentConfigSnapshotRepo
       case "appliedConfig"             => appliedConfigRepository
+      case "latestConfig"              => latestConfigRepository
     })
     .collection.deleteMany(BsonDocument()).toFuture()
     .map(_ => NoContent)
@@ -66,6 +68,7 @@ class IntegrationTestController @Inject()(
       case "deploymentConfigs"         => addDeploymentConfigs(json)
       case "deploymentConfigHistories" => addDeploymentConfigHistories(json)
       case "appliedConfig"             => addAppliedConfig(json)
+      case "latestConfig"              => addLatestConfig(json)
     }).map(_.fold(e => BadRequest(e), _ => NoContent))
   }
 
@@ -126,9 +129,15 @@ class IntegrationTestController @Inject()(
   }
 
   private def addAppliedConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val deploymentConfigSnapshotReads: Reads[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
+    implicit val appliedConfigReads: Reads[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
     validateJson[Seq[AppliedConfigRepository.AppliedConfig]](json)
       .traverse[Future, JsObject, Unit](configEntries => appliedConfigRepository.collection.insertMany(configEntries).toFuture().map(_ => ()))
+  }
+
+  private def addLatestConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
+    implicit val latestConfigReads: Reads[LatestConfigRepository.LatestConfig] = LatestConfigRepository.mongoFormats
+    validateJson[Seq[LatestConfigRepository.LatestConfig]](json)
+      .traverse[Future, JsObject, Unit](configEntries => latestConfigRepository.collection.insertMany(configEntries).toFuture().map(_ => ()))
   }
 
   case class SlugInfoWithFlags(
