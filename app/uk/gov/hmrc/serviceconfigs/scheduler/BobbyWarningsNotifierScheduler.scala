@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import akka.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.BobbyWarningsNotifierService
 
