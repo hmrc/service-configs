@@ -20,6 +20,7 @@ import akka.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
 import play.api.Logging
 import uk.gov.hmrc.mongo.TimestampSupport
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 

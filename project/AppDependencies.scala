@@ -4,7 +4,7 @@ import sbt._
 
 object AppDependencies {
 
-  val hmrcMongoVersion     = "1.3.0"
+  val hmrcMongoVersion     = "1.5.0"
   val bootstrapPlayVersion = "7.22.0"
   val jacksonVersion       = "2.12.7"
 
