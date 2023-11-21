@@ -26,6 +26,7 @@ import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{Future, ExecutionContext}
+import uk.gov.hmrc.serviceconfigs.persistence.KibanaDashboardRepository
 
 @Singleton
 class ConfigLocationController @Inject()(
@@ -36,6 +37,7 @@ class ConfigLocationController @Inject()(
 , alertEnvironmentHandlerRepository: AlertEnvironmentHandlerRepository
 , serviceManagerConfigRepository   : ServiceManagerConfigRepository
 , outagePageRepository             : OutagePageRepository
+, upscanConfigRepository           : UpscanConfigRepository
 ,  mcc: MessagesControllerComponents
 )(implicit
   ec: ExecutionContext
@@ -59,12 +61,16 @@ class ConfigLocationController @Inject()(
       kibana         <- kibanaDashboardRepository.findByService(serviceName)
       grafana        <- grafanaDashboardRepository.findByService(serviceName)
       alerts         <- alertEnvironmentHandlerRepository.findByServiceName(serviceName)
+      upscan         <- upscanConfigRepository
+                          .findByService(serviceName)
+                          .map(_.map(u => (s"upscan-${u.environment.asString}" -> Some(u.location))).toMap)
       outagePages    <- outagePageRepository
                           .findByServiceName(serviceName)
                           .map(_.getOrElse(Nil).map(env => (s"outage-page-${env.asString}" -> Some(s"https://github.com/hmrc/outage-pages/blob/main/${env.asString}"))).toMap)
       results        =  appConfigBase ++
                         appConfigEnv  ++
                         outagePages   ++
+                        upscan        ++
                         Map(
                           "build-jobs"             -> buildJobs.map(_.location)
                         , "service-manager-config" -> smConfig.map(_.location)

@@ -43,6 +43,7 @@ class WebhookController @Inject()(
   dashboardService           : DashboardService,
   outagePageService          : OutagePageService,
   serviceManagerConfigService: ServiceManagerConfigService,
+  upscanConfigService        : UpscanConfigService,
   cc                         : ControllerComponents
 )(implicit
   ec: ExecutionContext
@@ -80,6 +81,7 @@ class WebhookController @Inject()(
         case Push("admin-frontend-proxy"   , "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
         case Push("outage-pages"           , "main") => EitherT.right[Unit](outagePageService.update())
         case Push("service-manager-configs", "main") => EitherT.right[Unit](serviceManagerConfigService.update())
+        case Push("upscan-app-config"      , "main") => EitherT.right[Unit](upscanConfigService.update())
         case _                                       => EitherT.left[Unit](Future.unit)
       }).fold(
         _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
