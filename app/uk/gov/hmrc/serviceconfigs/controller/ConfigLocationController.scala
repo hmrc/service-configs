@@ -63,7 +63,7 @@ class ConfigLocationController @Inject()(
       alerts         <- alertEnvironmentHandlerRepository.findByServiceName(serviceName)
       upscan         <- upscanConfigRepository
                           .findByService(serviceName)
-                          .map(_.map(u => (s"upscan-${u.environment.asString}" -> Some(u.location))).toMap)
+                          .map(_.map(u => (s"upscan-config-${u.environment.asString}" -> Some(u.location))).toMap)
       outagePages    <- outagePageRepository
                           .findByServiceName(serviceName)
                           .map(_.getOrElse(Nil).map(env => (s"outage-page-${env.asString}" -> Some(s"https://github.com/hmrc/outage-pages/blob/main/${env.asString}"))).toMap)
