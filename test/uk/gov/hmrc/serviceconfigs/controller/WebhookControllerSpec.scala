@@ -145,19 +145,20 @@ class WebhookControllerSpec
 
     implicit val as = ActorSystem()
 
-    val mockConfiguration               = mock[Configuration            ]
-    val mockNginxConfig                 = mock[NginxConfig              ]
-    val mockAlertConfigService          = mock[AlertConfigService       ]
-    val mockAppConfigService            = mock[AppConfigService         ]
-    val mockBobbyRulesService           = mock[BobbyRulesService        ]
-    val mockDeploymentConfigService     = mock[DeploymentConfigService  ]
-    val mockInternalAuthConfigService   = mock[InternalAuthConfigService]
-    val mockNginxService                = mock[NginxService             ]
-    val mockRoutesConfigService         = mock[RoutesConfigService      ]
-    val mockBuildJobService             = mock[BuildJobService          ]
-    val mockDashboardService            = mock[DashboardService         ]
-    val mockOutagePageService           = mock[OutagePageService        ]
+    val mockConfiguration               = mock[Configuration              ]
+    val mockNginxConfig                 = mock[NginxConfig                ]
+    val mockAlertConfigService          = mock[AlertConfigService         ]
+    val mockAppConfigService            = mock[AppConfigService           ]
+    val mockBobbyRulesService           = mock[BobbyRulesService          ]
+    val mockDeploymentConfigService     = mock[DeploymentConfigService    ]
+    val mockInternalAuthConfigService   = mock[InternalAuthConfigService  ]
+    val mockNginxService                = mock[NginxService               ]
+    val mockRoutesConfigService         = mock[RoutesConfigService        ]
+    val mockBuildJobService             = mock[BuildJobService            ]
+    val mockDashboardService            = mock[DashboardService           ]
+    val mockOutagePageService           = mock[OutagePageService          ]
     val mockServiceManagerConfigService = mock[ServiceManagerConfigService]
+    val mockUpscanConfigService         = mock[UpscanConfigService        ]
 
     val controller = new WebhookController(
       config                      = mockConfiguration,
@@ -173,6 +174,7 @@ class WebhookControllerSpec
       dashboardService            = mockDashboardService,
       outagePageService           = mockOutagePageService,
       serviceManagerConfigService = mockServiceManagerConfigService,
+      upscanConfigService         = mockUpscanConfigService,
       cc                          = stubControllerComponents()
     )
 

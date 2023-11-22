@@ -63,6 +63,9 @@ class ConfigAsCodeConnector @Inject()(
   def streamFrontendRoutes(): Future[ZipInputStream] =
     streamGithub(RepoName("mdtp-frontend-routes"))
 
+  def streamUpscanAppConfig(): Future[ZipInputStream] =
+    streamGithub(RepoName("upscan-app-config"))
+
   def getLatestCommitId(repo: RepoName): Future[CommitId] = {
     implicit val cir = Reads.at[String]((__ \ "sha")).map(CommitId.apply)
     httpClientV2

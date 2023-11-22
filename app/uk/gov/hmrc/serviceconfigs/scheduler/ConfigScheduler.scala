@@ -23,7 +23,7 @@ import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
-import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService}
+import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, UpscanConfigService}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -35,6 +35,7 @@ class ConfigScheduler @Inject()(
   mongoLockRepository               : MongoLockRepository,
   alertConfigService                : AlertConfigService,
   internalAuthConfigService         : InternalAuthConfigService,
+  upscanConfigService               : UpscanConfigService,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
   timestampSupport                  : TimestampSupport
 )(implicit
@@ -54,6 +55,7 @@ class ConfigScheduler @Inject()(
         _ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
         _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
+        - <- accumulateErrors("update Upscan Config", upscanConfigService.update())
       } yield logger.info("Finished updating config")
     )
   }
