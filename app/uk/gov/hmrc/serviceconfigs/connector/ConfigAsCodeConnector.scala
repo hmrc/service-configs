@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import akka.stream.Materializer
-import akka.stream.scaladsl.StreamConverters
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl.StreamConverters
 import play.api.Logging
 import play.api.libs.json.{Reads, __}
 import uk.gov.hmrc.http.client.HttpClientV2

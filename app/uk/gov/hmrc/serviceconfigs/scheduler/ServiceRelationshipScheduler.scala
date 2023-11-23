@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
 import play.api.Logging
 import uk.gov.hmrc.mongo.TimestampSupport

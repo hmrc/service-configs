@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation, ApiParam}
 import play.api.libs.json.{Json, OWrites}
 import play.api.mvc.MessagesControllerComponents
 import play.api.mvc._
@@ -28,7 +27,6 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Service Relationships")
 class ServiceRelationshipController @Inject()(
   serviceRelationshipService: ServiceRelationshipService,
   mcc: MessagesControllerComponents
@@ -36,13 +34,7 @@ class ServiceRelationshipController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  @ApiOperation(
-    value = "Retrieves the inbound and outbound services for a given service",
-    notes = "Relationships determined by config under microservice.services key in application.conf"
-  )
-  def serviceRelationships(
-    @ApiParam(value = "The service name of the given service") serviceName: ServiceName
-  ): Action[AnyContent] = Action.async {
+  def serviceRelationships(serviceName: ServiceName): Action[AnyContent] = Action.async {
     implicit val serviceRelationshipWrites: OWrites[ServiceRelationships] = ServiceRelationships.writes
     serviceRelationshipService.getServiceRelationships(serviceName).map { res =>
       Ok(Json.toJson(res))

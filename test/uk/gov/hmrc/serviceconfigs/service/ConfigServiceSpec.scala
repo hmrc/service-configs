@@ -56,7 +56,6 @@ class ConfigServiceSpec
         "microservice.services.artefact-processor.host" -> wireMockHost
       , "microservice.services.artefact-processor.port" -> wireMockPort
       , "play.http.requestHandler"                      -> "play.api.http.DefaultHttpRequestHandler"
-      , "metrics.jvm"                                   -> false
       , "mongodb.uri"                                   -> mongoUri
       , "github.open.api.rawurl"                        -> s"http://$wireMockHost:$wireMockPort"
       )

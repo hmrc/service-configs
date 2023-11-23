@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation, ApiParam}
-
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Json, OFormat}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
@@ -28,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Nginx Routes")
 class NginxController @Inject()(
   db: FrontendRouteRepository,
   mcc: MessagesControllerComponents
@@ -38,13 +35,7 @@ class NginxController @Inject()(
 
   implicit val formats: OFormat[FrontendRoutes] = FrontendRoutes.formats
 
-  @ApiOperation(
-    value = "Retrieves nginx route config for the given service",
-    notes = """The nginx rules are extracted from the mdtp-frontend-routes repo"""
-  )
-  def searchByServiceName(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName
-  ): Action[AnyContent] =
+  def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       db.findByService(serviceName)
         .map(FrontendRoutes.fromMongo)
@@ -52,13 +43,7 @@ class NginxController @Inject()(
         .map(Ok(_))
     }
 
-  @ApiOperation(
-    value = "Retrieves nginx route config for the given environment",
-    notes = """The nginx rules are extracted from the mdtp-frontend-routes repo"""
-  )
-  def searchByEnvironment(
-    @ApiParam(value = "The environment to query") environment: Environment
-  ): Action[AnyContent] =
+  def searchByEnvironment(environment: Environment): Action[AnyContent] =
     Action.async {
       db.findByEnvironment(environment)
         .map(FrontendRoutes.fromMongo)
@@ -66,13 +51,7 @@ class NginxController @Inject()(
         .map(Ok(_))
     }
 
-  @ApiOperation(
-    value = "Retrieves nginx route config after doing a search for the given frontEnd path",
-    notes = """The nginx rules are extracted from the mdtp-frontend-routes repo"""
-  )
-  def searchByFrontendPath(
-    @ApiParam(value = "The front end path to search by") frontendPath: String
-  ): Action[AnyContent] =
+  def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
     Action.async {
       db.searchByFrontendPath(frontendPath)
         .map(FrontendRoutes.fromMongo)
@@ -80,10 +59,6 @@ class NginxController @Inject()(
         .map(Ok(_))
     }
 
-  @ApiOperation(
-    value = "Retrieves list of frontend services",
-    notes = """All the services in the mdtp-frontend-routes repo are defined as frontend services"""
-  )
   def allFrontendServices(): Action[AnyContent] =
     Action.async {
       db.findAllFrontendServices()

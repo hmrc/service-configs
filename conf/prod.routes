@@ -1,3 +1,2 @@
--> /service-configs/swagger/ swagger.Routes
 -> /service-configs/         app.Routes
 -> /                         health.Routes

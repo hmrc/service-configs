@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation, ApiParam}
-
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
@@ -28,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.{KibanaDashboardRepository, Grafan
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Dashboard")
 class DashboardController @Inject()(
   kibanaDashboardRepository: KibanaDashboardRepository,
   grafanaDashboardRepository: GrafanaDashboardRepository,
@@ -39,26 +36,14 @@ class DashboardController @Inject()(
 
   implicit val dashboardFormat = Dashboard.format
 
-  @ApiOperation(
-    value = "Retrieves Grafana Dashboard config for the given service",
-    notes = "Grafana Dashboard config is extracted fromt the grafana-dashboards repo"
-  )
-  def grafana(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName
-  ): Action[AnyContent] =
+  def grafana(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       grafanaDashboardRepository
         .findByService(serviceName)
         .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
     }
 
-  @ApiOperation(
-    value = "Retrieves Kibana Dashboard config for the given service",
-    notes = "Kibana Dashboard config is extracted fromt the kibana-dashboards repo"
-  )
-  def kibana(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName
-  ): Action[AnyContent] =
+  def kibana(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       kibanaDashboardRepository
         .findByService(serviceName)

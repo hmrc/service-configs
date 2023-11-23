@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.Api
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
@@ -28,7 +27,6 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Deployment Config")
 class DeploymentConfigController @Inject()(
   deploymentConfigService           : DeploymentConfigService,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation}
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
@@ -27,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.service.BobbyRulesService
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Bobby Rules")
 class BobbyRulesController @Inject()(
   bobbyRulesService: BobbyRulesService,
   mcc              : MessagesControllerComponents
@@ -37,10 +35,6 @@ class BobbyRulesController @Inject()(
 
   private implicit val bdf = BobbyRules.apiFormat
 
-  @ApiOperation(
-    value = "Retrieve the current set of bobby rules",
-    notes = """Parses the list of bobby rules from the github bobby-config repo"""
-  )
   val allRules: Action[AnyContent] =
     Action.async {
       bobbyRulesService.findAllRules()
