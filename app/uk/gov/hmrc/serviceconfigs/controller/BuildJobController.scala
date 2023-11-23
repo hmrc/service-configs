@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation, ApiParam}
-
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
@@ -28,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Build Job")
 class BuildJobController @Inject()(
   buildJobRepository: BuildJobRepository,
   mcc: MessagesControllerComponents
@@ -38,13 +35,7 @@ class BuildJobController @Inject()(
 
   implicit val buildJobFormat = BuildJob.format
 
-  @ApiOperation(
-    value = "Retrieves Build Jobs config for the given service",
-    notes = "Build Job config is extracted fromt the build-jobs repo"
-  )
-  def buildJob(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName
-  ): Action[AnyContent] =
+  def buildJob(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       buildJobRepository
         .findByService(serviceName)

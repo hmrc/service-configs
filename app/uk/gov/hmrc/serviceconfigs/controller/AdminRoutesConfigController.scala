@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import io.swagger.annotations.{Api, ApiOperation, ApiParam}
-
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
@@ -28,7 +26,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
 import scala.concurrent.ExecutionContext
 
 @Singleton
-@Api("Admin Frontend Routes")
 class AdminRoutesConfigController @Inject()(
   db : AdminFrontendRouteRepository,
   mcc: MessagesControllerComponents
@@ -38,23 +35,13 @@ class AdminRoutesConfigController @Inject()(
 
   implicit val adminFrontendRouteFormat = AdminFrontendRoute.format
 
-  @ApiOperation(
-    value = "Retrieves nginx route config for the given service",
-    notes = "YAML config is extracted from the admin-frontend-proxy repo"
-  )
-  def searchByServiceName(
-    @ApiParam(value = "The service name to query") serviceName: ServiceName
-  ): Action[AnyContent] =
+  def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
       db.findByService(serviceName)
         .map(Json.toJson(_))
         .map(Ok(_))
     }
 
-  @ApiOperation(
-    value = "Retrieves list of admin frontend services",
-    notes = "YAML config is extracted from the admin-frontend-proxy repo"
-  )
   def allAdminFrontendServices(): Action[AnyContent] =
     Action.async {
       implicit val snf = ServiceName.format

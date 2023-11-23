@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import org.mockito.scalatest.MockitoSugar
 import org.mongodb.scala.ClientSession
 import org.scalatest.matchers.should.Matchers

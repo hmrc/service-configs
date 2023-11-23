@@ -73,10 +73,9 @@ class BobbyWarningsNotifierServiceSpec
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
-
-
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
@@ -93,9 +92,9 @@ class BobbyWarningsNotifierServiceSpec
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
 
-
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib", range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib2", range)).thenReturn(Future.successful(Seq(sd2)))
+      when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
 
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 

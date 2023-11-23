@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.scheduler
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}

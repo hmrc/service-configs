@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers

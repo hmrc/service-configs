@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.notification
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import cats.Applicative
 import cats.data.EitherT
 import cats.implicits._

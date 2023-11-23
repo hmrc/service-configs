@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import akka.actor.ActorSystem
 import cats.implicits._
+import org.apache.pekko.actor.ActorSystem
 import org.mongodb.scala.ClientSession
 import org.mongodb.scala.bson.{BsonDocument, BsonString}
 import org.mongodb.scala.model.{Aggregates, FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, InsertOneModel, Sorts}

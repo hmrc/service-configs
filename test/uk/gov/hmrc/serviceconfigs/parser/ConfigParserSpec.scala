@@ -62,12 +62,12 @@ class ConfigParserSpec
 
     "handle unresolved substitutions" in {
       val config = ConfigParser.parseConfString(s"""
-        |param1=$${akka.http.version}
+        |param1=$${pekko.http.version}
         |param2=$${play.http.parser.maxMemoryBuffer}
         |""".stripMargin)
 
       ConfigParser.flattenConfigToDotNotation(config) shouldBe Map(
-        "param1" -> ConfigValue(s"$${akka.http.version}"               , ConfigValueType.Unmerged),
+        "param1" -> ConfigValue(s"$${pekko.http.version}"              , ConfigValueType.Unmerged),
         "param2" -> ConfigValue(s"$${play.http.parser.maxMemoryBuffer}", ConfigValueType.Unmerged)
       )
     }
