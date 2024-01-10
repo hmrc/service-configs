@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.bson.conversions.Bson
+
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, empty, equal, in}

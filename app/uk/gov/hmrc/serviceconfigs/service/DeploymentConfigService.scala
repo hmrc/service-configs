@@ -21,17 +21,19 @@ import com.google.common.io.CharStreams
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigV2, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, DeploymentConfigRepositoryV2, YamlToBson}
 
 import javax.inject.{Inject, Singleton}
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import org.mongodb.scala.bson.BsonDocument
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 
 @Singleton
 class DeploymentConfigService @Inject()(
   deploymentConfigConnector : DeploymentConfigConnector,
+  deploymentConfigRepositoryV2: DeploymentConfigRepositoryV2,
   deploymentConfigRepository: DeploymentConfigRepository
 )(implicit
   ec: ExecutionContext
@@ -55,6 +57,9 @@ class DeploymentConfigService @Inject()(
 
   def find(environments: Seq[Environment], serviceName: Option[ServiceName]): Future[Seq[DeploymentConfig]] =
       deploymentConfigRepository.find(environments, serviceName)
+
+  def findAll(nameFuzzySearch: Option[ServiceName], repos: Option[Seq[Repo]], sort: Option[String]): Future[Seq[DeploymentConfigV2]] =
+    deploymentConfigRepositoryV2.getDeploymentConfigs(nameFuzzySearch, repos, sort)
 }
 
 object DeploymentConfigService extends Logging {
