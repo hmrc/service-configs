@@ -19,17 +19,19 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
+import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigController @Inject()(
   deploymentConfigService           : DeploymentConfigService,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
+  teamsAndRepositoriesConnector     : TeamsAndRepositoriesConnector,
   cc                                : ControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(cc) {
@@ -46,6 +48,26 @@ class DeploymentConfigController @Inject()(
           case _        => Ok(Json.toJson(deploymentConfigs))
         })
     }
+
+  def deploymentConfigGrouped(serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String], sort: Option[String]): Action[AnyContent] =
+    Action.async {
+
+      val sn: Option[ServiceName] = serviceName.map(_.trimmed).filter(_.asString.nonEmpty)
+      val tn : Option[TeamName]   = teamName.map(_.trimmed).filter(_.asString.nonEmpty)
+
+      val getReposByTeam = tn match {
+        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = repoType).map(Some(_))
+        case None        => Future.successful(None)
+      }
+
+      for {
+        teamRepos   <- getReposByTeam
+        configs     <- deploymentConfigService.findGrouped(sn, teamRepos, sort)
+      } yield  {
+        Ok(Json.toJson(configs))
+      }
+    }
+
 
   def cleanupDuplicates(): Action[AnyContent] =
     Action {

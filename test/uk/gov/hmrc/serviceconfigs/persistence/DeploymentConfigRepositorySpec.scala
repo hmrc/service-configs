@@ -20,7 +20,10 @@ import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
+import uk.gov.hmrc.serviceconfigs.model.Environment.{Development, QA}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigGrouped, DeploymentEnvironment, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.persistence.model.Sort
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -95,6 +98,138 @@ class DeploymentConfigRepositorySpec
 
       repository.find(serviceName = Some(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
     }
+
+    "find all configs and group" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+
+      insert(mkDeploymentConfig(serviceName1, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName1, Environment.QA)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.QA)).futureValue
+
+      val expectedResults = List(
+        DeploymentConfigGrouped(
+          ServiceName("serviceName1"),
+            List(
+              DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1),
+              DeploymentEnvironment(Some("artefactName"), QA, "public", "microservice", 1, 1)
+            )
+        ),
+        DeploymentConfigGrouped(
+          ServiceName("serviceName2"),
+            List(
+              DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1),
+              DeploymentEnvironment(Some("artefactName"), QA, "public", "microservice", 1, 1)
+            )
+        )
+      )
+
+      repository.findGrouped(None, None, None).futureValue shouldBe expectedResults
+    }
+
+    "find all configs and group filtering by service name" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+
+      insert(mkDeploymentConfig(serviceName1, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName1, Environment.QA)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.QA)).futureValue
+
+      val expectedResults = List(
+        DeploymentConfigGrouped(
+          ServiceName("serviceName1"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1),
+            DeploymentEnvironment(Some("artefactName"), QA, "public", "microservice", 1, 1)
+          )
+        )
+      )
+
+      repository.findGrouped(Some(serviceName1), None, None).futureValue shouldBe expectedResults
+    }
+
+    "find all configs and group filtering by partial service name" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+      val serviceName3 = ServiceName("otherServiceName")
+
+      insert(mkDeploymentConfig(serviceName1, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName3, Environment.Development)).futureValue
+
+      val expectedResults = List(
+        DeploymentConfigGrouped(
+          ServiceName("serviceName1"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+           )
+        ),
+        DeploymentConfigGrouped(
+          ServiceName("serviceName2"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+          )
+        )
+      )
+
+      repository.findGrouped(Some(ServiceName("serviceName")), None, None).futureValue shouldBe expectedResults
+    }
+
+    "find all configs and group filtering by provided repo list" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+      val serviceName3 = ServiceName("otherServiceName")
+
+      insert(mkDeploymentConfig(serviceName1, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName3, Environment.Development)).futureValue
+
+      val expectedResults = List(
+        DeploymentConfigGrouped(
+          ServiceName("serviceName1"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+          )
+        ),
+        DeploymentConfigGrouped(
+          ServiceName("serviceName2"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+          )
+        )
+      )
+
+      repository.findGrouped(None, Some(Seq(Repo("serviceName1"), Repo("serviceName2"))), None).futureValue shouldBe expectedResults
+    }
+
+    "find all configs, group by service name and sort by given param" in {
+      val serviceName1 = ServiceName("serviceName1")
+      val serviceName2 = ServiceName("serviceName2")
+
+      insert(mkDeploymentConfig(serviceName1, Environment.Development)).futureValue
+      insert(mkDeploymentConfig(serviceName2, Environment.Development)).futureValue
+
+      val expectedResults = List(
+        DeploymentConfigGrouped(
+          ServiceName("serviceName2"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+          )
+        ),
+        DeploymentConfigGrouped(
+          ServiceName("serviceName1"),
+          List(
+            DeploymentEnvironment(Some("artefactName"), Development, "public", "microservice", 1, 1)
+          )
+        )
+      )
+
+      repository.findGrouped(None, None, Some("applicationName.dsc")).futureValue shouldBe expectedResults
+    }
+
+
   }
 
   def mkDeploymentConfig(serviceName: ServiceName, environment: Environment): DeploymentConfig =
