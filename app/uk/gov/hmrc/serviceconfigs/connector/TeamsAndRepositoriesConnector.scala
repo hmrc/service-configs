@@ -16,15 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import play.api.cache.AsyncCacheApi
-
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{ServiceType, Tag, TeamName}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 object TeamsAndRepositoriesConnector {
@@ -59,6 +58,6 @@ class TeamsAndRepositoriesConnector @Inject()(
   , tags       : Seq[Tag]             = Nil
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}")
+      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
 }

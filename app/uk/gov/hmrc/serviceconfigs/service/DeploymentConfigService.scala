@@ -18,21 +18,22 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
+import org.mongodb.scala.bson.BsonDocument
 import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
 
 import javax.inject.{Inject, Singleton}
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
-import org.mongodb.scala.bson.BsonDocument
 
 @Singleton
 class DeploymentConfigService @Inject()(
-  deploymentConfigConnector : DeploymentConfigConnector,
-  deploymentConfigRepository: DeploymentConfigRepository
+                                         deploymentConfigConnector : DeploymentConfigConnector,
+                                         deploymentConfigRepository: DeploymentConfigRepository
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
@@ -53,12 +54,13 @@ class DeploymentConfigService @Inject()(
       _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
-  def find(environments: Seq[Environment], serviceName: Option[ServiceName]): Future[Seq[DeploymentConfig]] =
-      deploymentConfigRepository.find(environments, serviceName)
+  def find(environments: Seq[Environment], serviceName: Option[ServiceName], repos: Option[Seq[Repo]]): Future[Seq[DeploymentConfig]] =
+      deploymentConfigRepository.find(environments, serviceName, repos)
 }
 
 object DeploymentConfigService extends Logging {
   import uk.gov.hmrc.serviceconfigs.util.ZipUtil.NonClosableInputStream
+
   import java.io.InputStreamReader
   import java.util.zip.ZipInputStream
   import scala.jdk.CollectionConverters._

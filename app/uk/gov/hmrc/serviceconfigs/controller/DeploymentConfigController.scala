@@ -19,17 +19,19 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
+import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigController @Inject()(
   deploymentConfigService           : DeploymentConfigService,
   deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
+  teamsAndRepositoriesConnector     : TeamsAndRepositoriesConnector,
   cc                                : ControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(cc) {
@@ -37,15 +39,26 @@ class DeploymentConfigController @Inject()(
   implicit val dcw = DeploymentConfig.apiFormat
   implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
-  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName]): Action[AnyContent] =
+  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
     Action.async {
-      deploymentConfigService.find(environments, serviceName)
-        .map(deploymentConfigs => (deploymentConfigs, serviceName) match {
+
+      val getReposByTeam = teamName match {
+        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some(_))
+        case None        => Future.successful(None)
+      }
+
+      for {
+        reposByTeam       <- getReposByTeam
+        deploymentConfigs <- deploymentConfigService.find(environments, serviceName, reposByTeam)
+      } yield {
+        (deploymentConfigs, serviceName) match {
           case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
-          case (Nil, _) => NotFound("No deployment configurations found")
-          case _        => Ok(Json.toJson(deploymentConfigs))
-        })
+          case (Nil, _)                 => NotFound("No deployment configurations found")
+          case _                        => Ok(Json.toJson(deploymentConfigs))
+        }
+      }
     }
+
 
   def cleanupDuplicates(): Action[AnyContent] =
     Action {

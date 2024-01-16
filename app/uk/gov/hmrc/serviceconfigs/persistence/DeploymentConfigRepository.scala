@@ -16,15 +16,16 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, empty, equal, in}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -57,9 +58,11 @@ class DeploymentConfigRepository @Inject()(
       } yield r.getInsertedIds.size
     }
 
-  def find(environments: Seq[Environment] = Seq.empty, serviceName: Option[ServiceName] = None): Future[Seq[DeploymentConfig]] = {
+  def find(environments: Seq[Environment] = Seq.empty, serviceName: Option[ServiceName] = None, repos: Option[Seq[Repo]] = None): Future[Seq[DeploymentConfig]] = {
+
     val filters = Seq(
       Option.when(environments.nonEmpty)(in("environment", environments:_*)),
+      repos.map(repos => Filters.in("name", repos.map(_.name): _*)),
       serviceName.map(sn => equal("name", sn))
     ).flatten
     val filter = if (filters.nonEmpty)
