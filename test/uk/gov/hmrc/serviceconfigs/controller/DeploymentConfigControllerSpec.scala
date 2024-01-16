@@ -33,7 +33,7 @@ import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.Environment.Development
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, ServiceName, TeamName}
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import scala.concurrent.Future
@@ -74,7 +74,7 @@ class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with Guic
         Future.successful(expectedResult)
       )
 
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, Some(teamName), None).url)
+      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, Some(teamName)).url)
 
       val result = route(app, request).value
 
@@ -84,7 +84,7 @@ class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with Guic
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
         archived = eqTo(None),
-        repoType = eqTo(None),
+        repoType = eqTo(Some("Service")),
         teamName = eqTo(Some(teamName)),
         serviceType = eqTo(None),
         tags = eqTo(Nil)
@@ -99,7 +99,7 @@ class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with Guic
         Future.successful(expectedResult)
       )
 
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, None, None).url)
+      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, None).url)
 
       val result = route(app, request).value
 

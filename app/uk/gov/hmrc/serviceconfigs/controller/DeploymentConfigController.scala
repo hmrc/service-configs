@@ -39,11 +39,11 @@ class DeploymentConfigController @Inject()(
   implicit val dcw = DeploymentConfig.apiFormat
   implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
-  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String]): Action[AnyContent] =
+  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
     Action.async {
 
       val getReposByTeam = teamName match {
-        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = repoType).map(Some(_))
+        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some(_))
         case None        => Future.successful(None)
       }
 
