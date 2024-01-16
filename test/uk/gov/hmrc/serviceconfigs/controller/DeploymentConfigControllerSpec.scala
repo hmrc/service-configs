@@ -32,7 +32,8 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfigGrouped, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.Environment.Development
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, ServiceName, TeamName}
 import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
 
 import scala.concurrent.Future
@@ -56,29 +57,30 @@ class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with Guic
     reset(mockDeploymentConfigService)
   }
 
-  "deploymentConfigGrouped" should {
+  "deploymentConfig" should {
+
+    implicit val dcw = DeploymentConfig.apiFormat
 
     "return configs and get repositories when team name is a defined parameters" in {
 
-      val teamName = TeamName("test")
-      val expectedResult = DeploymentConfigGrouped(ServiceName("test"), Seq.empty)
+      val teamName       = TeamName("test")
+      val expectedResult: Seq[DeploymentConfig] = Seq(DeploymentConfig(ServiceName("test"), None, Development, "zone", "depType", 5, 1))
 
       when(mockTeamsAndRepositoriesConnector.getRepos(any(), any(), any(), any(), any())).thenReturn(
         Future.successful(Seq(Repo("test")))
       )
 
-      when(mockDeploymentConfigService.findGrouped(any(), any(), any())).thenReturn(
-        Future.successful(Seq(expectedResult))
+      when(mockDeploymentConfigService.find(any(), any(), any())).thenReturn(
+        Future.successful(expectedResult)
       )
 
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfigGrouped(None, Some(teamName
-      ), None, None).url)
+      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, Some(teamName), None).url)
 
       val result = route(app, request).value
 
       status(result) shouldBe 200
 
-      contentAsJson(result) shouldBe Json.toJson(Seq(expectedResult))
+      contentAsJson(result) shouldBe Json.toJson(expectedResult)
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
         archived = eqTo(None),
@@ -91,19 +93,19 @@ class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with Guic
 
     "return configs and not get repositories when team name is not defined" in {
 
-      val expectedResult = DeploymentConfigGrouped(ServiceName("test"), Seq.empty)
+      val expectedResult: Seq[DeploymentConfig] = Seq(DeploymentConfig(ServiceName("test"), None, Development, "zone", "depType", 5, 1))
 
-      when(mockDeploymentConfigService.findGrouped(any(), any(), any())).thenReturn(
-        Future.successful(Seq(expectedResult))
+      when(mockDeploymentConfigService.find(any(), any(), any())).thenReturn(
+        Future.successful(expectedResult)
       )
 
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfigGrouped(None, None, None, None).url)
+      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, None, None).url)
 
       val result = route(app, request).value
 
       status(result) shouldBe 200
 
-      contentAsJson(result) shouldBe Json.toJson(Seq(expectedResult))
+      contentAsJson(result) shouldBe Json.toJson(expectedResult)
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)
     }

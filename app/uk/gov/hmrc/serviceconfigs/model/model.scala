@@ -25,15 +25,11 @@ case class RepoName(asString: String) extends AnyVal
 
 case class FileName(asString: String) extends AnyVal
 
-case class ServiceName(asString: String) extends AnyVal {
-  def trimmed: ServiceName = ServiceName(asString.trim)
-}
+case class ServiceName(asString: String) extends AnyVal
 
 case class Tag(asString: String) extends AnyVal
 
-case class TeamName(asString: String) extends AnyVal {
-  def trimmed: TeamName = TeamName(asString.trim)
-}
+case class TeamName(asString: String) extends AnyVal
 
 object ServiceName {
   val format =

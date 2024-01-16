@@ -23,7 +23,7 @@ import org.yaml.snakeyaml.Yaml
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigGrouped, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
 
 import javax.inject.{Inject, Singleton}
@@ -54,11 +54,8 @@ class DeploymentConfigService @Inject()(
       _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
-  def find(environments: Seq[Environment], serviceName: Option[ServiceName]): Future[Seq[DeploymentConfig]] =
-      deploymentConfigRepository.find(environments, serviceName)
-
-  def findGrouped(nameFuzzySearch: Option[ServiceName], repos: Option[Seq[Repo]], sort: Option[String]): Future[Seq[DeploymentConfigGrouped]] =
-    deploymentConfigRepository.findGrouped(nameFuzzySearch, repos, sort)
+  def find(environments: Seq[Environment], serviceName: Option[ServiceName], repos: Option[Seq[Repo]]): Future[Seq[DeploymentConfig]] =
+      deploymentConfigRepository.find(environments, serviceName, repos)
 }
 
 object DeploymentConfigService extends Logging {

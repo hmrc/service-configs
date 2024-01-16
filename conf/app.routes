@@ -18,8 +18,7 @@ GET     /bobby/rules                                    uk.gov.hmrc.serviceconfi
 GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()
 GET     /alert-configs/:serviceName                     uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigForService(serviceName: ServiceName)
 
-GET     /deployment-config                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfig(environment: Seq[Environment], serviceName: Option[ServiceName])
-GET     /deployment-config-grouped                      uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfigGrouped(serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String], sort: Option[String])
+GET     /deployment-config                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.deploymentConfig(environment: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String])
 POST    /cleanupDuplicates                              uk.gov.hmrc.serviceconfigs.controller.DeploymentConfigController.cleanupDuplicates()
 
 GET     /resource-usage/services/:serviceName/snapshots uk.gov.hmrc.serviceconfigs.controller.ResourceUsageController.resourceUsageSnapshotsForService(serviceName: ServiceName)

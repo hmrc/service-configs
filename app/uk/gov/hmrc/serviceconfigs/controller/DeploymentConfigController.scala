@@ -39,32 +39,23 @@ class DeploymentConfigController @Inject()(
   implicit val dcw = DeploymentConfig.apiFormat
   implicit val dcsw = DeploymentConfigSnapshot.apiFormat
 
-  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName]): Action[AnyContent] =
-    Action.async {
-      deploymentConfigService.find(environments, serviceName)
-        .map(deploymentConfigs => (deploymentConfigs, serviceName) match {
-          case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
-          case (Nil, _) => NotFound("No deployment configurations found")
-          case _        => Ok(Json.toJson(deploymentConfigs))
-        })
-    }
-
-  def deploymentConfigGrouped(serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String], sort: Option[String]): Action[AnyContent] =
+  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName], repoType: Option[String]): Action[AnyContent] =
     Action.async {
 
-      val sn: Option[ServiceName] = serviceName.map(_.trimmed).filter(_.asString.nonEmpty)
-      val tn : Option[TeamName]   = teamName.map(_.trimmed).filter(_.asString.nonEmpty)
-
-      val getReposByTeam = tn match {
+      val getReposByTeam = teamName match {
         case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = repoType).map(Some(_))
         case None        => Future.successful(None)
       }
 
       for {
-        teamRepos   <- getReposByTeam
-        configs     <- deploymentConfigService.findGrouped(sn, teamRepos, sort)
-      } yield  {
-        Ok(Json.toJson(configs))
+        reposByTeam       <- getReposByTeam
+        deploymentConfigs <- deploymentConfigService.find(environments, serviceName, reposByTeam)
+      } yield {
+        (deploymentConfigs, serviceName) match {
+          case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
+          case (Nil, _)                 => NotFound("No deployment configurations found")
+          case _                        => Ok(Json.toJson(deploymentConfigs))
+        }
       }
     }
 
