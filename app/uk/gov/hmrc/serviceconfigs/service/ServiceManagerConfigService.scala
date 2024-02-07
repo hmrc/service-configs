@@ -33,7 +33,7 @@ class ServiceManagerConfigService @Inject()(
 )(implicit ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   def update(): Future[Unit] =
     for {

@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{BuildJob, ServiceName}
@@ -33,7 +33,7 @@ class BuildJobController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val buildJobFormat = BuildJob.format
+  implicit val buildJobFormat: Format[BuildJob] = BuildJob.format
 
   def buildJob(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

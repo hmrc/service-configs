@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
@@ -36,8 +36,8 @@ class DeploymentConfigController @Inject()(
 )(implicit ec: ExecutionContext
 ) extends BackendController(cc) {
 
-  implicit val dcw = DeploymentConfig.apiFormat
-  implicit val dcsw = DeploymentConfigSnapshot.apiFormat
+  implicit val dcw: Format[DeploymentConfig] = DeploymentConfig.apiFormat
+  implicit val dcsw: Format[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
 
   def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
     Action.async {

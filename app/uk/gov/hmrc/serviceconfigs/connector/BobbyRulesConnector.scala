@@ -36,7 +36,7 @@ class BobbyRulesConnector @Inject()(
 )( implicit ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   private val bobbyRulesUrl: String = config.get[String]("bobby.url")
 

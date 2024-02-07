@@ -70,7 +70,7 @@ class OutagePageControllerSpec
   }
 
   trait Setup {
-    implicit val as = ActorSystem()
+    implicit val as: ActorSystem = ActorSystem()
 
     val mockOutagePageService = mock[OutagePageService]
 

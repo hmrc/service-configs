@@ -42,7 +42,7 @@ class ArtifactoryConnector @Inject()(
 ) extends Logging {
   import HttpReads.Implicits._
 
-  implicit private val hc = HeaderCarrier()
+  implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def getSensuZip(): Future[ZipInputStream] =
     stream(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")

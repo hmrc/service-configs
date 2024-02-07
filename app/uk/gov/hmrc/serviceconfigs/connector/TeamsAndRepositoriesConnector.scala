@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import play.api.Logging
 import play.api.cache.AsyncCacheApi
+import play.api.libs.json.Reads
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
@@ -47,8 +48,8 @@ class TeamsAndRepositoriesConnector @Inject()(
   private val teamsAndServicesUrl =
     serviceConfigs.baseUrl("teams-and-repositories")
 
-  implicit private val hc = HeaderCarrier()
-  implicit private val rd = TeamsAndRepositoriesConnector.readsRepo
+  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  implicit private val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
 
   def getRepos(
     archived   : Option[Boolean]      = None

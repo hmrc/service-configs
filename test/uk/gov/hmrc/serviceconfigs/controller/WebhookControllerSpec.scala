@@ -143,7 +143,7 @@ class WebhookControllerSpec
 
   trait Setup {
 
-    implicit val as = ActorSystem()
+    implicit val as: ActorSystem = ActorSystem()
 
     val mockConfiguration               = mock[Configuration              ]
     val mockNginxConfig                 = mock[NginxConfig                ]

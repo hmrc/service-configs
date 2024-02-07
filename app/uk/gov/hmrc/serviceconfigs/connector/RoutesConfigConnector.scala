@@ -36,7 +36,7 @@ class RoutesConfigConnector @Inject()(
 , githubConfig: GithubConfig
 )(implicit ec: ExecutionContext
 ) extends Logging {
-  private implicit val hc = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   private def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] = {
     implicit val snf = ServiceName.format

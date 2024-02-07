@@ -17,11 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents, Result}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{Dashboard, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.{KibanaDashboardRepository, GrafanaDashboardRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{GrafanaDashboardRepository, KibanaDashboardRepository}
 
 import scala.concurrent.ExecutionContext
 
@@ -34,7 +34,7 @@ class DashboardController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val dashboardFormat = Dashboard.format
+  implicit val dashboardFormat: Format[Dashboard] = Dashboard.format
 
   def grafana(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

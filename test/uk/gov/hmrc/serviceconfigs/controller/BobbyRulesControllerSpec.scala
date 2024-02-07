@@ -90,7 +90,7 @@ class BobbyRulesControllerSpec
   }
 
   trait Setup {
-    implicit val as = ActorSystem()
+    implicit val as: ActorSystem = ActorSystem()
 
     val mockBobbyRulesService = mock[BobbyRulesService]
 

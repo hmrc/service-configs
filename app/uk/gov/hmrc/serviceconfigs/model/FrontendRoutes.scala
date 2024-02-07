@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Json, __}
+import play.api.libs.json.{Json, OFormat, __}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 
 case class FrontendRoute(
@@ -53,8 +53,8 @@ case class FrontendRoutes(
 
 object FrontendRoute {
 
-  implicit val formatShutterSwitch = Json.format[ShutterSwitch]
-  implicit val formats = Json.format[FrontendRoute]
+  implicit val formatShutterSwitch: OFormat[ShutterSwitch] = Json.format[ShutterSwitch]
+  implicit val formats: OFormat[FrontendRoute] = Json.format[FrontendRoute]
 
   def fromMongo(mfr: MongoFrontendRoute): FrontendRoute =
     FrontendRoute(
@@ -70,7 +70,7 @@ object FrontendRoute {
 
 object FrontendRoutes {
 
-  implicit val formats = {
+  implicit val formats: OFormat[FrontendRoutes] = {
     implicit val ef  = Environment.format
     implicit val snf = ServiceName.format
     ( (__ \ "service"    ).format[ServiceName]

@@ -42,7 +42,7 @@ class DeploymentConfigConnector @Inject()(
   mat: Materializer
 ) extends Logging {
 
-  implicit private val hc = HeaderCarrier()
+  implicit private val hc: HeaderCarrier = HeaderCarrier()
 
   def getAppConfigZip(environment: Environment): Future[ZipInputStream] = {
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/app-config-${environment.asString}/zipball/HEAD"

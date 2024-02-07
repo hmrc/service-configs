@@ -43,7 +43,7 @@ class SlugHandler @Inject()(
 , config                    = SqsConfig("aws.sqs.slug", configuration)
 )(actorSystem, ec) {
 
-  private implicit val hc = HeaderCarrier()
+  private implicit val hc: HeaderCarrier = HeaderCarrier()
 
   override protected def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing SlugInfo message with ID '${message.messageId()}'")
