@@ -48,7 +48,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://test-gateway.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(configRegex).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(configRegex).value
 
       cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
     }
@@ -69,7 +69,7 @@ class NginxConfigParserSpec
           |}
         """.stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(configNormal).value
 
       cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))),
         shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None )))
@@ -84,7 +84,7 @@ class NginxConfigParserSpec
           |  return 204;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg shouldBe Nil
     }
@@ -101,7 +101,7 @@ class NginxConfigParserSpec
           |  proxy_pass $s3_upstream;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/assets", "$s3_upstream")
     }
@@ -113,7 +113,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://lol-frontend.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
     }
@@ -127,7 +127,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://lol-frontend.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))), shutterServiceSwitch = None)
     }
@@ -142,7 +142,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://lol-frontend.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
         shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), errorPage = Some("/shutter/index.html"))), shutterServiceSwitch = None)
@@ -158,7 +158,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://lol-frontend.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
         shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None)),
@@ -173,7 +173,7 @@ class NginxConfigParserSpec
           |  proxy_pass https://lol-frontend.public.local;
           |}""".stripMargin
 
-      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).right.value
+      val cfg = new NginxConfigParser(nginxConfig).parseConfig(config).value
 
       cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
         markerComments = Set("NOT_SHUTTERABLE")

@@ -38,7 +38,7 @@ class ConfigAsCodeConnectorSpec
 
   private val token = "TOKEN"
 
-  private implicit val system = ActorSystem()
+  private implicit val system: ActorSystem = ActorSystem()
 
   private val githubConfig = new GithubConfig(Configuration(
     "github.open.api.apiurl" -> s"$wireMockUrl/api",

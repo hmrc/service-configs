@@ -35,7 +35,7 @@ class InternalAuthConfigController @Inject()(
 ) extends BackendController(cc)
      with Logging {
 
-  private implicit val format = InternalAuthConfig.format
+  private implicit val format: Format[InternalAuthConfig] = InternalAuthConfig.format
 
   def internalAuthConfig(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

@@ -172,7 +172,7 @@ class NginxServiceSpec
 
       val parser = new NginxConfigParser(nginxConfig)
       val configFile = NginxConfigFile(environment = Environment.Development, routesFileUrl, testConfig, branch = "HEAD")
-      val result     = NginxService.parseConfig(parser, configFile).right.value
+      val result     = NginxService.parseConfig(parser, configFile).value
 
       result.length shouldBe 2
 
@@ -208,7 +208,7 @@ class NginxServiceSpec
                         |}""".stripMargin
 
       val configFile = NginxConfigFile(environment = Environment.Development, routesFileUrl, config, branch = "HEAD")
-      val result     = NginxService.parseConfig(parser, configFile).right.value
+      val result     = NginxService.parseConfig(parser, configFile).value
 
       result.length shouldBe 1
 

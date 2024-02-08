@@ -32,7 +32,7 @@ class DateAndTimeOpsSpec
     with Matchers
     with ScalaCheckPropertyChecks {
 
-  implicit override val generatorDrivenConfig =
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = PosInt(100))
 
   "A LocalDate" should {

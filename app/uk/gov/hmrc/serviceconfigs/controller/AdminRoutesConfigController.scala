@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
@@ -33,7 +33,7 @@ class AdminRoutesConfigController @Inject()(
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val adminFrontendRouteFormat = AdminFrontendRoute.format
+  implicit val adminFrontendRouteFormat: Format[AdminFrontendRoute] = AdminFrontendRoute.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

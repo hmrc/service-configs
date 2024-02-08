@@ -38,7 +38,7 @@ class ReleasesApiConnector @Inject()(
 
   private val serviceUrl: URL = url"${serviceConfig.baseUrl("releases-api")}"
 
-  implicit val sdir = ServiceDeploymentInformation.reads
+  implicit val sdir: Reads[ServiceDeploymentInformation] = ServiceDeploymentInformation.reads
 
   def getWhatsRunningWhere()(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
     httpClientV2
