@@ -109,11 +109,11 @@ class ServiceRelationshipServiceSpec
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(), knownServices).futureValue should contain theSameElementsAs expected
     }
 
-    "handle Prod/Dev/Test prefixes in a case insensitive manner" in {
+    "not support Prod/Dev/Test config key prefixes" in {
       val config = configSourceEntries(Map(
-        "Prod.microservice.services.artefact-processor.host"   -> "localhost",
-        "dev.microservice.services.auth.host"                  -> "localhost",
-        "TeSt.microservice.services.service-dependencies.host" -> "localhost",
+        "Prod.microservice.services.artefact-processor.host" -> "localhost",
+        "Dev.microservice.services.auth.host"                -> "localhost",
+        "microservice.services.service-dependencies.host"    -> "localhost",
       ))
 
       when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
@@ -126,8 +126,6 @@ class ServiceRelationshipServiceSpec
       )
 
       val expected = Seq(
-        ServiceRelationship(dummyServiceName, ServiceName("artefact-processor")),
-        ServiceRelationship(dummyServiceName, ServiceName("auth")),
         ServiceRelationship(dummyServiceName, ServiceName("service-dependencies"))
       )
 

@@ -65,8 +65,7 @@ class ServiceRelationshipService @Inject()(
     } yield ()
 
   private val ServiceNameFromHost = "(.*)(?<!stub|stubs)\\.(?:public|protected)\\.mdtp".r
-  private val ServiceNameFromKey  = "(?i)(?:(?:dev|test|prod)\\.)?microservice\\.services\\.(.*)\\.host".r
-
+  private val ServiceNameFromKey  = "microservice\\.services\\.(.*)\\.host".r
 
   private[service] def serviceRelationshipsFromSlugInfo(slugInfo: SlugInfo, knownServices: Seq[String]): Future[Seq[ServiceRelationship]] =
     if (slugInfo.applicationConfig.isEmpty)
