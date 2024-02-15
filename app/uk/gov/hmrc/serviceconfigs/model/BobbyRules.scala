@@ -33,7 +33,7 @@ object BobbyRules {
     ~ (__ \ "name"          ).format[String]
     ~ (__ \ "range"         ).format[String].inmap(
       (range: String) => if (range.trim == "*") "[0.0.0,)" else range,
-      (range: String) => if (range.trim == "*") "[0.0.0,)" else range
+      identity[String]
     )
     ~ (__ \ "reason"        ).format[String]
     ~ (__ \ "from"          ).format[LocalDate]
