@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import com.mongodb.client.model.Indexes
+import org.mongodb.scala.model.{Filters, IndexModel}
 import org.mongodb.scala.model.Filters.{and, empty, equal, in}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent

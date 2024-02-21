@@ -64,7 +64,7 @@ class DeploymentConfigServiceSpec
       , environment = Environment.Production
       ) shouldBe Some(DeploymentConfig(
         serviceName    = ServiceName("test")
-      , artifactName   = Some("some-alternative-service-name")
+      , artefactName   = Some("some-alternative-service-name")
       , environment    = Environment.Production
       , zone           = "public"
       , deploymentType = "frontend"

@@ -19,6 +19,8 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.json.Format
 import play.api.libs.functional.syntax._
 
+case class ArtefactName(asString: String) extends AnyVal
+
 case class CommitId(asString: String) extends AnyVal
 
 case class RepoName(asString: String) extends AnyVal
@@ -30,6 +32,16 @@ case class ServiceName(asString: String) extends AnyVal
 case class Tag(asString: String) extends AnyVal
 
 case class TeamName(asString: String) extends AnyVal
+
+object ArtefactName {
+  val format =
+    implicitly[Format[String]].inmap(ArtefactName.apply, unlift(ArtefactName.unapply))
+}
+
+object RepoName {
+  val format =
+    implicitly[Format[String]].inmap(RepoName.apply, unlift(RepoName.unapply))
+}
 
 object ServiceName {
   val format =

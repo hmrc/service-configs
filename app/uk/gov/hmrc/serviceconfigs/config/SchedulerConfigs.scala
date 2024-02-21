@@ -51,4 +51,5 @@ class SchedulerConfigs @Inject()(configuration: Configuration) {
   val slugMetadataScheduler          = SchedulerConfig(configuration, "slug-metadata-scheduler")
   val serviceRelationshipScheduler   = SchedulerConfig(configuration, "service-relationship-scheduler")
   val bobbyWarningsNotifierScheduler = SchedulerConfig(configuration, "bobby-warnings-notifier-scheduler")
+  val serviceToRepoNameScheduler     = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
 }

@@ -19,25 +19,24 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.Configuration
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.mvc._
+import play.api.mvc.{Action, _}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, ServiceType, Tag, TeamName, FilterType, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
-import uk.gov.hmrc.serviceconfigs.persistence.AppliedConfigRepository
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, ServiceToRepoNameRepository}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigController @Inject()(
-  configuration       : Configuration,
-  configService       : ConfigService,
-  configWarningService: ConfigWarningService,
-  cc                  : ControllerComponents,
-  releasesApiConnector: ReleasesApiConnector
+  configuration              : Configuration,
+  configService              : ConfigService,
+  configWarningService       : ConfigWarningService,
+  cc                         : ControllerComponents,
+  serviceToRepoNameRepository: ServiceToRepoNameRepository,
 )(implicit
   ec: ExecutionContext
 ) extends BackendController(cc) {
@@ -91,6 +90,12 @@ class ConfigController @Inject()(
         .warnings(environments, serviceName, version, latest)
         .map(res => Ok(Json.toJson(res)))
     }
+
+  def repoNameForService(serviceName: Option[ServiceName], artefactName: Option[ArtefactName]): Action[AnyContent] = Action.async {
+    serviceToRepoNameRepository
+      .findRepoName(serviceName, artefactName)
+      .map(res => Ok(Json.toJson(res)))
+  }
 }
 
 object ConfigController {
@@ -124,6 +129,8 @@ object ConfigController {
     ~ (__ \ "warning"    ).write[String]
     )(unlift(ConfigWarning.unapply))
   }
+
+  implicit val rnw: Writes[RepoName] = implicitly[Writes[String]].contramap(unlift(RepoName.unapply))
 
   implicit def envMapWrites[A <: ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
     implicitly[Writes[Map[String, B]]].contramap(m => m.map { case (e, a) => (e.name, a) })

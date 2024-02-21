@@ -25,7 +25,7 @@ import play.api.libs.json.{Format, __}
  */
 case class DeploymentConfig(
   serviceName   : ServiceName,
-  artifactName  : Option[String],
+  artefactName  : Option[String],
   environment   : Environment,
   zone          : String,
   deploymentType: String,
@@ -38,7 +38,7 @@ object DeploymentConfig {
 
   val mongoFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]
-    ~ (__ \ "artifactName").formatNullable[String]
+    ~ (__ \ "artefactName").formatNullable[String]
     ~ (__ \ "environment" ).format[Environment](Environment.format)
     ~ (__ \ "zone"        ).format[String]
     ~ (__ \ "type"        ).format[String]
@@ -48,7 +48,7 @@ object DeploymentConfig {
 
   val apiFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]
-    ~ (__ \ "artifactName").formatNullable[String]
+    ~ (__ \ "artefactName").formatNullable[String]
     ~ (__ \ "environment" ).format[Environment](Environment.format)
     ~ (__ \ "zone"        ).format[String]
     ~ (__ \ "type"        ).format[String]

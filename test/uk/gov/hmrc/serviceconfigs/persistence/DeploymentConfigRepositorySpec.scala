@@ -162,12 +162,13 @@ class DeploymentConfigRepositorySpec
 
       repository.find(serviceName = Some(serviceName3), repos = Some(Seq(repo1, repo2))).futureValue shouldBe Nil
     }
+
   }
 
-  def mkDeploymentConfig(serviceName: ServiceName, environment: Environment): DeploymentConfig =
+  def mkDeploymentConfig(serviceName: ServiceName, environment: Environment, artefactName: Option[String] = Some("artefactName")): DeploymentConfig =
     DeploymentConfig(
       serviceName    = serviceName,
-      artifactName   = Some("artefactName"),
+      artefactName   = artefactName,
       environment    = environment,
       zone           = "public",
       deploymentType = "microservice",
@@ -178,7 +179,7 @@ class DeploymentConfigRepositorySpec
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
       "name"           -> deploymentConfig.serviceName.asString,
-      "artifactName"   -> deploymentConfig.artifactName,
+      "artefactName"   -> deploymentConfig.artefactName,
       "environment"    -> deploymentConfig.environment.asString,
       "zone"           -> deploymentConfig.zone,
       "type"           -> deploymentConfig.deploymentType,
