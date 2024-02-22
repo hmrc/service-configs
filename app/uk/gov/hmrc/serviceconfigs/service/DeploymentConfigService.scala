@@ -18,16 +18,16 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
-import org.mongodb.scala.bson.BsonDocument
-import org.yaml.snakeyaml.Yaml
+
 import play.api.Logging
+
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, YamlToBson}
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
+import uk.gov.hmrc.serviceconfigs.util.YamlUtil
 
 import javax.inject.{Inject, Singleton}
-import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -45,13 +45,13 @@ class DeploymentConfigService @Inject()(
 
   def update(environment: Environment): Future[Unit] =
     for {
-      _      <- Future.successful(logger.info(s"Getting Deployment Configs for ${environment.asString}"))
-      zip    <- deploymentConfigConnector.getAppConfigZip(environment)
-      items   = DeploymentConfigService.processZip(zip, environment)
-      _       = zip.close()
-      _       = logger.info(s"Inserting ${items.size} Deployment Configs into mongo for ${environment.asString}")
-      count  <- deploymentConfigRepository.replaceEnv(environment, items)
-      _       = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
+      _     <- Future.successful(logger.info(s"Getting Deployment Configs for ${environment.asString}"))
+      zip   <- deploymentConfigConnector.getAppConfigZip(environment)
+      items  = DeploymentConfigService.processZip(zip, environment)
+      _      = zip.close()
+      _      = logger.info(s"Inserting ${items.size} Deployment Configs into mongo for ${environment.asString}")
+      count <- deploymentConfigRepository.replaceEnv(environment, items)
+      _      = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
   def find(environments: Seq[Environment], serviceName: Option[ServiceName], repos: Option[Seq[Repo]]): Future[Seq[DeploymentConfig]] =
@@ -63,53 +63,50 @@ object DeploymentConfigService extends Logging {
 
   import java.io.InputStreamReader
   import java.util.zip.ZipInputStream
-  import scala.jdk.CollectionConverters._
 
-  def processZip(zip: ZipInputStream, environment: Environment): Seq[BsonDocument] =
+  def processZip(zip: ZipInputStream, environment: Environment): Seq[DeploymentConfig] =
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .flatMap { file =>
-        logger.debug(s"processing config file $file")
-        file.getName match {
-          case name if isAppConfig(name.toLowerCase) =>
-            val serviceName  = ServiceName(name.split("/").last.replace(".yaml", ""))
-            val yaml       = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
-            val parsedYaml = new Yaml().load(yaml).asInstanceOf[java.util.LinkedHashMap[String, Object]].asScala
-            modifyConfigKeys(parsedYaml, serviceName, environment).flatMap(m => YamlToBson(m).toOption)
-          case _ => None
-        }
-      }.toSeq
+      .filter(file => isAppConfig(file.getName.toLowerCase))
+      .flatMap(file =>
+        toDeploymentConfig(
+          fileName    = file.getName
+        , fileContent = CharStreams.toString(new InputStreamReader(new NonClosableInputStream(zip), Charsets.UTF_8))
+        , environment = environment
+        )
+      ).toSeq
 
   private val ignoreList = Set("repository.yaml", "stale.yaml")
 
-  def isAppConfig(filename: String) : Boolean =
+  private [service] def isAppConfig(filename: String) : Boolean =
     filename.endsWith(".yaml") && ignoreList.forall(i => !filename.endsWith(i))
 
-  def parseConfig(filename: String, cfg: Map[String, String], environment: Environment): Option[DeploymentConfig] = {
-    val serviceName = ServiceName(filename.split("/").last.replace(".yaml", ""))
-    for {
-      zone           <- cfg.get("zone")
-      deploymentType <- cfg.get("type")
-      slots          <- cfg.get("slots").map(_.toInt)
-      instances      <- cfg.get("instances").map(_.toInt)
-      artifactName    = cfg.get("artifact_name")
-    } yield DeploymentConfig(serviceName, artifactName, environment, zone, deploymentType, slots, instances)
-  }
+  import play.api.libs.functional.syntax._
+  import play.api.libs.json._
 
-  def modifyConfigKeys(data: mutable.Map[String, Object], serviceName: ServiceName, environment: Environment): Option[mutable.Map[String, Object]] = {
-    import scala.jdk.CollectionConverters._
-    val requiredKeys = Set("zone", "type", "slots", "instances")
-    data
-      .get("0.0.0")
-      .map(_.asInstanceOf[java.util.LinkedHashMap[String, Object]].asScala)
-      .flatMap(m => if (m.keySet.intersect(requiredKeys) == requiredKeys) Some(m) else None)
-      .map { m =>
-        m.remove("hmrc_config") // discard the app config, outside the scope of service
-        m.remove("connector_config") // present in kafka-amqp-sink as an additional config block
-        m.put("name", serviceName.asString)
-        m.put("environment", environment.asString)
-        m
-      }
-  }
+  private def ignore[A](a: A): Reads[A] =
+    Reads[A](_ => JsSuccess(a))
+
+  private def yamlDeploymentConfigReads(serviceName: ServiceName, environment: Environment): Reads[DeploymentConfig] =
+    ( ignore(serviceName)
+    ~ (__ \ "artifact_name").readNullable[String]
+    ~ ignore(environment)
+    ~ (__ \ "zone"         ).read[String]
+    ~ (__ \ "type"         ).read[String]
+    ~ (__ \ "slots"        ).read[Int]
+    ~ (__ \ "instances"    ).read[Int]
+    ) (DeploymentConfig.apply _)
+
+  private [service] def toDeploymentConfig(fileName: String, fileContent: String, environment: Environment): Option[DeploymentConfig] =
+    scala.util.Try {
+      logger.debug(s"processing config file $fileName")
+      YamlUtil
+        .fromYaml[Map[String, JsValue]](fileContent)
+        .get("0.0.0")
+        .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(ServiceName(fileName.split("/").last.replace(".yaml", "")), environment)))
+    }.fold(
+      err => { logger.error(s"Could not process file $fileName while looking for deployment config" , err); None }
+    , res => res
+    )
 }

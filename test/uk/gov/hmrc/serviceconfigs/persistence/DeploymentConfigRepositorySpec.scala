@@ -42,8 +42,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(ServiceName("service2"), Environment.Production),
         mkDeploymentConfig(ServiceName("service3"), Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
       repository.find().futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs)
 
       repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs
@@ -54,7 +54,7 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(ServiceName("service4"), Environment.Development)
       )
 
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2.map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2).futureValue
 
       repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
       repository.find(Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
@@ -72,8 +72,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(serviceName2, Environment.Production),
         mkDeploymentConfig(serviceName3, Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
       repository.find(Seq(Environment.Development), Some(serviceName1)).futureValue shouldBe developmentDeploymentConfigs.filter(_.serviceName == serviceName1)
       repository.find(Seq(Environment.Production) , Some(serviceName1)).futureValue shouldBe productionDeploymentConfigs .filter(_.serviceName == serviceName1)
@@ -91,8 +91,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(serviceName2, Environment.Production),
         mkDeploymentConfig(serviceName3, Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs .map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
       repository.find(serviceName = Some(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
     }
@@ -113,8 +113,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(serviceName2, Environment.Production),
         mkDeploymentConfig(serviceName3, Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production, productionDeploymentConfigs.map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
       repository.find(repos = Some(Seq(repo1, repo2))).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filterNot(_.serviceName == serviceName3)
     }
@@ -135,8 +135,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(serviceName2, Environment.Production),
         mkDeploymentConfig(serviceName3, Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production, productionDeploymentConfigs.map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
       repository.find(serviceName = Some(serviceName1), repos = Some(Seq(repo1, repo2))).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName1)
     }
@@ -157,8 +157,8 @@ class DeploymentConfigRepositorySpec
         mkDeploymentConfig(serviceName2, Environment.Production),
         mkDeploymentConfig(serviceName3, Environment.Production)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs.map(toBson)).futureValue
-      repository.replaceEnv(Environment.Production, productionDeploymentConfigs.map(toBson)).futureValue
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
       repository.find(serviceName = Some(serviceName3), repos = Some(Seq(repo1, repo2))).futureValue shouldBe Nil
     }

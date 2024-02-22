@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, empty, equal, in}
 import org.mongodb.scala.model._
 import uk.gov.hmrc.mongo.MongoComponent
@@ -49,29 +48,23 @@ class DeploymentConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def replaceEnv(environment: Environment, configs: Seq[BsonDocument]): Future[Int] =
+  def replaceEnv(environment: Environment, configs: Seq[DeploymentConfig]): Future[Int] =
     withSessionAndTransaction { session =>
       for {
         _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
-        r <- mongoComponent.database.getCollection[BsonDocument](collectionName)
-                .insertMany(session, configs).toFuture()
+        r <- collection.insertMany(session, configs).toFuture()
       } yield r.getInsertedIds.size
     }
 
   def find(environments: Seq[Environment] = Seq.empty, serviceName: Option[ServiceName] = None, repos: Option[Seq[Repo]] = None): Future[Seq[DeploymentConfig]] = {
-
     val filters = Seq(
       Option.when(environments.nonEmpty)(in("environment", environments:_*)),
       repos.map(repos => Filters.in("name", repos.map(_.name): _*)),
       serviceName.map(sn => equal("name", sn))
     ).flatten
-    val filter = if (filters.nonEmpty)
-        and(filters:_*)
-      else
-        empty()
 
     collection
-      .find(filter)
+      .find(if (filters.nonEmpty) and(filters:_*) else empty())
       .toFuture()
   }
 
