@@ -19,12 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.yaml.snakeyaml.Yaml
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
-
-import java.util
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
 class DeploymentConfigServiceSpec
   extends AnyWordSpec
@@ -50,46 +45,55 @@ class DeploymentConfigServiceSpec
     }
   }
 
-  "modifyConfigKeys" should {
+  "toDeploymentConfig" should {
     "discard the 0.0.0 root element, hmrc_config and add name and environment" in {
-      val yaml =
-        s"""
-           |0.0.0:
-           |  type: frontend
-           |  slots: 1
-           |  instances: 1
-           |  hmrc_config:
-           |    foo: 'true'
-           |    bar: 'false'
-           |  zone: public
-           |""".stripMargin
+      toDeploymentConfig(
+        fileName    = "/app-config-production/test.yaml"
+      , fileContent = s"""
+                      |0.0.0:
+                      |  type: frontend
+                      |  slots: 3
+                      |  instances: 1
+                      |  artifact_name: some-alternative-service-name
+                      |  hmrc_config:
+                      |    foo: 'true'
+                      |    bar: 'false'
+                      |  zone: public
+                      |""".stripMargin
 
-      val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production).value
-
-      result.keySet shouldBe Set("slots", "instances", "zone", "name", "environment", "type")
+      , environment = Environment.Production
+      ) shouldBe Some(DeploymentConfig(
+        serviceName    = ServiceName("test")
+      , artifactName   = Some("some-alternative-service-name")
+      , environment    = Environment.Production
+      , zone           = "public"
+      , deploymentType = "frontend"
+      , slots          = 3
+      , instances      = 1
+      ))
     }
 
     "return None when there is no 0.0.0 root element" in {
-      val data = mutable.Map[String, Object]("any-other-key" -> new mutable.LinkedHashMap[String,Object]())
-      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production)
-
-      result shouldBe None
+      toDeploymentConfig(
+        fileName    = "/app-config-production/test.yaml"
+      , fileContent = s"""
+                      |any-other-key: {}
+                      |""".stripMargin
+      , environment = Environment.Production
+      ) shouldBe None
     }
 
     "returns None when the config is missing required keys" in {
-      val yaml =
-        s"""
-           |0.0.0:
-           |  type: frontend
-           |  slots: 1
-           |  instances: 1
-           |""".stripMargin
-
-      val data = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
-      val result = modifyConfigKeys(data, ServiceName("test"), Environment.Production)
-
-      result shouldBe None
+      toDeploymentConfig(
+        fileName    = "/app-config-production/test.yaml"
+      , fileContent = s"""
+                      |0.0.0:
+                      |  type: frontend
+                      |  slots: 1
+                      |  instances: 1
+                      |""".stripMargin
+      , environment = Environment.Production
+      ) shouldBe None
     }
   }
 }
