@@ -106,7 +106,7 @@ object SlackNotificationRequest {
          |  "type": "section",
          |  "text": {
          |    "type": "mrkdwn",
-         |    "text": "Hello $teamName, please be aware that the following builds will fail soon because of new Bobby Rules:"
+         |    "text": "Hello $teamName, please be aware that the following builds will fail soon because of upcoming Bobby Rules:"
          |  }
          |}
          |""".stripMargin
@@ -135,4 +135,3 @@ object SlackNotificationRequest {
     )
   }
 }
-
