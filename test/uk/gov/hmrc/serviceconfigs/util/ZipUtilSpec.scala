@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
+import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import java.util.zip.ZipInputStream
 
-class ZipUtilSpec extends AnyWordSpec with Matchers {
+class ZipUtilSpec extends AnyWordSpec with Matchers with OptionValues {
 
   "findServiceToRepoNames" should {
     "return mapping of repo names and slug name when they are different" in {
@@ -37,49 +38,52 @@ class ZipUtilSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  "BuildJobPattern.microserviceMatch" should {
-    "extract the repo name from the 2nd param when a 3rd param also exists" in {
-      BuildJobPattern.microserviceMatch("new MvnMicroserviceJobBuilder(FOLDER, 'service-one', JavaType.OPENJDK_JRE8)") shouldBe Some("service-one")
-    }
-
-    "extract the repo name from the 2nd param and be quote agnostic" in {
-      BuildJobPattern.microserviceMatch("new MvnMicroserviceJobBuilder(FOLDER, \"service-one\", JavaType.OPENJDK_JRE8)") shouldBe Some("service-one")
-    }
-
-    "extract the repo name from the 2nd param" in {
-      BuildJobPattern.microserviceMatch("new MvnMicroserviceJobBuilder(FOLDER, 'service-one')") shouldBe Some("service-one")
+  "BuildJobPattern.MicroserviceMatch" should {
+    "extract the repo name from MvnMicroserviceJobBuilder constructor" in {
+      Seq(
+        "new MvnMicroserviceJobBuilder(FOLDER, 'service-one', JavaType.OPENJDK_JRE8)",
+        "new MvnMicroserviceJobBuilder(FOLDER, \"service-one\", JavaType.OPENJDK_JRE8)",
+        "new MvnMicroserviceJobBuilder(FOLDER, 'service-one')"
+      ).foreach {
+        case BuildJobPattern.MicroserviceMatch("service-one") =>
+        case line => fail(s"Failed to extract service name from: $line")
+      }
     }
 
     "return None when no match is found" in {
-      BuildJobPattern.microserviceMatch("new MvnMicroserviceJobBuilder(FOLDER)") shouldBe None
+      BuildJobPattern.MicroserviceMatch.findFirstMatchIn("new MvnMicroserviceJobBuilder(FOLDER)") shouldBe None
     }
   }
 
   "BuildJobsPattern.aemMatch" should {
-    "extract the repo name from the 2nd param" in {
-      BuildJobPattern.aemMatch("new MvnAemJobBuilder(TEAM,'service-one','service-one-slug')") shouldBe Some("service-one")
-    }
-
-    "extract the repo name from the 2nd param and be quote agnostic" in {
-      BuildJobPattern.aemMatch("new MvnAemJobBuilder(TEAM, \"service-one\",'service-one-slug')") shouldBe Some("service-one")
+    "extract the repo name from MvnAemJobBuilder constructor" in {
+      Seq(
+        "new MvnAemJobBuilder(TEAM,'service-one','service-one-slug')",
+        "new MvnAemJobBuilder(TEAM, \"service-one\",'service-one-slug')"
+      ).foreach {
+        case BuildJobPattern.AemMatch("service-one") =>
+        case line => fail(s"Failed to extract service name from: $line")
+      }
     }
 
     "return None when no match is found" in {
-      BuildJobPattern.aemMatch("new MvnAemJobBuilder(TEAM)") shouldBe None
+      BuildJobPattern.AemMatch.findFirstMatchIn("new MvnAemJobBuilder(TEAM)") shouldBe None
     }
   }
 
   "BuildJobsPattern.uploadSlugMatch" should {
-    "extract the upload slug name from the 3rd parameter" in {
-      BuildJobPattern.uploadSlugMatch(".andUploadSlug('artifact.tgz','service-one','service-one-upload-slug')") shouldBe Some("service-one-upload-slug")
-    }
-
-    "extract the upload slug name from the 3rd parameter and be quote agnostic" in {
-      BuildJobPattern.uploadSlugMatch(".andUploadSlug('artifact.tgz','service-one',\"service-one-upload-slug\")") shouldBe Some("service-one-upload-slug")
+    "extract the artefact name from andUploadSlug" in {
+      Seq(
+        ".andUploadSlug('artifact.tgz','service-one','service-one-upload-slug')",
+        ".andUploadSlug('artifact.tgz','service-one',\"service-one-upload-slug\")"
+      ).foreach {
+        case BuildJobPattern.UploadSlugMatch("service-one-upload-slug") =>
+        case line => fail(s"Failed to extract artefact name from: $line")
+      }
     }
 
     "return None when no match is found" in {
-      BuildJobPattern.uploadSlugMatch(".andUploadSlug('artifact.tgz')")
+      BuildJobPattern.UploadSlugMatch.findFirstMatchIn(".andUploadSlug('artifact.tgz')") shouldBe None
     }
   }
 }

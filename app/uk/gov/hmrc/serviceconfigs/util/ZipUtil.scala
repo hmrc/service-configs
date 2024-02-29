@@ -59,17 +59,14 @@ object ZipUtil {
       zip.closeEntry()
   }
 
-  import uk.gov.hmrc.serviceconfigs.util.BuildJobPattern.{aemMatch, microserviceMatch, uploadSlugMatch}
+  import uk.gov.hmrc.serviceconfigs.util.BuildJobPattern.{AemMatch, MicroserviceMatch, UploadSlugMatch}
   def findServiceToRepoNames(zip: ZipInputStream, pathRegex: Regex): Seq[(String, String)] = {
     def processLines(lines: Iterator[String]): Iterator[(String, String)] =
-      lines.foldLeft(None: Option[String], Seq.empty[(String, String)]) {
-        case ((optBuilder, acc), line) =>
-          (microserviceMatch(line), aemMatch(line), uploadSlugMatch(line)) match {
-            case (Some(msBuilder), _, _ )                         => (Some(msBuilder) ,  acc)
-            case (_, Some(aemBuilder), _)                         => (Some(aemBuilder),  acc)
-            case (_, _, Some(uploadSlug)) if optBuilder.isDefined => (optBuilder      ,  acc :+ (optBuilder.getOrElse(""), uploadSlug))
-            case _                                                => (optBuilder      ,  acc)
-          }
+      lines.foldLeft((Option.empty[String], Seq.empty[(String, String)])) {
+        case ((_             , acc), MicroserviceMatch(repoName)  ) => (Some(repoName), acc)
+        case ((_             , acc), AemMatch(repoName)           ) => (Some(repoName), acc)
+        case ((Some(repoName), acc), UploadSlugMatch(artefactName)) => (Some(repoName), acc  :+ (repoName, artefactName)  )
+        case ((optRepoName   , acc), _                            ) => (optRepoName   , acc)
       }._2.iterator
 
     Iterator.continually(zip.getNextEntry)
@@ -90,15 +87,12 @@ object ZipUtil {
 }
 
 object BuildJobPattern {
-  def microserviceMatch(line: String): Option[String] =
-    Predef.augmentString("""^new MvnMicroserviceJobBuilder\(\s*[^,]+\s*,\s*(['"])([^'"]+)\1[^'"]*$""").r
-      .findFirstMatchIn(line).map(_.group(2))
+  val MicroserviceMatch: Regex =
+    """.*new MvnMicroserviceJobBuilder\([^,]*,\s*['"]([^'"]+)['"].*""".r
 
-  def aemMatch(line: String): Option[String] =
-    Predef.augmentString("""new MvnAemJobBuilder\([^,]+?,\s*['"]?(.*?)['"]?,.*""").r
-      .findFirstMatchIn(line).map(_.group(1))
+  val AemMatch: Regex =
+    """.*new MvnAemJobBuilder\([^,]*,\s*['"]([^'"]+)['"].*""".r
 
-  def uploadSlugMatch(line: String): Option[String] =
-    Predef.augmentString(""".andUploadSlug\([^,]+,\s*[^,]+,\s*(['"])(.*?)\1\)""").r
-      .findFirstMatchIn(line).map(_.group(2))
+  val UploadSlugMatch: Regex =
+    """.*\.andUploadSlug\([^,]*,[^,]*,\s*['"]([^'"]+)['"].*""".r
 }
