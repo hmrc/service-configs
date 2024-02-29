@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
 
@@ -26,7 +27,6 @@ import scala.util.matching.Regex
 
 object ZipUtil {
 
-  import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
   def findRepos(zip: ZipInputStream, repos: Seq[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
     import scala.collection.mutable.ListBuffer
     val repoBuffer: ListBuffer[Repo] = repos.to(ListBuffer)
@@ -59,40 +59,11 @@ object ZipUtil {
       zip.closeEntry()
   }
 
-  import uk.gov.hmrc.serviceconfigs.util.BuildJobPattern.{AemMatch, MicroserviceMatch, UploadSlugMatch}
-  def findServiceToRepoNames(zip: ZipInputStream, pathRegex: Regex): Seq[(String, String)] = {
-    def processLines(lines: Iterator[String]): Iterator[(String, String)] =
-      lines.foldLeft((Option.empty[String], Seq.empty[(String, String)])) {
-        case ((_             , acc), MicroserviceMatch(repoName)  ) => (Some(repoName), acc)
-        case ((_             , acc), AemMatch(repoName)           ) => (Some(repoName), acc)
-        case ((Some(repoName), acc), UploadSlugMatch(artefactName)) => (Some(repoName), acc  :+ (repoName, artefactName)  )
-        case ((optRepoName   , acc), _                            ) => (optRepoName   , acc)
-      }._2.iterator
-
+  def extractFromFiles[A](zip: ZipInputStream)(processFile: (String, Iterator[String]) => Iterator[A]): Iterator[A] =
     Iterator.continually(zip.getNextEntry)
       .takeWhile(_ != null)
       .flatMap { entry =>
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        if (pathRegex.matches(path)) {
-          val content = Source.fromInputStream(zip).getLines()
-          processLines(content)
-        } else {
-          Iterator.empty
-        }
+        processFile(path, Source.fromInputStream(zip).getLines())
       }
-      .toSeq
-      // only want the cases where slug is different to repo name
-      .filterNot { case (repo, slug) => repo == slug }
-  }
-}
-
-object BuildJobPattern {
-  val MicroserviceMatch: Regex =
-    """.*new MvnMicroserviceJobBuilder\([^,]*,\s*['"]([^'"]+)['"].*""".r
-
-  val AemMatch: Regex =
-    """.*new MvnAemJobBuilder\([^,]*,\s*['"]([^'"]+)['"].*""".r
-
-  val UploadSlugMatch: Regex =
-    """.*\.andUploadSlug\([^,]*,[^,]*,\s*['"]([^'"]+)['"].*""".r
 }
