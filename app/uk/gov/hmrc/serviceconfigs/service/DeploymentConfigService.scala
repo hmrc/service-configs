@@ -18,12 +18,10 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
-
 import play.api.Logging
-
 import uk.gov.hmrc.serviceconfigs.connector.DeploymentConfigConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil
 
@@ -90,7 +88,8 @@ object DeploymentConfigService extends Logging {
 
   private def yamlDeploymentConfigReads(serviceName: ServiceName, environment: Environment): Reads[DeploymentConfig] =
     ( ignore(serviceName)
-    ~ (__ \ "artifact_name").readNullable[String]
+      // reads US spelling from config but we use UK version
+    ~ (__ \ "artifact_name").readNullable[ArtefactName](ArtefactName.format)
     ~ ignore(environment)
     ~ (__ \ "zone"         ).read[String]
     ~ (__ \ "type"         ).read[String]

@@ -54,10 +54,8 @@ class ServiceToRepoNameRepository @Inject()(
       artefactName.map(an => equal("artefactName", an))
     ).flatten
 
-    val filter = if (filters.nonEmpty) and(filters: _*) else empty()
-
     collection
-      .find(filter)
+      .find(if (filters.nonEmpty) and(filters: _*) else empty())
       .map(_.repoName)
       .headOption()
   }

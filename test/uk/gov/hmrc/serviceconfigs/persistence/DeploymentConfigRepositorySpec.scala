@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -165,7 +165,11 @@ class DeploymentConfigRepositorySpec
 
   }
 
-  def mkDeploymentConfig(serviceName: ServiceName, environment: Environment, artefactName: Option[String] = Some("artefactName")): DeploymentConfig =
+  def mkDeploymentConfig(
+    serviceName : ServiceName,
+    environment : Environment,
+    artefactName: Option[ArtefactName] = Some(ArtefactName("artefactName"))
+  ): DeploymentConfig =
     DeploymentConfig(
       serviceName    = serviceName,
       artefactName   = artefactName,
@@ -179,7 +183,7 @@ class DeploymentConfigRepositorySpec
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
       "name"           -> deploymentConfig.serviceName.asString,
-      "artefactName"   -> deploymentConfig.artefactName,
+      "artefactName"   -> deploymentConfig.artefactName.map(_.asString),
       "environment"    -> deploymentConfig.environment.asString,
       "zone"           -> deploymentConfig.zone,
       "type"           -> deploymentConfig.deploymentType,

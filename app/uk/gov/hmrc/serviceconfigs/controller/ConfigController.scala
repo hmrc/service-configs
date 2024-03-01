@@ -91,10 +91,16 @@ class ConfigController @Inject()(
         .map(res => Ok(Json.toJson(res)))
     }
 
-  def repoNameForService(serviceName: Option[ServiceName], artefactName: Option[ArtefactName]): Action[AnyContent] = Action.async {
+  def repoNameForService(
+    serviceName : Option[ServiceName],
+    artefactName: Option[ArtefactName]
+  ): Action[AnyContent] =
+    Action.async {
     serviceToRepoNameRepository
       .findRepoName(serviceName, artefactName)
-      .map(res => Ok(Json.toJson(res)))
+      .map(_.fold(NotFound(""))(
+        res => Ok(Json.toJson(res))
+      ))
   }
 }
 
@@ -130,7 +136,7 @@ object ConfigController {
     )(unlift(ConfigWarning.unapply))
   }
 
-  implicit val rnw: Writes[RepoName] = implicitly[Writes[String]].contramap(unlift(RepoName.unapply))
+  implicit val rnf: Format[RepoName] = RepoName.format
 
   implicit def envMapWrites[A <: ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
     implicitly[Writes[Map[String, B]]].contramap(m => m.map { case (e, a) => (e.name, a) })
