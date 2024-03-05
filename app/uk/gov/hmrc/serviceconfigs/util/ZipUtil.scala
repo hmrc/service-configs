@@ -16,16 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
 
 import java.util.zip.ZipInputStream
 import java.io.{FilterInputStream, InputStreamReader}
+import scala.io.Source
 import scala.util.matching.Regex
 
 object ZipUtil {
 
-  import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
   def findRepos(zip: ZipInputStream, repos: Seq[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
     import scala.collection.mutable.ListBuffer
     val repoBuffer: ListBuffer[Repo] = repos.to(ListBuffer)
@@ -57,4 +58,12 @@ object ZipUtil {
     override def close(): Unit =
       zip.closeEntry()
   }
+
+  def extractFromFiles[A](zip: ZipInputStream)(processFile: (String, Iterator[String]) => Iterator[A]): Iterator[A] =
+    Iterator.continually(zip.getNextEntry)
+      .takeWhile(_ != null)
+      .flatMap { entry =>
+        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+        processFile(path, Source.fromInputStream(zip).getLines())
+      }
 }

@@ -88,4 +88,7 @@ object QueryBinders {
 
   implicit def teamNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[TeamName] =
     strBinder.transform(TeamName.apply, _.asString)
+
+  implicit def artefactNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ArtefactName] =
+    strBinder.transform(ArtefactName.apply, _.asString)
 }

@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -162,12 +162,17 @@ class DeploymentConfigRepositorySpec
 
       repository.find(serviceName = Some(serviceName3), repos = Some(Seq(repo1, repo2))).futureValue shouldBe Nil
     }
+
   }
 
-  def mkDeploymentConfig(serviceName: ServiceName, environment: Environment): DeploymentConfig =
+  def mkDeploymentConfig(
+    serviceName : ServiceName,
+    environment : Environment,
+    artefactName: Option[ArtefactName] = Some(ArtefactName("artefactName"))
+  ): DeploymentConfig =
     DeploymentConfig(
       serviceName    = serviceName,
-      artifactName   = Some("artefactName"),
+      artefactName   = artefactName,
       environment    = environment,
       zone           = "public",
       deploymentType = "microservice",
@@ -178,7 +183,7 @@ class DeploymentConfigRepositorySpec
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
       "name"           -> deploymentConfig.serviceName.asString,
-      "artifactName"   -> deploymentConfig.artifactName,
+      "artefactName"   -> deploymentConfig.artefactName.map(_.asString),
       "environment"    -> deploymentConfig.environment.asString,
       "zone"           -> deploymentConfig.zone,
       "type"           -> deploymentConfig.deploymentType,

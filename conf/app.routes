@@ -5,7 +5,6 @@ GET     /search                                         uk.gov.hmrc.serviceconfi
 GET     /configkeys                                     uk.gov.hmrc.serviceconfigs.controller.ConfigController.configKeys(teamName: Option[TeamName])
 GET     /warnings                                       uk.gov.hmrc.serviceconfigs.controller.ConfigController.warnings(serviceName: ServiceName, environment: Seq[Environment], version: Option[Version] ?= None, latest: Boolean)
 
-
 GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
 GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment: Environment)
 GET     /frontend-route/:serviceName                    uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName: ServiceName)
@@ -35,3 +34,4 @@ POST    /webhook                                        uk.gov.hmrc.serviceconfi
 GET     /outage-pages/:serviceName                      uk.gov.hmrc.serviceconfigs.controller.OutagePageController.searchByServiceName(serviceName: ServiceName)
 
 GET     /services/:serviceName/config-location          uk.gov.hmrc.serviceconfigs.controller.ConfigLocationController.configLocation(serviceName: ServiceName)
+GET     /services/repo-name                             uk.gov.hmrc.serviceconfigs.controller.ConfigController.repoNameForService(serviceName: Option[ServiceName], artefactName: Option[ArtefactName])

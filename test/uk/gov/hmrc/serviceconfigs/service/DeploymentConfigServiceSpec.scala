@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 
 class DeploymentConfigServiceSpec
   extends AnyWordSpec
@@ -64,7 +64,7 @@ class DeploymentConfigServiceSpec
       , environment = Environment.Production
       ) shouldBe Some(DeploymentConfig(
         serviceName    = ServiceName("test")
-      , artifactName   = Some("some-alternative-service-name")
+      , artefactName   = Some(ArtefactName("some-alternative-service-name"))
       , environment    = Environment.Production
       , zone           = "public"
       , deploymentType = "frontend"
