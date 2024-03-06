@@ -19,13 +19,12 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import cats.implicits._
 import org.apache.pekko.actor.ActorSystem
 import org.mongodb.scala.ClientSession
-import org.mongodb.scala.bson.{BsonDocument, BsonString}
-import org.mongodb.scala.model.{Aggregates, FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, InsertOneModel, Sorts}
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.{Codecs, CollectionFactory, PlayMongoRepository}
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
@@ -57,66 +56,6 @@ class DeploymentConfigSnapshotRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration =
     TransactionConfiguration.strict
-
-  private val newCollection =
-    CollectionFactory.collection(mongoComponent.database, "deploymentConfigSnapshots-new", DeploymentConfigSnapshot.mongoFormat)
-
-  def cleanupDuplicates(): Future[Unit] = {
-    implicit val ec: ExecutionContext = actorSystem.dispatchers.lookup("migration-dispatcher")
-    (for {
-      _        <- Future.successful(logger.info(s"Launching migration"))
-      nameEnvs <- mongoComponent.database.getCollection("deploymentConfigSnapshots")
-                    .aggregate(Seq(
-                      BsonDocument("$group" ->
-                        BsonDocument(
-                          "_id" -> BsonDocument("name" -> "$deploymentConfig.name", "environment" -> "$deploymentConfig.environment")
-                        )
-                      ),
-                      BsonDocument("$replaceRoot" -> BsonDocument("newRoot" ->  "$_id")),
-                      Aggregates.sort(Sorts.ascending("name", "environment"))
-                    ))
-                    .allowDiskUse(true)
-                    .map { bson =>
-                      for {
-                        name        <- bson.get[BsonString]("name")
-                        environment <- bson.get[BsonString]("environment")
-                      } yield (name.getValue, environment.getValue)
-                    }
-                    .toFuture()
-        _      =  logger.info(s"Cleaning up ${nameEnvs.size} name/environments")
-        _      <- nameEnvs.toList.traverse_{
-                    case None                      => Future.unit
-                    case Some((name, environment)) =>
-                      logger.info(s"Cleaning up: $name $environment")
-                      collection
-                        .aggregate(Seq(
-                          Aggregates.`match`(and(equal("deploymentConfig.name", name), equal("deploymentConfig.environment", environment))),
-                          Aggregates.sort(Sorts.ascending("date"))
-                        ))
-                        .allowDiskUse(true)
-                        .toFuture()
-                        .map { dcs =>
-                          val inserts =
-                            dcs.headOption.map(InsertOneModel.apply).toList ++
-                              dcs.sliding(2, 1)
-                                .flatMap {
-                                  case prev +: current +: _ =>
-                                    if (current.deploymentConfig != prev.deploymentConfig)
-                                      List(
-                                        InsertOneModel(current)
-                                      )
-                                    else
-                                      List.empty
-                                  case other =>
-                                    other.map(InsertOneModel.apply)
-                                }
-                          logger.info(s"Keeping ${inserts.size} for $name $environment")
-                          newCollection.bulkWrite(inserts).toFuture().map(_ => ())
-                        }
-                  }
-      } yield ()
-    ).andThen { t => logger.info(s"Finished migration: $t") }
-  }
 
   def snapshotsForService(serviceName: ServiceName): Future[Seq[DeploymentConfigSnapshot]] =
     collection

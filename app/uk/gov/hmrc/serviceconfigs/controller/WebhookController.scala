@@ -35,7 +35,6 @@ class WebhookController @Inject()(
   alertConfigService         : AlertConfigService,
   appConfigService           : AppConfigService,
   bobbyRulesService          : BobbyRulesService,
-  deploymentConfigService    : DeploymentConfigService,
   internalAuthConfigService  : InternalAuthConfigService,
   nginxService               : NginxService,
   routesConfigService        : RoutesConfigService,
@@ -66,12 +65,7 @@ class WebhookController @Inject()(
         case Push("alert-config"           , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
         case Push("app-config-base"        , "main") => EitherT.right[Unit](appConfigService.updateAppConfigBase())
         case Push("app-config-common"      , "main") => EitherT.right[Unit](appConfigService.updateAppConfigCommon())
-        case Push(s"app-config-$x"         , "main") => EitherT.right[Unit](Environment.parse(x).traverse { env =>
-                                                          for {
-                                                            _ <- deploymentConfigService.update(env)
-                                                            _ <- appConfigService.updateAppConfigEnv(env)
-                                                          } yield ()
-                                                        })
+        case Push(s"app-config-$x"         , "main") => EitherT.right[Unit](Environment.parse(x).traverse(appConfigService.updateAppConfigEnv))
         case Push("bobby-config"           , "main") => EitherT.right[Unit](bobbyRulesService.update())
         case Push("build-jobs"             , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
         case Push("internal-auth-config"   , "main") => EitherT.right[Unit](internalAuthConfigService.updateInternalAuth())

@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
-import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
@@ -42,7 +41,7 @@ class ConfigScheduler @Inject()(
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils with Logging { //todo remove with Logging SchedulerUtils extends it already
+) extends SchedulerUtils {
 
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",

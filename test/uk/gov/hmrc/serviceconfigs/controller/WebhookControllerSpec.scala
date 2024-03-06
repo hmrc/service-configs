@@ -62,7 +62,6 @@ class WebhookControllerSpec
     }
 
     "update app-config-env" in new Setup {
-      when(mockDeploymentConfigService.update(Environment.Production)).thenReturn(Future.unit)
       when(mockAppConfigService.updateAppConfigEnv(Environment.Production)).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "app-config-production", branch = "main")
@@ -70,7 +69,6 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDeploymentConfigService, timeout(mockitoTimeoutMs).times(1)).update(Environment.Production)
       verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigEnv(Environment.Production)
     }
 
@@ -150,7 +148,6 @@ class WebhookControllerSpec
     val mockAlertConfigService          = mock[AlertConfigService         ]
     val mockAppConfigService            = mock[AppConfigService           ]
     val mockBobbyRulesService           = mock[BobbyRulesService          ]
-    val mockDeploymentConfigService     = mock[DeploymentConfigService    ]
     val mockInternalAuthConfigService   = mock[InternalAuthConfigService  ]
     val mockNginxService                = mock[NginxService               ]
     val mockRoutesConfigService         = mock[RoutesConfigService        ]
@@ -166,7 +163,6 @@ class WebhookControllerSpec
       alertConfigService          = mockAlertConfigService,
       appConfigService            = mockAppConfigService,
       bobbyRulesService           = mockBobbyRulesService,
-      deploymentConfigService     = mockDeploymentConfigService,
       internalAuthConfigService   = mockInternalAuthConfigService,
       nginxService                = mockNginxService,
       routesConfigService         = mockRoutesConfigService,
