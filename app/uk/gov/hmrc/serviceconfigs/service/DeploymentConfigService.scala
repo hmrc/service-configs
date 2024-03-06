@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import cats.implicits._
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
 import play.api.Logging
@@ -30,30 +31,34 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigService @Inject()(
-                                         deploymentConfigConnector : DeploymentConfigConnector,
-                                         deploymentConfigRepository: DeploymentConfigRepository
+  deploymentConfigConnector : DeploymentConfigConnector,
+  deploymentConfigRepository: DeploymentConfigRepository
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
 
   def updateAll(): Future[Unit] = {
     logger.info("Updating all environments...")
-    Future.traverse(Environment.values)(update).map(_ => ())
+    Environment.values.traverse_(update)
   }
 
   def update(environment: Environment): Future[Unit] =
     for {
       _     <- Future.successful(logger.info(s"Getting Deployment Configs for ${environment.asString}"))
       zip   <- deploymentConfigConnector.getAppConfigZip(environment)
-      items  = DeploymentConfigService.processZip(zip, environment)
-      _      = zip.close()
-      _      = logger.info(s"Inserting ${items.size} Deployment Configs into mongo for ${environment.asString}")
+      items =  DeploymentConfigService.processZip(zip, environment)
+      _     =  zip.close()
+      _     =  logger.info(s"Inserting ${items.size} Deployment Configs into mongo for ${environment.asString}")
       count <- deploymentConfigRepository.replaceEnv(environment, items)
-      _      = logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
+      _     =  logger.info(s"Inserted $count Deployment Configs into mongo for ${environment.asString}")
     } yield ()
 
-  def find(environments: Seq[Environment], serviceName: Option[ServiceName], repos: Option[Seq[Repo]]): Future[Seq[DeploymentConfig]] =
-      deploymentConfigRepository.find(environments, serviceName, repos)
+  def find(
+    environments: Seq[Environment],
+    serviceName : Option[ServiceName],
+    repos       : Option[Seq[Repo]]
+  ): Future[Seq[DeploymentConfig]] =
+    deploymentConfigRepository.find(environments, serviceName, repos)
 }
 
 object DeploymentConfigService extends Logging {
@@ -95,7 +100,7 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "type"         ).read[String]
     ~ (__ \ "slots"        ).read[Int]
     ~ (__ \ "instances"    ).read[Int]
-    ) (DeploymentConfig.apply _)
+    )(DeploymentConfig.apply _)
 
   private [service] def toDeploymentConfig(fileName: String, fileContent: String, environment: Environment): Option[DeploymentConfig] =
     scala.util.Try {

@@ -38,7 +38,7 @@ class ServiceToRepoNameScheduler @Inject()(
   ec                      : ExecutionContext
 ) extends SchedulerUtils {
 
-    scheduleWithTimePeriodLock(
+  scheduleWithTimePeriodLock(
     label           = "ServiceToRepoNameScheduler",
     schedulerConfig = schedulerConfigs.serviceToRepoNameScheduler,
     lock            = ScheduledLockService(mongoLockRepository, "service-to-repo-name-scheduler", timestampSupport, schedulerConfigs.serviceToRepoNameScheduler.interval)

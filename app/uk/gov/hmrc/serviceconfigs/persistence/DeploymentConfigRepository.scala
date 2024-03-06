@@ -60,13 +60,13 @@ class DeploymentConfigRepository @Inject()(
 
   def find(environments: Seq[Environment] = Seq.empty, serviceName: Option[ServiceName] = None, repos: Option[Seq[Repo]] = None): Future[Seq[DeploymentConfig]] = {
     val filters = Seq(
-      Option.when(environments.nonEmpty)(in("environment", environments:_*)),
+      Option.when(environments.nonEmpty)(in("environment", environments: _*)),
       repos.map(repos => Filters.in("name", repos.map(_.name): _*)),
       serviceName.map(sn => equal("name", sn))
     ).flatten
 
     collection
-      .find(if (filters.nonEmpty) and(filters:_*) else empty())
+      .find(if (filters.nonEmpty) and(filters: _*) else empty())
       .toFuture()
   }
 

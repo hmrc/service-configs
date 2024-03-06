@@ -31,10 +31,11 @@ object BobbyRules {
   private def bobbyRuleFormat(implicit dateFormat: Format[LocalDate]): Format[BobbyRule] =
     ( (__ \ "organisation"  ).format[String]
     ~ (__ \ "name"          ).format[String]
-    ~ (__ \ "range"         ).format[String].inmap(
-      (range: String) => if (range.trim == "*") "[0.0.0,)" else range,
-      identity[String]
-    )
+    ~ (__ \ "range"         ).format[String]
+                             .inmap[String](
+                               range => if (range.trim == "*") "[0.0.0,)" else range,
+                               identity
+                             )
     ~ (__ \ "reason"        ).format[String]
     ~ (__ \ "from"          ).format[LocalDate]
     ~ (__ \ "exemptProjects").formatWithDefault[Seq[String]](Seq.empty)

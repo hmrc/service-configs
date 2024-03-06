@@ -41,22 +41,18 @@ class DeploymentConfigController @Inject()(
 
   def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
     Action.async {
-
-      val getReposByTeam = teamName match {
-        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some(_))
-        case None        => Future.successful(None)
-      }
-
       for {
-        reposByTeam       <- getReposByTeam
-        deploymentConfigs <- deploymentConfigService.find(environments, serviceName, reposByTeam)
-      } yield {
+        reposForTeam       <- teamName match {
+                               case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some.apply)
+                               case None        => Future.successful(None)
+                             }
+        deploymentConfigs <- deploymentConfigService.find(environments, serviceName, reposForTeam)
+      } yield
         (deploymentConfigs, serviceName) match {
           case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
-          case (Nil, _)                 => NotFound("No deployment configurations found")
+          case (Nil, _                ) => NotFound("No deployment configurations found")
           case _                        => Ok(Json.toJson(deploymentConfigs))
         }
-      }
     }
 
 
