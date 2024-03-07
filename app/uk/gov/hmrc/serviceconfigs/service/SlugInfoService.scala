@@ -206,10 +206,10 @@ class SlugInfoService @Inject()(
                                 lastUpdated     = dataTimestamp
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
-        deploymentConfig  =  deployedConfigMap.get(s"app-config-${env.asString}")
+        deploymentConfig  =  deployedConfig.appConfigEnv
                                .flatMap(content =>
                                  DeploymentConfigService.toDeploymentConfig(
-                                   fileName    = s"app-config-${env.asString}",
+                                   serviceName = serviceName,
                                    fileContent = content,
                                    environment = env
                                  )

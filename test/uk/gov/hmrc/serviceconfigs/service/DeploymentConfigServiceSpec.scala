@@ -30,7 +30,7 @@ class DeploymentConfigServiceSpec
   "toDeploymentConfig" should {
     "discard the 0.0.0 root element, hmrc_config and add name and environment" in {
       toDeploymentConfig(
-        fileName    = "/app-config-production/test.yaml"
+        serviceName = ServiceName("service-name")
       , fileContent = s"""
                       |0.0.0:
                       |  type: frontend
@@ -45,7 +45,7 @@ class DeploymentConfigServiceSpec
 
       , environment = Environment.Production
       ) shouldBe Some(DeploymentConfig(
-        serviceName    = ServiceName("test")
+        serviceName    = ServiceName("service-name")
       , artefactName   = Some(ArtefactName("some-alternative-service-name"))
       , environment    = Environment.Production
       , zone           = "public"
@@ -57,7 +57,7 @@ class DeploymentConfigServiceSpec
 
     "return None when there is no 0.0.0 root element" in {
       toDeploymentConfig(
-        fileName    = "/app-config-production/test.yaml"
+        serviceName = ServiceName("service-name")
       , fileContent = s"""
                       |any-other-key: {}
                       |""".stripMargin
@@ -67,7 +67,7 @@ class DeploymentConfigServiceSpec
 
     "returns None when the config is missing required keys" in {
       toDeploymentConfig(
-        fileName    = "/app-config-production/test.yaml"
+        serviceName = ServiceName("service-name")
       , fileContent = s"""
                       |0.0.0:
                       |  type: frontend
