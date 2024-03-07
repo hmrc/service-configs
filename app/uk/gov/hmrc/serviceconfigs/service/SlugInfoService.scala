@@ -166,6 +166,7 @@ class SlugInfoService @Inject()(
       hc: HeaderCarrier
     ): EitherT[Future, String, Unit] =
       for {
+        _ <- EitherT.pure[Future, String](logger.info(s"Updating Deployed config for $serviceName, $env"))
         deployedConfigMap <- deployment.config.toList.foldMapM[EitherT[Future, String, *], List[(String, String)]] { config =>
                                 config.repoName match {
                                   case RepoName("app-config-common") =>
@@ -206,7 +207,8 @@ class SlugInfoService @Inject()(
                                 lastUpdated     = dataTimestamp
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
-        deploymentConfig  =  deployedConfigMap.get(s"app-config-${env.asString}")
+        _ = logger.info(s"Creating DeploymentConfig from ${deployedConfig.appConfigEnv}  for $serviceName, $env")
+        deploymentConfig  =  deployedConfig.appConfigEnv
                                .flatMap(content =>
                                  DeploymentConfigService.toDeploymentConfig(
                                    fileName    = s"app-config-${env.asString}",
@@ -214,6 +216,7 @@ class SlugInfoService @Inject()(
                                    environment = env
                                  )
                                )
+        _ = logger.info(s"Extracted deploymentConfig ${deploymentConfig} for $serviceName, $env")
         _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this
                              EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
         // now we have stored the deployed configs, we can calculate the resulting configs
