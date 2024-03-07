@@ -50,7 +50,7 @@ class DeploymentConfigControllerSpec
 
       when(mockDeploymentConfigRepository.find(any, any, any))
         .thenReturn(Future.successful(Seq(
-          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1, Map.empty, Map.empty))
         ))
 
       val result =
@@ -67,7 +67,9 @@ class DeploymentConfigControllerSpec
         "zone"       : "zone",
         "type"       : "depType",
         "slots"      : 5,
-        "instances"  : 1
+        "instances"  : 1,
+        "envVars"    : {},
+        "jvm"        : {}
       }]""")
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
@@ -82,7 +84,7 @@ class DeploymentConfigControllerSpec
     "return configs and not get repositories when team name is not defined" in new Setup {
       when(mockDeploymentConfigRepository.find(any, any, any))
         .thenReturn(Future.successful(Seq(
-          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1, Map.empty, Map.empty))
         ))
 
       val result =
@@ -99,7 +101,9 @@ class DeploymentConfigControllerSpec
         "zone"       : "zone",
         "type"       : "depType",
         "slots"      : 5,
-        "instances"  : 1
+        "instances"  : 1,
+        "envVars"    : {},
+        "jvm"        : {}
       }]""")
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)

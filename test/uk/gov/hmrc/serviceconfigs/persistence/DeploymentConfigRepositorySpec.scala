@@ -177,17 +177,19 @@ class DeploymentConfigRepositorySpec
       zone           = "public",
       deploymentType = "microservice",
       slots          = 1,
-      instances      = 1
+      instances      = 1,
+      envVars        = Map.empty,
+      jvm            = Map.empty
     )
 
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
-      "name"           -> deploymentConfig.serviceName.asString,
-      "artefactName"   -> deploymentConfig.artefactName.map(_.asString),
-      "environment"    -> deploymentConfig.environment.asString,
-      "zone"           -> deploymentConfig.zone,
-      "type"           -> deploymentConfig.deploymentType,
-      "slots"          -> deploymentConfig.slots.toString,
-      "instances"      -> deploymentConfig.instances.toString
+      "name"         -> deploymentConfig.serviceName.asString,
+      "artefactName" -> deploymentConfig.artefactName.map(_.asString),
+      "environment"  -> deploymentConfig.environment.asString,
+      "zone"         -> deploymentConfig.zone,
+      "type"         -> deploymentConfig.deploymentType,
+      "slots"        -> deploymentConfig.slots.toString,
+      "instances"    -> deploymentConfig.instances.toString
     )
 }

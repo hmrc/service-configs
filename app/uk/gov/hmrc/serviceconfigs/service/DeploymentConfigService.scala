@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil
+import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 
 object DeploymentConfigService extends Logging {
   import play.api.libs.functional.syntax._
@@ -32,9 +33,12 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "type"         ).read[String]
     ~ (__ \ "slots"        ).read[Int]
     ~ (__ \ "instances"    ).read[Int]
+    ~ (__ \ "environment"  ).readWithDefault[Map[String, String]](Map.empty)
+                            .map(_.map { case (k, v) => (k, ConfigValue.suppressEncryption(v)) })
+    ~ (__ \ "jvm"          ).readWithDefault[Map[String, String]](Map.empty)
     )(DeploymentConfig.apply _)
 
-  def toDeploymentConfig(serviceName: ServiceName, fileContent: String, environment: Environment): Option[DeploymentConfig] =
+  def toDeploymentConfig(serviceName: ServiceName, environment: Environment, fileContent: String): Option[DeploymentConfig] =
     scala.util.Try {
       YamlUtil
         .fromYaml[Map[String, JsValue]](fileContent)

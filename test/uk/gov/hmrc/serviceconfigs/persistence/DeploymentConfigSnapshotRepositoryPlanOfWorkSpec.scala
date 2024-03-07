@@ -175,7 +175,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
     now.minusSeconds(24 * 60 * 60)
 
   private lazy val someDeploymentConfig =
-    DeploymentConfig(ServiceName("A"), None, Environment.Production, "", "", 10, 10)
+    DeploymentConfig(ServiceName("A"), None, Environment.Production, "", "", 10, 10, Map.empty, Map.empty)
 
   private lazy val someDeploymentConfigSnapshot =
     DeploymentConfigSnapshot(yesterday, latest = false, deleted = false, someDeploymentConfig)

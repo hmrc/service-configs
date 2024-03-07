@@ -314,7 +314,7 @@ object ConfigValue {
       input
 
   private val encryptionRegex = "ENC\\[[^]]*]".r
-  private def suppressEncryption(input: String): String =
+  def suppressEncryption(input: String): String =
     encryptionRegex.replaceAllIn(input, "ENC[...]")
 }
 

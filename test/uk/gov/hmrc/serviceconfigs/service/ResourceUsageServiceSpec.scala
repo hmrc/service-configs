@@ -39,13 +39,13 @@ class ResourceUsageServiceSpec extends AnyWordSpec with Matchers with ScalaFutur
             date    = Instant.parse("2021-01-01T00:00:00.000Z"),
             latest  = false,
             deleted = false,
-            DeploymentConfig(ServiceName("A"), None, Environment.Staging, "public", "service", 5, 1),
+            DeploymentConfig(ServiceName("A"), None, Environment.Staging, "public", "service", 5, 1, Map.empty, Map.empty)
           ),
           DeploymentConfigSnapshot(
             date    = Instant.parse("2021-01-01T00:00:00.000Z"),
             latest  = false,
             deleted = false,
-            DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1),
+            DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
           )
         )
 
