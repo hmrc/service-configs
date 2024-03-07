@@ -17,33 +17,34 @@
 package uk.gov.hmrc.serviceconfigs.service
 
 import cats.data.EitherT
-import cats.instances.all._
 import cats.syntax.all._
 import play.api.Logger
-
-import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{
+  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository, SlugVersionRepository
+}
 
-import scala.concurrent.{ExecutionContext, Future}
 import java.time.{Clock, Instant}
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
 class SlugInfoService @Inject()(
-  slugInfoRepository       : SlugInfoRepository
-, slugVersionRepository    : SlugVersionRepository
-, appliedConfigRepository  : AppliedConfigRepository
-, appConfigService         : AppConfigService
-, deployedConfigRepository : DeployedConfigRepository
-, releasesApiConnector     : ReleasesApiConnector
-, teamsAndReposConnector   : TeamsAndRepositoriesConnector
-, githubRawConnector       : GithubRawConnector
-, configConnector          : ConfigConnector
-, configService            : ConfigService,
-  clock                    : Clock
+  slugInfoRepository        : SlugInfoRepository
+, slugVersionRepository     : SlugVersionRepository
+, appliedConfigRepository   : AppliedConfigRepository
+, appConfigService          : AppConfigService
+, deployedConfigRepository  : DeployedConfigRepository
+, deploymentConfigRepository: DeploymentConfigRepository
+, releasesApiConnector      : ReleasesApiConnector
+, teamsAndReposConnector    : TeamsAndRepositoriesConnector
+, githubRawConnector        : GithubRawConnector
+, configConnector           : ConfigConnector
+, configService             : ConfigService,
+  clock                     : Clock
 )(implicit
   ec: ExecutionContext
 ) {
@@ -205,12 +206,22 @@ class SlugInfoService @Inject()(
                                 lastUpdated     = dataTimestamp
                               )
         _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
-        // now we have stored the deployment configs, we can calculate the resulting configs
+        deploymentConfig  =  deployedConfigMap.get(s"app-config-${env.asString}")
+                               .flatMap(content =>
+                                 DeploymentConfigService.toDeploymentConfig(
+                                   fileName    = s"app-config-${env.asString}",
+                                   fileContent = content,
+                                   environment = env
+                                 )
+                               )
+        _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this
+                             EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
+        // now we have stored the deployed configs, we can calculate the resulting configs
         cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
-        deploymentConfig  =  configService.resultingConfig(cses)
-        renderedDeploymentConfig = deploymentConfig.view.mapValues(_.toRenderedConfigSourceValue).toMap
-        _                 <- if (deploymentConfig.nonEmpty)
-                                EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
+        resultingConfigs  =  configService.resultingConfig(cses)
+        renderedDeploymentConfig = resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
+        _                 <- if (renderedDeploymentConfig.nonEmpty)
+                               EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()

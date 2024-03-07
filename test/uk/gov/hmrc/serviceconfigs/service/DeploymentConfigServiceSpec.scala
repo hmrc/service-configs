@@ -27,24 +27,6 @@ class DeploymentConfigServiceSpec
      with OptionValues {
   import DeploymentConfigService._
 
-  "isAppConfig" should {
-    "reject non yaml" in {
-      isAppConfig("/test/helloworld.txt")                         shouldBe false
-      isAppConfig("/app-config-production/foo/bar.xml")           shouldBe false
-      isAppConfig("/app-config-production/.yaml/not-a-yaml.json") shouldBe false
-    }
-
-    "reject files in the ignore list" in {
-      isAppConfig("/app-config-production/repository.yaml")    shouldBe false
-      isAppConfig("/app-config-production/.github/stale.yaml") shouldBe false
-    }
-
-    "accept any other yaml file" in {
-      isAppConfig("/app-config-production/test.yaml") shouldBe true
-      isAppConfig("/app-config-production/auth.yaml") shouldBe true
-    }
-  }
-
   "toDeploymentConfig" should {
     "discard the 0.0.0 root element, hmrc_config and add name and environment" in {
       toDeploymentConfig(

@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.Configuration
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.mvc.{Action, _}
+import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue

@@ -36,7 +36,6 @@ class MissedWebhookEventsScheduler @Inject()(
   bobbyRulesService          : BobbyRulesService,
   buildJobService            : BuildJobService,
   dashboardService           : DashboardService,
-  deploymentConfigService    : DeploymentConfigService,
   nginxService               : NginxService,
   routesConfigService        : RoutesConfigService,
   serviceManagerConfigService: ServiceManagerConfigService,
@@ -56,7 +55,6 @@ class MissedWebhookEventsScheduler @Inject()(
     logger.info("Updating incase of missed webhook event")
     runAllAndFailWithFirstError(
       for {
-        _ <- accumulateErrors("update Deployments"           , deploymentConfigService.updateAll())
         _ <- accumulateErrors("update Build Jobs"            , buildJobService.updateBuildJobs())
         _ <- accumulateErrors("update Granfan Dashboards"    , dashboardService.updateGrafanaDashboards())
         _ <- accumulateErrors("update Kibana Dashdoards"     , dashboardService.updateKibanaDashboards())

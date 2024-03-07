@@ -16,100 +16,106 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.apache.pekko.actor.ActorSystem
+import org.mockito.scalatest.MockitoSugar
 import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.MockitoSugar.{mock, reset, verify, when}
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.Application
-import play.api.inject.bind
-import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.Environment.Development
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class DeploymentConfigControllerSpec extends AnyWordSpec with Matchers with GuiceOneAppPerSuite with WireMockSupport with OptionValues {
-
-  private val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
-  private val mockDeploymentConfigService       = mock[DeploymentConfigService]
-
-  override def fakeApplication(): Application =
-    new GuiceApplicationBuilder()
-      .overrides(
-        bind[TeamsAndRepositoriesConnector].to(mockTeamsAndRepositoriesConnector),
-        bind[DeploymentConfigService].to(mockDeploymentConfigService)
-      )
-      .build()
-
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    reset(mockTeamsAndRepositoriesConnector)
-    reset(mockDeploymentConfigService)
-  }
+class DeploymentConfigControllerSpec
+  extends AnyWordSpec
+     with Matchers
+     with WireMockSupport
+     with OptionValues
+     with MockitoSugar {
 
   "deploymentConfig" should {
+    "return configs and get repositories when team name is a defined parameters" in new Setup {
+      val teamName = TeamName("test")
 
-    implicit val dcw = DeploymentConfig.apiFormat
+      when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any))
+        .thenReturn(Future.successful(Seq(Repo("test"))))
 
-    "return configs and get repositories when team name is a defined parameters" in {
+      when(mockDeploymentConfigRepository.find(any, any, any))
+        .thenReturn(Future.successful(Seq(
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+        ))
 
-      val teamName       = TeamName("test")
-      val expectedResult: Seq[DeploymentConfig] = Seq(DeploymentConfig(ServiceName("test"), None, Development, "zone", "depType", 5, 1))
-
-      when(mockTeamsAndRepositoriesConnector.getRepos(any(), any(), any(), any(), any())).thenReturn(
-        Future.successful(Seq(Repo("test")))
-      )
-
-      when(mockDeploymentConfigService.find(any(), any(), any())).thenReturn(
-        Future.successful(expectedResult)
-      )
-
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, Some(teamName)).url)
-
-      val result = route(app, request).value
+      val result =
+        call(
+          controller.deploymentConfig(Seq(Environment.Development), None, Some(teamName)),
+          FakeRequest(GET, "")
+        )
 
       status(result) shouldBe 200
 
-      contentAsJson(result) shouldBe Json.toJson(expectedResult)
+      contentAsJson(result) shouldBe Json.parse("""[{
+        "name"       : "test",
+        "environment": "development",
+        "zone"       : "zone",
+        "type"       : "depType",
+        "slots"      : 5,
+        "instances"  : 1
+      }]""")
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
-        archived = eqTo(None),
-        repoType = eqTo(Some("Service")),
-        teamName = eqTo(Some(teamName)),
-        serviceType = eqTo(None),
-        tags = eqTo(Nil)
+        archived    = None,
+        repoType    = Some("Service"),
+        teamName    = Some(teamName),
+        serviceType = None,
+        tags        = Nil
       )
     }
 
-    "return configs and not get repositories when team name is not defined" in {
+    "return configs and not get repositories when team name is not defined" in new Setup {
+      when(mockDeploymentConfigRepository.find(any, any, any))
+        .thenReturn(Future.successful(Seq(
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+        ))
 
-      val expectedResult: Seq[DeploymentConfig] = Seq(DeploymentConfig(ServiceName("test"), None, Development, "zone", "depType", 5, 1))
-
-      when(mockDeploymentConfigService.find(any(), any(), any())).thenReturn(
-        Future.successful(expectedResult)
-      )
-
-      val request = FakeRequest(GET, routes.DeploymentConfigController.deploymentConfig(Seq(Development), None, None).url)
-
-      val result = route(app, request).value
+      val result =
+        call(
+          controller.deploymentConfig(Seq(Environment.Development), None, None),
+          FakeRequest(GET, "")
+        )
 
       status(result) shouldBe 200
 
-      contentAsJson(result) shouldBe Json.toJson(expectedResult)
+      contentAsJson(result) shouldBe Json.parse("""[{
+        "name"       : "test",
+        "environment": "development",
+        "zone"       : "zone",
+        "type"       : "depType",
+        "slots"      : 5,
+        "instances"  : 1
+      }]""")
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)
     }
-
   }
 
+  trait Setup {
+    implicit val as: ActorSystem = ActorSystem()
+
+    val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
+    val mockDeploymentConfigRepository    = mock[DeploymentConfigRepository]
+
+    val controller = new DeploymentConfigController(
+      deploymentConfigRepository    = mockDeploymentConfigRepository,
+      teamsAndRepositoriesConnector = mockTeamsAndRepositoriesConnector,
+      cc                            = stubControllerComponents()
+    )
+  }
 }

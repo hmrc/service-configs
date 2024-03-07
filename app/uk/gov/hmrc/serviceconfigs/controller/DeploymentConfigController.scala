@@ -16,53 +16,40 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
-import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
-import uk.gov.hmrc.serviceconfigs.service.DeploymentConfigService
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigController @Inject()(
-  deploymentConfigService           : DeploymentConfigService,
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
-  teamsAndRepositoriesConnector     : TeamsAndRepositoriesConnector,
-  cc                                : ControllerComponents
-)(implicit ec: ExecutionContext
+  deploymentConfigRepository   : DeploymentConfigRepository,
+  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
+  cc                           : ControllerComponents
+)(implicit
+  ec                           : ExecutionContext
 ) extends BackendController(cc) {
 
-  implicit val dcw: Format[DeploymentConfig] = DeploymentConfig.apiFormat
-  implicit val dcsw: Format[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
+  implicit val dcw: Writes[DeploymentConfig] = DeploymentConfig.apiFormat
 
   def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
     Action.async {
-
-      val getReposByTeam = teamName match {
-        case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some(_))
-        case None        => Future.successful(None)
-      }
-
       for {
-        reposByTeam       <- getReposByTeam
-        deploymentConfigs <- deploymentConfigService.find(environments, serviceName, reposByTeam)
-      } yield {
+        reposForTeam       <- teamName match {
+                               case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some.apply)
+                               case None        => Future.successful(None)
+                             }
+        deploymentConfigs <- deploymentConfigRepository.find(environments, serviceName, reposForTeam)
+      } yield
         (deploymentConfigs, serviceName) match {
           case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
-          case (Nil, _)                 => NotFound("No deployment configurations found")
+          case (Nil, _                ) => NotFound("No deployment configurations found")
           case _                        => Ok(Json.toJson(deploymentConfigs))
         }
-      }
-    }
-
-
-  def cleanupDuplicates(): Action[AnyContent] =
-    Action {
-      deploymentConfigSnapshotRepository.cleanupDuplicates()
-      Accepted("")
     }
 }
