@@ -34,15 +34,14 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "instances"    ).read[Int]
     )(DeploymentConfig.apply _)
 
-  def toDeploymentConfig(fileName: String, fileContent: String, environment: Environment): Option[DeploymentConfig] =
+  def toDeploymentConfig(serviceName: ServiceName, fileContent: String, environment: Environment): Option[DeploymentConfig] =
     scala.util.Try {
-      logger.debug(s"processing config file $fileName")
       YamlUtil
         .fromYaml[Map[String, JsValue]](fileContent)
         .get("0.0.0")
-        .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(ServiceName(fileName.split("/").last.replace(".yaml", "")), environment)))
+        .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(serviceName, environment)))
     }.fold(
-      err => { logger.error(s"Could not process file $fileName while looking for deployment config" , err); None }
+      err => { logger.error(s"Could not process the deployment config for $serviceName, $environment" , err); None }
     , res => res
     )
 }
