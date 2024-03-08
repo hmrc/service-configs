@@ -1,5 +1,17 @@
+# Migration to 1.39.0
+```javascript
+db.getCollection('deployedConfig').dropIndex("name_1_environment_1")
+db.getCollection('deployedConfig').dropIndex("environment_1")
+db.getCollection('deployedConfig').updateMany({}, {$set: {"applied": true, envVars: {}, jvm: {}}})()
+```
+TODO What about DeploymentConfigSnapshots? Shall we strip it out when storing?
+
+
 # Migration to 0.192.0
+
+```javascript
 db.getCollection('deployedConfig').updateMany({}, {$set: {"lastUpdated": new ISODate("2023-07-12T00:00:00Z")}})()
+```
 
 # Migration to 0.167.0
 
