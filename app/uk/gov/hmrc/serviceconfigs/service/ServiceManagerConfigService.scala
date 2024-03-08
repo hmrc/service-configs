@@ -16,13 +16,15 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import javax.inject.{Inject, Singleton}
+import cats.implicits._
+
 import play.api.Logging
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.persistence.ServiceManagerConfigRepository
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -39,14 +41,16 @@ class ServiceManagerConfigService @Inject()(
     for {
       _        <- Future.successful(logger.info(s"Updating Service Manager Config ..."))
       smConfig <- configConnector.serviceManagerConfig().map(_.getOrElse("").linesIterator.zipWithIndex.toList)
-      repos    <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-      items    =  repos.flatMap(repo =>
+      repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+                 , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+                 ).mapN(_ ++ _)
+      items     = repos.flatMap(repo =>
                     smConfig
                       .find { case (line, _) => line.contains(s"\"${repo.name.toUpperCase.replaceAll("-", "_")}\"") }
                       .map  { case (_, idx ) => ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.name), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}") }
                   )
-      _        =  logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
+      _         = logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
       count    <- serviceManagerConfigRepository.putAll(items)
-      _        =  logger.info(s"Inserted $count Service Manager Config into mongo")
+      _         = logger.info(s"Inserted $count Service Manager Config into mongo")
     } yield ()
   }

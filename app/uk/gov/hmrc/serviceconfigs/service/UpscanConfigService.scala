@@ -16,14 +16,15 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import javax.inject.{Inject, Singleton}
+import cats.implicits._
+
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, UpscanConfig}
 import uk.gov.hmrc.serviceconfigs.persistence.UpscanConfigRepository
 
 import java.util.zip.ZipInputStream
-
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -36,7 +37,10 @@ class UpscanConfigService @Inject()(
   def update(): Future[Unit] =
     for {
       _             <- Future.successful(logger.info(s"Updating Upscan Config ..."))
-      repoNames     <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service")).map(_.map(_.name))
+      repoNames     <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+                       , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+                       ).mapN(_ ++ _)
+                        .map(_.map(_.name))
       yamlConfigs   <- configAsCodeConnector.streamUpscanAppConfig().map(getYamlConfigFromZip)
       items         =  yamlConfigs.foldLeft(Seq.empty[UpscanConfig]){ case (acc, (env, yaml)) =>
                           val yamlLines = yaml.linesIterator.zipWithIndex.toList
@@ -67,5 +71,5 @@ class UpscanConfigService @Inject()(
         }
       }
   }
-  
+
 }

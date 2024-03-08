@@ -67,6 +67,10 @@ class UpscanConfigServiceSpec
       tags        = Nil,
     )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(rn))))
 
+    when(mockTeamsAndRepositoriesConnector.getDeletedRepos(
+      repoType    = Some("Service"),
+    )).thenReturn(Future.successful(Nil))
+
     when(mockConfigAsCodeConnector.streamUpscanAppConfig())
       .thenReturn(
         Future.successful(
