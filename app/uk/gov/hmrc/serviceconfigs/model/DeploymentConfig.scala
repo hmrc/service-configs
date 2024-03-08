@@ -32,7 +32,8 @@ case class DeploymentConfig(
   slots         : Int,
   instances     : Int,
   envVars       : Map[String, String],
-  jvm           : Map[String, String]  // This should really be Seq[String], but for now keep the same as yaml since this defines how overrides work (not very well - but needs addressing by updating the yaml format)
+  jvm           : Map[String, String],  // This should really be Seq[String], but for now keep the same as yaml since this defines how overrides work (not very well - but needs addressing by updating the yaml format)
+  applied       : Boolean
 )
 
 object DeploymentConfig {
@@ -49,6 +50,7 @@ object DeploymentConfig {
     ~ (__ \ "instances"   ).format[String].inmap[Int](_.toInt, _.toString)
     ~ (__ \ "envVars"     ).format[Map[String, String]]
     ~ (__ \ "jvm"         ).format[Map[String, String]]
+    ~ (__ \ "applied"     ).format[Boolean]
     )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 
   val apiFormat: Format[DeploymentConfig] =
@@ -61,5 +63,6 @@ object DeploymentConfig {
     ~ (__ \ "instances"   ).format[Int]
     ~ (__ \ "envVars"     ).format[Map[String, String]]
     ~ (__ \ "jvm"         ).format[Map[String, String]]
+    ~ (__ \ "applied"      ).format[Boolean]
     )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 }

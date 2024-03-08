@@ -38,7 +38,7 @@ class ServiceToRepoNameService @Inject()(
 
   def update(): Future[Unit] =
     for {
-      configs       <- deploymentConfigRepository.find()
+      configs       <- deploymentConfigRepository.find(applied = false)
       fromConfig    =  configs
                          .collect {
                            case config if config.artefactName.exists(_.asString != config.serviceName.asString) =>
@@ -49,7 +49,7 @@ class ServiceToRepoNameService @Inject()(
                              ServiceToRepoName(serviceName, artefactName, RepoName(artefactName.asString))
                          }
                          .distinct
-      _             = logger.info("Fetching slug and repo name discrepancies from Build Jobs")
+      _             =  logger.info("Fetching slug and repo name discrepancies from Build Jobs")
       zip           <- configAsCodeConnector.streamBuildJobs()
       fromBuildJobs =  extractServiceToRepoNames(zip)
                          .map { case (repo, slug) =>

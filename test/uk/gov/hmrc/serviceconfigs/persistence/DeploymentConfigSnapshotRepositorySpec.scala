@@ -180,7 +180,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotA2: DeploymentConfigSnapshot =
@@ -188,7 +188,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotA3: DeploymentConfigSnapshot =
@@ -196,7 +196,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.00Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("A"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotB1: DeploymentConfigSnapshot =
@@ -204,7 +204,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("B"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotB2: DeploymentConfigSnapshot =
@@ -212,7 +212,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest = false,
       deleted = false,
-      DeploymentConfig(ServiceName("B"), None, Environment.QA, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("B"), None, Environment.QA, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotB3: DeploymentConfigSnapshot =
@@ -220,7 +220,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.000Z"),
       latest = false,
       deleted = false,
-      DeploymentConfig(ServiceName("B"), None, Environment.Staging, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("B"), None, Environment.Staging, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotC1: DeploymentConfigSnapshot =
@@ -228,7 +228,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = false,
       deleted = false,
-      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotC2: DeploymentConfigSnapshot =
@@ -236,7 +236,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("C"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotD1: DeploymentConfigSnapshot =
@@ -244,7 +244,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotD2: DeploymentConfigSnapshot =
@@ -252,7 +252,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-03T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("D"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotE1: DeploymentConfigSnapshot =
@@ -260,7 +260,7 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-01T00:00:00.000Z"),
       latest  = true,
       deleted = false,
-      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 
   val deploymentConfigSnapshotE2: DeploymentConfigSnapshot =
@@ -268,6 +268,6 @@ object DeploymentConfigSnapshotRepositorySpec {
       date    = Instant.parse("2021-01-02T00:00:00.000Z"),
       latest  = true,
       deleted = true,
-      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty)
+      DeploymentConfig(ServiceName("E"), None, Environment.Production, "public", "service", 5, 1, Map.empty, Map.empty, true)
     )
 }

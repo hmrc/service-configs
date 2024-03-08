@@ -25,7 +25,11 @@ object DeploymentConfigService extends Logging {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
-  private def yamlDeploymentConfigReads(serviceName: ServiceName, environment: Environment): Reads[DeploymentConfig] =
+  private def yamlDeploymentConfigReads(
+    serviceName: ServiceName,
+    environment: Environment,
+    applied    : Boolean
+  ): Reads[DeploymentConfig] =
     ( Reads.pure(serviceName)
     ~ (__ \ "artifact_name").readNullable[ArtefactName](ArtefactName.format)
     ~ Reads.pure(environment)
@@ -36,14 +40,20 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "environment"  ).readWithDefault[Map[String, String]](Map.empty)
                             .map(_.map { case (k, v) => (k, ConfigValue.suppressEncryption(v)) })
     ~ (__ \ "jvm"          ).readWithDefault[Map[String, String]](Map.empty)
+    ~ Reads.pure(applied)
     )(DeploymentConfig.apply _)
 
-  def toDeploymentConfig(serviceName: ServiceName, environment: Environment, fileContent: String): Option[DeploymentConfig] =
+  def toDeploymentConfig(
+    serviceName: ServiceName,
+    environment: Environment,
+    applied    : Boolean,
+    fileContent: String
+  ): Option[DeploymentConfig] =
     scala.util.Try {
       YamlUtil
         .fromYaml[Map[String, JsValue]](fileContent)
         .get("0.0.0")
-        .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(serviceName, environment)))
+        .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(serviceName, environment, applied)))
     }.fold(
       err => { logger.error(s"Could not process the deployment config for $serviceName, $environment" , err); None }
     , res => res

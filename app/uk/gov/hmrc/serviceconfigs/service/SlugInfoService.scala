@@ -211,6 +211,7 @@ class SlugInfoService @Inject()(
                                  DeploymentConfigService.toDeploymentConfig(
                                    serviceName = serviceName,
                                    environment = env,
+                                   applied     = true,
                                    fileContent = content
                                  )
                                )

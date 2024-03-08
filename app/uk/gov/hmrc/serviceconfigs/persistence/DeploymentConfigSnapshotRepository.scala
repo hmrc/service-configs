@@ -124,7 +124,7 @@ class DeploymentConfigSnapshotRepository @Inject()(
   def populate(date: Instant): Future[Unit] =
     Environment.values.foldLeftM[Future, Unit](())((_, environment) =>
       for {
-        deploymentConfigs <- deploymentConfigRepository.find(Seq(environment))
+        deploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
         latestSnapshots   <- latestSnapshotsInEnvironment(environment)
         planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
         _                 <- executePlanOfWork(planOfWork, environment)

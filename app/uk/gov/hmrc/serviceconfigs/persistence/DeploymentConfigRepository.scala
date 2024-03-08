@@ -17,13 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.Indexes
-import org.mongodb.scala.model.{Filters, IndexModel}
-import org.mongodb.scala.model.Filters.{and, empty, equal, in}
-import org.mongodb.scala.model._
+import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
 import javax.inject.{Inject, Singleton}
@@ -39,8 +36,8 @@ class DeploymentConfigRepository @Inject()(
   collectionName = "deploymentConfig",
   domainFormat   = DeploymentConfig.mongoFormat,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("name", "environment")),
-                     IndexModel(Indexes.ascending("environment"))
+                     IndexModel(Indexes.ascending("applied", "name", "environment")),
+                     IndexModel(Indexes.ascending("applied", "environment"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions {
@@ -50,36 +47,46 @@ class DeploymentConfigRepository @Inject()(
 
   private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
-  def replaceEnv(environment: Environment, configs: Seq[DeploymentConfig]): Future[Int] =
+  def replaceEnv(
+    environment: Environment,
+    configs    : Seq[DeploymentConfig],
+    applied    : Boolean
+  ): Future[Int] =
     withSessionAndTransaction { session =>
       for {
-        _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
+        _ <- collection.deleteMany(
+               session,
+               Filters.and(
+                 Filters.equal("environment", environment),
+                 Filters.equal("applied"    , applied    )
+               )
+             ).toFuture()
         r <- collection.insertMany(session, configs).toFuture()
       } yield r.getInsertedIds.size
     }
 
   def find(
-    environments: Seq[Environment]    = Seq.empty,
-    serviceName : Option[ServiceName] = None,
-    repos       : Option[Seq[Repo]]   = None
-  ): Future[Seq[DeploymentConfig]] = {
-    val filters = Seq(
-      Option.when(environments.nonEmpty)(in("environment", environments: _*)),
-      repos.map(repos => Filters.in("name", repos.map(_.name): _*)),
-      serviceName.map(sn => equal("name", sn))
-    ).flatten
-
+    applied     : Boolean,
+    environments: Seq[Environment] = Seq.empty,
+    serviceNames: Seq[ServiceName] = Seq.empty
+  ): Future[Seq[DeploymentConfig]] =
     collection
-      .find(if (filters.nonEmpty) and(filters: _*) else empty())
+      .find(
+        Filters.and(
+          Filters.equal("applied", applied),
+          Option.when(environments.nonEmpty)(Filters.in("environment", environments                : _*)).getOrElse(Filters.empty()),
+          Option.when(serviceNames.nonEmpty)(Filters.in("name"       , serviceNames.map(_.asString): _*)).getOrElse(Filters.empty())
+        )
+      )
       .toFuture()
-  }
 
   def add(deploymentConfig: DeploymentConfig): Future[Unit] =
     collection
       .findOneAndReplace(
-        filter      = and(
-                        equal("name"       , deploymentConfig.serviceName),
-                        equal("environment", deploymentConfig.environment)
+        filter      = Filters.and(
+                        Filters.equal("name"       , deploymentConfig.serviceName),
+                        Filters.equal("environment", deploymentConfig.environment),
+                        Filters.equal("applied"    , deploymentConfig.applied)
                       ),
         replacement = deploymentConfig,
         options     = FindOneAndReplaceOptions().upsert(true)

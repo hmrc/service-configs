@@ -32,6 +32,7 @@ class DeploymentConfigServiceSpec
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
+      , applied     = true
       , fileContent = s"""
                       |0.0.0:
                       |  type: frontend
@@ -54,6 +55,7 @@ class DeploymentConfigServiceSpec
       , instances      = 1
       , envVars        = Map.empty
       , jvm            = Map.empty
+      , applied        = true
       ))
     }
 
@@ -61,6 +63,7 @@ class DeploymentConfigServiceSpec
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
+      , applied     = true
       , fileContent = s"""
                       |any-other-key: {}
                       |""".stripMargin
@@ -71,6 +74,7 @@ class DeploymentConfigServiceSpec
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
+      , applied     = true
       , fileContent = s"""
                       |0.0.0:
                       |  type: frontend
@@ -84,6 +88,7 @@ class DeploymentConfigServiceSpec
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
+      , applied     = true
       , fileContent = s"""
                       |0.0.0:
                       |  type: frontend
@@ -117,6 +122,7 @@ class DeploymentConfigServiceSpec
                            "X:-OmitStackTrace"            -> "InFastThrow",
                            "X:MaxJavaStackTraceDepth=128" -> ""
                          )
+      , applied        = true
       ))
     }
   }
