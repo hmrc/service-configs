@@ -70,8 +70,7 @@ class DeploymentConfigControllerSpec
         "slots"      : 5,
         "instances"  : 1,
         "envVars"    : {},
-        "jvm"        : {},
-        "applied"    : true
+        "jvm"        : {}
       }]""")
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
@@ -107,8 +106,7 @@ class DeploymentConfigControllerSpec
         "slots"      : 5,
         "instances"  : 1,
         "envVars"    : {},
-        "jvm"        : {},
-        "applied"    : false
+        "jvm"        : {}
       }]""")
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)

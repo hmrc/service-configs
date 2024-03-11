@@ -17,8 +17,9 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Json, JsPath, Format, OFormat, OWrites, Reads, __}
+import play.api.libs.json.{Format, __}
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
+import JsonUtil.ignoreOnWrite
 
 import java.time.Instant
 
@@ -50,9 +51,6 @@ object ResourceUsage {
     ~ (__ \ "latest"      ).format[Boolean]
     ~ (__ \ "deleted"     ).format[Boolean]
     )(ResourceUsage.apply, unlift(ResourceUsage.unapply))
-
-  private def ignoreOnWrite[A : Reads](path: JsPath) =
-    OFormat[A](Reads.at[A](path), OWrites[A](_ => Json.obj()))
 
   val apiFormat: Format[ResourceUsage] =
     ( (__ \ "date"        ).format[Instant]

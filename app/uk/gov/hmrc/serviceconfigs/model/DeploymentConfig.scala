@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
+import JsonUtil.ignoreOnWrite
 
 /*
  * Deployment config represents the non-application config from the app-config-env files.
@@ -63,6 +64,6 @@ object DeploymentConfig {
     ~ (__ \ "instances"   ).format[Int]
     ~ (__ \ "envVars"     ).format[Map[String, String]]
     ~ (__ \ "jvm"         ).format[Map[String, String]]
-    ~ (__ \ "applied"      ).format[Boolean]
+    ~ ignoreOnWrite[Boolean](__ \ "applied")
     )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 }
