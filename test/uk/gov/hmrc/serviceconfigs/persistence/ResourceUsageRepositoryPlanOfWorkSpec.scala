@@ -18,33 +18,34 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DeploymentConfigSnapshot, Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository.PlanOfWork
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ResourceUsage, ServiceName}
+import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository.PlanOfWork
 
 import java.time.Instant
 
-class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
+class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
 
   "The correct `PlanOfWork`" should {
     "Be produced for the scenario of: a new snapshot being taken of a deployed service" in {
       val currentDeploymentConfig =
         someDeploymentConfig.copy(slots = someDeploymentConfig.slots + 1)
 
-      someDeploymentConfigSnapshot.deploymentConfig should not be currentDeploymentConfig
+      (someDeploymentConfig.slots != currentDeploymentConfig.slots || someDeploymentConfig.instances != currentDeploymentConfig.instances) shouldBe true
 
       val expectedPlanOfWork =
         PlanOfWork(
-          snapshots                      = List(someDeploymentConfigSnapshot.copy(
-                                             date             = now,
-                                             latest           = true,
-                                             deploymentConfig = currentDeploymentConfig
+          snapshots                      = List(someResourceUsage.copy(
+                                             slots     = currentDeploymentConfig.slots,
+                                             instances = currentDeploymentConfig.instances,
+                                             date      = now,
+                                             latest    = true
                                            )),
           snapshotServiceReintroductions = List.empty
         )
 
       val actualPlanOfWork =
         PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(
-          latestSnapshots          = List(someDeploymentConfigSnapshot),
+          latestSnapshots          = List(someResourceUsage),
           currentDeploymentConfigs = List(currentDeploymentConfig),
           date                     = now
         )
@@ -53,11 +54,12 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
     }
 
     "Be skipped for a new snapshot with no change" in {
-      someDeploymentConfigSnapshot.deploymentConfig shouldBe someDeploymentConfig
+      someResourceUsage.slots     shouldBe someDeploymentConfig.slots
+      someResourceUsage.instances shouldBe someDeploymentConfig.instances
 
       val actualPlanOfWork =
         PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(
-          latestSnapshots          = List(someDeploymentConfigSnapshot),
+          latestSnapshots          = List(someResourceUsage),
           currentDeploymentConfigs = List(someDeploymentConfig),
           date                     = now
         )
@@ -67,7 +69,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
     "Be produced for the scenario of: a service that was decommissioned and then reintroduced" in {
       val latestSnapshots =
-        List(someDeploymentConfigSnapshot.copy(deleted = true))
+        List(someResourceUsage.copy(deleted = true))
 
       val currentDeploymentConfigs =
         List(someDeploymentConfig)
@@ -76,7 +78,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
         PlanOfWork(
           snapshots = List.empty,
           snapshotServiceReintroductions =
-            List(someDeploymentConfigSnapshot.copy(date = now, latest = true))
+            List(someResourceUsage.copy(date = now, latest = true))
         )
 
       val actualPlanOfWork =
@@ -91,14 +93,14 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
     "Be produced for the scenario of: a newly-introduced service" in {
       val latestSnapshots =
-        List.empty[DeploymentConfigSnapshot]
+        List.empty[ResourceUsage]
 
       val currentDeploymentConfigs =
         List(someDeploymentConfig)
 
       val expectedPlanOfWork =
         PlanOfWork(
-          snapshots = List(someDeploymentConfigSnapshot.copy(date = now, latest = true)),
+          snapshots = List(someResourceUsage.copy(date = now, latest = true)),
           snapshotServiceReintroductions = List.empty
         )
 
@@ -114,7 +116,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
     "Be produced for the scenario of: a service being decommissioned" in {
       val latestSnapshots =
-        List(someDeploymentConfigSnapshot)
+        List(someResourceUsage)
 
       val currentDeploymentConfigs =
         List.empty[DeploymentConfig]
@@ -123,12 +125,13 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
         PlanOfWork(
           snapshots =
             List(
-              someDeploymentConfigSnapshot
+              someResourceUsage
                 .copy(
                   date             = now,
+                  slots            = 0,
+                  instances        = 0,
                   latest           = true,
-                  deleted          = true,
-                  deploymentConfig = someDeploymentConfig.copy(slots = 0, instances = 0)
+                  deleted          = true
                 )
             ),
             snapshotServiceReintroductions = List.empty,
@@ -146,7 +149,7 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
 
     "Be produced for the scenario of: a service that was decommissioned and not reintroduced" in {
       val latestSnapshots =
-        List(someDeploymentConfigSnapshot.copy(deleted = true))
+        List(someResourceUsage.copy(deleted = true))
 
       val currentDeploymentConfigs =
         List.empty[DeploymentConfig]
@@ -177,6 +180,14 @@ class DeploymentConfigSnapshotRepositoryPlanOfWorkSpec extends AnyWordSpec with 
   private lazy val someDeploymentConfig =
     DeploymentConfig(ServiceName("A"), None, Environment.Production, "", "", 10, 10, Map.empty, Map.empty, false)
 
-  private lazy val someDeploymentConfigSnapshot =
-    DeploymentConfigSnapshot(yesterday, latest = false, deleted = false, someDeploymentConfig)
+  private lazy val someResourceUsage =
+    ResourceUsage(
+      date        = yesterday,
+      serviceName = someDeploymentConfig.serviceName,
+      environment = someDeploymentConfig.environment,
+      slots       = someDeploymentConfig.slots,
+      instances   = someDeploymentConfig.instances,
+      latest      = false,
+      deleted     = false
+    )
 }
