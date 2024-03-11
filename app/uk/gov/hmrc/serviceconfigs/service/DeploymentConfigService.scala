@@ -39,7 +39,13 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "instances"    ).read[Int]
     ~ (__ \ "environment"  ).readWithDefault[Map[String, String]](Map.empty)
                             .map(_.map { case (k, v) => (k, ConfigValue.suppressEncryption(v)) })
-    ~ (__ \ "jvm"          ).readWithDefault[Map[String, String]](Map.empty)
+    ~ (__ \ "jvm"          ).readWithDefault[Map[String, JsValue]](Map.empty)
+                            .map(_.view.mapValues {
+                              case JsString(v)  => v
+                              case JsBoolean(b) => b.toString
+                              case JsNumber(n)  => n.toString
+                              case other        => other.toString // not expected
+                            }.toMap)
     ~ Reads.pure(applied)
     )(DeploymentConfig.apply _)
 

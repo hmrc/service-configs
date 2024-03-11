@@ -1,8 +1,8 @@
 # Migration to 1.39.0
 ```javascript
-db.getCollection('deployedConfig').dropIndex("name_1_environment_1")
-db.getCollection('deployedConfig').dropIndex("environment_1")
-db.getCollection('deployedConfig').updateMany({}, {$set: {"applied": true, envVars: {}, jvm: {}}})()
+db.getCollection('deploymentConfig').dropIndex("name_1_environment_1")
+db.getCollection('deploymentConfig').dropIndex("environment_1")
+db.getCollection('deploymentConfig').updateMany({}, {$set: {"applied": true, envVars: {}, jvm: {}}})
 
 db.getCollection('deploymentConfigSnapshots').aggregate([
   {$project:
