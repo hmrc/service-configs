@@ -101,6 +101,7 @@ class DeploymentConfigServiceSpec
                       |    ms: 512m
                       |    "X:-OmitStackTrace": InFastThrow
                       |    "X:MaxJavaStackTraceDepth=128": ''
+                      |    "X:MaxRAMPercentage=": 50.0
                       |  hmrc_config:
                       |    foo: 'true'
                       |    bar: 'false'
@@ -117,10 +118,11 @@ class DeploymentConfigServiceSpec
       , instances      = 1
       , envVars        = Map("REAUTH_KS" -> "ENC[...]")
       , jvm            = Map(
-                           "mx"                           -> "512m",
-                           "ms"                           -> "512m",
-                           "X:-OmitStackTrace"            -> "InFastThrow",
-                           "X:MaxJavaStackTraceDepth=128" -> ""
+                           "mx"                           -> "512m"
+                         , "ms"                           -> "512m"
+                         , "X:-OmitStackTrace"            -> "InFastThrow"
+                         , "X:MaxJavaStackTraceDepth=128" -> ""
+                         , "X:MaxRAMPercentage="          -> "50.0"
                          )
       , applied        = true
       ))
