@@ -96,6 +96,7 @@ class DeploymentConfigServiceSpec
                       |  instances: 1
                       |  environment:
                       |    REAUTH_KS: ENC[GPG,hQIMA3xHC82vb7loAQ/6A4Aa+iszRkQ]
+                      |    SLOTS_PER_NODE: 140
                       |  jvm:
                       |    mx: 512m
                       |    ms: 512m
@@ -116,7 +117,10 @@ class DeploymentConfigServiceSpec
       , deploymentType = "frontend"
       , slots          = 3
       , instances      = 1
-      , envVars        = Map("REAUTH_KS" -> "ENC[...]")
+      , envVars        = Map(
+                           "REAUTH_KS"      -> "ENC[...]",
+                           "SLOTS_PER_NODE" -> "140"
+                         )
       , jvm            = Map(
                            "mx"                           -> "512m"
                          , "ms"                           -> "512m"
