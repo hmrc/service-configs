@@ -25,6 +25,15 @@ object DeploymentConfigService extends Logging {
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
+  private def readMap(path: JsPath): Reads[Map[String, String]] =
+    path.readWithDefault[Map[String, JsValue]](Map.empty)
+      .map(_.view.mapValues {
+        case JsString(v)  => ConfigValue.suppressEncryption(v)
+        case JsBoolean(b) => b.toString
+        case JsNumber(n)  => n.toString
+        case other        => other.toString // not expected
+      }.toMap)
+
   private def yamlDeploymentConfigReads(
     serviceName: ServiceName,
     environment: Environment,
@@ -37,15 +46,8 @@ object DeploymentConfigService extends Logging {
     ~ (__ \ "type"         ).read[String]
     ~ (__ \ "slots"        ).read[Int]
     ~ (__ \ "instances"    ).read[Int]
-    ~ (__ \ "environment"  ).readWithDefault[Map[String, String]](Map.empty)
-                            .map(_.map { case (k, v) => (k, ConfigValue.suppressEncryption(v)) })
-    ~ (__ \ "jvm"          ).readWithDefault[Map[String, JsValue]](Map.empty)
-                            .map(_.view.mapValues {
-                              case JsString(v)  => v
-                              case JsBoolean(b) => b.toString
-                              case JsNumber(n)  => n.toString
-                              case other        => other.toString // not expected
-                            }.toMap)
+    ~ readMap(__ \ "environment")
+    ~ readMap(__ \ "jvm"        )
     ~ Reads.pure(applied)
     )(DeploymentConfig.apply _)
 
