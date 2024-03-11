@@ -21,7 +21,7 @@ import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.{LatestConfigRepository, LastHashRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, LastHashRepository, LatestConfigRepository}
 
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
@@ -30,27 +30,40 @@ import scala.io.Source
 
 @Singleton
 class AppConfigService @Inject()(
-  latestConfigRepository: LatestConfigRepository,
-  lastHashRepository    : LastHashRepository,
-  configAsCodeConnector : ConfigAsCodeConnector
+  latestConfigRepository    : LatestConfigRepository,
+  lastHashRepository        : LastHashRepository,
+  deploymentConfigRepository: DeploymentConfigRepository,
+  configAsCodeConnector     : ConfigAsCodeConnector
 )(implicit
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
-    updateLatest(RepoName("app-config-base"), _.endsWith(".conf"), latestConfigRepository.put("app-config-base"))
+    updateLatest(RepoName("app-config-base"), _.endsWith(".conf"))(latestConfigRepository.put("app-config-base"))
 
   def updateAppConfigCommon(): Future[Unit] =
-    updateLatest(RepoName("app-config-common"), _.endsWith(".yaml"), latestConfigRepository.put("app-config-common"))
+    updateLatest(RepoName("app-config-common"), _.endsWith(".yaml"))(latestConfigRepository.put("app-config-common"))
 
   def updateAllAppConfigEnv(): Future[Unit] =
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml"), latestConfigRepository.put(s"app-config-${env.asString}"))
+    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")){ data =>
+      for {
+        _ <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
+        _ <- data.toSeq.foldLeftM(()){ case (_, (filename, content)) =>
+               DeploymentConfigService.toDeploymentConfig(
+                 serviceName = ServiceName(filename.stripSuffix(".yaml")),
+                 environment = env,
+                 applied     = false,
+                 fileContent = content
+               ).fold(Future.unit)(deploymentConfigRepository.add)
+             }
+      } yield ()
+    }
 
-  private def updateLatest(repoName: RepoName, filter: String => Boolean, store: Map[String, String] => Future[Unit]): Future[Unit] =
+  private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))

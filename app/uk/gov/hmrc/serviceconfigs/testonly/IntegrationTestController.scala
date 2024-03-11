@@ -23,36 +23,36 @@ import org.mongodb.scala.bson.BsonDocument
 import play.api.libs.json.{JsError, Json, JsObject, JsValue, Reads}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, DeploymentConfigSnapshot, Environment, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, Environment, ResourceUsage, SlugInfo, SlugInfoFlag}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, DeploymentConfigSnapshotRepository, FrontendRouteRepository, LatestConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, FrontendRouteRepository, LatestConfigRepository, ResourceUsageRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class IntegrationTestController @Inject()(
-  bobbyRulesRepository         : BobbyRulesRepository,
-  routeRepo                    : FrontendRouteRepository,
-  dependencyConfigRepo         : DependencyConfigRepository,
-  slugInfoRepo                 : SlugInfoRepository,
-  deploymentConfigRepo         : DeploymentConfigRepository,
-  deploymentConfigSnapshotRepo : DeploymentConfigSnapshotRepository,
-  appliedConfigRepository      : AppliedConfigRepository,
-  latestConfigRepository       : LatestConfigRepository,
-  mcc                          : MessagesControllerComponents
+  bobbyRulesRepository      : BobbyRulesRepository,
+  frontendRouteRepository   : FrontendRouteRepository,
+  dependencyConfigRepository: DependencyConfigRepository,
+  slugInfoRepository        : SlugInfoRepository,
+  deploymentConfigRepository: DeploymentConfigRepository,
+  resourceUsageRepository   : ResourceUsageRepository,
+  appliedConfigRepository   : AppliedConfigRepository,
+  latestConfigRepository    : LatestConfigRepository,
+  mcc                       : MessagesControllerComponents
 )(implicit ec: ExecutionContext
 ) extends BackendController(mcc) {
 
   def delete(dataType: String): Action[AnyContent] = Action.async {
     (dataType match {
-      case "routes"                    => routeRepo
-      case "bobbyRules"                => bobbyRulesRepository
-      case "slugDependencyConfigs"     => dependencyConfigRepo
-      case "sluginfos"                 => slugInfoRepo
-      case "deploymentConfigs"         => deploymentConfigRepo
-      case "deploymentConfigHistories" => deploymentConfigSnapshotRepo
-      case "appliedConfig"             => appliedConfigRepository
-      case "latestConfig"              => latestConfigRepository
+      case "routes"                => frontendRouteRepository
+      case "bobbyRules"            => bobbyRulesRepository
+      case "slugDependencyConfigs" => dependencyConfigRepository
+      case "sluginfos"             => slugInfoRepository
+      case "deploymentConfigs"     => deploymentConfigRepository
+      case "resourceUsages"        => resourceUsageRepository
+      case "appliedConfig"         => appliedConfigRepository
+      case "latestConfig"          => latestConfigRepository
     })
     .collection.deleteMany(BsonDocument()).toFuture()
     .map(_ => NoContent)
@@ -61,24 +61,24 @@ class IntegrationTestController @Inject()(
   def post(dataType: String): Action[JsValue] = Action.async(parse.json) { request =>
     val json = request.body
     (dataType match {
-      case "routes"                    => addRoutes(json)
-      case "bobbyRules"                => addBobbyRules(json)
-      case "slugDependencyConfigs"     => addSlugDependencyConfigs(json)
-      case "sluginfos"                 => addSlugs(json)
-      case "deploymentConfigs"         => addDeploymentConfigs(json)
-      case "deploymentConfigHistories" => addDeploymentConfigHistories(json)
-      case "appliedConfig"             => addAppliedConfig(json)
-      case "latestConfig"              => addLatestConfig(json)
+      case "routes"                => addFrontendRoutes(json)
+      case "bobbyRules"            => addBobbyRules(json)
+      case "slugDependencyConfigs" => addSlugDependencyConfigs(json)
+      case "sluginfos"             => addSlugs(json)
+      case "deploymentConfigs"     => addDeploymentConfigs(json)
+      case "resourceUsages"        => addResourceUsages(json)
+      case "appliedConfig"         => addAppliedConfig(json)
+      case "latestConfig"          => addLatestConfig(json)
     }).map(_.fold(e => BadRequest(e), _ => NoContent))
   }
 
   private def validateJson[A: Reads](json: JsValue): Either[JsObject, A] =
     json.validate[A].asEither.left.map(JsError.toJson)
 
-  private def addRoutes(json: JsValue): Future[Either[JsObject, Unit]] = {
+  private def addFrontendRoutes(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val frf = MongoFrontendRoute.formats
     validateJson[Seq[MongoFrontendRoute]](json)
-      .traverse(_.traverse_(routeRepo.update))
+      .traverse(_.traverse_(frontendRouteRepository.update))
   }
 
   private def addBobbyRules(json: JsValue): Future[Either[JsObject, Unit]] =
@@ -88,7 +88,7 @@ class IntegrationTestController @Inject()(
   private def addSlugDependencyConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val dcf = Json.using[Json.WithDefaultValues].reads[DependencyConfig]
     validateJson[Seq[DependencyConfig]](json)
-      .traverse(_.traverse_(dependencyConfigRepo.add))
+      .traverse(_.traverse_(dependencyConfigRepository.add))
   }
 
   private def addSlugs(json: JsValue): Future[Either[JsObject, Unit]] = {
@@ -98,12 +98,12 @@ class IntegrationTestController @Inject()(
         _.traverse_ { slugInfoWithFlag =>
           def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
             if (toSet(slugInfoWithFlag))
-              slugInfoRepo.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
+              slugInfoRepository.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
             else
               Future.unit
 
           for {
-            _ <- slugInfoRepo.add(slugInfoWithFlag.slugInfo)
+            _ <- slugInfoRepository.add(slugInfoWithFlag.slugInfo)
             _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )
             _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Production  ), _.production  )
             _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.QA          ), _.qa          )
@@ -119,13 +119,13 @@ class IntegrationTestController @Inject()(
   private def addDeploymentConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
     implicit val deploymentConfigReads: Reads[DeploymentConfig] = DeploymentConfig.apiFormat
     validateJson[Seq[DeploymentConfig]](json)
-      .traverse(_.traverse_(deploymentConfigRepo.add))
+      .traverse(_.traverse_(deploymentConfigRepository.add))
   }
 
-  private def addDeploymentConfigHistories(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val deploymentConfigSnapshotReads: Reads[DeploymentConfigSnapshot] = DeploymentConfigSnapshot.apiFormat
-    validateJson[Seq[DeploymentConfigSnapshot]](json)
-      .traverse(_.traverse_(deploymentConfigSnapshotRepo.add))
+  private def addResourceUsages(json: JsValue): Future[Either[JsObject, Unit]] = {
+    implicit val resourceUsageReads: Reads[ResourceUsage] = ResourceUsage.apiFormat
+    validateJson[Seq[ResourceUsage]](json)
+      .traverse(_.traverse_(resourceUsageRepository.add))
   }
 
   private def addAppliedConfig(json: JsValue): Future[Either[JsObject, Unit]] = {

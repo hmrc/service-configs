@@ -20,7 +20,6 @@ import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,141 +32,87 @@ class DeploymentConfigRepositorySpec
   override lazy val repository = new DeploymentConfigRepository(mongoComponent)
 
   "DeploymentConfigRepository" should {
+    val applied = true
     "replaceEnv correctly" in {
       val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(ServiceName("service1"), Environment.Development),
-        mkDeploymentConfig(ServiceName("service2"), Environment.Development)
+        mkDeploymentConfig(ServiceName("service1"), Environment.Development, applied),
+        mkDeploymentConfig(ServiceName("service2"), Environment.Development, applied)
       )
-      val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(ServiceName("service2"), Environment.Production),
-        mkDeploymentConfig(ServiceName("service3"), Environment.Production)
-      )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
-      repository.find().futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs)
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs, applied).futureValue
 
-      repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs
-      repository.find(Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
+      val productionDeploymentConfigs = Seq(
+        mkDeploymentConfig(ServiceName("service2"), Environment.Production, applied),
+        mkDeploymentConfig(ServiceName("service3"), Environment.Production, applied)
+      )
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
+
+      repository.find(applied).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs)
+      repository.find(applied, Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs
+      repository.find(applied, Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
 
       val developmentDeploymentConfigs2 = Seq(
-        mkDeploymentConfig(ServiceName("service3"), Environment.Development),
-        mkDeploymentConfig(ServiceName("service4"), Environment.Development)
+        mkDeploymentConfig(ServiceName("service3"), Environment.Development, applied),
+        mkDeploymentConfig(ServiceName("service4"), Environment.Development, applied)
       )
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2, applied).futureValue
 
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs2).futureValue
-
-      repository.find(Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
-      repository.find(Seq(Environment.Production) ).futureValue shouldBe productionDeploymentConfigs
+      repository.find(applied, Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
+      repository.find(applied, Seq(Environment.Production )).futureValue shouldBe productionDeploymentConfigs
     }
 
     "find one by matching service name and environment" in {
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
-      val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName1, Environment.Development),
-        mkDeploymentConfig(serviceName2, Environment.Development)
-      )
-      val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName2, Environment.Production),
-        mkDeploymentConfig(serviceName3, Environment.Production)
-      )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
 
-      repository.find(Seq(Environment.Development), Some(serviceName1)).futureValue shouldBe developmentDeploymentConfigs.filter(_.serviceName == serviceName1)
-      repository.find(Seq(Environment.Production) , Some(serviceName1)).futureValue shouldBe productionDeploymentConfigs .filter(_.serviceName == serviceName1)
+      val developmentDeploymentConfigs = Seq(
+        mkDeploymentConfig(serviceName1, Environment.Development, applied),
+        mkDeploymentConfig(serviceName2, Environment.Development, applied)
+      )
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs, applied).futureValue
+
+      val productionDeploymentConfigs = Seq(
+        mkDeploymentConfig(serviceName2, Environment.Production, applied),
+        mkDeploymentConfig(serviceName3, Environment.Production, applied)
+      )
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
+
+      val productionDeploymentConfigsNotApplied = Seq(
+        mkDeploymentConfig(serviceName2, Environment.Production, !applied),
+        mkDeploymentConfig(serviceName3, Environment.Production, !applied)
+      )
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigsNotApplied , !applied).futureValue
+
+      repository.find(applied , Seq(Environment.Development), Seq(serviceName1)).futureValue shouldBe developmentDeploymentConfigs         .filter(_.serviceName == serviceName1)
+      repository.find(applied , Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigs          .filter(_.serviceName == serviceName1)
+      repository.find(!applied, Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigsNotApplied.filter(_.serviceName == serviceName1)
     }
 
-    "find by matching service name" in {
-      val serviceName1 = ServiceName("serviceName1")
-      val serviceName2 = ServiceName("serviceName2")
-      val serviceName3 = ServiceName("serviceName3")
-      val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName1, Environment.Development),
-        mkDeploymentConfig(serviceName2, Environment.Development)
-      )
-      val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName2, Environment.Production),
-        mkDeploymentConfig(serviceName3, Environment.Production)
-      )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
-
-      repository.find(serviceName = Some(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
-    }
-
-    "find by matching repositories" in {
+    "find by matching service names" in {
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
 
-      val repo1 = Repo("serviceName1")
-      val repo2 = Repo("serviceName2")
-
       val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName1, Environment.Development),
-        mkDeploymentConfig(serviceName2, Environment.Development)
+        mkDeploymentConfig(serviceName1, Environment.Development, applied),
+        mkDeploymentConfig(serviceName2, Environment.Development, applied)
       )
+      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs, applied).futureValue
+
       val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName2, Environment.Production),
-        mkDeploymentConfig(serviceName3, Environment.Production)
+        mkDeploymentConfig(serviceName2, Environment.Production, applied),
+        mkDeploymentConfig(serviceName3, Environment.Production, applied)
       )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
+      repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
 
-      repository.find(repos = Some(Seq(repo1, repo2))).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filterNot(_.serviceName == serviceName3)
+      repository.find(applied, serviceNames = Seq(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
     }
-
-    "find by repositories then name when both are defined" in {
-      val serviceName1 = ServiceName("serviceName1")
-      val serviceName2 = ServiceName("serviceName2")
-      val serviceName3 = ServiceName("serviceName3")
-
-      val repo1 = Repo("serviceName1")
-      val repo2 = Repo("serviceName2")
-
-      val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName1, Environment.Development),
-        mkDeploymentConfig(serviceName2, Environment.Development)
-      )
-      val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName2, Environment.Production),
-        mkDeploymentConfig(serviceName3, Environment.Production)
-      )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
-
-      repository.find(serviceName = Some(serviceName1), repos = Some(Seq(repo1, repo2))).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName1)
-    }
-
-    "find by repositories then name when both are defined, returning Nil if empty" in {
-      val serviceName1 = ServiceName("serviceName1")
-      val serviceName2 = ServiceName("serviceName2")
-      val serviceName3 = ServiceName("serviceName3")
-
-      val repo1 = Repo("serviceName1")
-      val repo2 = Repo("serviceName2")
-
-      val developmentDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName1, Environment.Development),
-        mkDeploymentConfig(serviceName2, Environment.Development)
-      )
-      val productionDeploymentConfigs = Seq(
-        mkDeploymentConfig(serviceName2, Environment.Production),
-        mkDeploymentConfig(serviceName3, Environment.Production)
-      )
-      repository.replaceEnv(Environment.Development, developmentDeploymentConfigs).futureValue
-      repository.replaceEnv(Environment.Production , productionDeploymentConfigs ).futureValue
-
-      repository.find(serviceName = Some(serviceName3), repos = Some(Seq(repo1, repo2))).futureValue shouldBe Nil
-    }
-
   }
 
   def mkDeploymentConfig(
     serviceName : ServiceName,
     environment : Environment,
+    applied     : Boolean,
     artefactName: Option[ArtefactName] = Some(ArtefactName("artefactName"))
   ): DeploymentConfig =
     DeploymentConfig(
@@ -177,17 +122,20 @@ class DeploymentConfigRepositorySpec
       zone           = "public",
       deploymentType = "microservice",
       slots          = 1,
-      instances      = 1
+      instances      = 1,
+      envVars        = Map.empty,
+      jvm            = Map.empty,
+      applied        = applied
     )
 
   def toBson(deploymentConfig: DeploymentConfig): BsonDocument =
     BsonDocument(
-      "name"           -> deploymentConfig.serviceName.asString,
-      "artefactName"   -> deploymentConfig.artefactName.map(_.asString),
-      "environment"    -> deploymentConfig.environment.asString,
-      "zone"           -> deploymentConfig.zone,
-      "type"           -> deploymentConfig.deploymentType,
-      "slots"          -> deploymentConfig.slots.toString,
-      "instances"      -> deploymentConfig.instances.toString
+      "name"         -> deploymentConfig.serviceName.asString,
+      "artefactName" -> deploymentConfig.artefactName.map(_.asString),
+      "environment"  -> deploymentConfig.environment.asString,
+      "zone"         -> deploymentConfig.zone,
+      "type"         -> deploymentConfig.deploymentType,
+      "slots"        -> deploymentConfig.slots.toString,
+      "instances"    -> deploymentConfig.instances.toString
     )
 }

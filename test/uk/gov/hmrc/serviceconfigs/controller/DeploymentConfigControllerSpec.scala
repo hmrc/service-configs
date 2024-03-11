@@ -44,18 +44,19 @@ class DeploymentConfigControllerSpec
   "deploymentConfig" should {
     "return configs and get repositories when team name is a defined parameters" in new Setup {
       val teamName = TeamName("test")
+      val applied = true
 
       when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any))
         .thenReturn(Future.successful(Seq(Repo("test"))))
 
-      when(mockDeploymentConfigRepository.find(any, any, any))
+      when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
         .thenReturn(Future.successful(Seq(
-          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1, Map.empty, Map.empty, applied))
         ))
 
       val result =
         call(
-          controller.deploymentConfig(Seq(Environment.Development), None, Some(teamName)),
+          controller.deploymentConfig(Seq(Environment.Development), None, Some(teamName), applied),
           FakeRequest(GET, "")
         )
 
@@ -67,7 +68,9 @@ class DeploymentConfigControllerSpec
         "zone"       : "zone",
         "type"       : "depType",
         "slots"      : 5,
-        "instances"  : 1
+        "instances"  : 1,
+        "envVars"    : {},
+        "jvm"        : {}
       }]""")
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
@@ -80,14 +83,16 @@ class DeploymentConfigControllerSpec
     }
 
     "return configs and not get repositories when team name is not defined" in new Setup {
-      when(mockDeploymentConfigRepository.find(any, any, any))
+      val applied = false
+
+      when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
         .thenReturn(Future.successful(Seq(
-          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1))
+          DeploymentConfig(ServiceName("test"), None, Environment.Development, "zone", "depType", 5, 1, Map.empty, Map.empty, applied))
         ))
 
       val result =
         call(
-          controller.deploymentConfig(Seq(Environment.Development), None, None),
+          controller.deploymentConfig(Seq(Environment.Development), None, None, applied),
           FakeRequest(GET, "")
         )
 
@@ -99,7 +104,9 @@ class DeploymentConfigControllerSpec
         "zone"       : "zone",
         "type"       : "depType",
         "slots"      : 5,
-        "instances"  : 1
+        "instances"  : 1,
+        "envVars"    : {},
+        "jvm"        : {}
       }]""")
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)

@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.Format
 import play.api.libs.functional.syntax._
+import play.api.libs.json.{Json, JsPath, Format, OFormat, OWrites, Reads}
 
 case class ArtefactName(asString: String) extends AnyVal
 
@@ -46,4 +46,9 @@ object RepoName {
 object ServiceName {
   val format =
     implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
+}
+
+object JsonUtil {
+  def ignoreOnWrite[A : Reads](path: JsPath) =
+    OFormat[A](Reads.at[A](path), OWrites[A](_ => Json.obj()))
 }

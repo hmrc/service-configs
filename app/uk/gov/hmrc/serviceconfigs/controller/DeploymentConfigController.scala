@@ -37,19 +37,22 @@ class DeploymentConfigController @Inject()(
 
   implicit val dcw: Writes[DeploymentConfig] = DeploymentConfig.apiFormat
 
-  def deploymentConfig(environments: Seq[Environment], serviceName: Option[ServiceName], teamName: Option[TeamName]): Action[AnyContent] =
+  def deploymentConfig(
+    environments: Seq[Environment],
+    serviceName : Option[ServiceName],
+    teamName    : Option[TeamName],
+    applied     : Boolean
+  ): Action[AnyContent] =
     Action.async {
       for {
-        reposForTeam       <- teamName match {
-                               case Some(value) => teamsAndRepositoriesConnector.getRepos(teamName = Some(value), repoType = Some("Service")).map(Some.apply)
-                               case None        => Future.successful(None)
-                             }
-        deploymentConfigs <- deploymentConfigRepository.find(environments, serviceName, reposForTeam)
+        serviceNames      <- if (teamName.isDefined)
+                               teamsAndRepositoriesConnector.getRepos(teamName = teamName, repoType = Some("Service"))
+                                 .map(_.map(repo => ServiceName(repo.name)))
+                                 .map(teamServiceNames => if (serviceName.isDefined) teamServiceNames.intersect(serviceName.toSeq) else teamServiceNames)
+                             else
+                               Future.successful(serviceName.toSeq)
+        deploymentConfigs <- deploymentConfigRepository.find(applied, environments, serviceNames)
       } yield
-        (deploymentConfigs, serviceName) match {
-          case (Nil, Some(serviceName)) => NotFound(s"Service: ${serviceName.asString} not found")
-          case (Nil, _                ) => NotFound("No deployment configurations found")
-          case _                        => Ok(Json.toJson(deploymentConfigs))
-        }
+        Ok(Json.toJson(deploymentConfigs))
     }
 }

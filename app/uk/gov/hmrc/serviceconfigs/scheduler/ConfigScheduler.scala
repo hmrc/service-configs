@@ -21,7 +21,7 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigSnapshotRepository
+import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository
 import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, UpscanConfigService}
 
 import java.time.Instant
@@ -30,13 +30,13 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigScheduler @Inject()(
-  schedulerConfigs                  : SchedulerConfigs,
-  mongoLockRepository               : MongoLockRepository,
-  alertConfigService                : AlertConfigService,
-  internalAuthConfigService         : InternalAuthConfigService,
-  upscanConfigService               : UpscanConfigService,
-  deploymentConfigSnapshotRepository: DeploymentConfigSnapshotRepository,
-  timestampSupport                  : TimestampSupport
+  schedulerConfigs          : SchedulerConfigs,
+  mongoLockRepository       : MongoLockRepository,
+  alertConfigService        : AlertConfigService,
+  internalAuthConfigService : InternalAuthConfigService,
+  upscanConfigService       : UpscanConfigService,
+  resourceUsageRepository   : ResourceUsageRepository,
+  timestampSupport          : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -51,7 +51,7 @@ class ConfigScheduler @Inject()(
     logger.info("Updating config")
     runAllAndFailWithFirstError(
       for {
-        _ <- accumulateErrors("snapshot Deployments" , deploymentConfigSnapshotRepository.populate(Instant.now()))
+        _ <- accumulateErrors("snapshot Deployments" , resourceUsageRepository.populate(Instant.now()))
         _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
         - <- accumulateErrors("update Upscan Config", upscanConfigService.update())

@@ -210,8 +210,9 @@ class SlugInfoService @Inject()(
                                .flatMap(content =>
                                  DeploymentConfigService.toDeploymentConfig(
                                    serviceName = serviceName,
-                                   fileContent = content,
-                                   environment = env
+                                   environment = env,
+                                   applied     = true,
+                                   fileContent = content
                                  )
                                )
         _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this

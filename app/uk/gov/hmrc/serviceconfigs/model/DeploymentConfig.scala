@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Format, __}
+import JsonUtil.ignoreOnWrite
 
 /*
  * Deployment config represents the non-application config from the app-config-env files.
@@ -30,7 +31,10 @@ case class DeploymentConfig(
   zone          : String,
   deploymentType: String,
   slots         : Int,
-  instances     : Int
+  instances     : Int,
+  envVars       : Map[String, String],
+  jvm           : Map[String, String],  // This should really be Seq[String], but for now keep the same as yaml since this defines how overrides work (not very well - but needs addressing by updating the yaml format)
+  applied       : Boolean
 )
 
 object DeploymentConfig {
@@ -45,7 +49,10 @@ object DeploymentConfig {
     ~ (__ \ "type"        ).format[String]
     ~ (__ \ "slots"       ).format[String].inmap[Int](_.toInt, _.toString)
     ~ (__ \ "instances"   ).format[String].inmap[Int](_.toInt, _.toString)
-    ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
+    ~ (__ \ "envVars"     ).format[Map[String, String]]
+    ~ (__ \ "jvm"         ).format[Map[String, String]]
+    ~ (__ \ "applied"     ).format[Boolean]
+    )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 
   val apiFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]
@@ -55,5 +62,8 @@ object DeploymentConfig {
     ~ (__ \ "type"        ).format[String]
     ~ (__ \ "slots"       ).format[Int]
     ~ (__ \ "instances"   ).format[Int]
-    ) (DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
+    ~ (__ \ "envVars"     ).format[Map[String, String]]
+    ~ (__ \ "jvm"         ).format[Map[String, String]]
+    ~ ignoreOnWrite[Boolean](__ \ "applied")
+    )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
 }

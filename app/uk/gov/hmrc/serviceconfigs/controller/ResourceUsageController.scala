@@ -19,18 +19,18 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.json.{Format, Json}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.ServiceName
-import uk.gov.hmrc.serviceconfigs.service.{ResourceUsage, ResourceUsageService}
+import uk.gov.hmrc.serviceconfigs.model.{ResourceUsage, ServiceName}
+import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
 class ResourceUsageController @Inject()(
-  resourceUsageService: ResourceUsageService,
-  cc: ControllerComponents
+  resourceUsageRepository: ResourceUsageRepository,
+  cc                     : ControllerComponents
 )(implicit
-  ec: ExecutionContext
+  ec                     : ExecutionContext
 ) extends BackendController(cc) {
 
   private implicit val resourceUsageFormat: Format[ResourceUsage] =
@@ -38,8 +38,8 @@ class ResourceUsageController @Inject()(
 
   def resourceUsageSnapshotsForService(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
-      resourceUsageService
-        .resourceUsageSnapshotsForService(serviceName)
+      resourceUsageRepository
+        .find(serviceName)
         .map(r => Ok(Json.toJson(r)))
     }
 }
