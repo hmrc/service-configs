@@ -44,6 +44,7 @@ class ServiceManagerConfigService @Inject()(
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
                  ).mapN(_ ++ _)
+                  .map(_.distinctBy(_.name))
       items     = repos.flatMap(repo =>
                     smConfig
                       .find { case (line, _) => line.contains(s"\"${repo.name.toUpperCase.replaceAll("-", "_")}\"") }

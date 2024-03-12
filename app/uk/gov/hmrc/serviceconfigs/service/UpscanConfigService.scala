@@ -40,7 +40,7 @@ class UpscanConfigService @Inject()(
       repoNames     <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                        , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
                        ).mapN(_ ++ _)
-                        .map(_.map(_.name))
+                        .map(_.map(_.name).distinct)
       yamlConfigs   <- configAsCodeConnector.streamUpscanAppConfig().map(getYamlConfigFromZip)
       items         =  yamlConfigs.foldLeft(Seq.empty[UpscanConfig]){ case (acc, (env, yaml)) =>
                           val yamlLines = yaml.linesIterator.zipWithIndex.toList
