@@ -41,6 +41,7 @@ class BuildJobService @Inject()(
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
                  ).mapN(_ ++ _)
+                  .map(_.distinctBy(_.name))
       zip     <- configAsCodeConnector.streamBuildJobs()
       regex    = """jobs/live/(.*).groovy""".r
       blob     = "https://github.com/hmrc/build-jobs/blob"

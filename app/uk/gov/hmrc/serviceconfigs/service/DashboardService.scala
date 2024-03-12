@@ -42,6 +42,7 @@ class DashboardService @Inject()(
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
                  ).mapN(_ ++ _)
+                  .map(_.distinctBy(_.name))
       zip     <- configAsCodeConnector.streamGrafana()
       regex    = """src/main/scala/uk/gov/hmrc/grafanadashboards/dashboards/(.*).scala""".r
       blob     = "https://github.com/hmrc/grafana-dashboards/blob"
@@ -60,6 +61,7 @@ class DashboardService @Inject()(
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
                  ).mapN(_ ++ _)
+                  .map(_.distinctBy(_.name))
       zip     <- configAsCodeConnector.streamKibana()
       regex    = """src/main/scala/uk/gov/hmrc/kibanadashboards/digitalservices/(.*).scala""".r
       blob     = "https://github.com/hmrc/kibana-dashboards/blob"
