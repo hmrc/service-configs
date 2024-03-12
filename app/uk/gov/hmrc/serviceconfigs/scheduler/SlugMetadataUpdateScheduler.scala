@@ -50,7 +50,6 @@ class SlugMetadataUpdateScheduler @Inject()(
   ) {
     logger.info("Updating slug metadata")
     for {
-      _ <- slugInfoService.backfillAppliedDeploymentConfig() // TODO this can be removed once it has run once in live
       _ <- slugInfoService.updateMetadata()
     } yield logger.info("Finished updating slug metadata")
   }
