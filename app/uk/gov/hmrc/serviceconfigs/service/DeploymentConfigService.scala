@@ -63,7 +63,7 @@ object DeploymentConfigService extends Logging {
         .get("0.0.0")
         .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(serviceName, environment, applied)))
     }.fold(
-      err => { logger.error(s"Could not process the deployment config for $serviceName, $environment" , err); None }
+      err => { logger.warn(s"Could not process the deployment config for $serviceName, $environment" , err); None }
     , res => res
     )
 }
