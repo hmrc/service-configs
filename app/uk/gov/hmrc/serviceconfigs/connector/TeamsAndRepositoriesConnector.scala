@@ -61,4 +61,12 @@ class TeamsAndRepositoriesConnector @Inject()(
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
+
+  def getDeletedRepos(
+    repoType   : Option[String]       = None
+  ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
+    httpClientV2
+      .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
+      .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
+
 }

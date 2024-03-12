@@ -61,12 +61,12 @@ class SlugInfoService @Inject()(
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       dataTimestamp          =  Instant.now(clock)
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
-      activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
+      repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.name)))
       decommissionedServices <- githubRawConnector.decommissionedServices()
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
-      inactiveServices       =  latestServices.diff(activeRepos)
+      inactiveServices       =  latestServices.diff(repos)
       allServiceDeployments  =  serviceNames.map { serviceName =>
                                   val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
                                   val deploymentsByEnv = Environment.values
@@ -100,7 +100,7 @@ class SlugInfoService @Inject()(
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
                                   slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), inactiveServices.toList)
                                 } else Future.unit
-      missingLatestFlag      =  serviceNames.intersect(activeRepos).diff(decommissionedServices).diff(latestServices)
+      missingLatestFlag      =  serviceNames.intersect(repos).diff(decommissionedServices).diff(latestServices)
       _                      <- if (missingLatestFlag.nonEmpty) {
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
                                   missingLatestFlag.foldLeftM(())((_, serviceName) =>

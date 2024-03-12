@@ -16,13 +16,15 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import javax.inject.{Inject, Singleton}
+import cats.implicits._
+
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{BuildJob, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.BuildJobRepository
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -35,17 +37,19 @@ class BuildJobService @Inject()(
 
   def updateBuildJobs(): Future[Unit] =
     for {
-      _      <- Future.successful(logger.info(s"Updating Build Jobs..."))
-      repos  <- teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-      zip    <- configAsCodeConnector.streamBuildJobs()
-      regex   = """jobs/live/(.*).groovy""".r
-      blob    = "https://github.com/hmrc/build-jobs/blob"
-      items   = ZipUtil
-                  .findRepos(zip, repos, regex, blob)
-                  .map { case (repo, location) => BuildJob(serviceName = ServiceName(repo.name), location = location) }
-      _       = zip.close()
-      _       = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
-      count  <- buildJobRepository.putAll(items)
-      _       = logger.info(s"Inserted $count Build Jobs into mongo")
+      _       <- Future.successful(logger.info(s"Updating Build Jobs..."))
+      repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+                 , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+                 ).mapN(_ ++ _)
+      zip     <- configAsCodeConnector.streamBuildJobs()
+      regex    = """jobs/live/(.*).groovy""".r
+      blob     = "https://github.com/hmrc/build-jobs/blob"
+      items    = ZipUtil
+                   .findRepos(zip, repos, regex, blob)
+                   .map { case (repo, location) => BuildJob(serviceName = ServiceName(repo.name), location = location) }
+      _        = zip.close()
+      _        = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
+      count   <- buildJobRepository.putAll(items)
+      _        = logger.info(s"Inserted $count Build Jobs into mongo")
     } yield ()
   }
