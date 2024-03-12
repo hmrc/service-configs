@@ -226,4 +226,22 @@ class SlugInfoService @Inject()(
                              else
                                EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
       } yield ()
+
+  def backfillAppliedDeploymentConfig(): Future[Unit] =
+    for {
+      _               <- Future.successful(logger.info(s"Backfilling applied deployment config"))
+      deployedConfigs <- deployedConfigRepository.collection.find().toFuture()
+      _               <- deployedConfigs.foldLeftM(()) { case (_, deployedConfig) =>
+                           deployedConfig.appConfigEnv
+                             .flatMap(content =>
+                               DeploymentConfigService.toDeploymentConfig(
+                                 serviceName = deployedConfig.serviceName,
+                                 environment = deployedConfig.environment,
+                                 applied     = true,
+                                 fileContent = content
+                               )
+                             ).traverse_(deploymentConfigRepository.add)
+                          }
+      _               =  logger.info(s"Finished backfilling applied deployment config")
+    } yield ()
 }
