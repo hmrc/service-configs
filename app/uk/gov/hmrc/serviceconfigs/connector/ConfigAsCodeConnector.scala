@@ -16,14 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import org.apache.pekko.stream.scaladsl.Source
-import org.apache.pekko.util.ByteString
 import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.scaladsl.StreamConverters
+import org.apache.pekko.stream.scaladsl.{Source, StreamConverters}
+import org.apache.pekko.util.ByteString
 import play.api.Logging
-import play.api.libs.json.{Reads, __}
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
@@ -67,13 +65,23 @@ class ConfigAsCodeConnector @Inject()(
     streamGithub(RepoName("upscan-app-config"))
 
   def getLatestCommitId(repo: RepoName): Future[CommitId] = {
-    implicit val cir = Reads.at[String]((__ \ "sha")).map(CommitId.apply)
+    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD"
     httpClientV2
-      .get(url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD")
-      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .get(url)
+      .setHeader(
+        "Authorization" -> s"token ${githubConfig.githubToken}",
+        // we're only interested in the sha, without this, we may see 422: "The request could not be processed because too many files changed"
+        "Accept"        -> "application/vnd.github.sha"
+      )
       .withProxy
-      .execute[CommitId]
-  }
+      .execute[Either[UpstreamErrorResponse, HttpResponse]]
+      .map {
+        case Right(rsp)  => CommitId(rsp.body)
+        case Left(error) =>
+          logger.error(s"Could not call $url - ${error.getMessage}", error)
+          throw error
+      }
+    }
 
   def streamGithub(repo: RepoName): Future[ZipInputStream] = {
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/HEAD"

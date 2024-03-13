@@ -78,7 +78,7 @@ class ConfigAsCodeConnectorSpec
     "return commitId" in {
       stubFor(
         get(urlEqualTo(s"/api/repos/hmrc/app-config-common/commits/HEAD"))
-          .willReturn(aResponse().withBody("""{"sha":"27a469be69c988822b2bda722833b24301afb691"}"""))
+          .willReturn(aResponse().withBody("27a469be69c988822b2bda722833b24301afb691"))
       )
 
       connector.getLatestCommitId(RepoName("app-config-common")).futureValue shouldBe CommitId("27a469be69c988822b2bda722833b24301afb691")
@@ -86,6 +86,7 @@ class ConfigAsCodeConnectorSpec
       wireMockServer.verify(
         getRequestedFor(urlPathEqualTo("/api/repos/hmrc/app-config-common/commits/HEAD"))
           .withHeader("Authorization", equalTo(s"token $token"))
+          .withHeader("Accept"       , equalTo(s"application/vnd.github.sha"))
       )
     }
   }
