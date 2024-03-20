@@ -22,7 +22,7 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.BobbyRule
+import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -99,27 +99,27 @@ final case class SlackNotificationRequest(
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
 
-  def bobbyWarning(channelLookup: GithubTeam, teamName: String, warnings: List[(Service, BobbyRule)]): SlackNotificationRequest = {
+  def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest = {
     val msg: JsObject = Json.parse(
       s"""
          |{
          |  "type": "section",
          |  "text": {
          |    "type": "mrkdwn",
-         |    "text": "Hello $teamName, please be aware that the following builds will fail soon because of upcoming Bobby Rules:"
+         |    "text": "Hello ${teamName.asString}, please be aware that the following builds will fail soon because of upcoming Bobby Rules:"
          |  }
          |}
          |""".stripMargin
     ).as[JsObject]
 
-    val rules = warnings.map { case (service, rule) =>
+    val rules = warnings.map { case (serviceName, rule) =>
       Json.parse(
         s"""
            |{
            |  "type": "section",
            |  "text": {
            |    "type": "mrkdwn",
-           |    "text": "`${service.serviceName}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${service.serviceName}#environmentTabs|Catalogue>"
+           |    "text": "`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
            |  }
            |}
            |""".stripMargin

@@ -22,6 +22,7 @@ import play.api.libs.json.{Reads, __}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, TeamName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,23 +41,16 @@ class ServiceDependenciesConnector @Inject() (
   private val serviceUrl = servicesConfig.baseUrl("service-dependencies")
 
   def getAffectedServices(group: String, artefact: String, versionRange: String): Future[Seq[AffectedService]] =
-    httpClientV2.get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=${versionRange}&scope=compile")
+    httpClientV2
+      .get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=$versionRange")
       .execute[Seq[AffectedService]]
-
 }
 
-case class AffectedService(service: Service, teams: List[Team])
+case class AffectedService(serviceName: ServiceName, teamNames: List[TeamName])
 
 object AffectedService {
-
   implicit val reads: Reads[AffectedService] =
-    ((__ \ "slugName" ).read[String].map(Service.apply)
-      ~ (__ \ "teams").read[List[String]].map(_.map(Team.apply))
+   ( (__ \ "slugName").read[String      ].map(ServiceName.apply)
+   ~ (__ \ "teams"   ).read[List[String]].map(_.map(TeamName.apply))
    )(AffectedService.apply _)
 }
-
-case class Team(teamName: String) extends AnyVal
-
-case class Service(serviceName: String) extends AnyVal
-
-
