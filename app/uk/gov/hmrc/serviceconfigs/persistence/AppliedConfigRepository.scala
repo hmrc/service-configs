@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
 import play.api.Configuration
-import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel, ReplaceOptions}
+import org.mongodb.scala.model.{Aggregates, DeleteOneModel, Filters, Indexes, IndexModel, ReplaceOptions, ReplaceOneModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
@@ -62,26 +62,29 @@ class AppliedConfigRepository @Inject()(
       entries =  (updated ++ newConfig)
                    .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
       (toUpdate, toDelete) = entries.partition(_.environments.nonEmpty)
-       _      <- toUpdate.toList.foldLeftM(()) { (_, entry) =>
-                   collection.replaceOne(
-                     Filters.and(
-                       Filters.equal("serviceName", serviceName),
-                       Filters.equal("key"        , entry.key)
-                     ),
-                     entry,
-                     ReplaceOptions().upsert(true)
-                   ).toFuture()
-                   .map(_ => ())
-                 }
-      _       <- toDelete.toList.foldLeftM(()){ (_, entry) =>
-                   collection.deleteOne(
-                     Filters.and(
-                       Filters.equal("serviceName", serviceName),
-                       Filters.equal("key"        , entry.key)
+      bulkUpdates = toUpdate
+                     .filterNot(old.contains) // we could use update rather than replace to avoid unnecessary modifications, but filtering out
+                                              // those that have not changed here is easier
+                     .map(entry =>
+                       ReplaceOneModel(
+                         Filters.and(
+                           Filters.equal("serviceName", serviceName),
+                           Filters.equal("key"        , entry.key)
+                         ),
+                         entry,
+                         ReplaceOptions().upsert(true)
+                       )
+                     ) ++
+                     toDelete.map(entry =>
+                       DeleteOneModel(
+                         Filters.and(
+                           Filters.equal("serviceName", serviceName),
+                           Filters.equal("key"        , entry.key)
+                         )
+                       )
                      )
-                   ).toFuture()
-                   .map(_=> ())
-                 }
+       _      <- if (bulkUpdates.isEmpty) Future.unit
+                 else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
     } yield ()
 
   def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
