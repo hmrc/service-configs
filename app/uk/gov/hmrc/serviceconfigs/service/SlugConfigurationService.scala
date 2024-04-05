@@ -20,14 +20,13 @@ import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, ServiceName, SlugDependency, SlugInfo, SlugInfoFlag, Version}
-import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugConfigurationService @Inject()(
   slugInfoRepository         : SlugInfoRepository,
-  slugVersionRepository      : SlugVersionRepository,
   dependencyConfigRepository : DependencyConfigRepository
 )(implicit ec: ExecutionContext) extends Logging {
 
@@ -45,7 +44,7 @@ class SlugConfigurationService @Inject()(
     for {
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
       _        <- slugInfoRepository.add(slug)
-      isLatest <- slugVersionRepository.getMaxVersion(name = slug.name)
+      isLatest <- slugInfoRepository.getMaxVersion(name = slug.name)
                     .map {
                       case None             => true
                       case Some(maxVersion) => val isLatest = maxVersion == slug.version

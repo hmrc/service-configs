@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{
-  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository, SlugVersionRepository
+  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository
 }
 
 import java.time.{Clock, Instant}
@@ -34,7 +34,6 @@ import scala.util.control.NonFatal
 @Singleton
 class SlugInfoService @Inject()(
   slugInfoRepository        : SlugInfoRepository
-, slugVersionRepository     : SlugVersionRepository
 , appliedConfigRepository   : AppliedConfigRepository
 , appConfigService          : AppConfigService
 , deployedConfigRepository  : DeployedConfigRepository
@@ -95,17 +94,17 @@ class SlugInfoService @Inject()(
                                 }
       _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
       _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
-                                slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
+                                slugInfoRepository.clearFlags(SlugInfoFlag.Latest, decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
-                                  slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), inactiveServices.toList)
+                                  slugInfoRepository.clearFlags(SlugInfoFlag.Latest, inactiveServices.toList)
                                 } else Future.unit
       missingLatestFlag      =  serviceNames.intersect(repos).diff(decommissionedServices).diff(latestServices)
       _                      <- if (missingLatestFlag.nonEmpty) {
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
                                   missingLatestFlag.foldLeftM(())((_, serviceName) =>
                                     for {
-                                      optVersion <- slugVersionRepository.getMaxVersion(serviceName)
+                                      optVersion <- slugInfoRepository.getMaxVersion(serviceName)
                                       _          <- optVersion match {
                                                       case Some(version) => slugInfoRepository.setFlag(SlugInfoFlag.Latest, serviceName, version)
                                                       case None          => logger.warn(s"No max version found for $serviceName"); Future.unit

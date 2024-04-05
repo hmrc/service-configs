@@ -17,8 +17,9 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.ClientSession
-import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Projections.include
 import play.api.Logging
 import org.mongodb.scala.model.Updates._
 import uk.gov.hmrc.mongo.MongoComponent
@@ -37,8 +38,20 @@ class SlugInfoRepository @Inject()(
   mongoComponent = mongoComponent,
   collectionName = SlugInfoRepository.collectionName,
   domainFormat   = MongoSlugInfoFormats.slugInfoFormat,
-  indexes        = SlugInfoRepository.indexes,
-  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
+  indexes        = Seq(
+                     IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true)),
+                     IndexModel(Indexes.hashed("name"), IndexOptions().background(true)),
+                     IndexModel(Indexes.hashed("latest"), IndexOptions().background(true)),
+                     IndexModel(Indexes.compoundIndex(Indexes.ascending("name"), Indexes.descending("version")), IndexOptions().background(true))
+                   ) ++
+                     SlugInfoFlag.values.map { flag =>
+                       IndexModel(Indexes.compoundIndex(Indexes.hashed("name"), Indexes.ascending(flag.asString)), IndexOptions().background(true).sparse(true))
+                     },
+  extraCodecs    = Seq(
+                     Codecs.playFormatCodec(ServiceName.format),
+                     Codecs.playFormatCodec(Version.mongoVersionRepositoryFormat)
+                   ),
+  replaceIndexes = true
 ) with Logging
   with Transactions {
 
@@ -82,16 +95,13 @@ class SlugInfoRepository @Inject()(
       .first()
       .toFutureOption()
 
-  def getSlugInfos(name: ServiceName, optVersion: Option[Version]): Future[Seq[SlugInfo]] =
-    optVersion match {
-      case None          => collection.find(equal("name", name)).toFuture()
-      case Some(version) => collection.find(
-                                and(
-                                  equal("name"   , name.asString)
-                                , equal("version", version.original)
-                                )
-                              ).toFuture()
-    }
+  def getSlugInfos(name: ServiceName, version: Option[Version]): Future[Seq[SlugInfo]] =
+    collection.find(
+      and(
+        equal("name", name.asString)
+      , version.fold(empty())(v => equal("version", v.original))
+      )
+    ).toFuture()
 
   def getAllLatestSlugInfos(): Future[Seq[SlugInfo]] =
     collection.find(equal("latest", value = true)).toFuture()
@@ -120,12 +130,15 @@ class SlugInfoRepository @Inject()(
            .toFuture()
    } yield ()
 
-  def clearFlags(flags: List[SlugInfoFlag], names: List[ServiceName]): Future[Unit] = {
-    logger.debug(s"Clearing ${flags.size} flags on ${names.size} services")
+  def clearFlags(flag: SlugInfoFlag, names: Seq[ServiceName]): Future[Unit] = {
+    logger.debug(s"Clearing ${flag.asString} flag on ${names.size} services")
     collection
       .updateMany(
-        filter = in("name", names: _ *),
-        update = combine(flags.map(flag => set(flag.asString, false)): _ *)
+        filter = and (
+                   in("name", names: _ *)
+                 , equal(flag.asString, true)
+                 ),
+        update = set(flag.asString, false)
       )
       .toFuture()
       .map(_ => ())
@@ -146,21 +159,17 @@ class SlugInfoRepository @Inject()(
                .toFuture()
       } yield ()
     }
+
+  def getMaxVersion(name: ServiceName): Future[Option[Version]] =
+    collection
+      .find[Version](equal("name", name))
+      .projection(include("version"))
+      .foldLeft(Option.empty[Version]){
+        case (optMax, version) if optMax.exists(_ > version) => optMax
+        case (_     , version)                               => Some(version)
+      }.toFuture()
 }
 
-
 object SlugInfoRepository {
-  val collectionName: String =
-    "slugConfigurations"
-
-  val indexes: Seq[IndexModel] =
-    Seq(
-      IndexModel(Indexes.ascending("uri"), IndexOptions().unique(true).name("slugInfoUniqueIdx")),
-      IndexModel(Indexes.hashed("name"), IndexOptions().background(true).name("slugInfoIdx")),
-      IndexModel(Indexes.hashed("latest"), IndexOptions().background(true).name("slugInfoLatestIdx")),
-      IndexModel(
-        Indexes.compoundIndex(Indexes.ascending("name"), Indexes.descending("version")),
-        IndexOptions().name("slugInfoNameVersionIdx").background(true)
-      )
-    )
+  val collectionName = "slugConfigurations_copy"
 }
