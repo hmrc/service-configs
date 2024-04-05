@@ -171,5 +171,5 @@ class SlugInfoRepository @Inject()(
 }
 
 object SlugInfoRepository {
-  val collectionName = "slugConfigurations_copy"
+  val collectionName = "slugConfigurations"
 }
