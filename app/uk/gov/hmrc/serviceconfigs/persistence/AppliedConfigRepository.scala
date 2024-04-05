@@ -16,11 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import cats.implicits._
 import play.api.Configuration
-import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel}
+import org.mongodb.scala.model.{Aggregates, Filters, Indexes, IndexModel, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, ServiceName}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
 
@@ -29,8 +29,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AppliedConfigRepository @Inject()(
-  configuration: Configuration,
-  override val mongoComponent: MongoComponent
+  configuration : Configuration,
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[AppliedConfigRepository.AppliedConfig](
@@ -43,13 +43,11 @@ class AppliedConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("key"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) with Transactions {
+) {
   import AppliedConfigRepository._
 
   // irrelevant data is cleaned up by `delete` explicitly
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def put(serviceName: ServiceName, environment: Environment, config: Map[String, RenderedConfigSourceValue]): Future[Unit] =
     for {
@@ -58,18 +56,31 @@ class AppliedConfigRepository @Inject()(
                     case Some(configSourceValue) => x.environments ++ Map(environment -> configSourceValue)
                     case None                    => x.environments - environment
                   }))
-      missing =  config
+      newConfig =  config
                   .filterNot { case (k, _) => old.exists(_.key == k) }
                   .map { case (k, configSourceValue) => AppliedConfig(serviceName, k, Map(environment -> configSourceValue), onlyReference = false) }
-      entries =  (updated ++ missing)
-                    .filter(_.environments.nonEmpty)
-                    .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
-      _       <- withSessionAndTransaction { session =>
-                    for {
-                      _ <- collection.deleteMany(session, Filters.equal("serviceName", serviceName)).toFuture()
-                      _ <- if (entries.nonEmpty) collection.insertMany(session, entries).toFuture()
-                           else                  Future.unit
-                    } yield ()
+      entries =  (updated ++ newConfig)
+                   .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
+      (toUpdate, toDelete) = entries.partition(_.environments.nonEmpty)
+       _      <- toUpdate.toList.foldLeftM(()) { (_, entry) =>
+                   collection.replaceOne(
+                     Filters.and(
+                       Filters.equal("serviceName", serviceName),
+                       Filters.equal("key"        , entry.key)
+                     ),
+                     entry,
+                     ReplaceOptions().upsert(true)
+                   ).toFuture()
+                   .map(_ => ())
+                 }
+      _       <- toDelete.toList.foldLeftM(()){ (_, entry) =>
+                   collection.deleteOne(
+                     Filters.and(
+                       Filters.equal("serviceName", serviceName),
+                       Filters.equal("key"        , entry.key)
+                     )
+                   ).toFuture()
+                   .map(_=> ())
                  }
     } yield ()
 
