@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{
-  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository, SlugVersionRepository
+  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository
 }
 
 import java.time.{Clock, Instant}
@@ -34,7 +34,6 @@ import scala.util.control.NonFatal
 @Singleton
 class SlugInfoService @Inject()(
   slugInfoRepository        : SlugInfoRepository
-, slugVersionRepository     : SlugVersionRepository
 , appliedConfigRepository   : AppliedConfigRepository
 , appConfigService          : AppConfigService
 , deployedConfigRepository  : DeployedConfigRepository
@@ -105,7 +104,7 @@ class SlugInfoService @Inject()(
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
                                   missingLatestFlag.foldLeftM(())((_, serviceName) =>
                                     for {
-                                      optVersion <- slugVersionRepository.getMaxVersion(serviceName)
+                                      optVersion <- slugInfoRepository.getMaxVersion(serviceName)
                                       _          <- optVersion match {
                                                       case Some(version) => slugInfoRepository.setFlag(SlugInfoFlag.Latest, serviceName, version)
                                                       case None          => logger.warn(s"No max version found for $serviceName"); Future.unit
