@@ -25,7 +25,7 @@ import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository, SlugVersionRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
 import ConfigService.ConfigSourceEntries
 import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
@@ -166,7 +166,7 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugVersionRepository.getMaxVersion(any[ServiceName]))
+      when(mockedSlugInfoRepository.getMaxVersion(any[ServiceName]))
         .thenReturn(Future.successful(Some(maxVersion)))
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
@@ -505,7 +505,6 @@ class SlugInfoServiceSpec
 
   trait Setup {
     val mockedSlugInfoRepository         = mock[SlugInfoRepository]
-    val mockedSlugVersionRepository      = mock[SlugVersionRepository]
     val mockedAppliedConfigRepository    = mock[AppliedConfigRepository]
     val mockedAppConfigService           = mock[AppConfigService]
     val mockedDeployedConfigRepository   = mock[DeployedConfigRepository]
@@ -521,7 +520,6 @@ class SlugInfoServiceSpec
     val service =
       new SlugInfoService(
         mockedSlugInfoRepository
-      , mockedSlugVersionRepository
       , mockedAppliedConfigRepository
       , mockedAppConfigService
       , mockedDeployedConfigRepository

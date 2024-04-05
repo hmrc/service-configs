@@ -25,23 +25,22 @@ import uk.gov.hmrc.serviceconfigs.model.{ServiceName, SlugInfo, Version}
 
 import scala.concurrent.ExecutionContext
 
-class SlugVersionRepositorySpec
+class SlugInfoRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[Version] {
+     with DefaultPlayMongoRepositorySupport[SlugInfo] {
 
   import ExecutionContext.Implicits.global
 
-  override lazy val repository = new SlugVersionRepository(mongoComponent)
-
-  val slugInfoRepository = new SlugInfoRepository(mongoComponent)
+  override lazy val repository = new SlugInfoRepository(mongoComponent)
 
   "SlugVersionRepository" should {
     "return the max version" in {
-      slugInfoRepository.add(sampleSlugInfo(Version(1, 1, 0), "/my-slug/1.1.0")).futureValue
-      slugInfoRepository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
-      slugInfoRepository.add(sampleSlugInfo(Version(1, 4, 1), "/my-slug/1.4.1")).futureValue
-      slugInfoRepository.add(sampleSlugInfo(Version(1, 4, 0), "/my-slug/1.4.0")).futureValue
+      repository.add(sampleSlugInfo(Version(1, 1, 0), "/my-slug/1.1.0")).futureValue
+      repository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
+      repository.add(sampleSlugInfo(Version(1, 4, 1), "/my-slug/1.4.1")).futureValue
+      repository.add(sampleSlugInfo(Version(1, 4, 0), "/my-slug/1.4.0")).futureValue
+
       repository.getMaxVersion(ServiceName("my-slug")).futureValue shouldBe Some(Version(1, 4, 1))
     }
 
