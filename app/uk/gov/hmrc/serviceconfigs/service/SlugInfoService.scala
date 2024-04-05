@@ -94,10 +94,10 @@ class SlugInfoService @Inject()(
                                 }
       _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
       _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
-                                slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
+                                slugInfoRepository.clearFlags(SlugInfoFlag.Latest, decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
-                                  slugInfoRepository.clearFlags(List(SlugInfoFlag.Latest), inactiveServices.toList)
+                                  slugInfoRepository.clearFlags(SlugInfoFlag.Latest, inactiveServices.toList)
                                 } else Future.unit
       missingLatestFlag      =  serviceNames.intersect(repos).diff(decommissionedServices).diff(latestServices)
       _                      <- if (missingLatestFlag.nonEmpty) {

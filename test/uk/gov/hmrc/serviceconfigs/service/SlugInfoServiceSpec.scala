@@ -72,7 +72,7 @@ class SlugInfoServiceSpec
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
+      when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
@@ -85,7 +85,7 @@ class SlugInfoServiceSpec
         verify(mockedAppliedConfigRepository).delete(ServiceName("service1"), env)
         verify(mockedAppliedConfigRepository).delete(ServiceName("service2"), env)
       }
-      verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), decommissionedServices)
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, decommissionedServices)
     }
 
     "clear latest flag for services that have been deleted/archived" in new Setup {
@@ -117,7 +117,7 @@ class SlugInfoServiceSpec
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
+      when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
@@ -129,7 +129,7 @@ class SlugInfoServiceSpec
           verify(mockedAppliedConfigRepository).delete(service, env)
         }
       }
-      verify(mockedSlugInfoRepository).clearFlags(List(SlugInfoFlag.Latest), archived)
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, archived)
     }
 
     "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
@@ -163,7 +163,7 @@ class SlugInfoServiceSpec
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
+      when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.getMaxVersion(any[ServiceName]))
@@ -228,7 +228,7 @@ class SlugInfoServiceSpec
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
 
-      when(mockedSlugInfoRepository.clearFlags(any[List[SlugInfoFlag]], any[List[ServiceName]]))
+      when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))

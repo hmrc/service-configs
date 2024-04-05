@@ -21,7 +21,7 @@ import java.time.Instant
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{ServiceName, SlugInfo, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ServiceName, SlugInfo, SlugInfoFlag, Version}
 
 import scala.concurrent.ExecutionContext
 
@@ -34,12 +34,47 @@ class SlugInfoRepositorySpec
 
   override lazy val repository = new SlugInfoRepository(mongoComponent)
 
-  "SlugVersionRepository" should {
+  "SlugInfoRepository" should {
+    "manage by version" in {
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0))).futureValue
+
+      repository.getSlugInfos(ServiceName("my-slug"), version = None).futureValue shouldBe Seq(
+        sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0)),
+        sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))
+      )
+
+      repository.getSlugInfos(ServiceName("my-slug"), Some(Version(1, 1, 0))).futureValue shouldBe Seq(
+        sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))
+      )
+    }
+
+    "manage by flag" in {
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0))).futureValue
+      repository.setFlag(SlugInfoFlag.Latest, ServiceName("my-slug"), Version(1, 1, 0)).futureValue
+      repository.setFlag(SlugInfoFlag.Latest, ServiceName("other-slug"), Version(1, 0, 0)).futureValue
+
+      repository.getSlugInfo(ServiceName("my-slug"), SlugInfoFlag.Latest).futureValue shouldBe Some(
+        sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))
+      )
+
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(
+        sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0)),
+        sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0))
+      )
+
+      repository.clearFlags(SlugInfoFlag.Latest, Seq(ServiceName("my-slug"), ServiceName("other-slug"))).futureValue
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq.empty
+    }
+
     "return the max version" in {
-      repository.add(sampleSlugInfo(Version(1, 1, 0), "/my-slug/1.1.0")).futureValue
-      repository.add(sampleSlugInfo(Version(1, 0, 0), "/my-slug/1.0.0")).futureValue
-      repository.add(sampleSlugInfo(Version(1, 4, 1), "/my-slug/1.4.1")).futureValue
-      repository.add(sampleSlugInfo(Version(1, 4, 0), "/my-slug/1.4.0")).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 1))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 0))).futureValue
 
       repository.getMaxVersion(ServiceName("my-slug")).futureValue shouldBe Some(Version(1, 4, 1))
     }
@@ -49,11 +84,11 @@ class SlugInfoRepositorySpec
     }
   }
 
-  def sampleSlugInfo(version: Version, uri: String): SlugInfo =
+  def sampleSlugInfo(name: ServiceName, version: Version): SlugInfo =
     SlugInfo(
       created           = Instant.parse("2019-06-28T11:51:23.000Z"),
-      uri               = uri,
-      name              = ServiceName("my-slug"),
+      uri               = s"/${name.asString}/${version.original}",
+      name              = name,
       version           = version,
       classpath         = "",
       dependencies      = List.empty,
