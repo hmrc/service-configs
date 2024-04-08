@@ -16,11 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.model.{DeleteOneModel, Indexes, IndexModel, ReplaceOptions, ReplaceOneModel}
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{Indexes, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.Environment
 
 import javax.inject.{Inject, Singleton}
@@ -30,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 @Singleton
 class LatestConfigRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[LatestConfigRepository.LatestConfig](
@@ -41,12 +40,10 @@ class LatestConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("repoName", "fileName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
-) with Transactions {
+) {
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def find(repoName: String, fileName: String): Future[Option[String]] =
     collection
@@ -60,18 +57,40 @@ class LatestConfigRepository @Inject()(
       .map(_.map(_.content))
 
   def put(repoName: String)(config: Map[String, String]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, equal("repoName", repoName)).toFuture()
-        _ <- collection.insertMany(session, config.toSeq.map { case (fileName, content) =>
-               LatestConfigRepository.LatestConfig(
-                 repoName    = repoName,
-                 fileName    = fileName,
-                 content     = content
-               )
-             }).toFuture()
-      } yield ()
-    }
+    for {
+      toUpdate    <- Future.successful(config.toSeq.map { case (fileName, content) =>
+                       LatestConfigRepository.LatestConfig(
+                         repoName    = repoName,
+                         fileName    = fileName,
+                         content     = content
+                       )
+                     })
+      old         <- collection.find(equal("repoName", repoName)).toFuture()
+      toDelete    =  old.filterNot(c => config.contains(c.fileName))
+      bulkUpdates =  toUpdate
+                       .filterNot(old.contains) // we could use update rather than replace to avoid unnecessary modifications, but filtering out
+                                                // those that have not changed here is easier
+                       .map(entry =>
+                         ReplaceOneModel(
+                           and(
+                             equal("repoName", repoName),
+                             equal("fileName", entry.fileName)
+                           ),
+                           entry,
+                           ReplaceOptions().upsert(true)
+                         )
+                       ) ++
+                       toDelete.map(entry =>
+                         DeleteOneModel(
+                           and(
+                             equal("repoName", repoName),
+                             equal("fileName", entry.fileName)
+                           )
+                         )
+                       )
+       _          <- if (bulkUpdates.isEmpty) Future.unit
+                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    } yield ()
 }
 
 object LatestConfigRepository {

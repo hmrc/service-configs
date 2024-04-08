@@ -29,7 +29,7 @@ class LatestConfigRepositorySpec
 
   override protected val repository = new LatestConfigRepository(mongoComponent)
 
-  "LatestConfigRepository" should {
+  "LatestConfigRepository.put" should {
     "put correctly" in {
       val repoName1 = "app-config-base"
       repository.put(repoName1)(Map("file1" -> "content1", "file2" -> "content2")).futureValue
