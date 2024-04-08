@@ -66,10 +66,9 @@ class LatestConfigRepository @Inject()(
                        )
                      })
       old         <- collection.find(equal("repoName", repoName)).toFuture()
-      toDelete    =  old.filterNot(c => config.contains(c.fileName))
-      bulkUpdates =  toUpdate
-                       .filterNot(old.contains) // we could use update rather than replace to avoid unnecessary modifications, but filtering out
-                                                // those that have not changed here is easier
+      bulkUpdates =  //upsert any that were not present already
+                     toUpdate
+                       .filterNot(old.contains)
                        .map(entry =>
                          ReplaceOneModel(
                            and(
@@ -80,7 +79,9 @@ class LatestConfigRepository @Inject()(
                            ReplaceOptions().upsert(true)
                          )
                        ) ++
-                       toDelete.map(entry =>
+                     // delete any that are no longer present
+                       old.filterNot(c => config.contains(c.fileName))
+                         .map(entry =>
                          DeleteOneModel(
                            and(
                              equal("repoName", repoName),

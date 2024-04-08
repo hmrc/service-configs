@@ -17,11 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes}
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes, ReplaceOneModel, ReplaceOptions, DeleteOneModel}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationship}
 
 import javax.inject.{Inject, Singleton}
@@ -29,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ServiceRelationshipRepository @Inject()(
-  override val mongoComponent: MongoComponent,
+  mongoComponent: MongoComponent,
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceRelationship](
@@ -41,13 +40,10 @@ class ServiceRelationshipRepository @Inject()(
                      IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Logging
-  with Transactions
-{
+) with Logging {
+
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def getInboundServices(serviceName: ServiceName): Future[Seq[ServiceName]] =
     collection
@@ -62,10 +58,36 @@ class ServiceRelationshipRepository @Inject()(
       .map(_.map(_.target))
 
   def putAll(srs: Seq[ServiceRelationship]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, srs).toFuture()
-      } yield ()
-    }
+    for {
+      old         <- collection.find().toFuture()
+      bulkUpdates =  //upsert any that were not present already
+                     srs
+                       .filterNot(old.contains)
+                       .map(entry =>
+                         ReplaceOneModel(
+                           Filters.and(
+                             Filters.equal("source", entry.source),
+                             Filters.equal("target", entry.target)
+                           ),
+                           entry,
+                           ReplaceOptions().upsert(true)
+                         )
+                       ) ++
+                     // delete any that are not longer present
+                       old.filterNot(oldC =>
+                         srs.exists(newC =>
+                           newC.source == oldC.source &&
+                           newC.target == oldC.target
+                         )
+                       ).map(entry =>
+                         DeleteOneModel(
+                           Filters.and(
+                             Filters.equal("source", entry.source),
+                             Filters.equal("target", entry.target)
+                           )
+                         )
+                       )
+       _          <- if (bulkUpdates.isEmpty) Future.unit
+                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    } yield ()
 }

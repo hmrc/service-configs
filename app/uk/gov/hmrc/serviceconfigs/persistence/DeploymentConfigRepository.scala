@@ -17,10 +17,9 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.Indexes
-import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel}
+import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel, ReplaceOneModel, ReplaceOptions, DeleteOneModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
 
 import javax.inject.{Inject, Singleton}
@@ -28,7 +27,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentConfigRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeploymentConfig](
@@ -40,30 +39,56 @@ class DeploymentConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("applied", "environment"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) with Transactions {
+){
 
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def replaceEnv(
     environment: Environment,
     configs    : Seq[DeploymentConfig],
     applied    : Boolean
-  ): Future[Int] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(
-               session,
-               Filters.and(
-                 Filters.equal("environment", environment),
-                 Filters.equal("applied"    , applied    )
-               )
-             ).toFuture()
-        r <- collection.insertMany(session, configs).toFuture()
-      } yield r.getInsertedIds.size
-    }
+  ): Future[Unit] =
+    for {
+      old         <- collection.find(
+                       Filters.and(
+                         Filters.equal("environment", environment),
+                         Filters.equal("applied"    , applied    )
+                       )
+                     ).toFuture()
+      bulkUpdates =  //upsert any that were not present already
+                     configs
+                       .filterNot(old.contains)
+                       .map(entry =>
+                         ReplaceOneModel(
+                           Filters.and(
+                             Filters.equal("environment", environment      ),
+                             Filters.equal("name"       , entry.serviceName),
+                             Filters.equal("applied"    , applied          )
+                           ),
+                           entry,
+                           ReplaceOptions().upsert(true)
+                         )
+                       ) ++
+                     // delete any that are not longer present
+                       old.filterNot(oldC =>
+                         configs.exists(newC =>
+                           newC.environment == oldC.environment &&
+                           newC.serviceName == oldC.serviceName &&
+                           newC.applied     == newC.applied
+                         )
+                       ).map(entry =>
+                         DeleteOneModel(
+                           Filters.and(
+                             Filters.equal("environment", environment      ),
+                             Filters.equal("name"       , entry.serviceName),
+                             Filters.equal("applied"    , applied          )
+                           )
+                         )
+                       )
+       _          <- if (bulkUpdates.isEmpty) Future.unit
+                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    } yield ()
 
   def find(
     applied     : Boolean,
