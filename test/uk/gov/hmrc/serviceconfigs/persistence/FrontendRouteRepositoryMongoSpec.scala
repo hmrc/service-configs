@@ -53,18 +53,6 @@ class FrontendRouteRepositoryMongoSpec
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
     }
-
-    "add a new route (not overwrite) when a route is the same but comes from a different file" in {
-      val frontendRoute = newFrontendRoute()
-
-      repository.update(frontendRoute).futureValue
-      repository.update(frontendRoute.copy(ruleConfigurationUrl = "rule1", routesFile = "file2")).futureValue
-
-      val allEntries = repository.findAllRoutes().futureValue
-      allEntries should have size 2
-      val createdRoute = allEntries.head
-      createdRoute shouldBe frontendRoute
-    }
   }
 
   "FrontendRouteRepository.findByService" should {
@@ -114,11 +102,7 @@ class FrontendRouteRepositoryMongoSpec
         repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Production )).futureValue
         repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Development)).futureValue
 
-        val allEntries = repository
-          .collection
-          .find()
-          .toFuture()
-          .futureValue
+        val allEntries = findAll().futureValue
 
         allEntries should have size 4
 
@@ -144,6 +128,20 @@ class FrontendRouteRepositoryMongoSpec
 
       val service1Entries = repository.searchByFrontendPath("a/2").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a/1")
+    }
+
+    "put and retrieve" in {
+      val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production)
+      val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production)
+      val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath3", environment = Environment.Production)
+      repository.replaceEnv(Environment.Production, Set(frontendRoute1, frontendRoute2, frontendRoute3)).futureValue
+
+      repository.findByService(frontendRoute1.service).futureValue shouldBe Seq(frontendRoute1, frontendRoute2)
+      repository.findByService(frontendRoute3.service).futureValue shouldBe Seq(frontendRoute3)
+
+      repository.replaceEnv(Environment.Production, Set(frontendRoute1.copy(frontendPath = "frontendPath4"))).futureValue
+      repository.findByService(frontendRoute1.service).futureValue shouldBe Seq(frontendRoute1.copy(frontendPath = "frontendPath4"))
+      repository.findByService(frontendRoute3.service).futureValue shouldBe empty
     }
   }
 

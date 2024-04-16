@@ -19,8 +19,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import cats.instances.all._
 import cats.syntax.all._
 import com.mongodb.client.model.Indexes
-
-import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
@@ -28,15 +26,15 @@ import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptio
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FrontendRouteRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository[MongoFrontendRoute](
   mongoComponent = mongoComponent,
@@ -47,14 +45,12 @@ class FrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) with Transactions {
+){
 
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
 
   private val logger = Logger(this.getClass)
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
     logger.debug(
@@ -63,12 +59,11 @@ class FrontendRouteRepository @Inject()(
 
     collection
       .findOneAndReplace(
-        filter = and(
-          equal("service"     , frontendRoute.service),
-          equal("environment" , frontendRoute.environment),
-          equal("frontendPath", frontendRoute.frontendPath),
-          equal("routesFile"  , frontendRoute.routesFile)
-        ),
+        filter      = and(
+                        equal("service"     , frontendRoute.service),
+                        equal("environment" , frontendRoute.environment),
+                        equal("frontendPath", frontendRoute.frontendPath)
+                      ),
         replacement = frontendRoute,
         options     = FindOneAndReplaceOptions().upsert(true)
       )
@@ -120,14 +115,21 @@ class FrontendRouteRepository @Inject()(
     collection.find().toFuture()
 
   def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, equal("environment", environment)).toFuture()
-        _  = logger.info(s"Inserting ${routes.size} routes into mongo for $environment")
-        r <- collection.insertMany(session, routes.toList).toFuture()
-        _  = logger.info(s"Inserted ${r.getInsertedIds().size} routes into mongo for $environment")
-      } yield ()
-    }
+    MongoUtils.replace[MongoFrontendRoute](
+      collection    = collection,
+      newVals       = routes.toSeq,
+      oldValsFilter = equal("environment", environment),
+      compareById   = (a, b) =>
+                        a.environment  == b.environment &&
+                        a.service      == b.service &&
+                        a.frontendPath == b.frontendPath,
+      filterById    = entry =>
+                        and(
+                          equal("environment" , environment),
+                          equal("service"     , entry.service),
+                          equal("frontendPath", entry.frontendPath)
+                        )
+    )
 
   def findAllFrontendServices(): Future[Seq[ServiceName]] =
     collection
