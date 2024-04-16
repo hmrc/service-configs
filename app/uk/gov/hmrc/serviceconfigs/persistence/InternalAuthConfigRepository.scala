@@ -16,20 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
-import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{GrantType, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class InternalAuthConfigRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[InternalAuthConfig](
@@ -43,12 +41,10 @@ class InternalAuthConfigRepository @Inject()(
                      )
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+) {
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(serviceName: ServiceName): Future[Seq[InternalAuthConfig]] =
     collection
@@ -56,10 +52,18 @@ class InternalAuthConfigRepository @Inject()(
       .toFuture()
 
   def putAll(internalAuthConfigs: Set[InternalAuthConfig]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, internalAuthConfigs.toSeq).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[InternalAuthConfig](
+      collection    = collection,
+      newVals       = internalAuthConfigs.toSeq,
+      compareById   = (a, b) =>
+                        a.serviceName == b.serviceName &&
+                        a.environment == b.environment &&
+                        a.grantType == b.grantType,
+      filterById    = entry =>
+                        and(
+                          equal("serviceName", entry.serviceName),
+                          equal("environment", entry.environment.asString),
+                          equal("grantType", entry.grantType.asString)
+                        )
+    )
 }

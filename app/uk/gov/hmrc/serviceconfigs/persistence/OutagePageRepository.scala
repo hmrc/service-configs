@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class OutagePageRepository @Inject() (
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[OutagePage](
@@ -39,8 +39,7 @@ class OutagePageRepository @Inject() (
 , domainFormat   = OutagePage.outagePageFormat
 , indexes        = Seq(IndexModel(ascending("serviceName"), IndexOptions().unique(true)))
 , extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
+){
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
@@ -51,10 +50,11 @@ class OutagePageRepository @Inject() (
       .map(_.map(_.environments))
 
   def putAll(outagePages: Seq[OutagePage]): Future[Unit] =
-  withSessionAndTransaction { session =>
-    for {
-      _ <- collection.deleteMany(session, Document()).toFuture()
-      _ <- collection.insertMany(session, outagePages).toFuture()
-    } yield ()
-  }
+    MongoUtils.replace[OutagePage](
+      collection    = collection,
+      newVals       = outagePages,
+      compareById   = (a, b) => a.serviceName == b.serviceName,
+      filterById    = entry =>
+                        equal("serviceName", entry.serviceName)
+    )
 }

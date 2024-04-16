@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.{DeleteOneModel, Indexes, IndexModel, ReplaceOptions, ReplaceOneModel}
+import org.mongodb.scala.model.{Indexes, IndexModel}
 import org.mongodb.scala.model.Filters.{and, equal}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -57,41 +57,25 @@ class LatestConfigRepository @Inject()(
       .map(_.map(_.content))
 
   def put(repoName: String)(config: Map[String, String]): Future[Unit] =
-    for {
-      toUpdate    <- Future.successful(config.toSeq.map { case (fileName, content) =>
-                       LatestConfigRepository.LatestConfig(
-                         repoName    = repoName,
-                         fileName    = fileName,
-                         content     = content
-                       )
-                     })
-      old         <- collection.find(equal("repoName", repoName)).toFuture()
-      bulkUpdates =  //upsert any that were not present already
-                     toUpdate
-                       .filterNot(old.contains)
-                       .map(entry =>
-                         ReplaceOneModel(
-                           and(
-                             equal("repoName", repoName),
-                             equal("fileName", entry.fileName)
-                           ),
-                           entry,
-                           ReplaceOptions().upsert(true)
-                         )
-                       ) ++
-                     // delete any that are no longer present
-                       old.filterNot(c => config.contains(c.fileName))
-                         .map(entry =>
-                         DeleteOneModel(
-                           and(
-                             equal("repoName", repoName),
-                             equal("fileName", entry.fileName)
-                           )
-                         )
-                       )
-       _          <- if (bulkUpdates.isEmpty) Future.unit
-                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
-    } yield ()
+    MongoUtils.replace[LatestConfigRepository.LatestConfig](
+      collection    = collection,
+      newVals       = config.toSeq.map { case (fileName, content) =>
+                        LatestConfigRepository.LatestConfig(
+                          repoName = repoName,
+                          fileName = fileName,
+                          content  = content
+                        )
+                      },
+      oldValsFilter = equal("repoName", repoName),
+      compareById   = (a, b) =>
+                        a.repoName == b.repoName &&
+                        a.fileName == b.fileName,
+      filterById    = entry =>
+                        and(
+                          equal("repoName", repoName),
+                          equal("fileName", entry.fileName)
+                        )
+    )
 }
 
 object LatestConfigRepository {
@@ -101,14 +85,14 @@ object LatestConfigRepository {
   val collectionName = "latestConfig"
 
   case class LatestConfig(
-    repoName    : String,
-    fileName    : String,
-    content     : String
+    repoName: String,
+    fileName: String,
+    content : String
   )
 
   val mongoFormats: Format[LatestConfig] =
-    ( (__ \ "repoName"   ).format[String]
-    ~ (__ \ "fileName"   ).format[String]
-    ~ (__ \ "content"    ).format[String]
-    )(LatestConfig. apply, unlift(LatestConfig.unapply))
+    ( (__ \ "repoName").format[String]
+    ~ (__ \ "fileName").format[String]
+    ~ (__ \ "content" ).format[String]
+    )(LatestConfig.apply, unlift(LatestConfig.unapply))
 }

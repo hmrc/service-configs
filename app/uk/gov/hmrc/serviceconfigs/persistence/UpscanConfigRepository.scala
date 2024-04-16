@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UpscanConfigRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[UpscanConfig](
@@ -42,12 +42,10 @@ class UpscanConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+){
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(serviceName: ServiceName): Future[Seq[UpscanConfig]] =
     collection
@@ -55,10 +53,10 @@ class UpscanConfigRepository @Inject()(
       .toFuture()
 
   def putAll(upscanConfigs: Seq[UpscanConfig]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, upscanConfigs).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[UpscanConfig](
+      collection    = collection,
+      newVals       = upscanConfigs,
+      compareById   = (a, b) => a.serviceName == b.serviceName,
+      filterById    = entry => equal("service", entry.serviceName)
+    )
 }

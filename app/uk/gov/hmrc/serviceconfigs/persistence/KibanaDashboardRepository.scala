@@ -19,19 +19,17 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.BsonDocument
-import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Dashboard, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class KibanaDashboardRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[Dashboard](
@@ -42,12 +40,10 @@ class KibanaDashboardRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+){
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(serviceName: ServiceName): Future[Option[Dashboard]] =
     collection
@@ -55,10 +51,10 @@ class KibanaDashboardRepository @Inject()(
       .headOption()
 
   def putAll(dashboards: Seq[Dashboard]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, dashboards).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[Dashboard](
+      collection    = collection,
+      newVals       = dashboards,
+      compareById   = (a, b) => a.serviceName == b.serviceName,
+      filterById    = entry => equal("service", entry.serviceName)
+    )
 }

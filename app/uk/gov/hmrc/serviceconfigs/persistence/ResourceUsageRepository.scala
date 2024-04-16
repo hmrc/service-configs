@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
 import org.apache.pekko.actor.ActorSystem
-import org.mongodb.scala.ClientSession
+import org.mongodb.scala.{ClientSession, ClientSessionOptions, ReadConcern, ReadPreference, TransactionOptions, WriteConcern}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
@@ -51,11 +51,26 @@ class ResourceUsageRepository @Inject()(
                      IndexModel(Indexes.ascending("date"), IndexOptions().expireAfter(7 * 365, TimeUnit.DAYS).background(true))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) with Transactions with Logging {
+) with Transactions
+  with Logging {
   import ResourceUsageRepository._
 
   private implicit val tc: TransactionConfiguration =
-    TransactionConfiguration.strict
+    TransactionConfiguration(
+      clientSessionOptions = Some(
+                               ClientSessionOptions.builder()
+                                 .causallyConsistent(true)
+                                 .build()
+                             ),
+      transactionOptions   = Some(
+                               TransactionOptions.builder()
+                                 .readConcern(ReadConcern.MAJORITY)
+                                 .writeConcern(WriteConcern.MAJORITY)
+                                 .readPreference(ReadPreference.primary())
+                                 .build()
+                             )
+    )
+
 
   def find(serviceName: ServiceName): Future[Seq[ResourceUsage]] =
     collection

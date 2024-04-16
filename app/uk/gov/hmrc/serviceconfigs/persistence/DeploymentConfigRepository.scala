@@ -49,46 +49,24 @@ class DeploymentConfigRepository @Inject()(
     configs    : Seq[DeploymentConfig],
     applied    : Boolean
   ): Future[Unit] =
-    for {
-      old         <- collection.find(
-                       Filters.and(
+    MongoUtils.replace[DeploymentConfig](
+      collection    = collection,
+      newVals       = configs,
+      oldValsFilter = Filters.and(
                          Filters.equal("environment", environment),
                          Filters.equal("applied"    , applied    )
-                       )
-                     ).toFuture()
-      bulkUpdates =  //upsert any that were not present already
-                     configs
-                       .filterNot(old.contains)
-                       .map(entry =>
-                         ReplaceOneModel(
-                           Filters.and(
-                             Filters.equal("environment", environment      ),
-                             Filters.equal("name"       , entry.serviceName),
-                             Filters.equal("applied"    , applied          )
-                           ),
-                           entry,
-                           ReplaceOptions().upsert(true)
-                         )
-                       ) ++
-                     // delete any that are not longer present
-                       old.filterNot(oldC =>
-                         configs.exists(newC =>
-                           newC.environment == oldC.environment &&
-                           newC.serviceName == oldC.serviceName &&
-                           newC.applied     == newC.applied
-                         )
-                       ).map(entry =>
-                         DeleteOneModel(
-                           Filters.and(
-                             Filters.equal("environment", environment      ),
-                             Filters.equal("name"       , entry.serviceName),
-                             Filters.equal("applied"    , applied          )
-                           )
-                         )
-                       )
-       _          <- if (bulkUpdates.isEmpty) Future.unit
-                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
-    } yield ()
+                       ),
+      compareById   = (a, b) =>
+                        a.environment == b.environment &&
+                        a.serviceName == b.serviceName &&
+                        a.applied     == b.applied,
+      filterById    = entry =>
+                        Filters.and(
+                          Filters.equal("environment", environment),
+                          Filters.equal("name"       , entry.serviceName),
+                          Filters.equal("applied"    , applied)
+                        )
+    )
 
   def find(
     applied     : Boolean,

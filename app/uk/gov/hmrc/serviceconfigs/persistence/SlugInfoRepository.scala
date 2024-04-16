@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.ClientSession
+import org.mongodb.scala.{ClientSession, ClientSessionOptions, ReadConcern, ReadPreference, TransactionOptions, WriteConcern}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Projections.include
@@ -58,7 +58,21 @@ class SlugInfoRepository @Inject()(
   // we delete explicitly when we get a delete notification
   override lazy val requiresTtlIndex = false
 
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
+  private implicit val tc: TransactionConfiguration =
+    TransactionConfiguration(
+      clientSessionOptions = Some(
+                               ClientSessionOptions.builder()
+                                 .causallyConsistent(true)
+                                 .build()
+                             ),
+      transactionOptions   = Some(
+                               TransactionOptions.builder()
+                                 .readConcern(ReadConcern.MAJORITY)
+                                 .writeConcern(WriteConcern.MAJORITY)
+                                 .readPreference(ReadPreference.primary())
+                                 .build()
+                             )
+    )
 
   def add(slugInfo: SlugInfo): Future[Unit] =
     collection

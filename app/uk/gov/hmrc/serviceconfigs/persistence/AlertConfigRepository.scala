@@ -16,13 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.model.Indexes._
+import org.mongodb.scala.model.Indexes.hashed
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
 
 import javax.inject.{Inject, Singleton}
@@ -30,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AlertEnvironmentHandlerRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[AlertEnvironmentHandler](
@@ -41,26 +39,23 @@ class AlertEnvironmentHandlerRepository @Inject()(
                      IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+) {
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
-
   def putAll(alertEnvironmentHandlers: Seq[AlertEnvironmentHandler]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, alertEnvironmentHandlers).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[AlertEnvironmentHandler](
+      collection    = collection,
+      newVals       = alertEnvironmentHandlers,
+      compareById   = (a, b) => a.serviceName == b.serviceName,
+      filterById    = entry => equal("serviceName", entry.serviceName)
+    )
 
   def findByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
     collection
       .find(equal("serviceName", serviceName))
       .headOption()
-
 
   def findAll(): Future[Seq[AlertEnvironmentHandler]] =
     collection
