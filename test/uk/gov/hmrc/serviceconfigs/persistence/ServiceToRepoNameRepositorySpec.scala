@@ -74,7 +74,7 @@ class ServiceToRepoNameRepositorySpec
 
       repository.putAll(latest).futureValue
 
-      repository.collection.find().toFuture().futureValue shouldBe List(
+      findAll().futureValue shouldBe List(
           ServiceToRepoName(serviceA, artefactA, repoA),
           ServiceToRepoName(serviceB, artefactB, repoB)
         )

@@ -32,11 +32,22 @@ class OutagePageRepositorySpec
 
   "OutagePageRepository" should {
     "putAll correctly" in {
-      val serviceName = ServiceName("service-name")
-      val environments = List(Environment.Development, Environment.QA)
-      repository.putAll(Seq(OutagePage(serviceName, environments))).futureValue
+      val serviceName1 = ServiceName("service-1")
+      val environments1 = List(Environment.Development, Environment.QA)
+      val serviceName2 = ServiceName("service-2")
+      val environments2 = List(Environment.QA, Environment.Production)
+      repository.putAll(Seq(
+        OutagePage(serviceName1, environments1),
+        OutagePage(serviceName2, environments2)
+      )).futureValue
 
-      repository.findByServiceName(serviceName).futureValue shouldBe Some(environments)
+      repository.findByServiceName(serviceName1).futureValue shouldBe Some(environments1)
+      repository.findByServiceName(serviceName2).futureValue shouldBe Some(environments2)
+
+      val environments3 = List(Environment.Development, Environment.Production)
+      repository.putAll(Seq(OutagePage(serviceName1, environments3))).futureValue
+      repository.findByServiceName(serviceName1).futureValue shouldBe Some(environments3)
+      repository.findByServiceName(serviceName2).futureValue shouldBe None
     }
   }
 }

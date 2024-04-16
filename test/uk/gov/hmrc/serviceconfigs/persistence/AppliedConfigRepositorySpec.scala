@@ -49,7 +49,7 @@ class AppliedConfigRepositorySpec
                                                                 "k3" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3"))
       ).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
+      findAll().futureValue should contain theSameElementsAs Seq(
         AppliedConfig(serviceName1, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                               Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName1, "k2", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "ENC[...]")), false)
@@ -72,7 +72,7 @@ class AppliedConfigRepositorySpec
                                                                 "k3" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3"))
       ).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
+      findAll().futureValue should contain theSameElementsAs Seq(
         AppliedConfig(serviceName1, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                               Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName1, "k2", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2")), false)
@@ -83,7 +83,7 @@ class AppliedConfigRepositorySpec
 
       repository.delete(serviceName1, Environment.Development).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
+      findAll().futureValue should contain theSameElementsAs Seq(
         AppliedConfig(serviceName1, "k1", Map(Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName1, "k4", Map(Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v4")), false)
       , AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
@@ -92,7 +92,7 @@ class AppliedConfigRepositorySpec
 
       repository.delete(serviceName1, Environment.QA).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
+      findAll().futureValue should contain theSameElementsAs Seq(
         AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName2, "k3", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3")), false)
       )
@@ -147,7 +147,7 @@ class AppliedConfigRepositorySpec
                                                                 "k3" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3"))
       ).futureValue
 
-      repository.collection.find().toFuture().futureValue should contain theSameElementsAs Seq(
+      findAll().futureValue should contain theSameElementsAs Seq(
         AppliedConfig(serviceName1, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                               Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName1, "k2", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2")), false)

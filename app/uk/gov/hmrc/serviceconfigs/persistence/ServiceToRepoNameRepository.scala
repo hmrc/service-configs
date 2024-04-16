@@ -16,12 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters.{and, empty, equal}
 import org.mongodb.scala.model.{IndexModel, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, RepoName, ServiceName, ServiceToRepoName}
 
 import javax.inject.{Inject, Singleton}
@@ -29,7 +27,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ServiceToRepoNameRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit
   ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceToRepoName](
@@ -39,14 +37,15 @@ class ServiceToRepoNameRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName")),
                      IndexModel(Indexes.ascending("artefactName"))
-                 ),
-  extraCodecs    = Seq(Codecs.playFormatCodec(ArtefactName.format), Codecs.playFormatCodec(ServiceName.format))
-) with Transactions
-{
+                   ),
+  extraCodecs    = Seq(
+                     Codecs.playFormatCodec(ArtefactName.format),
+                     Codecs.playFormatCodec(ServiceName.format),
+                     Codecs.playFormatCodec(RepoName.format)
+                   )
+){
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findRepoName(serviceName: Option[ServiceName] = None, artefactName: Option[ArtefactName] = None): Future[Option[RepoName]] = {
     val filters = Seq(
@@ -61,12 +60,18 @@ class ServiceToRepoNameRepository @Inject()(
   }
 
   def putAll(serviceToRepoNames: Seq[ServiceToRepoName]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        _ <- collection.insertMany(session, serviceToRepoNames).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[ServiceToRepoName](
+      collection    = collection,
+      newVals       = serviceToRepoNames,
+      compareById   = (a, b) =>
+                        a.serviceName  == b.serviceName &&
+                        a.artefactName == b.artefactName &&
+                        a.repoName     == b.repoName,
+      filterById    = entry =>
+                        and(
+                          equal("serviceName" , entry.serviceName),
+                          equal("artefactName", entry.artefactName),
+                          equal("repoName"    , entry.repoName)
+                        )
+    )
 }
-
-

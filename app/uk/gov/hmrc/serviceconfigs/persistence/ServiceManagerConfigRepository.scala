@@ -19,19 +19,17 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ServiceManagerConfigRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceManagerConfigRepository.ServiceManagerConfig](
   mongoComponent = mongoComponent,
@@ -41,25 +39,24 @@ class ServiceManagerConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+) {
+  import ServiceManagerConfigRepository._
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
-
-  def findByService(serviceName: ServiceName): Future[Option[ServiceManagerConfigRepository.ServiceManagerConfig]] =
+  def findByService(serviceName: ServiceName): Future[Option[ServiceManagerConfig]] =
     collection
       .find(equal("service", serviceName))
       .headOption()
 
-  def putAll(jobs: Seq[ServiceManagerConfigRepository.ServiceManagerConfig]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, jobs).toFuture()
-      } yield ()
-    }
+  def putAll(jobs: Seq[ServiceManagerConfig]): Future[Unit] =
+    MongoUtils.replace[ServiceManagerConfig](
+      collection    = collection,
+      newVals       = jobs,
+      compareById   = (a, b) => a.serviceName == b.serviceName,
+      filterById    = entry => equal("service", entry.serviceName)
+    )
 }
 
 object ServiceManagerConfigRepository {

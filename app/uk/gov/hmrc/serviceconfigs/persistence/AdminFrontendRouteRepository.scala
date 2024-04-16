@@ -19,19 +19,17 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AdminFrontendRouteRepository @Inject()(
-  override val mongoComponent: MongoComponent
+  mongoComponent: MongoComponent
 )(implicit ec: ExecutionContext
 ) extends PlayMongoRepository[AdminFrontendRoute](
   mongoComponent = mongoComponent,
@@ -42,12 +40,10 @@ class AdminFrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Transactions {
+) {
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
-
-  private implicit val tc: TransactionConfiguration = TransactionConfiguration.strict
 
   def findByService(serviceName: ServiceName): Future[Seq[AdminFrontendRoute]] =
     collection
@@ -55,12 +51,16 @@ class AdminFrontendRouteRepository @Inject()(
       .toFuture()
 
   def putAll(routes: Seq[AdminFrontendRoute]): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
-        _ <- collection.deleteMany(session, BsonDocument()).toFuture()
-        r <- collection.insertMany(session, routes).toFuture()
-      } yield ()
-    }
+    MongoUtils.replace[AdminFrontendRoute](
+      collection    = collection,
+      newVals       = routes,
+      compareById   = (a, b) => a.serviceName == b.serviceName && a.route == b.route,
+      filterById    = entry =>
+                        and(
+                          equal("service", entry.serviceName),
+                          equal("route", entry.route)
+                        )
+    )
 
   def findAllAdminFrontendServices(): Future[Seq[ServiceName]] =
     collection

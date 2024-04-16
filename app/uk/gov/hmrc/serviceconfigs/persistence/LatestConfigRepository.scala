@@ -67,7 +67,9 @@ class LatestConfigRepository @Inject()(
                         )
                       },
       oldValsFilter = equal("repoName", repoName),
-      compareById   = (a, b) => a.repoName == b.repoName && a.fileName == b.fileName,
+      compareById   = (a, b) =>
+                        a.repoName == b.repoName &&
+                        a.fileName == b.fileName,
       filterById    = entry =>
                         and(
                           equal("repoName", repoName),
