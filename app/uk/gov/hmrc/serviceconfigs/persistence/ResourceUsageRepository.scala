@@ -51,7 +51,8 @@ class ResourceUsageRepository @Inject()(
                      IndexModel(Indexes.ascending("date"), IndexOptions().expireAfter(7 * 365, TimeUnit.DAYS).background(true))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) with Transactions with Logging {
+) with Transactions
+  with Logging {
   import ResourceUsageRepository._
 
   private implicit val tc: TransactionConfiguration =

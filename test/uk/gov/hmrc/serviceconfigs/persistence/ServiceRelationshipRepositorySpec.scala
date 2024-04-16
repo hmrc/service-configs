@@ -63,18 +63,16 @@ class ServiceRelationshipRepositorySpec
 
       val latest: Seq[ServiceRelationship] =
         Seq(
-          ServiceRelationship(serviceA, serviceB),
           ServiceRelationship(serviceA, serviceC),
           ServiceRelationship(serviceA, serviceD),
           ServiceRelationship(serviceB, serviceA),
           ServiceRelationship(serviceC, serviceB),
-          ServiceRelationship(serviceD, serviceA),
+          ServiceRelationship(serviceD, serviceA)
         )
 
       repository.putAll(latest).futureValue
 
-      repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC, serviceD)
+      repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceC, serviceD)
     }
   }
-
 }
