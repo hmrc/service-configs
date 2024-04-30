@@ -17,13 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Indexes._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, OutagePage, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}

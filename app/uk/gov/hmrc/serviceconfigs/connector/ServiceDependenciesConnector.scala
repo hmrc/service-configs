@@ -50,7 +50,7 @@ case class AffectedService(serviceName: ServiceName, teamNames: List[TeamName])
 
 object AffectedService {
   implicit val reads: Reads[AffectedService] =
-   ( (__ \ "slugName").read[String      ].map(ServiceName.apply)
+   ( (__ \ "repoName").read[String      ].map(ServiceName.apply)
    ~ (__ \ "teams"   ).read[List[String]].map(_.map(TeamName.apply))
    )(AffectedService.apply _)
 }
