@@ -19,12 +19,10 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.mongo.transaction.{TransactionConfiguration, Transactions}
 import uk.gov.hmrc.serviceconfigs.model.{UpscanConfig, ServiceName}
 
 import scala.concurrent.{ExecutionContext, Future}

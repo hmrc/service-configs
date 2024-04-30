@@ -20,7 +20,7 @@ import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.serviceconfigs.model.{GrantType, InternalAuthConfig, InternalAuthEnvironment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{InternalAuthConfig, ServiceName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
