@@ -21,7 +21,7 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
+import uk.gov.hmrc.serviceconfigs.persistence.{BobbyWarningsNotificationsRepository, ServiceRelationshipRepository}
 import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
@@ -32,10 +32,12 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class BobbyWarningsNotifierService @Inject()(
-  bobbyRulesService          : BobbyRulesService,
-  serviceDependencies        : ServiceDependenciesConnector,
-  bobbyWarningsRepository    : BobbyWarningsNotificationsRepository,
-  slackNotificationsConnector: SlackNotificationsConnector,
+  bobbyRulesService             : BobbyRulesService,
+  serviceDependencies           : ServiceDependenciesConnector,
+  bobbyWarningsRepository       : BobbyWarningsNotificationsRepository,
+  slackNotificationsConnector   : SlackNotificationsConnector,
+  serviceRelationshipsRepository: ServiceRelationshipRepository,
+  teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector,
   configuration : Configuration
 )(implicit
   ec: ExecutionContext
@@ -48,33 +50,70 @@ class BobbyWarningsNotifierService @Inject()(
   private val lastRunPeriod          = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
   private lazy val testTeam          = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
 
-  def sendNotificationsForFutureDatedBobbyViolations(runTime: Instant): Future[Unit] = {
-      runNotificationsIfInWindow(runTime) {
-        for {
-          futureDatedRules          <- bobbyRulesService
-                                         .findAllRules()
-                                         .map(_.libraries.filter(rule => rule.from.toInstant.isAfter(runTime) && rule.from.toInstant.isBefore(endWindow)))
-          _                         =  logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [$futureDatedRuleWindow] to send slack notifications for.")
-          rulesWithAffectedServices <- futureDatedRules.foldLeftM(List.empty[(TeamName, (ServiceName, BobbyRule))])( (acc, rule) =>
-                                          serviceDependencies
-                                            .getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
-                                            .map(_.filterNot(x => rule.exemptProjects.contains(x.serviceName.asString)))
-                                            .map(sds => acc ++ sds.flatMap(sd => sd.teamNames.map(team => (team, (sd.serviceName, rule)))))
-                                       )
-          grouped                   =  rulesWithAffectedServices.groupMap(_._1)(_._2).toList
-          slackResponses            <- grouped.foldLeftM(List.empty[(TeamName, SlackNotificationResponse)]) { case (acc, (teamName, drs)) =>
-                                           val channelLookup = GithubTeam(testTeam.getOrElse(teamName.asString))
-                                           val request       = SlackNotificationRequest.bobbyWarning(channelLookup, teamName, drs)
-                                           slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (teamName, resp))
-                                       }
-          _                         =  slackResponses.map {
-                                         case (teamName, rsp) if (rsp.errors.nonEmpty) => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
-                                         case (teamName, rsp)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
-                                       }
-          _                         <- bobbyWarningsRepository.setLastRunTime(runTime)
-        } yield logger.info("Completed sending Slack messages for Bobby Warnings")
+  def sendNotifications(runTime: Instant): Future[Unit] = {
+    runNotificationsIfInWindow(runTime) {
+      for {
+        _ <- bobbyNotifications(runTime)
+        _ <- notificationsForDownstreamEOLRepositories(runTime)
+      } yield logger.info("Completed sending Slack warning messages")
     }
   }
+
+  private def bobbyNotifications(runTime: Instant): Future[Unit] = {
+    for {
+      futureDatedRules          <- bobbyRulesService
+                                     .findAllRules()
+                                     .map(_.libraries.filter(rule => rule.from.toInstant.isAfter(runTime) && rule.from.toInstant.isBefore(endWindow)))
+      _                         =  logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [$futureDatedRuleWindow] to send slack notifications for.")
+      rulesWithAffectedServices <- futureDatedRules.foldLeftM(List.empty[(TeamName, (ServiceName, BobbyRule))])( (acc, rule) =>
+                                      serviceDependencies
+                                        .getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
+                                        .map(_.filterNot(x => rule.exemptProjects.contains(x.serviceName.asString)))
+                                        .map(sds => acc ++ sds.flatMap(sd => sd.teamNames.map(team => (team, (sd.serviceName, rule)))))
+                                   )
+      grouped                   =  rulesWithAffectedServices.groupMap(_._1)(_._2).toList
+      slackResponses            <- grouped.foldLeftM(List.empty[(TeamName, SlackNotificationResponse)]) { case (acc, (teamName, drs)) =>
+                                       val channelLookup = GithubTeam(testTeam.getOrElse(teamName.asString))
+                                       val request       = SlackNotificationRequest.bobbyWarning(channelLookup, teamName, drs)
+                                       slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (teamName, resp))
+                                   }
+      _                         =  slackResponses.map {
+                                     case (teamName, rsp) if (rsp.errors.nonEmpty) => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
+                                     case (teamName, rsp)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
+                                   }
+      _                         <- bobbyWarningsRepository.setLastRunTime(runTime)
+    } yield logger.info("Completed sending Slack messages for Bobby Warnings")
+  }
+
+  private def notificationsForDownstreamEOLRepositories(runTime: Instant)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
+    teamsAndRepositoriesConnector.getRepos().flatMap {
+      repositories =>
+        val eolRepos = repositories.filter(_.endOfLifeDate.isDefined)
+        Future.sequence(eolRepos.map {
+          repo =>
+            val serviceName = ServiceName(repo.name)
+            serviceRelationshipsRepository.getInboundServices(ServiceName(repo.name)).flatMap {
+              case getInboundServices if getInboundServices.nonEmpty =>
+
+                val enrichServiceRelationships = repositories.filter(repo => getInboundServices.map(_.asString).contains(repo.name))
+                val teamNames = enrichServiceRelationships.flatMap(_.teamNames).distinct
+                val groupReposByTeamNames = teamNames.map(name => name -> enrichServiceRelationships.filter(_.teamNames.contains(name)))
+
+                Future.sequence(groupReposByTeamNames.map {
+                  case (teamName, repos) =>
+                    val msg = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam(teamName), serviceName.asString, repo.endOfLifeDate.get, repos.map(_.name))
+                    for {
+                      notifications <- slackNotificationsConnector.sendMessage(msg)
+                      _             <- bobbyWarningsRepository.setLastRunTime(runTime)
+                    } yield notifications
+                })
+              case _ => Future.successful(Seq.empty)
+            }
+        }
+      )
+    }.map(_ => logger.info("Completed sending Slack messages for end of life repositories"))
+  }
+
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
     if (isInWorkingHours(now)) {

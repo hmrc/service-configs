@@ -24,6 +24,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -98,6 +99,30 @@ final case class SlackNotificationRequest(
 
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
+
+
+  def downstreamMarkedForDecommissioning(channelLookup: GithubTeam, eolRepository: String, eol: Instant, impactedRepositories: Seq[String]): SlackNotificationRequest = {
+    val blocks = Seq(
+      Json.obj(
+        "type" -> JsString("section"),
+        "text" -> Json.obj(
+          "type" -> JsString("mrkdwn"),
+          "text" -> JsString(s"`$eolRepository` has been marked with an end of life date of `$eol`." + // TODO format instant
+            s"\n\nThe following services may have a dependency on this repository and may be impacted past this date: ${impactedRepositories.mkString("\n")}" +
+            s"\n\nIf this was a mistake, please contact #team-platops")
+        )
+      )
+    )
+
+    SlackNotificationRequest(
+      channelLookup = channelLookup,
+      displayName = "MDTP Catalogue",
+      emoji = ":tudor-crown:",
+      text = s"$eolRepository has been marked with an end of life date.",
+      blocks = blocks
+    )
+  }
+
 
   def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest = {
     val msg: JsObject = Json.parse(

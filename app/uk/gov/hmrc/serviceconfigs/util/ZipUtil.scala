@@ -27,13 +27,13 @@ import scala.util.matching.Regex
 
 object ZipUtil {
 
-  def findRepos(zip: ZipInputStream, repos: Seq[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
+  def findRepos(zip: ZipInputStream, reposNames: Seq[String], regex: Regex, blob: String): Seq[(String, String)] = {
     import scala.collection.mutable.ListBuffer
-    val repoBuffer: ListBuffer[Repo] = repos.to(ListBuffer)
+    val repoBuffer: ListBuffer[String] = reposNames.to(ListBuffer)
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Seq.empty[(Repo, String)]){ (acc, entry) =>
+      .foldLeft(Seq.empty[(String, String)]){ (acc, entry) =>
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
         path match {
           case regex(_) => acc ++ CharStreams
@@ -42,7 +42,7 @@ object ZipUtil {
                                     .zipWithIndex
                                     .flatMap { case (line, idx) =>
                                       repoBuffer
-                                        .find(r => line.contains(s"\"${r.name}\"") || line.contains(s"\'${r.name}\'"))
+                                        .find(name => line.contains(s"\"$name\"") || line.contains(s"\'$name\'"))
                                         .map { r =>
                                           repoBuffer -= r
                                           (r, s"$blob/HEAD/$path#L${idx + 1}")
@@ -51,7 +51,7 @@ object ZipUtil {
                                     .toSeq
           case _        => acc
         }
-      }.sortBy(_._1.name)
+      }.sortBy(_._1)
     }
 
   class NonClosableInputStream(zip: ZipInputStream) extends FilterInputStream(zip) {

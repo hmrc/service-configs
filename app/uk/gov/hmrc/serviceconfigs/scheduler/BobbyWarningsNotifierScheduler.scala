@@ -46,7 +46,6 @@ class BobbyWarningsNotifierScheduler @Inject()(
     lock = ScheduledLockService(mongoLockRepository, "bobby-warnings-scheduler", timestampSupport, schedulerConfigs.bobbyWarningsNotifierScheduler.interval)
   ) {
     logger.info("Running Bobby Warnings Notifier")
-    bobbyWarningsNotifierService.sendNotificationsForFutureDatedBobbyViolations(Instant.now())
-
+    bobbyWarningsNotifierService.sendNotifications(Instant.now())
   }
 }
