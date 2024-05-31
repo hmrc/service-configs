@@ -65,7 +65,7 @@ class UpscanConfigServiceSpec
       teamName    = None,
       serviceType = None,
       tags        = Nil,
-    )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(rn))))
+    )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(rn, Seq.empty, None))))
 
     when(mockTeamsAndRepositoriesConnector.getDeletedRepos(
       repoType    = Some("Service"),

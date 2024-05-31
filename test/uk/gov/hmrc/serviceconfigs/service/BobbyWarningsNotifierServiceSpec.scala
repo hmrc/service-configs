@@ -25,7 +25,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository
+import uk.gov.hmrc.serviceconfigs.persistence.{BobbyWarningsNotificationsRepository, ServiceRelationshipRepository}
 
 import java.time.temporal.ChronoUnit.DAYS
 import java.time.{LocalDateTime, ZoneOffset}
@@ -47,37 +47,42 @@ class BobbyWarningsNotifierServiceSpec
 
     "do nothing if out of hours" in new Setup{
       val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
-      underTest.sendNotificationsForFutureDatedBobbyViolations(outOfHoursInstant)
+      underTest.sendNotifications(outOfHoursInstant)
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector)
     }
 
     "do nothing if the service has already been run in the notifications period" in new Setup {
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(yesterday)))
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
+      underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
 
     "do nothing if the service has already been run today" in new Setup {
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(nowAsInstant)))
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
+      underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
 
-    "do nothing if the service is exempt" in new Setup {
+    "do nothing if the service is exempt and no end of life repositories" in new Setup {
+      // Bobby notification mocks
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd3)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Nil))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
+      // End of life notification mocks
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
+
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
+      underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockSlackNotificationsConnector)
     }
 
     "run for the first time" in new Setup {
+      // Bobby notification mocks
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
@@ -85,13 +90,17 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Seq(sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+      // End of life notification mocks
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
+
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
+      underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
     }
 
     "be run if the last time the service was run before the notifications period" in new Setup {
+      // Bobby notification mocks
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
@@ -100,8 +109,10 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      // End of life notification mocks
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
-      underTest.sendNotificationsForFutureDatedBobbyViolations(nowAsInstant).futureValue
+      underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
     }
   }
@@ -136,16 +147,18 @@ trait Setup  {
 
   val bobbyRules = BobbyRules(libraries = Seq(futureDatedBobbyRule1Week, secondFutureDatedBobbyRule1Week, futureDatedRule3Months), plugins = Seq.empty)
 
-  val mockBobbyRulesService            = mock[BobbyRulesService]
-  val mockServiceDependenciesConnector = mock[ServiceDependenciesConnector]
-  val mockBobbyWarningsRepository      = mock[BobbyWarningsNotificationsRepository]
-  val mockSlackNotificationsConnector  = mock[SlackNotificationsConnector]
+  val mockBobbyRulesService              = mock[BobbyRulesService]
+  val mockServiceDependenciesConnector   = mock[ServiceDependenciesConnector]
+  val mockBobbyWarningsRepository        = mock[BobbyWarningsNotificationsRepository]
+  val mockSlackNotificationsConnector    = mock[SlackNotificationsConnector]
+  val mockTeamsAndRepositoriesConnector  = mock[TeamsAndRepositoriesConnector]
+  val mockServiceRelationshipRepository  = mock[ServiceRelationshipRepository]
 
   val mockConfiguration = mock[Configuration]
 
   when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
   when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
 
-  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockConfiguration)
+  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
 }
 

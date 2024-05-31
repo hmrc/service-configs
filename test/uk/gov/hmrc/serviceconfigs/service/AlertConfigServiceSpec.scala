@@ -102,7 +102,7 @@ class AlertConfigServiceSpec
   }
 
   "AlertConfigService.toAlertEnvironmentHandler" should {
-    val locations = Seq(TeamsAndRepositoriesConnector.Repo("test") -> "line1")
+    val locations = Seq("test" -> "line1")
     "produce an AlertEnvironmentHandler for a service that has alert config enabled" in {
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",

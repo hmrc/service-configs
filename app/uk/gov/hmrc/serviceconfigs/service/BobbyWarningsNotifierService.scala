@@ -96,8 +96,8 @@ class BobbyWarningsNotifierService @Inject()(
               case getInboundServices if getInboundServices.nonEmpty =>
 
                 val enrichServiceRelationships = repositories.filter(repo => getInboundServices.map(_.asString).contains(repo.name))
-                val teamNames = enrichServiceRelationships.flatMap(_.teamNames).distinct
-                val groupReposByTeamNames = teamNames.map(name => name -> enrichServiceRelationships.filter(_.teamNames.contains(name)))
+                val teamNames                  = enrichServiceRelationships.flatMap(_.teamNames).distinct
+                val groupReposByTeamNames      = teamNames.map(name => name -> enrichServiceRelationships.filter(_.teamNames.contains(name)))
 
                 Future.sequence(groupReposByTeamNames.map {
                   case (teamName, repos) =>

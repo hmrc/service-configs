@@ -90,7 +90,7 @@ class SlugInfoServiceSpec
 
     "clear latest flag for services that have been deleted/archived" in new Setup {
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
-      val activeServices = List(Repo("service1"), Repo("service3"))
+      val activeServices = List(Repo("service1", Seq.empty, None), Repo("service3", Seq.empty, None))
       val archived       = List(ServiceName("service2"))
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
@@ -133,8 +133,8 @@ class SlugInfoServiceSpec
     }
 
     "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
+      val activeServices = List(Repo       ("service1", Seq.empty, None), Repo("service2", Seq.empty, None), Repo("service3", Seq.empty, None))
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
-      val activeServices = List(Repo       ("service1"), Repo       ("service2"), Repo       ("service3"))
       val latestServices = List(ServiceName("service1")                         , ServiceName("service3"))
       val missingLatest  = ServiceName("service2")
       val maxVersion     = Version("1.0.0")
@@ -181,7 +181,7 @@ class SlugInfoServiceSpec
       val serviceName1 = ServiceName("service1")
       val serviceName2 = ServiceName("service2")
       val knownServices  = List(serviceName1, serviceName2)
-      val activeServices = knownServices.map(s => Repo(s.asString))
+      val activeServices = knownServices.map(s => Repo(s.asString, Seq.empty, None))
       val latestServices = List(serviceName1, serviceName2)
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())

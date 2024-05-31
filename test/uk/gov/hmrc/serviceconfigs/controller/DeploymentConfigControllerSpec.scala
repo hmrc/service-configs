@@ -47,7 +47,7 @@ class DeploymentConfigControllerSpec
       val applied = true
 
       when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any))
-        .thenReturn(Future.successful(Seq(Repo("test"))))
+        .thenReturn(Future.successful(Seq(Repo("test", Seq.empty, None))))
 
       when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
         .thenReturn(Future.successful(Seq(
