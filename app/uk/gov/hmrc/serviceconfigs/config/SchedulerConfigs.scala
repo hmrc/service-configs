@@ -50,6 +50,6 @@ class SchedulerConfigs @Inject()(configuration: Configuration) {
   val missedWebhookEventsScheduler   = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
   val slugMetadataScheduler          = SchedulerConfig(configuration, "slug-metadata-scheduler")
   val serviceRelationshipScheduler   = SchedulerConfig(configuration, "service-relationship-scheduler")
-  val bobbyWarningsNotifierScheduler = SchedulerConfig(configuration, "bobby-warnings-notifier-scheduler")
+  val slackNotificationScheduler     = SchedulerConfig(configuration, "slack-notification-scheduler")
   val serviceToRepoNameScheduler     = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
 }

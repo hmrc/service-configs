@@ -21,18 +21,18 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.service.BobbyWarningsNotifierService
+import uk.gov.hmrc.serviceconfigs.service.SlackNotificationService
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class BobbyWarningsNotifierScheduler @Inject()(
+class SlackNotificationScheduler @Inject()(
   schedulerConfigs              : SchedulerConfigs,
   mongoLockRepository           : MongoLockRepository,
   timestampSupport              : TimestampSupport,
-  bobbyWarningsNotifierService  : BobbyWarningsNotifierService
+  slackNotificationService      : SlackNotificationService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -41,11 +41,11 @@ class BobbyWarningsNotifierScheduler @Inject()(
 
 
   scheduleWithTimePeriodLock(
-    label = "BobbyWarningsNotifier",
-    schedulerConfig = schedulerConfigs.bobbyWarningsNotifierScheduler,
-    lock = ScheduledLockService(mongoLockRepository, "bobby-warnings-scheduler", timestampSupport, schedulerConfigs.bobbyWarningsNotifierScheduler.interval)
+    label = "slackNotification",
+    schedulerConfig = schedulerConfigs.slackNotificationScheduler,
+    lock = ScheduledLockService(mongoLockRepository, "slack-notification-scheduler", timestampSupport, schedulerConfigs.slackNotificationScheduler.interval)
   ) {
-    logger.info("Running Bobby Warnings Notifier")
-    bobbyWarningsNotifierService.sendNotifications(Instant.now())
+    logger.info("Running Slack Notifications")
+    slackNotificationService.sendNotifications(Instant.now())
   }
 }

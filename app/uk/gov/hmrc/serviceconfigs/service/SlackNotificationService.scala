@@ -31,7 +31,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BobbyWarningsNotifierService @Inject()(
+class SlackNotificationService @Inject()(
   bobbyRulesService             : BobbyRulesService,
   serviceDependencies           : ServiceDependenciesConnector,
   bobbyWarningsRepository       : BobbyWarningsNotificationsRepository,
@@ -45,16 +45,16 @@ class BobbyWarningsNotifierService @Inject()(
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  private val futureDatedRuleWindow  = configuration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")
+  private val futureDatedRuleWindow  = configuration.get[Duration]("slack-notification-service.rule-notification-window")
   private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
-  private val lastRunPeriod          = configuration.get[Duration]("bobby-warnings-notifier-service.last-run-period")
-  private lazy val testTeam          = configuration.getOptional[String]("bobby-warnings-notifier-service.test-team")
+  private val lastRunPeriod          = configuration.get[Duration]("slack-notification-service.last-run-period")
+  private lazy val testTeam          = configuration.getOptional[String]("slack-notification-service.test-team")
 
   def sendNotifications(runTime: Instant): Future[Unit] = {
     runNotificationsIfInWindow(runTime) {
       for {
         _ <- bobbyNotifications(runTime)
-        _ <- notificationsForDownstreamEOLRepositories(runTime)
+        _ <- notificationsForDownstreamEOLRepositories()
         _ <- bobbyWarningsRepository.setLastRunTime(runTime)
       } yield logger.info("Completed sending Slack warning messages")
     }
@@ -79,13 +79,13 @@ class BobbyWarningsNotifierService @Inject()(
                                        slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (teamName, resp))
                                    }
       _                         =  slackResponses.map {
-                                     case (teamName, rsp) if (rsp.errors.nonEmpty) => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
-                                     case (teamName, rsp)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
+                                     case (teamName, rsp) if rsp.errors.nonEmpty => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
+                                     case (teamName, _)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
                                    }
     } yield logger.info("Completed sending Slack messages for Bobby Warnings")
   }
 
-  private def notificationsForDownstreamEOLRepositories(runTime: Instant)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
+  private def notificationsForDownstreamEOLRepositories()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
     teamsAndRepositoriesConnector.getRepos().flatMap {
       repositories =>
         val eolRepos = repositories.filter(_.endOfLifeDate.isDefined)

@@ -37,7 +37,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 
-class BobbyWarningsNotifierServiceSpec
+class SlackNotificationServiceSpec
   extends AnyWordSpec
   with Matchers
   with ScalaFutures
@@ -45,7 +45,7 @@ class BobbyWarningsNotifierServiceSpec
   with MockitoSugar {
 
 
-  "BobbyWarningsNotifierService.sendNotifications" should {
+  "SlackNotificationService.sendNotifications" should {
 
     "do nothing if out of hours" in new Setup{
       val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
@@ -68,13 +68,12 @@ class BobbyWarningsNotifierServiceSpec
     }
 
     "do nothing if the service is exempt and no end of life repositories" in new Setup {
-      // Bobby notification mocks
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd3)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Nil))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
-      // End of life notification mocks
+
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(Repo("Test", Seq.empty, None))))
 
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
@@ -126,7 +125,7 @@ class BobbyWarningsNotifierServiceSpec
     }
 
     "run for the first time" in new Setup {
-      when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
+      when(mockConfiguration.getOptional[String]("slack-notification-service.test-team")).thenReturn(None)
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
@@ -142,8 +141,7 @@ class BobbyWarningsNotifierServiceSpec
     }
 
     "be run if the last time the service was run before the notifications period" in new Setup {
-      // Bobby notification mocks
-      when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
+      when(mockConfiguration.getOptional[String]("slack-notification-service.test-team")).thenReturn(None)
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib"        , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
@@ -202,10 +200,10 @@ trait Setup  {
 
   val mockConfiguration = mock[Configuration]
 
-  when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
-  when(mockConfiguration.get[Duration]("bobby-warnings-notifier-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
+  when(mockConfiguration.get[Duration]("slack-notification-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
+  when(mockConfiguration.get[Duration]("slack-notification-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
 
-  val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
+  val underTest = new SlackNotificationService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
 }
 
 

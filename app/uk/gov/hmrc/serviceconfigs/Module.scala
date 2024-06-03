@@ -18,9 +18,9 @@ package uk.gov.hmrc.serviceconfigs
 
 import play.api.inject.Binding
 import play.api.{Configuration, Environment, Logger}
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.notification.{DeploymentDeadLetterHandler, DeploymentHandler, SlugDeadLetterHandler, SlugHandler}
-import uk.gov.hmrc.serviceconfigs.scheduler.{BobbyWarningsNotifierScheduler, ConfigScheduler, MissedWebhookEventsScheduler, ServiceRelationshipScheduler, ServiceToRepoNameScheduler, SlugMetadataUpdateScheduler}
+import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigParser}
+import uk.gov.hmrc.serviceconfigs.scheduler._
 
 import java.time.Clock
 
@@ -45,7 +45,7 @@ class Module extends play.api.inject.Module {
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     Seq(
       bind[ConfigScheduler               ].toSelf.eagerly()
-    , bind[BobbyWarningsNotifierScheduler].toSelf.eagerly()
+    , bind[SlackNotificationScheduler    ].toSelf.eagerly()
     , bind[MissedWebhookEventsScheduler  ].toSelf.eagerly()
     , bind[SlugMetadataUpdateScheduler   ].toSelf.eagerly()
     , bind[ServiceRelationshipScheduler  ].toSelf.eagerly()
