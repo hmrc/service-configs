@@ -19,21 +19,21 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunTime
+import uk.gov.hmrc.serviceconfigs.persistence.SlackNotificationsRepository.SlackNotificationsRunTime
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class BobbyWarningsNotificationsRepositorySpec
+class SlackNotificationsRepositorySpec
   extends AnyWordSpec
   with Matchers
-  with DefaultPlayMongoRepositorySupport[BobbyWarningsNotificationsRunTime] {
+  with DefaultPlayMongoRepositorySupport[SlackNotificationsRunTime] {
 
-  override protected val repository: BobbyWarningsNotificationsRepository = new BobbyWarningsNotificationsRepository(mongoComponent)
+  override protected val repository: SlackNotificationsRepository = new SlackNotificationsRepository(mongoComponent)
 
 
-  "BobbyWarningsRepository" should {
+  "SlackNotificationsRepository" should {
     "return None for the last run time when the notifications have never been run" in {
       repository.getLastWarningsRunTime().futureValue shouldBe None
     }

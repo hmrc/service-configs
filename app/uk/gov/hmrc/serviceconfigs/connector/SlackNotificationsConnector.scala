@@ -24,7 +24,8 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
 
-import java.time.Instant
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -102,12 +103,13 @@ object SlackNotificationRequest {
 
 
   def downstreamMarkedForDecommissioning(channelLookup: GithubTeam, eolRepository: String, eol: Instant, impactedRepositories: Seq[String]): SlackNotificationRequest = {
+    val utc = ZoneId.of("UTC")
     val blocks = Seq(
       Json.obj(
         "type" -> JsString("section"),
         "text" -> Json.obj(
           "type" -> JsString("mrkdwn"),
-          "text" -> JsString(s"`$eolRepository` has been marked with an end of life date of `$eol`." + // TODO format instant
+          "text" -> JsString(s"`$eolRepository` has been marked with an end of life date of `${eol}`." +
             s"\n\nThe following services may have a dependency on this repository and may be impacted past this date: ${impactedRepositories.mkString("\n")}" +
             s"\n\nIf this was a mistake, please contact #team-platops")
         )

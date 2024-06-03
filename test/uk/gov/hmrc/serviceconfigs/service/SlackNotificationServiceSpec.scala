@@ -26,7 +26,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.persistence.{BobbyWarningsNotificationsRepository, ServiceRelationshipRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlackNotificationsRepository}
 
 import java.time.temporal.ChronoUnit.DAYS
 import java.time.{LocalDateTime, ZoneOffset}
@@ -50,25 +50,25 @@ class SlackNotificationServiceSpec
     "do nothing if out of hours" in new Setup{
       val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
       underTest.sendNotifications(outOfHoursInstant)
-      verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector)
+      verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsRepository, mockSlackNotificationsConnector)
     }
 
     "do nothing if the service has already been run in the notifications period" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(yesterday)))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(yesterday)))
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
 
     "do nothing if the service has already been run today" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(nowAsInstant)))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(nowAsInstant)))
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
 
     "do nothing if the service is exempt and no end of life repositories" in new Setup {
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd3)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Nil))
@@ -76,7 +76,7 @@ class SlackNotificationServiceSpec
 
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(Repo("Test", Seq.empty, None))))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      when(mockSlackNotificationsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyZeroInteractions(mockSlackNotificationsConnector)
@@ -84,7 +84,7 @@ class SlackNotificationServiceSpec
 
     "send end of life notifications to relevant teams" in new Setup {
 
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
       val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-1"), eolRepo.name, nowAsInstant, Seq(repo2.name))
@@ -95,7 +95,7 @@ class SlackNotificationServiceSpec
       when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.name))).thenReturn(Future.successful(Seq(ServiceName(repo2.name), ServiceName(repo3.name))))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      when(mockSlackNotificationsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
@@ -105,7 +105,7 @@ class SlackNotificationServiceSpec
 
     "send end of life notifications to relevant teams and group repos belong to same team" in new Setup {
 
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
       val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-1"), eolRepo.name, nowAsInstant, Seq(repo2.name, repo4.name))
@@ -116,7 +116,7 @@ class SlackNotificationServiceSpec
       when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.name))).thenReturn(Future.successful(Seq(ServiceName(repo2.name), ServiceName(repo3.name), ServiceName(repo4.name))))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      when(mockSlackNotificationsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
@@ -126,7 +126,7 @@ class SlackNotificationServiceSpec
 
     "run for the first time" in new Setup {
       when(mockConfiguration.getOptional[String]("slack-notification-service.test-team")).thenReturn(None)
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Seq(sd2)))
@@ -134,7 +134,7 @@ class SlackNotificationServiceSpec
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      when(mockSlackNotificationsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
@@ -142,13 +142,13 @@ class SlackNotificationServiceSpec
 
     "be run if the last time the service was run before the notifications period" in new Setup {
       when(mockConfiguration.getOptional[String]("slack-notification-service.test-team")).thenReturn(None)
-      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
+      when(mockSlackNotificationsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib"        , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib2"       , range)).thenReturn(Future.successful(Seq(sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
-      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+      when(mockSlackNotificationsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
       underTest.sendNotifications(nowAsInstant).futureValue
@@ -193,7 +193,7 @@ trait Setup  {
 
   val mockBobbyRulesService              = mock[BobbyRulesService]
   val mockServiceDependenciesConnector   = mock[ServiceDependenciesConnector]
-  val mockBobbyWarningsRepository        = mock[BobbyWarningsNotificationsRepository]
+  val mockSlackNotificationsRepository   = mock[SlackNotificationsRepository]
   val mockSlackNotificationsConnector    = mock[SlackNotificationsConnector]
   val mockTeamsAndRepositoriesConnector  = mock[TeamsAndRepositoriesConnector]
   val mockServiceRelationshipRepository  = mock[ServiceRelationshipRepository]
@@ -202,8 +202,10 @@ trait Setup  {
 
   when(mockConfiguration.get[Duration]("slack-notification-service.rule-notification-window")).thenReturn(Duration(30, TimeUnit.DAYS))
   when(mockConfiguration.get[Duration]("slack-notification-service.last-run-period")).thenReturn(Duration(7, TimeUnit.DAYS))
+  when(mockConfiguration.get[Boolean]("slack-notification-service.bobby-notification-enabled")).thenReturn(true)
+  when(mockConfiguration.get[Boolean]("slack-notification-service.end-of-life-notification-enabled")).thenReturn(true)
 
-  val underTest = new SlackNotificationService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
+  val underTest = new SlackNotificationService(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
 }
 
 
