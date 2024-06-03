@@ -55,6 +55,7 @@ class BobbyWarningsNotifierService @Inject()(
       for {
         _ <- bobbyNotifications(runTime)
         _ <- notificationsForDownstreamEOLRepositories(runTime)
+        _ <- bobbyWarningsRepository.setLastRunTime(runTime)
       } yield logger.info("Completed sending Slack warning messages")
     }
   }
@@ -81,7 +82,6 @@ class BobbyWarningsNotifierService @Inject()(
                                      case (teamName, rsp) if (rsp.errors.nonEmpty) => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
                                      case (teamName, rsp)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
                                    }
-      _                         <- bobbyWarningsRepository.setLastRunTime(runTime)
     } yield logger.info("Completed sending Slack messages for Bobby Warnings")
   }
 
@@ -102,10 +102,7 @@ class BobbyWarningsNotifierService @Inject()(
                 Future.sequence(groupReposByTeamNames.map {
                   case (teamName, repos) =>
                     val msg = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam(teamName), serviceName.asString, repo.endOfLifeDate.get, repos.map(_.name))
-                    for {
-                      notifications <- slackNotificationsConnector.sendMessage(msg)
-                      _             <- bobbyWarningsRepository.setLastRunTime(runTime)
-                    } yield notifications
+                    slackNotificationsConnector.sendMessage(msg)
                 })
               case _ => Future.successful(Seq.empty)
             }

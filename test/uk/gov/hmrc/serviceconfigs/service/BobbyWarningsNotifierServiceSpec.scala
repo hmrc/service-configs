@@ -23,6 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules, ServiceName, TeamName}
 import uk.gov.hmrc.serviceconfigs.persistence.{BobbyWarningsNotificationsRepository, ServiceRelationshipRepository}
@@ -30,6 +31,7 @@ import uk.gov.hmrc.serviceconfigs.persistence.{BobbyWarningsNotificationsReposit
 import java.time.temporal.ChronoUnit.DAYS
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.TimeUnit
+import scala.collection.immutable.Seq
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -43,7 +45,7 @@ class BobbyWarningsNotifierServiceSpec
   with MockitoSugar {
 
 
-  "The BobbyWarningsNotifierService" should {
+  "BobbyWarningsNotifierService.sendNotifications" should {
 
     "do nothing if out of hours" in new Setup{
       val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
@@ -73,7 +75,7 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Nil))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       // End of life notification mocks
-      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(Repo("Test", Seq.empty, None))))
 
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
@@ -81,8 +83,49 @@ class BobbyWarningsNotifierServiceSpec
       verifyZeroInteractions(mockSlackNotificationsConnector)
     }
 
+    "send end of life notifications to relevant teams" in new Setup {
+
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
+
+      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-1"), eolRepo.name, nowAsInstant, Seq(repo2.name))
+      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-2"), eolRepo.name, nowAsInstant, Seq(repo2.name))
+      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-3"), eolRepo.name, nowAsInstant, Seq(repo3.name))
+
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(eolRepo, repo2, repo3, repo4)))
+      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.name))).thenReturn(Future.successful(Seq(ServiceName(repo2.name), ServiceName(repo3.name))))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+
+      underTest.sendNotifications(nowAsInstant).futureValue
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
+    }
+
+    "send end of life notifications to relevant teams and group repos belong to same team" in new Setup {
+
+      when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
+      when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
+
+      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-1"), eolRepo.name, nowAsInstant, Seq(repo2.name, repo4.name))
+      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-2"), eolRepo.name, nowAsInstant, Seq(repo2.name))
+      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam("team-3"), eolRepo.name, nowAsInstant, Seq(repo3.name))
+
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(eolRepo, repo2, repo3, repo4)))
+      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.name))).thenReturn(Future.successful(Seq(ServiceName(repo2.name), ServiceName(repo3.name), ServiceName(repo4.name))))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+
+      when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
+
+      underTest.sendNotifications(nowAsInstant).futureValue
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
+    }
+
     "run for the first time" in new Setup {
-      // Bobby notification mocks
       when(mockConfiguration.getOptional[String]("bobby-warnings-notifier-service.test-team")).thenReturn(None)
       when(mockBobbyWarningsRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
@@ -90,7 +133,6 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Seq(sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
-      // End of life notification mocks
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
@@ -109,7 +151,6 @@ class BobbyWarningsNotifierServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
       when(mockBobbyWarningsRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
-      // End of life notification mocks
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
       underTest.sendNotifications(nowAsInstant).futureValue
@@ -126,15 +167,20 @@ trait Setup  {
   val team1 = TeamName("Team1")
   val team2 = TeamName("Team2")
 
+  val now = LocalDateTime.of(2023, 9, 22, 9, 0, 0)
+  val nowAsInstant = now.toInstant(ZoneOffset.UTC)
+
   val sd1 = AffectedService(serviceName = ServiceName("some-service")       , teamNames = List(team1, team2))
   val sd2 = AffectedService(serviceName = ServiceName("some-other-service") , teamNames = List(team1))
   val sd3 = AffectedService(serviceName = ServiceName("some-exempt-service"), teamNames = List(team1))
 
+  val eolRepo = Repo("repo1", Seq("team-1"),           Some(nowAsInstant))
+  val repo2   = Repo("repo2", Seq("team-1", "team-2"), None)
+  val repo3   = Repo("repo3", Seq("team-3"),           None)
+  val repo4   = Repo("repo4", Seq("team-1"),           None)
+
   val organisation = "uk.gov.hmrc"
   val range = "[0.0.0,)"
-
-  val now          = LocalDateTime.of(2023, 9, 22, 9, 0, 0)
-  val nowAsInstant = now.toInstant(ZoneOffset.UTC)
 
   val eightDays   = now.minus(8L, DAYS).toInstant(ZoneOffset.UTC)
   val yesterday   = now.minus(1L, DAYS).toInstant(ZoneOffset.UTC)
@@ -161,4 +207,5 @@ trait Setup  {
 
   val underTest = new BobbyWarningsNotifierService(mockBobbyRulesService, mockServiceDependenciesConnector, mockBobbyWarningsRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
 }
+
 
