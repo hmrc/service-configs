@@ -21,7 +21,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, UpscanConfig}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName, UpscanConfig}
 import uk.gov.hmrc.serviceconfigs.persistence.UpscanConfigRepository
 
 import java.io.FileInputStream
@@ -65,7 +65,7 @@ class UpscanConfigServiceSpec
       teamName    = None,
       serviceType = None,
       tags        = Nil,
-    )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(rn, Seq.empty, None))))
+    )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(RepoName(rn), Seq.empty, None))))
 
     when(mockTeamsAndRepositoriesConnector.getDeletedRepos(
       repoType    = Some("Service"),

@@ -21,17 +21,16 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.RenderedConfigSourceValue
-import ConfigService.ConfigSourceEntries
-import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, RenderedConfigSourceValue}
 
-import java.time.{Clock, Instant, ZoneOffset}
 import java.time.temporal.ChronoUnit
+import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -90,7 +89,7 @@ class SlugInfoServiceSpec
 
     "clear latest flag for services that have been deleted/archived" in new Setup {
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
-      val activeServices = List(Repo("service1", Seq.empty, None), Repo("service3", Seq.empty, None))
+      val activeServices = List(Repo(RepoName("service1"), Seq.empty, None), Repo(RepoName("service3"), Seq.empty, None))
       val archived       = List(ServiceName("service2"))
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
@@ -133,7 +132,7 @@ class SlugInfoServiceSpec
     }
 
     "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
-      val activeServices = List(Repo       ("service1", Seq.empty, None), Repo("service2", Seq.empty, None), Repo("service3", Seq.empty, None))
+      val activeServices = List(Repo       (RepoName("service1"), Seq.empty, None), Repo(RepoName("service2"), Seq.empty, None), Repo(RepoName("service3"), Seq.empty, None))
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
       val latestServices = List(ServiceName("service1")                         , ServiceName("service3"))
       val missingLatest  = ServiceName("service2")
@@ -181,7 +180,7 @@ class SlugInfoServiceSpec
       val serviceName1 = ServiceName("service1")
       val serviceName2 = ServiceName("service2")
       val knownServices  = List(serviceName1, serviceName2)
-      val activeServices = knownServices.map(s => Repo(s.asString, Seq.empty, None))
+      val activeServices = knownServices.map(s => Repo(RepoName(s.asString), Seq.empty, None))
       val latestServices = List(serviceName1, serviceName2)
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())

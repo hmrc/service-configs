@@ -22,22 +22,22 @@ import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.persistence.SlackNotificationsRepository.SlackNotificationsRunTime
+import uk.gov.hmrc.serviceconfigs.persistence.SlackNotificationsRepository.DeprecationWarningsNotificationsRunTime
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlackNotificationsRepository @Inject() (
+class DeprecationWarningsNotificationRepository @Inject() (
   mongoComponent: MongoComponent
 )(
 implicit
 ec: ExecutionContext
-) extends PlayMongoRepository[SlackNotificationsRunTime](
+) extends PlayMongoRepository[DeprecationWarningsNotificationsRunTime](
   mongoComponent = mongoComponent,
-  collectionName = "slackNotificationsRunDate",
-  domainFormat = SlackNotificationsRunTime.format,
+  collectionName = "deprecationWarningsNotificationRunDate",
+  domainFormat = DeprecationWarningsNotificationsRunTime.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
 ) {
@@ -49,7 +49,7 @@ ec: ExecutionContext
   def setLastRunTime(lastRunTime: Instant): Future[Unit] =
     collection.findOneAndReplace(
       filter = Filters.empty(),
-      replacement = SlackNotificationsRunTime(lastRunTime),
+      replacement = DeprecationWarningsNotificationsRunTime(lastRunTime),
       options = FindOneAndReplaceOptions().upsert(true)
    )
      .toFutureOption()
@@ -68,12 +68,12 @@ ec: ExecutionContext
 }
 
 object SlackNotificationsRepository {
-  case class SlackNotificationsRunTime(lastRunTime: Instant) extends AnyVal
+  case class DeprecationWarningsNotificationsRunTime(lastRunTime: Instant) extends AnyVal
 
-  object SlackNotificationsRunTime {
-    val format: OFormat[SlackNotificationsRunTime] = {
+  object DeprecationWarningsNotificationsRunTime {
+    val format: OFormat[DeprecationWarningsNotificationsRunTime] = {
       import MongoJavatimeFormats.Implicits.jatInstantFormat
-      Format.at[Instant](__ \ "lastRunTime").inmap[SlackNotificationsRunTime](SlackNotificationsRunTime.apply, _.lastRunTime)
+      Format.at[Instant](__ \ "lastRunTime").inmap[DeprecationWarningsNotificationsRunTime](DeprecationWarningsNotificationsRunTime.apply, _.lastRunTime)
     }
   }
 }

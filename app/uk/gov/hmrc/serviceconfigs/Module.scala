@@ -44,14 +44,14 @@ class Module extends play.api.inject.Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     Seq(
-      bind[ConfigScheduler               ].toSelf.eagerly()
-    , bind[SlackNotificationScheduler    ].toSelf.eagerly()
-    , bind[MissedWebhookEventsScheduler  ].toSelf.eagerly()
-    , bind[SlugMetadataUpdateScheduler   ].toSelf.eagerly()
-    , bind[ServiceRelationshipScheduler  ].toSelf.eagerly()
-    , bind[ServiceToRepoNameScheduler    ].toSelf.eagerly()
-    , bind[FrontendRouteParser           ].to[NginxConfigParser].eagerly()
-    , bind[Clock                         ].toInstance(Clock.systemUTC())
+      bind[ConfigScheduler                          ].toSelf.eagerly()
+    , bind[DeprecationWarningsNotificationScheduler ].toSelf.eagerly()
+    , bind[MissedWebhookEventsScheduler             ].toSelf.eagerly()
+    , bind[SlugMetadataUpdateScheduler              ].toSelf.eagerly()
+    , bind[ServiceRelationshipScheduler             ].toSelf.eagerly()
+    , bind[ServiceToRepoNameScheduler               ].toSelf.eagerly()
+    , bind[FrontendRouteParser                      ].to[NginxConfigParser].eagerly()
+    , bind[Clock                                    ].toInstance(Clock.systemUTC())
     ) ++
     ecsDeploymentsBindings(configuration)
 }

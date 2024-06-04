@@ -46,7 +46,7 @@ class DashboardService @Inject()(
       regex    = """src/main/scala/uk/gov/hmrc/grafanadashboards/dashboards/(.*).scala""".r
       blob     = "https://github.com/hmrc/grafana-dashboards/blob"
       items    = ZipUtil
-                   .findRepos(zip, repos.map(_.name), regex, blob)
+                   .findRepos(zip, repos.map(_.repoName.asString), regex, blob)
                    .map { case (name, location) => Dashboard(serviceName = ServiceName(name), location = location) }
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
@@ -64,7 +64,7 @@ class DashboardService @Inject()(
       regex    = """src/main/scala/uk/gov/hmrc/kibanadashboards/digitalservices/(.*).scala""".r
       blob     = "https://github.com/hmrc/kibana-dashboards/blob"
       items    = ZipUtil
-                   .findRepos(zip, repos.map(_.name), regex, blob)
+                   .findRepos(zip, repos.map(_.repoName.asString), regex, blob)
                    .map { case (repo, location) => Dashboard(serviceName = ServiceName(repo), location = location) }
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")

@@ -21,7 +21,7 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.persistence.{ServiceRelationshipRepository, SlackNotificationsRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DeprecationWarningsNotificationRepository, ServiceRelationshipRepository, SlackNotificationsRepository}
 import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
@@ -31,13 +31,13 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlackNotificationService @Inject()(
-  bobbyRulesService             : BobbyRulesService,
-  serviceDependencies           : ServiceDependenciesConnector,
-  slackNotificationsRepository  : SlackNotificationsRepository,
-  slackNotificationsConnector   : SlackNotificationsConnector,
-  serviceRelationshipsRepository: ServiceRelationshipRepository,
-  teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector,
+class DeprecationWarningsNotificationService @Inject()(
+  bobbyRulesService                         : BobbyRulesService,
+  serviceDependencies                       : ServiceDependenciesConnector,
+  deprecationWarningsNotificationRepository : DeprecationWarningsNotificationRepository,
+  slackNotificationsConnector               : SlackNotificationsConnector,
+  serviceRelationshipsRepository            : ServiceRelationshipRepository,
+  teamsAndRepositoriesConnector             : TeamsAndRepositoriesConnector,
   configuration : Configuration
 )(implicit
   ec: ExecutionContext
@@ -45,21 +45,21 @@ class SlackNotificationService @Inject()(
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  private val futureDatedRuleWindow  = configuration.get[Duration]("slack-notification-service.rule-notification-window")
+  private val futureDatedRuleWindow  = configuration.get[Duration]("deprecation-warnings-notification-service.rule-notification-window")
   private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
-  private val lastRunPeriod          = configuration.get[Duration]("slack-notification-service.last-run-period")
-  private lazy val testTeam          = configuration.getOptional[String]("slack-notification-service.test-team")
+  private val lastRunPeriod          = configuration.get[Duration]("deprecation-warnings-notification-service.last-run-period")
+  private lazy val testTeam          = configuration.getOptional[String]("deprecation-warnings-notification-service.test-team")
 
-  private val bobbyNotificationEnabled     = configuration.get[Boolean]("slack-notification-service.bobby-notification-enabled")
-  private val endOfLifeNotificationEnabled = configuration.get[Boolean]("slack-notification-service.end-of-life-notification-enabled")
+  private val bobbyNotificationEnabled     = configuration.get[Boolean]("deprecation-warnings-notification-service.bobby-notification-enabled")
+  private val endOfLifeNotificationEnabled = configuration.get[Boolean]("deprecation-warnings-notification-service.end-of-life-notification-enabled")
 
   def sendNotifications(runTime: Instant): Future[Unit] = {
     runNotificationsIfInWindow(runTime) {
       for {
         _ <- bobbyNotifications(runTime)
         _ <- endOfLifeNotifications()
-        _ <- slackNotificationsRepository.setLastRunTime(runTime)
-      } yield logger.info("Completed sending Slack warning messages")
+        _ <- deprecationWarningsNotificationRepository.setLastRunTime(runTime)
+      } yield logger.info("Completed sending deprecation warning messages")
     }
   }
 
@@ -95,39 +95,38 @@ class SlackNotificationService @Inject()(
 
   private def endOfLifeNotifications()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
     if (endOfLifeNotificationEnabled) {
-      teamsAndRepositoriesConnector.getRepos().flatMap {
-        repositories =>
-          val eolRepos = repositories.filter(_.endOfLifeDate.isDefined)
-          Future.sequence(eolRepos.map {
-            repo =>
-              val serviceName = ServiceName(repo.name)
-              serviceRelationshipsRepository.getInboundServices(ServiceName(repo.name)).flatMap {
-                case getInboundServices if getInboundServices.nonEmpty =>
+      for {
+        repositories          <- teamsAndRepositoriesConnector.getRepos()
+        eolRepositories       = repositories.filter(_.endOfLifeDate.isDefined)
+        serviceRelationships  <- eolRepositories.foldLeftM(Seq.empty[(TeamsAndRepositoriesConnector.Repo, Seq[ServiceName])]) {
+          case (acc, eolRepo) =>
+            serviceRelationshipsRepository.getInboundServices(ServiceName(eolRepo.repoName.asString)).map {
+              inboundServices =>
+                acc :+ (eolRepo, inboundServices)
+            }
+        }
+        responses              <- serviceRelationships.foldLeftM(Seq.empty[SlackNotificationResponse]) {
+            case (acc, (repo, relationships)) =>
+              val enrichRelationships   = repositories.filter(repo => relationships.map(_.asString).contains(repo.repoName.asString))
+              val teamNames             = enrichRelationships.flatMap(_.teamNames).distinct
+              val groupReposByTeamNames = teamNames.map(name => name -> enrichRelationships.filter(_.teamNames.contains(name)))
 
-                  val enrichServiceRelationships = repositories.filter(repo => getInboundServices.map(_.asString).contains(repo.name))
-                  val teamNames                  = enrichServiceRelationships.flatMap(_.teamNames).distinct
-                  val groupReposByTeamNames      = teamNames.map(name => name -> enrichServiceRelationships.filter(_.teamNames.contains(name)))
-
-                  Future.sequence(groupReposByTeamNames.map {
-                    case (teamName, repos) =>
-                      val msg = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam(teamName), serviceName.asString, repo.endOfLifeDate.get, repos.map(_.name))
-                      slackNotificationsConnector.sendMessage(msg)
-                  })
-                case _ => Future.successful(Seq.empty)
-              }
+              groupReposByTeamNames.foldLeftM(Seq.empty[SlackNotificationResponse]) {
+                case (acc, (teamName, repos)) =>
+                  val msg = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate.get, repos.map(_.repoName))
+                  slackNotificationsConnector.sendMessage(msg).map(acc :+ _)
+              }.map(acc ++ _)
           }
-          )
-      }.map(_ => logger.info("Completed sending Slack messages for end of life repositories"))
+      } yield logger.info(s"Completed sending ${responses.length} Slack messages for end of life repositories")
     } else {
       logger.info("End of Life Slack notifications disabled")
       Future.unit
     }
   }
 
-
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
     if (isInWorkingHours(now)) {
-      slackNotificationsRepository.getLastWarningsRunTime().flatMap {
+      deprecationWarningsNotificationRepository.getLastWarningsRunTime().flatMap {
         case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
           logger.info(s"Not running Slack Notifications. Last run date was $lrd")
           Future.unit

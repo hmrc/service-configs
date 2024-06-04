@@ -21,18 +21,18 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.service.SlackNotificationService
+import uk.gov.hmrc.serviceconfigs.service.DeprecationWarningsNotificationService
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class SlackNotificationScheduler @Inject()(
-  schedulerConfigs              : SchedulerConfigs,
-  mongoLockRepository           : MongoLockRepository,
-  timestampSupport              : TimestampSupport,
-  slackNotificationService      : SlackNotificationService
+class DeprecationWarningsNotificationScheduler @Inject()(
+  schedulerConfigs          : SchedulerConfigs,
+  mongoLockRepository       : MongoLockRepository,
+  timestampSupport          : TimestampSupport,
+  deprecationWarningService : DeprecationWarningsNotificationService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -41,11 +41,11 @@ class SlackNotificationScheduler @Inject()(
 
 
   scheduleWithTimePeriodLock(
-    label = "slackNotification",
-    schedulerConfig = schedulerConfigs.slackNotificationScheduler,
-    lock = ScheduledLockService(mongoLockRepository, "slack-notification-scheduler", timestampSupport, schedulerConfigs.slackNotificationScheduler.interval)
+    label = "deprecationWarningsNotification",
+    schedulerConfig = schedulerConfigs.deprecationWarningsNotificationScheduler,
+    lock = ScheduledLockService(mongoLockRepository, "deprecation-warnings-notification-scheduler", timestampSupport, schedulerConfigs.deprecationWarningsNotificationScheduler.interval)
   ) {
-    logger.info("Running Slack Notifications")
-    slackNotificationService.sendNotifications(Instant.now())
+    logger.info("Running deprecation warning notifications")
+    deprecationWarningService.sendNotifications(Instant.now())
   }
 }

@@ -47,7 +47,7 @@ class DeploymentConfigController @Inject()(
       for {
         serviceNames      <- if (teamName.isDefined)
                                teamsAndRepositoriesConnector.getRepos(teamName = teamName, repoType = Some("Service"))
-                                 .map(_.map(repo => ServiceName(repo.name)))
+                                 .map(_.map(repo => ServiceName(repo.repoName.asString)))
                                  .map(teamServiceNames => if (serviceName.isDefined) teamServiceNames.intersect(serviceName.toSeq) else teamServiceNames)
                              else
                                Future.successful(serviceName.toSeq)

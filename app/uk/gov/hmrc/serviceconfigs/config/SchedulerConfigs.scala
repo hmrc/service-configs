@@ -46,10 +46,10 @@ object SchedulerConfig {
 
 @Singleton
 class SchedulerConfigs @Inject()(configuration: Configuration) {
-  val configScheduler                = SchedulerConfig(configuration, "config-scheduler")
-  val missedWebhookEventsScheduler   = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
-  val slugMetadataScheduler          = SchedulerConfig(configuration, "slug-metadata-scheduler")
-  val serviceRelationshipScheduler   = SchedulerConfig(configuration, "service-relationship-scheduler")
-  val slackNotificationScheduler     = SchedulerConfig(configuration, "slack-notification-scheduler")
-  val serviceToRepoNameScheduler     = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
+  val configScheduler                           = SchedulerConfig(configuration, "config-scheduler")
+  val missedWebhookEventsScheduler              = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
+  val slugMetadataScheduler                     = SchedulerConfig(configuration, "slug-metadata-scheduler")
+  val serviceRelationshipScheduler              = SchedulerConfig(configuration, "service-relationship-scheduler")
+  val deprecationWarningsNotificationScheduler  = SchedulerConfig(configuration, "deprecation-warnings-notification-scheduler")
+  val serviceToRepoNameScheduler                = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
 }

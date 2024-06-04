@@ -276,7 +276,7 @@ class ConfigService @Inject()(
       serviceNames <- (teamName, serviceType, tags) match {
                         case (None, None, Nil) => Future.successful(None)
                         case _                 => teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tags = tags)
-                                                    .map(_.map(repo => ServiceName(repo.name)))
+                                                    .map(_.map(repo => ServiceName(repo.repoName.asString)))
                                                     .map(Some.apply)
                       }
       configRepos  <- appliedConfigRepository.search(
@@ -294,7 +294,7 @@ class ConfigService @Inject()(
       case None => appliedConfigRepository.findConfigKeys(None)
       case _    => for {
                      repos        <- teamsAndReposConnector.getRepos(teamName = teamName)
-                     serviceNames =  repos.map(repo => ServiceName(repo.name))
+                     serviceNames =  repos.map(repo => ServiceName(repo.repoName.asString))
                      configKeys   <- appliedConfigRepository.findConfigKeys(Some(serviceNames))
                    } yield configKeys
     }
