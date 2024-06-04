@@ -21,7 +21,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 
 import java.io.FileInputStream
@@ -102,7 +102,7 @@ class AlertConfigServiceSpec
   }
 
   "AlertConfigService.toAlertEnvironmentHandler" should {
-    val locations = Seq("test" -> "line1")
+    val locations = Seq(RepoName("test") -> "line1")
     "produce an AlertEnvironmentHandler for a service that has alert config enabled" in {
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",
