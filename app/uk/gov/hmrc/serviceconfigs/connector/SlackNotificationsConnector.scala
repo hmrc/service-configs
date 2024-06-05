@@ -22,8 +22,10 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, RepoName, ServiceName, TeamName}
 
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -98,6 +100,31 @@ final case class SlackNotificationRequest(
 
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
+
+  def downstreamMarkedForDecommissioning(channelLookup: GithubTeam, eolRepository: RepoName, eol: Instant, impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
+    val utc = ZoneId.of("UTC")
+    val eolFormatted = eol.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
+    val blocks = Seq(
+      Json.obj(
+        "type" -> JsString("section"),
+        "text" -> Json.obj(
+          "type" -> JsString("mrkdwn"),
+          "text" -> JsString(s"`${eolRepository.asString}` has been marked with an end of life date of `$eolFormatted`." +
+            s"\n\nThe following services may have a dependency on this repository and may be impacted past this date:\n${impactedRepositories.map(_.asString).mkString("\n")}"
+          )
+        )
+      )
+    )
+
+    SlackNotificationRequest(
+      channelLookup = channelLookup,
+      displayName = "MDTP Catalogue",
+      emoji = ":tudor-crown:",
+      text = s"$eolRepository has been marked with an end of life date.",
+      blocks = blocks
+    )
+  }
+
 
   def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest = {
     val msg: JsObject = Json.parse(

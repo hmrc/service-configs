@@ -18,23 +18,30 @@ package uk.gov.hmrc.serviceconfigs.connector
 
 import play.api.Logging
 import play.api.cache.AsyncCacheApi
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{ServiceType, Tag, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{RepoName, ServiceType, Tag, TeamName}
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
+
 object TeamsAndRepositoriesConnector {
-  case class Repo(name: String)
+
+  case class Repo(repoName: RepoName, teamNames: Seq[String], endOfLifeDate: Option[Instant])
 
   import play.api.libs.json.Reads._
   import play.api.libs.json._
 
   val readsRepo: Reads[Repo] =
-    (__ \ "name").read[String].map(Repo)
+    ((__ \ "name").read[String].map(RepoName.apply)
+      ~ (__ \ "teamNames").read[Seq[String]]
+      ~ (__ \ "endOfLifeDate").readNullable[Instant]
+      )(Repo.apply _)
 }
 
 @Singleton

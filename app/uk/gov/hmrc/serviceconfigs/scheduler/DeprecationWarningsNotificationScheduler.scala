@@ -21,18 +21,18 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.service.BobbyWarningsNotifierService
+import uk.gov.hmrc.serviceconfigs.service.DeprecationWarningsNotificationService
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class BobbyWarningsNotifierScheduler @Inject()(
-  schedulerConfigs              : SchedulerConfigs,
-  mongoLockRepository           : MongoLockRepository,
-  timestampSupport              : TimestampSupport,
-  bobbyWarningsNotifierService  : BobbyWarningsNotifierService
+class DeprecationWarningsNotificationScheduler @Inject()(
+  schedulerConfigs          : SchedulerConfigs,
+  mongoLockRepository       : MongoLockRepository,
+  timestampSupport          : TimestampSupport,
+  deprecationWarningService : DeprecationWarningsNotificationService
 )(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
@@ -41,12 +41,11 @@ class BobbyWarningsNotifierScheduler @Inject()(
 
 
   scheduleWithTimePeriodLock(
-    label = "BobbyWarningsNotifier",
-    schedulerConfig = schedulerConfigs.bobbyWarningsNotifierScheduler,
-    lock = ScheduledLockService(mongoLockRepository, "bobby-warnings-scheduler", timestampSupport, schedulerConfigs.bobbyWarningsNotifierScheduler.interval)
+    label = "deprecationWarningsNotification",
+    schedulerConfig = schedulerConfigs.deprecationWarningsNotificationScheduler,
+    lock = ScheduledLockService(mongoLockRepository, "deprecation-warnings-notification-scheduler", timestampSupport, schedulerConfigs.deprecationWarningsNotificationScheduler.interval)
   ) {
-    logger.info("Running Bobby Warnings Notifier")
-    bobbyWarningsNotifierService.sendNotificationsForFutureDatedBobbyViolations(Instant.now())
-
+    logger.info("Running deprecation warning notifications")
+    deprecationWarningService.sendNotifications(Instant.now())
   }
 }

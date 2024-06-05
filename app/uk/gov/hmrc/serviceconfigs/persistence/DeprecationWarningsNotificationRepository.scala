@@ -22,22 +22,22 @@ import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
-import uk.gov.hmrc.serviceconfigs.persistence.BobbyWarningsNotificationsRepository.BobbyWarningsNotificationsRunTime
+import uk.gov.hmrc.serviceconfigs.persistence.SlackNotificationsRepository.DeprecationWarningsNotificationsRunTime
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BobbyWarningsNotificationsRepository @Inject() (
+class DeprecationWarningsNotificationRepository @Inject() (
   mongoComponent: MongoComponent
 )(
 implicit
 ec: ExecutionContext
-) extends PlayMongoRepository[BobbyWarningsNotificationsRunTime](
+) extends PlayMongoRepository[DeprecationWarningsNotificationsRunTime](
   mongoComponent = mongoComponent,
-  collectionName = "bobbyWarningsNotificationsRunDate",
-  domainFormat = BobbyWarningsNotificationsRunTime.format,
+  collectionName = "deprecationWarningsNotificationRunDate",
+  domainFormat = DeprecationWarningsNotificationsRunTime.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
 ) {
@@ -49,7 +49,7 @@ ec: ExecutionContext
   def setLastRunTime(lastRunTime: Instant): Future[Unit] =
     collection.findOneAndReplace(
       filter = Filters.empty(),
-      replacement = BobbyWarningsNotificationsRunTime(lastRunTime),
+      replacement = DeprecationWarningsNotificationsRunTime(lastRunTime),
       options = FindOneAndReplaceOptions().upsert(true)
    )
      .toFutureOption()
@@ -67,13 +67,13 @@ ec: ExecutionContext
 
 }
 
-object BobbyWarningsNotificationsRepository {
-  case class BobbyWarningsNotificationsRunTime(lastRunTime: Instant) extends AnyVal
+object SlackNotificationsRepository {
+  case class DeprecationWarningsNotificationsRunTime(lastRunTime: Instant) extends AnyVal
 
-  object BobbyWarningsNotificationsRunTime {
-    val format: OFormat[BobbyWarningsNotificationsRunTime] = {
+  object DeprecationWarningsNotificationsRunTime {
+    val format: OFormat[DeprecationWarningsNotificationsRunTime] = {
       import MongoJavatimeFormats.Implicits.jatInstantFormat
-      Format.at[Instant](__ \ "lastRunTime").inmap[BobbyWarningsNotificationsRunTime](BobbyWarningsNotificationsRunTime.apply, _.lastRunTime)
+      Format.at[Instant](__ \ "lastRunTime").inmap[DeprecationWarningsNotificationsRunTime](DeprecationWarningsNotificationsRunTime.apply, _.lastRunTime)
     }
   }
 }

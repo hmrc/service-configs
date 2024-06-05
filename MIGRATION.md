@@ -1,3 +1,9 @@
+# Migration to 1.55.0
+
+```javascript
+db.getCollection("bobbyWarningsNotificationsRunDate").renameCollection("deprecationWarningsNotificationRunDate")
+```
+
 # Migration to 1.39.0
 ```javascript
 db.getCollection('deploymentConfig').dropIndex("name_1_environment_1")

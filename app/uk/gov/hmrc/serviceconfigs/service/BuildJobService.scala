@@ -45,8 +45,8 @@ class BuildJobService @Inject()(
       regex    = """jobs/live/(.*).groovy""".r
       blob     = "https://github.com/hmrc/build-jobs/blob"
       items    = ZipUtil
-                   .findRepos(zip, repos, regex, blob)
-                   .map { case (repo, location) => BuildJob(serviceName = ServiceName(repo.name), location = location) }
+                   .findRepos(zip, repos.map(_.repoName), regex, blob)
+                   .map { case (name, location) => BuildJob(serviceName = ServiceName(name.asString), location = location) }
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
       count   <- buildJobRepository.putAll(items)

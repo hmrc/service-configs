@@ -17,8 +17,8 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.scalatest.MockitoSugar
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -28,7 +28,7 @@ import play.api.test.Helpers._
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -47,7 +47,7 @@ class DeploymentConfigControllerSpec
       val applied = true
 
       when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any))
-        .thenReturn(Future.successful(Seq(Repo("test"))))
+        .thenReturn(Future.successful(Seq(Repo(RepoName("test"), Seq.empty, None))))
 
       when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
         .thenReturn(Future.successful(Seq(

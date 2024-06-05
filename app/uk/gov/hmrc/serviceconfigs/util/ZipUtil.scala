@@ -16,24 +16,24 @@
 
 package uk.gov.hmrc.serviceconfigs.util
 
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
+import uk.gov.hmrc.serviceconfigs.model.RepoName
 
-import java.util.zip.ZipInputStream
 import java.io.{FilterInputStream, InputStreamReader}
+import java.util.zip.ZipInputStream
 import scala.io.Source
 import scala.util.matching.Regex
 
 object ZipUtil {
 
-  def findRepos(zip: ZipInputStream, repos: Seq[Repo], regex: Regex, blob: String): Seq[(Repo, String)] = {
+  def findRepos(zip: ZipInputStream, reposNames: Seq[RepoName], regex: Regex, blob: String): Seq[(RepoName, String)] = {
     import scala.collection.mutable.ListBuffer
-    val repoBuffer: ListBuffer[Repo] = repos.to(ListBuffer)
+    val repoBuffer: ListBuffer[RepoName] = reposNames.to(ListBuffer)
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Seq.empty[(Repo, String)]){ (acc, entry) =>
+      .foldLeft(Seq.empty[(RepoName, String)]){ (acc, entry) =>
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
         path match {
           case regex(_) => acc ++ CharStreams
@@ -42,7 +42,7 @@ object ZipUtil {
                                     .zipWithIndex
                                     .flatMap { case (line, idx) =>
                                       repoBuffer
-                                        .find(r => line.contains(s"\"${r.name}\"") || line.contains(s"\'${r.name}\'"))
+                                        .find(name => line.contains(s"\"${name.asString}\"") || line.contains(s"\'${name.asString}\'"))
                                         .map { r =>
                                           repoBuffer -= r
                                           (r, s"$blob/HEAD/$path#L${idx + 1}")
@@ -51,7 +51,7 @@ object ZipUtil {
                                     .toSeq
           case _        => acc
         }
-      }.sortBy(_._1.name)
+      }.sortBy(_._1.asString)
     }
 
   class NonClosableInputStream(zip: ZipInputStream) extends FilterInputStream(zip) {

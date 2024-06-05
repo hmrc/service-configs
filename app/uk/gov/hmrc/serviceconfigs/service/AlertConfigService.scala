@@ -20,7 +20,7 @@ import cats.data.EitherT
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
@@ -54,9 +54,9 @@ class AlertConfigService @Inject()(
       _             =  jsonZip.close()
       regex         =  """src/main/scala/uk/gov/hmrc/alertconfig/configs/(.*).scala""".r
       blob          =  "https://github.com/hmrc/alert-config/blob"
-      repos         =  toRepos(sensuConfig)
+      repoNames     =  toRepoNames(sensuConfig)
       codeZip       <- EitherT.right[Unit](configAsCodeConnector.streamAlertConfig())
-      locations     =  ZipUtil.findRepos(codeZip, repos, regex, blob)
+      locations     =  ZipUtil.findRepos(codeZip, repoNames, regex, blob)
       _             =  codeZip.close()
       alertHandlers =  toAlertEnvironmentHandler(sensuConfig, locations)
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.putAll(alertHandlers))
@@ -110,21 +110,19 @@ object AlertConfigService {
         }
     }
 
-  def toRepos(sensuConfig: SensuConfig): Seq[Repo] =
+  def toRepoNames(sensuConfig: SensuConfig): Seq[RepoName] =
     for {
       alertConfig <- sensuConfig.alertConfigs
-      serviceName <- alertConfig.app.split('.').headOption
-    } yield Repo(serviceName)
+      serviceName <- alertConfig.app.split('.').headOption.map(RepoName(_))
+    } yield serviceName
 
 
-  def toAlertEnvironmentHandler(sensuConfig: SensuConfig, locations: Seq[(Repo, String)]): Seq[AlertEnvironmentHandler] =
+  def toAlertEnvironmentHandler(sensuConfig: SensuConfig, locations: Seq[(RepoName, String)]): Seq[AlertEnvironmentHandler] =
     for {
       alertConfig  <- sensuConfig.alertConfigs
       serviceName  <- alertConfig.app.split('.').headOption.map(ServiceName.apply)
       isProduction =  alertConfig.handlers.exists(h => hasProductionHandler(sensuConfig.productionHandler, h))
-      location     <- locations
-                        .collect { case (Repo(name), location) if name == serviceName.asString => location }
-                        .headOption
+      location     <- locations.collectFirst { case (name, location) if name.asString == serviceName.asString => location }
     } yield AlertEnvironmentHandler(serviceName = serviceName, production = isProduction, location = location)
 
   private def hasProductionHandler(productionHandlers: Map[String, Handler], handler: String): Boolean =

@@ -46,8 +46,8 @@ class ServiceManagerConfigService @Inject()(
                  ).mapN(_ ++ _)
       items     = repos.flatMap(repo =>
                     smConfig
-                      .find { case (line, _) => line.contains(s"\"${repo.name.toUpperCase.replaceAll("-", "_")}\"") }
-                      .map  { case (_, idx ) => ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.name), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}") }
+                      .find { case (line, _) => line.contains(s"\"${repo.repoName.asString.toUpperCase.replaceAll("-", "_")}\"") }
+                      .map  { case (_, idx ) => ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.repoName.asString), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}") }
                   )
       _         = logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
       count    <- serviceManagerConfigRepository.putAll(items)

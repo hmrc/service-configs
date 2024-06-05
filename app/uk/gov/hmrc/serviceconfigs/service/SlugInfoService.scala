@@ -61,7 +61,7 @@ class SlugInfoService @Inject()(
       dataTimestamp          =  Instant.now(clock)
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
       repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
-                                  .map(_.map(r => ServiceName(r.name)))
+                                  .map(_.map(r => ServiceName(r.repoName.asString)))
       decommissionedServices <- githubRawConnector.decommissionedServices()
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
