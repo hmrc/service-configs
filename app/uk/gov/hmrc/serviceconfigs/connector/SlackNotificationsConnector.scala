@@ -101,27 +101,79 @@ final case class SlackNotificationRequest(
 object SlackNotificationRequest {
   implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
 
-  def downstreamMarkedForDecommissioning(channelLookup: GithubTeam, eolRepository: RepoName, eol: Instant, impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
-    val utc = ZoneId.of("UTC")
-    val eolFormatted = eol.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
-    val blocks = Seq(
-      Json.obj(
-        "type" -> JsString("section"),
-        "text" -> Json.obj(
-          "type" -> JsString("mrkdwn"),
-          "text" -> JsString(s"`${eolRepository.asString}` has been marked with an end of life date of `$eolFormatted`." +
-            s"\n\nThe following services may have a dependency on this repository and may be impacted past this date:\n${impactedRepositories.map(_.asString).mkString("\n")}"
-          )
-        )
-      )
-    )
+  def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
+
+    val repositoryHref: String = s"<https://catalogue.tax.service.gov.uk/repositories/${eolRepository.asString}#environmentTabs|${eolRepository.asString}>"
+
+    val deprecatedText: String = eol match {
+      case Some(date) => {
+        val utc = ZoneId.of("UTC")
+        val eolFormatted = date.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
+        s"Hello ${channelLookup.teamName}, $repositoryHref has been marked as deprecated with an end of life date of `$eolFormatted`."
+      }
+      case _          => s"Hello ${channelLookup.teamName}, $repositoryHref has been marked as deprecated."
+    }
+
+    val repositoryElements: Seq[JsObject] = impactedRepositories.map {
+      repoName =>
+        Json.parse(
+          s"""
+           |{
+           |	"type": "rich_text_section",
+           |	"elements": [
+           |		{
+           |			"type": "text",
+           |			"text": "${repoName.asString}"
+           |		}
+           |	]
+           |}
+           |""".stripMargin
+        ).as[JsObject]
+    }
+
+    val block1: JsObject = Json.parse(
+      s"""
+         |{
+         |  "type": "section",
+         |  "text": {
+         |    "type": "mrkdwn",
+         |    "text": "$deprecatedText"
+         |  }
+         |}
+         |""".stripMargin
+    ).as[JsObject]
+
+    val block2 = Json.parse(
+      s"""
+         |{
+         |    "type": "rich_text",
+         |    "elements": [
+         |        {
+         |            "type": "rich_text_section",
+         |            "elements": [
+         |                {
+         |                    "type": "text",
+         |                    "text": "The following services may have a dependency on this repository and may be impacted past this date:"
+         |                }
+         |            ]
+         |        },
+         |        {
+         |            "type": "rich_text_list",
+         |            "style": "bullet",
+         |            "elements": ${Json.toJson(repositoryElements)}
+         |        }
+         |    ]
+         |}
+         |""".stripMargin
+    ).as[JsObject]
+
 
     SlackNotificationRequest(
       channelLookup = channelLookup,
-      displayName = "MDTP Catalogue",
-      emoji = ":tudor-crown:",
-      text = s"$eolRepository has been marked with an end of life date.",
-      blocks = blocks
+      displayName   = "MDTP Catalogue",
+      emoji         = ":tudor-crown:",
+      text          = s"A downstream service has been marked as deprecated",
+      blocks        = Seq(block1, block2)
     )
   }
 
@@ -154,11 +206,12 @@ object SlackNotificationRequest {
     }
 
     SlackNotificationRequest(
-      channelLookup,
-      "BobbyWarnings",
-      ":platops-bobby:",
-      "There are upcoming Bobby Rules affecting your service(s)",
-      msg :: rules
+      channelLookup = channelLookup,
+      displayName   = "BobbyWarnings",
+      emoji         = ":platops-bobby:",
+      text          = "There are upcoming Bobby Rules affecting your service(s)",
+      blocks        = msg :: rules
     )
   }
 }
+

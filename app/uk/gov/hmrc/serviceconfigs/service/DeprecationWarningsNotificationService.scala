@@ -57,7 +57,7 @@ class DeprecationWarningsNotificationService @Inject()(
     runNotificationsIfInWindow(runTime) {
       for {
         _ <- bobbyNotifications(runTime)
-        _ <- endOfLifeNotifications()
+        _ <- deprecatedNotifications()
         _ <- deprecationWarningsNotificationRepository.setLastRunTime(runTime)
       } yield logger.info("Completed sending deprecation warning messages")
     }
@@ -93,16 +93,15 @@ class DeprecationWarningsNotificationService @Inject()(
     }
   }
 
-  private def endOfLifeNotifications()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
+  private def deprecatedNotifications()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
     if (endOfLifeNotificationEnabled) {
       for {
         repositories          <- teamsAndRepositoriesConnector.getRepos()
-        eolRepositories       = repositories.filter(_.endOfLifeDate.isDefined)
+        eolRepositories       = repositories.filter(_.isDeprecated)
         serviceRelationships  <- eolRepositories.foldLeftM(Seq.empty[(TeamsAndRepositoriesConnector.Repo, Seq[ServiceName])]) {
           case (acc, eolRepo) =>
             serviceRelationshipsRepository.getInboundServices(ServiceName(eolRepo.repoName.asString)).map {
-              inboundServices =>
-                acc :+ (eolRepo, inboundServices)
+              inboundServices => acc :+ (eolRepo, inboundServices)
             }
         }
         responses              <- serviceRelationships.foldLeftM(Seq.empty[SlackNotificationResponse]) {
@@ -113,13 +112,13 @@ class DeprecationWarningsNotificationService @Inject()(
 
               groupReposByTeamNames.foldLeftM(Seq.empty[SlackNotificationResponse]) {
                 case (acc, (teamName, repos)) =>
-                  val msg = SlackNotificationRequest.downstreamMarkedForDecommissioning(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate.get, repos.map(_.repoName))
+                  val msg = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate, repos.map(_.repoName))
                   slackNotificationsConnector.sendMessage(msg).map(acc :+ _)
               }.map(acc ++ _)
           }
-      } yield logger.info(s"Completed sending ${responses.length} Slack messages for end of life repositories")
+      } yield logger.info(s"Completed sending ${responses.length} Slack messages for deprecated repositories")
     } else {
-      logger.info("End of Life Slack notifications disabled")
+      logger.info("Deprecated repositories Slack notifications disabled")
       Future.unit
     }
   }
