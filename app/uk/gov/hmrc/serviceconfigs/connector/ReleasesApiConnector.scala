@@ -25,8 +25,9 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
-import java.net.URL
 
+import java.net.URL
+import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -68,6 +69,7 @@ object ReleasesApiConnector {
     serviceName   : ServiceName
   , optEnvironment: Option[Environment]
   , version       : Version
+  , lastDeployed  : Instant
   , deploymentId  : Option[String]
   , config        : Seq[DeploymentConfigFile]
   ) {
@@ -90,6 +92,7 @@ object ReleasesApiConnector {
       ( Reads.pure(serviceName)
       ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "lastDeployed").read[Instant]
       ~ (__ \ "deploymentId" ).readNullable[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
