@@ -21,14 +21,14 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentEventsRequest, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, ServiceToRepoNameRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository, ServiceToRepoNameRepository}
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ConfigController @Inject()(
@@ -50,6 +50,17 @@ class ConfigController @Inject()(
   ): Action[AnyContent] = Action.async { implicit request =>
     configService.configByEnvironment(serviceName, environment, version, latest).map { e =>
       Ok(Json.toJson(e))
+    }
+  }
+
+  def deploymentEvents: Action[JsValue] = Action.async(parse.json) { request =>
+    request.body.validate[DeploymentEventsRequest] match {
+      case JsSuccess(deploymentEventsRequest, _) =>
+        configService.getDeploymentEvents(deploymentEventsRequest.serviceName, deploymentEventsRequest.deploymentIds).map { events =>
+          Ok(Json.toJson(events))
+        }
+      case JsError(errors) =>
+        Future.successful(BadRequest(Json.obj("error" -> s"Invalid JSON: $errors")))
     }
   }
 

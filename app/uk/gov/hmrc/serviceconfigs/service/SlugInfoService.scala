@@ -22,9 +22,7 @@ import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.persistence.{
-  AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository
-}
+import uk.gov.hmrc.serviceconfigs.persistence._
 
 import java.time.{Clock, Instant}
 import javax.inject.{Inject, Singleton}
@@ -38,6 +36,7 @@ class SlugInfoService @Inject()(
 , appConfigService          : AppConfigService
 , deployedConfigRepository  : DeployedConfigRepository
 , deploymentConfigRepository: DeploymentConfigRepository
+, deploymentEventRepository : DeploymentEventRepository
 , releasesApiConnector      : ReleasesApiConnector
 , teamsAndReposConnector    : TeamsAndRepositoriesConnector
 , githubRawConnector        : GithubRawConnector
@@ -58,7 +57,6 @@ class SlugInfoService @Inject()(
   def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
-      dataTimestamp          =  Instant.now(clock)
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
       repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.repoName.asString)))
@@ -83,7 +81,7 @@ class SlugInfoService @Inject()(
                                   deployments.foldLeftM(acc) {
                                     case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
                                                                              .map(_ => acc.copy(removed = acc.removed + 1))
-                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment, dataTimestamp)
+                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
                                                                              .map(requiresUpdate =>
                                                                                if (requiresUpdate)
                                                                                  acc.copy(updated = acc.updated + 1)
@@ -124,8 +122,7 @@ class SlugInfoService @Inject()(
     def updateDeployment(
       env           : Environment,
       serviceName   : ServiceName,
-      deployment    : ReleasesApiConnector.Deployment,
-      dataTimestamp : Instant
+      deployment    : ReleasesApiConnector.Deployment
     )(implicit
       hc: HeaderCarrier
     ): Future[Boolean] =
@@ -139,7 +136,7 @@ class SlugInfoService @Inject()(
                                    case Some(config) if config.configId.equals(deployment.configId) =>
                                      logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
                                      false
-                                   case Some(config) if config.lastUpdated.isAfter(dataTimestamp) =>
+                                   case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
                                      logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
                                        s"as the latest update occurred after the current process began.")
                                      false
@@ -147,8 +144,11 @@ class SlugInfoService @Inject()(
                                      logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
                                      true
                                  }
+        depEvent              =  DeploymentEventRepository.DeploymentEvent(serviceName, env, deployment.version, deployment.deploymentId, requiresUpdate, deployment.configId, deployment.lastDeployed)
+        _                     <- deploymentEventRepository.put(depEvent)
+
         _                     <- if (requiresUpdate)
-                                   updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), dataTimestamp)
+                                   updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), deployment.lastDeployed)
                                      .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
                                      .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
                                  else

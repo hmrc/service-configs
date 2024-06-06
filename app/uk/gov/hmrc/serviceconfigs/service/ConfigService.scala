@@ -19,13 +19,14 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.instances.all._
 import cats.syntax.all._
 import com.typesafe.config.Config
+
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, SlugInfo, SlugInfoFlag, ServiceType, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, DeploymentEventRepository, SlugInfoRepository}
 
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
@@ -38,6 +39,7 @@ class ConfigService @Inject()(
   configConnector           : ConfigConnector,
   slugInfoRepository        : SlugInfoRepository,
   dependencyConfigRepository: DependencyConfigRepository,
+  deploymentEventRepository : DeploymentEventRepository,
   appliedConfigRepository   : AppliedConfigRepository,
   deployedConfigRepository  : DeployedConfigRepository,
   appConfigService          : AppConfigService,
@@ -252,6 +254,14 @@ class ConfigService @Inject()(
       }
       .map(e => configSourceEntries(e, serviceName, version, latest).map(e -> _))
       .sequence.map(_.toMap)
+
+  def getDeploymentEvents(serviceName: ServiceName, deploymentIds: Seq[String])(implicit ec: ExecutionContext): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+    Future.traverse(deploymentIds) { deploymentId =>
+      deploymentEventRepository.find(deploymentId).map {
+        case Some(event) if event.serviceName == serviceName => Some(event)
+        case _ => None
+      }
+    }.map(_.flatten)
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
