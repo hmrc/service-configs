@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentEventRepository.DeploymentEvent
 
 import java.time.Instant
@@ -32,13 +32,16 @@ class DeploymentEventRepositorySpec
 
   override lazy val repository = new DeploymentEventRepository(mongoComponent)
 
+  val now: Instant = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+
   val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
     ServiceName("testService"),
     Environment.Development,
+    Version("0.1.0"),
     "testDeploymentId",
     configChanged = true,
     "testConfigId",
-    Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+    now
   )
 
   "DeploymentEventRepository" should {
@@ -71,6 +74,37 @@ class DeploymentEventRepositorySpec
       val foundEvent = repository.find(event.deploymentId).futureValue
 
       foundEvent shouldBe None
+    }
+  }
+
+  "DeploymentEvent apply method" should {
+
+    "create a unique deploymentId if the existing id starts with `arn`" in {
+      val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
+        ServiceName("testService"),
+        Environment.Development,
+        Version("0.1.0"),
+        "arn:aws:deploymentId",
+        configChanged = true,
+        "testConfigId",
+        now
+      )
+
+      event.deploymentId shouldBe s"testService-development-0.1.0-$now"
+    }
+
+    "use the existing deploymentId if the existing id does not start with `arn`" in {
+      val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
+        ServiceName("testService"),
+        Environment.Development,
+        Version("0.1.0"),
+        "deploymentId",
+        configChanged = true,
+        "testConfigId",
+        now
+      )
+
+      event.deploymentId shouldBe "deploymentId"
     }
   }
 }
