@@ -68,7 +68,7 @@ class DeprecationWarningsNotificationServiceSpec
       verifyZeroInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
     }
 
-    "do nothing if the service is exempt and deprecated repositories" in new Setup {
+    "do nothing if the service is exempt and there are no deprecated repositories" in new Setup {
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd3)))
@@ -124,17 +124,18 @@ class DeprecationWarningsNotificationServiceSpec
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
-      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-1"), eolRepo.repoName, None, Seq(repo2.repoName))
-      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-2"), eolRepo.repoName, None, Seq(repo2.repoName))
-      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-3"), eolRepo.repoName, None, Seq(repo3.repoName))
+      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-1"), deprecatedRepo.repoName, None, Seq(repo2.repoName))
+      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-2"), deprecatedRepo.repoName, None, Seq(repo2.repoName))
+      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-3"), deprecatedRepo.repoName, None, Seq(repo3.repoName))
 
-      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(eolRepo, repo2, repo3, repo4)))
-      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString))))
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(deprecatedRepo, repo2, repo3, repo4)))
+      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(deprecatedRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString))))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
+      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
@@ -145,17 +146,18 @@ class DeprecationWarningsNotificationServiceSpec
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
-      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-1"), eolRepo.repoName, None, Seq(repo2.repoName, repo4.repoName))
-      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-2"), eolRepo.repoName, None, Seq(repo2.repoName))
-      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-3"), eolRepo.repoName, None, Seq(repo3.repoName))
+      val expectedSlackNotification1 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-1"), deprecatedRepo.repoName, None, Seq(repo2.repoName, repo4.repoName))
+      val expectedSlackNotification2 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-2"), deprecatedRepo.repoName, None, Seq(repo2.repoName))
+      val expectedSlackNotification3 = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam("team-3"), deprecatedRepo.repoName, None, Seq(repo3.repoName))
 
-      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(eolRepo, repo2, repo3, repo4)))
-      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(eolRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString), ServiceName(repo4.repoName.asString))))
+      when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(deprecatedRepo, repo2, repo3, repo4)))
+      when(mockServiceRelationshipRepository.getInboundServices(ServiceName(deprecatedRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString), ServiceName(repo4.repoName.asString))))
       when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
+      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
@@ -209,7 +211,7 @@ case class Setup(bobbyNotification: Boolean = true, endOfLifeNotification: Boole
   val sd2 = AffectedService(serviceName = ServiceName("some-other-service") , teamNames = List(team1))
   val sd3 = AffectedService(serviceName = ServiceName("some-exempt-service"), teamNames = List(team1))
 
-  val eolRepo = Repo(RepoName("repo1"), Seq("team-1"),           None, isDeprecated = true)
+  val deprecatedRepo = Repo(RepoName("repo1"), Seq("team-1"),           None, isDeprecated = true)
   val repo2   = Repo(RepoName("repo2"), Seq("team-1", "team-2"), None)
   val repo3   = Repo(RepoName("repo3"), Seq("team-3"),           None)
   val repo4   = Repo(RepoName("repo4"), Seq("team-1"),           None)

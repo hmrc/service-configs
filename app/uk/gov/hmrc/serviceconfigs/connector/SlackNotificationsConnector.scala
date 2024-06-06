@@ -103,15 +103,14 @@ object SlackNotificationRequest {
 
   def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
 
-    val repositoryHref: String = s"<https://catalogue.tax.service.gov.uk/repositories/${eolRepository.asString}#environmentTabs|${eolRepository.asString}>"
+    val repositoryHref: String = s"<https://catalogue.tax.service.gov.uk/repositories/${eolRepository.asString}|${eolRepository.asString}>"
 
     val deprecatedText: String = eol match {
-      case Some(date) => {
+      case Some(date) =>
         val utc = ZoneId.of("UTC")
         val eolFormatted = date.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
-        s"Hello ${channelLookup.teamName}, $repositoryHref has been marked as deprecated with an end of life date of `$eolFormatted`."
-      }
-      case _          => s"Hello ${channelLookup.teamName}, $repositoryHref has been marked as deprecated."
+        s"$repositoryHref is marked as deprecated with an end of life date of `$eolFormatted`."
+      case _          => s"$repositoryHref is marked as deprecated."
     }
 
     val repositoryElements: Seq[JsObject] = impactedRepositories.map {
@@ -121,10 +120,11 @@ object SlackNotificationRequest {
            |{
            |	"type": "rich_text_section",
            |	"elements": [
-           |		{
-           |			"type": "text",
-           |			"text": "${repoName.asString}"
-           |		}
+           |    {
+           |	    "type": "link",
+           |	    "url": "https://catalogue.tax.service.gov.uk/repositories/${repoName.asString}",
+           |	    "text": "${repoName.asString}"
+           |	  }
            |	]
            |}
            |""".stripMargin
@@ -137,7 +137,7 @@ object SlackNotificationRequest {
          |  "type": "section",
          |  "text": {
          |    "type": "mrkdwn",
-         |    "text": "$deprecatedText"
+         |    "text": "Hello ${channelLookup.teamName}, \\n$deprecatedText"
          |  }
          |}
          |""".stripMargin
@@ -153,7 +153,7 @@ object SlackNotificationRequest {
          |            "elements": [
          |                {
          |                    "type": "text",
-         |                    "text": "The following services may have a dependency on this repository and may be impacted past this date:"
+         |                    "text": "The following services may have a dependency on this repository:"
          |                }
          |            ]
          |        },
