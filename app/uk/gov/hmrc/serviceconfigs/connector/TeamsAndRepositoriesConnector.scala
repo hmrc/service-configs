@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object TeamsAndRepositoriesConnector {
 
-  case class Repo(repoName: RepoName, teamNames: Seq[String], endOfLifeDate: Option[Instant])
+  case class Repo(repoName: RepoName, teamNames: Seq[String], endOfLifeDate: Option[Instant], isDeprecated: Boolean = false)
 
   import play.api.libs.json.Reads._
   import play.api.libs.json._
@@ -41,6 +41,7 @@ object TeamsAndRepositoriesConnector {
     ((__ \ "name").read[String].map(RepoName.apply)
       ~ (__ \ "teamNames").read[Seq[String]]
       ~ (__ \ "endOfLifeDate").readNullable[Instant]
+      ~ (__ \ "isDeprecated").readWithDefault[Boolean](false)
       )(Repo.apply _)
 }
 
