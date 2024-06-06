@@ -103,16 +103,16 @@ object DeploymentEventRepository {
     }
 
     def apply(
-               serviceName   : ServiceName,
-               environment   : Environment,
-               version       : Version,
-               deploymentId   : String,
-               configChanged : Boolean,
-               configId      : String,
-               lastUpdated   : Instant
-             ): DeploymentEvent = {
+      serviceName   : ServiceName,
+      environment   : Environment,
+      version       : Version,
+      deploymentId  : String,
+      configChanged : Boolean,
+      configId      : String,
+      lastUpdated   : Instant
+    ): DeploymentEvent = {
       //Artificial deploymentId to be used for old deployments until B&D can provide us with a unique deploymentId
-      val uniqueDeploymentId = if(deploymentId.startsWith("arn")) s"${serviceName}-${environment.asString}-${version}-${lastUpdated}" else deploymentId
+      val uniqueDeploymentId = if(deploymentId.startsWith("arn")) s"${serviceName.asString}-${environment.asString}-${version}-${lastUpdated}" else deploymentId
       new DeploymentEvent(serviceName, environment, version, uniqueDeploymentId, configChanged, configId, lastUpdated)
     }
   }
