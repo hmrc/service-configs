@@ -76,35 +76,4 @@ class DeploymentEventRepositorySpec
       foundEvent shouldBe None
     }
   }
-
-  "DeploymentEvent apply method" should {
-
-    "create a unique deploymentId if the existing id starts with `arn`" in {
-      val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
-        ServiceName("testService"),
-        Environment.Development,
-        Version("0.1.0"),
-        "arn:aws:deploymentId",
-        configChanged = true,
-        "testConfigId",
-        now
-      )
-
-      event.deploymentId shouldBe s"testService-development-0.1.0-$now"
-    }
-
-    "use the existing deploymentId if the existing id does not start with `arn`" in {
-      val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
-        ServiceName("testService"),
-        Environment.Development,
-        Version("0.1.0"),
-        "deploymentId",
-        configChanged = true,
-        "testConfigId",
-        now
-      )
-
-      event.deploymentId shouldBe "deploymentId"
-    }
-  }
 }
