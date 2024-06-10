@@ -161,6 +161,16 @@ object DeploymentHandler {
     ~ (__ \ "stack_id"            ).read[String]
     ~ Reads.pure(Seq.empty) // config - to be added
     ~ (__ \ "event_date_time"     ).read[Instant]
-      )(DeploymentEvent.apply _)
+      ){
+      (eventType, environment, serviceName, version, deploymentId, config, time) =>
+        val uniqueDeploymentId = environment.fold(deploymentId) { env =>
+          if (deploymentId.startsWith("arn")) {
+            s"${serviceName.asString}-${env.asString}-${version}-${time.toEpochMilli}"
+          } else {
+            deploymentId
+          }
+        }
+        DeploymentEvent(eventType, environment, serviceName, version, uniqueDeploymentId, config, time)
+    }
   }
 }
