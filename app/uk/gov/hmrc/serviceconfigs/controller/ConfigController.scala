@@ -21,7 +21,7 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentEventsRequest, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentDateRange, DeploymentEventsRequest, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
@@ -53,8 +53,8 @@ class ConfigController @Inject()(
     }
   }
 
-  def deploymentEvents(serviceName: ServiceName): Action[AnyContent] = Action.async {
-        configService.getDeploymentEvents(serviceName).map { events =>
+  def deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange): Action[AnyContent] = Action.async {
+        configService.getDeploymentEvents(serviceName, range).map { events =>
           Ok(Json.toJson(events))
     }
   }

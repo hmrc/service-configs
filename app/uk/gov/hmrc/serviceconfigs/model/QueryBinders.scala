@@ -18,6 +18,9 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.mvc.{PathBindable, QueryStringBindable}
 
+import java.time.Instant
+import scala.util.Try
+
 object QueryBinders {
 
   implicit def filterTypeBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[FilterType] =
@@ -91,4 +94,32 @@ object QueryBinders {
 
   implicit def artefactNameBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[ArtefactName] =
     strBinder.transform(ArtefactName.apply, _.asString)
+
+  /** DeploymentDateRange */
+  implicit def instantBindable(implicit strBinder: QueryStringBindable[String]): QueryStringBindable[Instant] =
+    new QueryStringBindable[Instant] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Instant]] =
+        strBinder.bind(key, params)
+          .map(_.flatMap(s => Try(Instant.parse(s)).toEither.left.map(_.getMessage)))
+
+      override def unbind(key: String, value: Instant): String =
+        strBinder.unbind(key, value.toString)
+    }
+
+  implicit def deploymentDateRangeBindable(implicit instantBinder: QueryStringBindable[Instant]): QueryStringBindable[DeploymentDateRange] =
+    new QueryStringBindable[DeploymentDateRange] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, DeploymentDateRange]] =
+        for {
+          from <- instantBinder.bind("from", params)
+          to   <- instantBinder.bind("to"  , params).orElse(Some(Right(Instant.now())))
+        } yield
+          (from, to) match {
+            case (Right(from), Right(to)) if from.compareTo(to) <= 0 => Right(DeploymentDateRange(from, to))
+            case (Right(from), Right(to))               => Left("Invalid date range, from should be before to")
+            case _                                      => Left("Unable to bind an deployment date range.")
+          }
+
+      override def unbind(key: String, value: DeploymentDateRange): String =
+        instantBinder.unbind("from", value.from) + "&" + instantBinder.unbind("to", value.to)
+    }
 }

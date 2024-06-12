@@ -16,12 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
+import cats.implicits.toTraverseOps
+import org.mongodb.scala.bson.conversions
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions, Sorts}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentDateRange, Environment, ServiceName, Version}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -38,7 +40,9 @@ class DeploymentEventRepository @Inject()(
   domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormats,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName")),
-                     IndexModel(Indexes.ascending("deploymentId"))
+                     IndexModel(Indexes.ascending("deploymentId")),
+                     IndexModel(Indexes.descending("lastUpdated")),
+                     IndexModel(Indexes.descending("lastUpdated", "environment", "serviceName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) {
@@ -55,11 +59,36 @@ class DeploymentEventRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def findAllForService(serviceName: ServiceName): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-    collection
-      .find(
-          equal("serviceName", serviceName)
-      ).toFuture()
+  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
+    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
+      val filter: Environment => conversions.Bson = (environment: Environment) => and(
+        equal("serviceName", serviceName),
+        equal("environment", environment),
+        gt("lastUpdated", dateRange.from),
+        lt("lastUpdated", dateRange.to)
+      )
+
+      val filterBefore: Environment => conversions.Bson = (environment: Environment) =>  and(
+        equal("serviceName", serviceName),
+        equal("environment", environment),
+        lte("lastUpdated", dateRange.from),
+      )
+
+      val filterAfter: Environment => conversions.Bson = (environment: Environment) =>  and(
+        equal("serviceName", serviceName),
+        equal("environment", environment),
+        gte("lastUpdated", dateRange.to),
+      )
+
+      for {
+        inside <- collection.find(filter(environment)).sort(Sorts.ascending("lastUpdated")).toFuture()
+        before <- collection.find(filterBefore(environment)).sort(Sorts.descending("lastUpdated")).headOption()
+        after <- collection.find(filterAfter(environment)).sort(Sorts.ascending("lastUpdated")).headOption()
+      } yield before.toSeq ++ inside ++ after.toSeq
+    }
+
+    Environment.values.traverse(fetchEvents).map(_.flatten)
+  }
 
   def find(deploymentId: String): Future[Option[DeploymentEventRepository.DeploymentEvent]] =
     collection

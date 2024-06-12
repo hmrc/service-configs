@@ -24,7 +24,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, Environment, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, DeploymentDateRange, Environment, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, DeploymentEventRepository, SlugInfoRepository}
 
@@ -255,8 +255,8 @@ class ConfigService @Inject()(
       .map(e => configSourceEntries(e, serviceName, version, latest).map(e -> _))
       .sequence.map(_.toMap)
 
-  def getDeploymentEvents(serviceName: ServiceName): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-      deploymentEventRepository.findAllForService(serviceName)
+  def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+      deploymentEventRepository.findAllForService(serviceName, dateRange)
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
