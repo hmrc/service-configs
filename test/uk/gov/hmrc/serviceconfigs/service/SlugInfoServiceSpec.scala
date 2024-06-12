@@ -476,6 +476,9 @@ class SlugInfoServiceSpec
       when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
+      when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
+        .thenReturn(Future.unit)
+
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           Option(
