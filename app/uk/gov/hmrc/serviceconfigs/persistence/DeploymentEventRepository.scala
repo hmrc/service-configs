@@ -37,6 +37,7 @@ class DeploymentEventRepository @Inject()(
   collectionName = DeploymentEventRepository.collectionName,
   domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormats,
   indexes        = Seq(
+                     IndexModel(Indexes.ascending("serviceName")),
                      IndexModel(Indexes.ascending("deploymentId"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
@@ -53,6 +54,12 @@ class DeploymentEventRepository @Inject()(
       )
       .toFuture()
       .map(_ => ())
+
+  def findAllForService(serviceName: ServiceName): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+    collection
+      .find(
+          equal("serviceName", serviceName)
+      ).toFuture()
 
   def find(deploymentId: String): Future[Option[DeploymentEventRepository.DeploymentEvent]] =
     collection
