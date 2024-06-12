@@ -255,13 +255,8 @@ class ConfigService @Inject()(
       .map(e => configSourceEntries(e, serviceName, version, latest).map(e -> _))
       .sequence.map(_.toMap)
 
-  def getDeploymentEvents(serviceName: ServiceName, deploymentIds: Seq[String])(implicit ec: ExecutionContext): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-    Future.traverse(deploymentIds) { deploymentId =>
-      deploymentEventRepository.find(deploymentId).map {
-        case Some(event) if event.serviceName == serviceName => Some(event)
-        case _ => None
-      }
-    }.map(_.flatten)
+  def getDeploymentEvents(serviceName: ServiceName): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+      deploymentEventRepository.findAllForService(serviceName)
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]

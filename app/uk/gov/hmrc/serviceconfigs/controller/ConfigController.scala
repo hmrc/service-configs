@@ -53,14 +53,9 @@ class ConfigController @Inject()(
     }
   }
 
-  def deploymentEvents: Action[JsValue] = Action.async(parse.json) { request =>
-    request.body.validate[DeploymentEventsRequest] match {
-      case JsSuccess(deploymentEventsRequest, _) =>
-        configService.getDeploymentEvents(deploymentEventsRequest.serviceName, deploymentEventsRequest.deploymentIds).map { events =>
+  def deploymentEvents(serviceName: ServiceName): Action[AnyContent] = Action.async {
+        configService.getDeploymentEvents(serviceName).map { events =>
           Ok(Json.toJson(events))
-        }
-      case JsError(errors) =>
-        Future.successful(BadRequest(Json.obj("error" -> s"Invalid JSON: $errors")))
     }
   }
 
