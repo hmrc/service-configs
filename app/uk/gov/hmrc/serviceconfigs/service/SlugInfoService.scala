@@ -144,12 +144,13 @@ class SlugInfoService @Inject()(
                                      logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
                                      true
                                  }
+        configChanged         <- hasConfigChanged(serviceName, env, deployment.version)
         depEvent              = DeploymentEventRepository.DeploymentEvent(
                                   serviceName,
                                   env,
                                   deployment.version,
                                   deployment.deploymentId.getOrElse(s"${serviceName.asString}-${env}-${deployment.version}-${deployment.lastDeployed.toEpochMilli}"),
-                                  Some(requiresUpdate),
+                                  Some(configChanged),
                                   Some(deployment.configId),
                                   deployment.lastDeployed
                                 )
@@ -161,6 +162,18 @@ class SlugInfoService @Inject()(
                                  else
                                    Future.unit
       } yield requiresUpdate
+
+  private def hasConfigChanged(
+    serviceName: ServiceName,
+    environment: Environment,
+    version: Version
+  )(implicit
+    hc: HeaderCarrier
+  ): Future[Boolean] =
+    for {
+      latestConfig <- configService.configByEnvironment(serviceName, Seq(environment), Some(version), latest = true)
+      deployedConfig <- configService.configByEnvironment(serviceName, Seq(environment), None, latest = false)
+    } yield latestConfig != deployedConfig
 
     private def updateDeployedConfig(
       env          : Environment,
