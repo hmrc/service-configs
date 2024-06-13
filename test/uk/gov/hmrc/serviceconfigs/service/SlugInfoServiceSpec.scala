@@ -186,6 +186,9 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
+      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Map.empty))
+
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation(serviceName1, Seq(
@@ -366,6 +369,9 @@ class SlugInfoServiceSpec
     "updateDeployedConfig when :" +
       "1. The current deployedConfig configID differs from the latest Deployment ConfigID" +
       "2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp." in new SetupUpdateDeployment {
+      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Map.empty))
+
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           Some(
@@ -397,6 +403,9 @@ class SlugInfoServiceSpec
     }
 
     "updateDeployedConfig when no deployedConfig exists for the given serviceName/environment" in new SetupUpdateDeployment {
+      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Map.empty))
+
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           None
@@ -420,6 +429,9 @@ class SlugInfoServiceSpec
       "1. The current deployedConfig lastUpdated timestamp is after the latest Deployment timestamp" +
       "2. The config Ids differ" in new Setup {
       val serviceName1 = ServiceName("service1")
+
+      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Map.empty))
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
@@ -467,6 +479,9 @@ class SlugInfoServiceSpec
       "1. the latest Deployment configId is the same as that of the current deployedConfig, " +
       "2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp" in new Setup {
       val serviceName1 = ServiceName("service1")
+
+      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Map.empty))
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
