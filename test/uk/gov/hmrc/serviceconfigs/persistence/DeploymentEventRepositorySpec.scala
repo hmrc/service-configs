@@ -19,11 +19,12 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentDateRange, Environment, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentEventRepository.DeploymentEvent
 
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.DAYS
 
 class DeploymentEventRepositorySpec
   extends AnyWordSpec
@@ -33,6 +34,7 @@ class DeploymentEventRepositorySpec
   override lazy val repository = new DeploymentEventRepository(mongoComponent)
 
   val now: Instant = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+  val yesterday = now.minusSeconds(24 * 60 * 60)
 
   val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
     ServiceName("testService"),
@@ -49,9 +51,9 @@ class DeploymentEventRepositorySpec
     "successfully insert and find a DeploymentEvent" in {
       repository.put(event).futureValue
 
-      val foundEvent = repository.find(event.deploymentId).futureValue
+      val foundEvent = repository.findAllForService(ServiceName("testService"), DeploymentDateRange(yesterday, now)).futureValue
 
-      foundEvent shouldBe Some(event)
+      foundEvent shouldBe Seq(event)
     }
 
     "successfully upsert a DeploymentEvent" in {
@@ -61,19 +63,11 @@ class DeploymentEventRepositorySpec
 
       repository.put(updatedEvent).futureValue
 
-      val foundEvent = repository.find(event.deploymentId).futureValue
+      val foundEvent = repository.findAllForService(ServiceName("testService"), DeploymentDateRange(yesterday, now)).futureValue
 
-      foundEvent shouldBe Some(updatedEvent)
+      foundEvent shouldBe Seq(updatedEvent)
     }
 
-    "successfully delete a DeploymentEvent" in {
-      repository.put(event).futureValue
 
-      repository.delete(event.deploymentId).futureValue
-
-      val foundEvent = repository.find(event.deploymentId).futureValue
-
-      foundEvent shouldBe None
-    }
   }
 }

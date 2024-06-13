@@ -89,21 +89,6 @@ class DeploymentEventRepository @Inject()(
 
     Environment.values.traverse(fetchEvents).map(_.flatten)
   }
-
-  def find(deploymentId: String): Future[Option[DeploymentEventRepository.DeploymentEvent]] =
-    collection
-      .find(
-        equal("deploymentId", deploymentId)
-      )
-      .headOption()
-
-  def delete(deploymentId: String): Future[Unit] =
-    collection
-      .deleteOne(
-        equal("deploymentId", deploymentId)
-      )
-      .toFuture()
-      .map(_ => ())
 }
 
 object DeploymentEventRepository {
