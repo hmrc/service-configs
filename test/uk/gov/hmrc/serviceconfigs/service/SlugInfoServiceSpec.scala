@@ -26,7 +26,7 @@ import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, RenderedConfigSourceValue}
 
 import java.time.temporal.ChronoUnit
@@ -193,19 +193,19 @@ class SlugInfoServiceSpec
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
               DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
-            )),
+            ), lastDeployed = now),
             Deployment(serviceName1, Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                 , commitId = CommitId("4")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("production-microservice-common"), commitId = CommitId("5")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service1.yaml")                 , commitId = CommitId("6"))
-            ))
+            ), lastDeployed = now)
           )),
           ServiceDeploymentInformation(serviceName2, Seq(
             Deployment(serviceName2, Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service2.conf")                 , commitId = CommitId("7")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")        , commitId = CommitId("8")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service2.yaml")                 , commitId = CommitId("9"))
-            ))
+            ), lastDeployed = now)
           ))
         )))
 
@@ -222,6 +222,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedDeployedConfigRepository.delete(any[ServiceName], any[Environment]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
@@ -379,7 +382,7 @@ class SlugInfoServiceSpec
           )
         ))
 
-      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
         serviceName     = serviceName1,
@@ -399,7 +402,7 @@ class SlugInfoServiceSpec
           None
         ))
 
-      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
 
       verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
         serviceName     = serviceName1,
@@ -419,6 +422,9 @@ class SlugInfoServiceSpec
       val serviceName1 = ServiceName("service1")
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
@@ -441,9 +447,9 @@ class SlugInfoServiceSpec
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
-      ))
+      ), lastDeployed = now)
 
-      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
 
       verify(mockedDeployedConfigRepository, never).put(DeployedConfigRepository.DeployedConfig(
         serviceName     = serviceName1,
@@ -463,6 +469,12 @@ class SlugInfoServiceSpec
       val serviceName1 = ServiceName("service1")
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
@@ -485,9 +497,9 @@ class SlugInfoServiceSpec
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
-      ))
+      ), lastDeployed = now)
 
-      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1, dataTimestamp = now).futureValue
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
 
       verify(mockedDeployedConfigRepository, never).put(DeployedConfigRepository.DeployedConfig(
         serviceName     = serviceName1,
@@ -508,6 +520,7 @@ class SlugInfoServiceSpec
     val mockedAppConfigService           = mock[AppConfigService]
     val mockedDeployedConfigRepository   = mock[DeployedConfigRepository]
     val mockedDeploymentConfigRepository = mock[DeploymentConfigRepository]
+    val mockedDeploymentEventRepository = mock[DeploymentEventRepository]
     val mockedReleasesApiConnector       = mock[ReleasesApiConnector]
     val mockedTeamsAndReposConnector     = mock[TeamsAndRepositoriesConnector]
     val mockedGithubRawConnector         = mock[GithubRawConnector]
@@ -523,6 +536,7 @@ class SlugInfoServiceSpec
       , mockedAppConfigService
       , mockedDeployedConfigRepository
       , mockedDeploymentConfigRepository
+      , mockedDeploymentEventRepository
       , mockedReleasesApiConnector
       , mockedTeamsAndReposConnector
       , mockedGithubRawConnector
@@ -564,6 +578,9 @@ class SlugInfoServiceSpec
     when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
       .thenReturn(Future.unit)
 
+    when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
+      .thenReturn(Future.unit)
+
     when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
       .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, version: Option[Version], latest: Boolean) =>
         Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> ConfigValue("v")))))
@@ -581,6 +598,6 @@ class SlugInfoServiceSpec
       DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
       DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
       DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
-    ))
+    ), lastDeployed = now)
   }
 }

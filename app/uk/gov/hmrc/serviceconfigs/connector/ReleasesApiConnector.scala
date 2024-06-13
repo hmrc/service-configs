@@ -16,17 +16,17 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
-import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.http.StringContextOps
-import java.net.URL
+import uk.gov.hmrc.serviceconfigs.model._
 
+import java.net.URL
+import java.time.Instant
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -68,6 +68,7 @@ object ReleasesApiConnector {
     serviceName   : ServiceName
   , optEnvironment: Option[Environment]
   , version       : Version
+  , lastDeployed  : Instant
   , deploymentId  : Option[String]
   , config        : Seq[DeploymentConfigFile]
   ) {
@@ -90,6 +91,7 @@ object ReleasesApiConnector {
       ( Reads.pure(serviceName)
       ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "lastDeployed").read[Instant]
       ~ (__ \ "deploymentId" ).readNullable[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)

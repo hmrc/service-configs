@@ -67,10 +67,10 @@ class DeploymentHandler @Inject()(
                                             serviceName    = payload.serviceName
                                           , optEnvironment = Some(environment)
                                           , version        = payload.version
+                                          , lastDeployed   = payload.time
                                           , deploymentId   = Some(payload.deploymentId)
                                           , config         = payload.config
-                                          ),
-                            dataTimestamp = Instant.now(clock)
+                                          )
                           )
                         ).map { requiresUpdate =>
                           if (requiresUpdate)
@@ -106,6 +106,7 @@ object DeploymentHandler {
   , version       : Version
   , deploymentId  : String
   , config        : Seq[ReleasesApiConnector.DeploymentConfigFile]
+  , time          : Instant
   )
 
   import play.api.libs.functional.syntax._
@@ -159,6 +160,17 @@ object DeploymentHandler {
     ~ (__ \ "microservice_version").read[Version]
     ~ (__ \ "stack_id"            ).read[String]
     ~ Reads.pure(Seq.empty) // config - to be added
-    )(DeploymentEvent.apply _)
+    ~ (__ \ "event_date_time"     ).read[Instant]
+      ){
+      (eventType, environment, serviceName, version, deploymentId, config, time) =>
+        val uniqueDeploymentId = environment.fold(deploymentId) { env =>
+          if (deploymentId.startsWith("arn")) {
+            s"gen-${serviceName.asString}-${env.asString}-${time.toEpochMilli}"
+          } else {
+            deploymentId
+          }
+        }
+        DeploymentEvent(eventType, environment, serviceName, version, uniqueDeploymentId, config, time)
+    }
   }
 }

@@ -98,3 +98,65 @@ Switch collections over
 db.getCollection("slugConfigurations").renameCollection("slugConfigurations-new")
 db.getCollection("slugConfigurations-bak").renameCollection("slugConfigurations")
 ```
+
+## Populate DeploymentEvents collection from historic releases-api data
+
+```javascript
+function migrateReleaseEvents() {
+    const sourceDb = db.getSiblingDB('releases');
+    const targetDb = db.getSiblingDB('service-configs');
+    const batchSize = 1000;
+
+    let lastId = null;
+    let hasMore = true;
+
+    while (hasMore) {
+        let query = lastId
+            ? { _id: { $gt: lastId }, eventType: 'deployment-complete' }
+            : { eventType: 'deployment-complete' };
+        let batch = sourceDb['release-events'].find(query).sort({ _id: 1 }).limit(batchSize).toArray();
+
+        if (batch.length === 0) {
+            hasMore = false;
+            break;
+        }
+
+        let bulk = targetDb.deploymentEvents.initializeUnorderedBulkOp();
+
+        batch.forEach(event => {
+            const serviceName = event.serviceName;
+            const version = event.version;
+            let configId = serviceName + "_" + version;
+
+            if (event.config && Array.isArray(event.config)) {
+                configId = event.config.reduce((acc, c) => {
+                    return acc + "_" + c.repoName + "_" + c.commitId.substring(0, 7);
+                }, configId);
+            } else {
+                configId = "";
+            }
+
+            const newEvent = {
+                serviceName: serviceName,
+                environment: event.environment,
+                version: version,
+                deploymentId: event.deploymentId,
+                lastUpdated: event.timestamp
+            };
+
+            if (configId !== "") {
+                newEvent.configId = configId;
+            }
+            
+            bulk.insert(newEvent);
+            lastId = event._id;
+        });
+
+        bulk.execute();
+        print(`Processed batch with lastId: ${lastId}`);
+    }
+
+    print("Data migration completed!");
+}
+migrateReleaseEvents();
+```
