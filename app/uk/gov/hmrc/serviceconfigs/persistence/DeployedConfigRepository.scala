@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -110,6 +111,6 @@ object DeployedConfigRepository {
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
     ~ (__ \ "lastUpdated"    ).format[Instant]
-    )(DeployedConfig.apply, unlift(DeployedConfig.unapply))
+    )(DeployedConfig.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

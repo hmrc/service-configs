@@ -29,6 +29,6 @@ object  Dashboard {
     implicit val snf = ServiceName.format
     ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "location").format[String]
-    )(Dashboard.apply, unlift(Dashboard.unapply))
+    )(Dashboard.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

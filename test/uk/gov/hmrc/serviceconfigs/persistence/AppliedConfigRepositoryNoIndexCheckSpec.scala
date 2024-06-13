@@ -32,7 +32,7 @@ class AppliedConfigRepositoryNoIndexCheckSpec
 
   val configSearchLimit = 5
   private val config = play.api.Configuration("config-search.max-limit" -> configSearchLimit)
-  override protected val repository = new AppliedConfigRepository(config, mongoComponent)
+  override protected val repository: AppliedConfigRepository = new AppliedConfigRepository(config, mongoComponent)
 
   // Disble index check for value search since it requires a group by
   override protected def checkIndexedQueries = false

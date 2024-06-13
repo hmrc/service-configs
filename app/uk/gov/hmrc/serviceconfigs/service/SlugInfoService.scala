@@ -24,7 +24,7 @@ import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence._
 
-import java.time.{Clock, Instant}
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -33,7 +33,6 @@ import scala.util.control.NonFatal
 class SlugInfoService @Inject()(
   slugInfoRepository        : SlugInfoRepository
 , appliedConfigRepository   : AppliedConfigRepository
-, appConfigService          : AppConfigService
 , deployedConfigRepository  : DeployedConfigRepository
 , deploymentConfigRepository: DeploymentConfigRepository
 , deploymentEventRepository : DeploymentEventRepository
@@ -41,8 +40,7 @@ class SlugInfoService @Inject()(
 , teamsAndReposConnector    : TeamsAndRepositoriesConnector
 , githubRawConnector        : GithubRawConnector
 , configConnector           : ConfigConnector
-, configService             : ConfigService,
-  clock                     : Clock
+, configService             : ConfigService
 )(implicit
   ec: ExecutionContext
 ) {
@@ -112,56 +110,56 @@ class SlugInfoService @Inject()(
                                 } else Future.unit
     } yield ()
 
-    private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
-      for {
-        _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
-        _ <- deployedConfigRepository.delete(serviceName, env)
-        _ <- appliedConfigRepository.delete(serviceName, env)
-      } yield ()
+  private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
+    for {
+      _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
+      _ <- deployedConfigRepository.delete(serviceName, env)
+      _ <- appliedConfigRepository.delete(serviceName, env)
+    } yield ()
 
-    def updateDeployment(
-      env           : Environment,
-      serviceName   : ServiceName,
-      deployment    : ReleasesApiConnector.Deployment
-    )(implicit
-      hc: HeaderCarrier
-    ): Future[Boolean] =
-      for {
-        _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-        currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
-        requiresUpdate        =  currentDeploymentInfo match {
-                                    case None  =>
-                                     logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
-                                     true
-                                   case Some(config) if config.configId.equals(deployment.configId) =>
-                                     logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
-                                     false
-                                   case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
-                                     logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
-                                       s"as the latest update occurred after the current process began.")
-                                     false
-                                   case _    =>
-                                     logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
-                                     true
-                                 }
-        configChanged         <- hasConfigChanged(serviceName, env, deployment.version)
-        depEvent              =  DeploymentEventRepository.DeploymentEvent(
-                                   serviceName,
-                                   env,
-                                   deployment.version,
-                                   deployment.deploymentId.getOrElse(s"gen-${serviceName.asString}-${env}-${deployment.lastDeployed.toEpochMilli}"),
-                                   Some(configChanged),
-                                   Some(deployment.configId),
-                                   deployment.lastDeployed
-                                 )
-        _                     <- deploymentEventRepository.put(depEvent)
-        _                     <- if (requiresUpdate)
-                                   updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), deployment.lastDeployed)
-                                     .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
-                                     .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
-                                 else
-                                   Future.unit
-      } yield requiresUpdate
+  def updateDeployment(
+    env           : Environment,
+    serviceName   : ServiceName,
+    deployment    : ReleasesApiConnector.Deployment
+  )(using
+    hc: HeaderCarrier
+  ): Future[Boolean] =
+    for {
+      _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
+      currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
+      requiresUpdate        =  currentDeploymentInfo match {
+                                  case None  =>
+                                    logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
+                                    true
+                                  case Some(config) if config.configId.equals(deployment.configId) =>
+                                    logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
+                                    false
+                                  case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
+                                    logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for $serviceName ${deployment.version} in $env, " +
+                                      s"as the latest update occurred after the current process began.")
+                                    false
+                                  case _    =>
+                                    logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
+                                    true
+                                }
+      configChanged         <- hasConfigChanged(serviceName, env, deployment.version)
+      depEvent              =  DeploymentEventRepository.DeploymentEvent(
+                                  serviceName,
+                                  env,
+                                  deployment.version,
+                                  deployment.deploymentId.getOrElse(s"gen-${serviceName.asString}-${env}-${deployment.lastDeployed.toEpochMilli}"),
+                                  Some(configChanged),
+                                  Some(deployment.configId),
+                                  deployment.lastDeployed
+                                )
+      _                     <- deploymentEventRepository.put(depEvent)
+      _                     <- if (requiresUpdate)
+                                  updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), deployment.lastDeployed)
+                                    .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
+                                    .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
+                                else
+                                  Future.unit
+    } yield requiresUpdate
 
   private def hasConfigChanged(
     serviceName: ServiceName,
@@ -175,74 +173,74 @@ class SlugInfoService @Inject()(
       deployedConfig <- configService.configByEnvironment(serviceName, Seq(environment), None, latest = false)
     } yield latestConfig != deployedConfig
 
-    private def updateDeployedConfig(
-      env          : Environment,
-      serviceName  : ServiceName,
-      deployment   : ReleasesApiConnector.Deployment,
-      deploymentId : String,
-      dataTimestamp: Instant
-    )(implicit
-      hc: HeaderCarrier
-    ): EitherT[Future, String, Unit] =
-      for {
-        deployedConfigMap <- deployment.config.toList.foldMapM[EitherT[Future, String, *], List[(String, String)]] { config =>
-                                config.repoName match {
-                                  case RepoName("app-config-common") =>
-                                    for {
-                                      optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
-                                      appConfigCommon    <- optAppConfigCommon match {
-                                                              case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
-                                                              case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
-                                                            }
-                                    } yield List("app-config-common" -> appConfigCommon)
-                                  case RepoName("app-config-base") =>
-                                    for {
-                                      optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
-                                      appConfigBase      <- optAppConfigBase match {
-                                                              case Some(appConfigBase) => EitherT.pure[Future, String](appConfigBase)
-                                                              case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
-                                                            }
-                                    } yield List("app-config-base" -> appConfigBase)
-                                  case RepoName(s"app-config-${_}") =>
-                                    for {
-                                      optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
-                                      appConfigEnv       <- optAppConfigEnv match {
-                                                              case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
-                                                              case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
-                                                            }
-                                    } yield List(s"app-config-${env.asString}" -> appConfigEnv)
-                                  case other => EitherT.pure[Future, String] { logger.warn(s"Received commitId for unexpected repo $other"); List.empty }
-                                }
-                              }.map(_.toMap)
-        deployedConfig    =  DeployedConfigRepository.DeployedConfig(
-                                serviceName     = serviceName,
-                                environment     = env,
-                                deploymentId    = deploymentId,
-                                configId        = deployment.configId,
-                                appConfigBase   = deployedConfigMap.get("app-config-base"),
-                                appConfigCommon = deployedConfigMap.get("app-config-common"),
-                                appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}"),
-                                lastUpdated     = dataTimestamp
+  private def updateDeployedConfig(
+    env          : Environment,
+    serviceName  : ServiceName,
+    deployment   : ReleasesApiConnector.Deployment,
+    deploymentId : String,
+    dataTimestamp: Instant
+  )(implicit
+    hc: HeaderCarrier
+  ): EitherT[Future, String, Unit] =
+    for {
+      deployedConfigMap <- deployment.config.toList.foldMapM { config =>
+                              config.repoName match {
+                                case RepoName("app-config-common") =>
+                                  for {
+                                    optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
+                                    appConfigCommon    <- optAppConfigCommon match {
+                                                            case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
+                                                            case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
+                                                          }
+                                  } yield List("app-config-common" -> appConfigCommon)
+                                case RepoName("app-config-base") =>
+                                  for {
+                                    optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
+                                    appConfigBase      <- optAppConfigBase match {
+                                                            case Some(appConfigBase) => EitherT.pure[Future, String](appConfigBase)
+                                                            case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
+                                                          }
+                                  } yield List("app-config-base" -> appConfigBase)
+                                case RepoName(s"app-config-${_}") =>
+                                  for {
+                                    optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
+                                    appConfigEnv       <- optAppConfigEnv match {
+                                                            case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
+                                                            case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
+                                                          }
+                                  } yield List(s"app-config-${env.asString}" -> appConfigEnv)
+                                case other => EitherT.pure[Future, String] { logger.warn(s"Received commitId for unexpected repo $other"); List.empty }
+                              }
+                            }.map(_.toMap)
+      deployedConfig    =  DeployedConfigRepository.DeployedConfig(
+                              serviceName     = serviceName,
+                              environment     = env,
+                              deploymentId    = deploymentId,
+                              configId        = deployment.configId,
+                              appConfigBase   = deployedConfigMap.get("app-config-base"),
+                              appConfigCommon = deployedConfigMap.get("app-config-common"),
+                              appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}"),
+                              lastUpdated     = dataTimestamp
+                            )
+      _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
+      deploymentConfig  =  deployedConfig.appConfigEnv
+                              .flatMap(content =>
+                                DeploymentConfigService.toDeploymentConfig(
+                                  serviceName = serviceName,
+                                  environment = env,
+                                  applied     = true,
+                                  fileContent = content
+                                )
                               )
-        _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
-        deploymentConfig  =  deployedConfig.appConfigEnv
-                               .flatMap(content =>
-                                 DeploymentConfigService.toDeploymentConfig(
-                                   serviceName = serviceName,
-                                   environment = env,
-                                   applied     = true,
-                                   fileContent = content
-                                 )
-                               )
-        _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this
-                             EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
-        // now we have stored the deployed configs, we can calculate the resulting configs
-        cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
-        resultingConfigs  =  configService.resultingConfig(cses)
-        renderedDeploymentConfig = resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
-        _                 <- if (renderedDeploymentConfig.nonEmpty)
-                               EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
-                             else
-                               EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
-      } yield ()
+      _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this
+                            EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
+      // now we have stored the deployed configs, we can calculate the resulting configs
+      cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
+      resultingConfigs  =  configService.resultingConfig(cses)
+      renderedDeploymentConfig = resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
+      _                 <- if (renderedDeploymentConfig.nonEmpty)
+                              EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
+                            else
+                              EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
+    } yield ()
 }

@@ -32,7 +32,7 @@ class SlugInfoRepositorySpec
 
   import ExecutionContext.Implicits.global
 
-  override lazy val repository = new SlugInfoRepository(mongoComponent)
+  override val repository: SlugInfoRepository = new SlugInfoRepository(mongoComponent)
 
   "SlugInfoRepository" should {
     "manage by version" in {

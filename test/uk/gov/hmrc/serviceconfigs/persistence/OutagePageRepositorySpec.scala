@@ -28,7 +28,7 @@ class OutagePageRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[OutagePage] {
 
-  override protected val repository = new OutagePageRepository(mongoComponent)
+  override protected val repository: OutagePageRepository = new OutagePageRepository(mongoComponent)
 
   "OutagePageRepository" should {
     "putAll correctly" in {

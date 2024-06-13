@@ -17,11 +17,12 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.mockito.Mockito.{verify, when, verifyNoInteractions}
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -74,11 +75,8 @@ class DeploymentConfigControllerSpec
       }]""")
 
       verify(mockTeamsAndRepositoriesConnector).getRepos(
-        archived    = None,
-        repoType    = Some("Service"),
-        teamName    = Some(teamName),
-        serviceType = None,
-        tags        = Nil
+        repoType = Some("Service"),
+        teamName = Some(teamName)
       )
     }
 

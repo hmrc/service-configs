@@ -31,7 +31,7 @@ class DeploymentEventRepositorySpec
     with Matchers
     with DefaultPlayMongoRepositorySupport[DeploymentEvent] {
 
-  override lazy val repository = new DeploymentEventRepository(mongoComponent)
+  override val repository: DeploymentEventRepository = new DeploymentEventRepository(mongoComponent)
 
   val now: Instant = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
   val yesterday = now.minusSeconds(24 * 60 * 60)

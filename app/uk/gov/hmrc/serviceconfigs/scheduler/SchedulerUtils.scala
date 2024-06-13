@@ -73,7 +73,10 @@ trait SchedulerUtils extends Logging {
     }
 
   import cats.data._
-  type ScheduledItem[A] = ReaderT[WriterT[Future, List[Throwable], *], Option[Throwable], A]
+  import cats.implicits._
+
+  private type WriterT2 [A] = WriterT[Future, List[Throwable], A]
+  type ScheduledItem[A] = ReaderT[WriterT2, Option[Throwable], A]
 
   def runAllAndFailWithFirstError(k: ScheduledItem[Unit])(implicit ec: ExecutionContext) =
     k.run(None)
@@ -82,9 +85,9 @@ trait SchedulerUtils extends Logging {
 
   def accumulateErrors(name: String, f: Future[Unit])(implicit ec: ExecutionContext): ScheduledItem[Unit] =
     for {
-      _  <- ReaderT.pure(logger.info(s"Starting scheduled task: $name")): ScheduledItem[Unit]
+      _  <- ReaderT.pure(logger.info(s"Starting scheduled task: $name"))
       op <- ReaderT.liftF(WriterT.liftF(
-             f.map { x => logger.info(s"Successfully run scheduled task: $name"); None }
+             f.map { _ => logger.info(s"Successfully run scheduled task: $name"); None }
               .recover { case e => logger.error(s"Error running scheduled task $name", e); Some(e) }
             )): ScheduledItem[Option[Throwable]]
       re <- op.fold(ReaderT.pure(()): ScheduledItem[Unit])(ex => ReaderT.liftF(WriterT.tell(List(ex)))): ScheduledItem[Unit]

@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.testonly
 import cats.implicits._
 
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.bson.BsonDocument
 import play.api.libs.json.{JsError, Json, JsObject, JsValue, Reads}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}

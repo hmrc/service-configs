@@ -29,6 +29,6 @@ object BuildJob {
     implicit val snf = ServiceName.format
     ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "location").format[String]
-    )(BuildJob.apply, unlift(BuildJob.unapply))
+    )(BuildJob.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

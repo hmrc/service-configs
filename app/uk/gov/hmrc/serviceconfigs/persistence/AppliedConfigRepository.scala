@@ -18,6 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
 import play.api.Configuration
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.{Aggregates, DeleteOneModel, Filters, Indexes, IndexModel, ReplaceOptions, ReplaceOneModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -161,7 +162,7 @@ object AppliedConfigRepository {
         ( (__ \ "source"   ).format[String]
         ~ (__ \ "sourceUrl").formatNullable[String]
         ~ (__ \ "value"    ).format[String]
-        )(RenderedConfigSourceValue.apply, unlift(RenderedConfigSourceValue.unapply))
+        )(RenderedConfigSourceValue.apply, pt => Tuple.fromProductTyped(pt))
 
       implicit val readsEnvMap: Format[Map[Environment, RenderedConfigSourceValue]] =
         Format(
@@ -176,7 +177,7 @@ object AppliedConfigRepository {
       ~ (__ \ "key"          ).format[String]
       ~ (__ \ "environments" ).format[Map[Environment, RenderedConfigSourceValue]]
       ~ (__ \ "onlyReference").format[Boolean]
-      )(AppliedConfig.apply, unlift(AppliedConfig.unapply))
+      )(AppliedConfig.apply, pt => Tuple.fromProductTyped(pt))
     }
   }
 }

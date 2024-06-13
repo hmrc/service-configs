@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.bson.conversions.Bson
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.{DeleteOneModel, Filters, ReplaceOptions, ReplaceOneModel}
 

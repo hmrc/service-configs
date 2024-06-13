@@ -116,20 +116,20 @@ object ConfigController {
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "entries"  ).write[Map[KeyName, String]]
                         .contramap[Map[KeyName, ConfigValue]](_.view.mapValues(_.asString).toMap)
-    )(unlift(ConfigService.ConfigSourceEntries.unapply))
+    )(pt => Tuple.fromProductTyped(pt))
 
   implicit val csvw: Writes[ConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
                         .contramap[ConfigValue](_.asString)
-    )(unlift(ConfigSourceValue.unapply))
+    )(pt => Tuple.fromProductTyped(pt))
 
   implicit val rcsvw: Writes[RenderedConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
-    )(unlift(RenderedConfigSourceValue.unapply))
+    )(pt => Tuple.fromProductTyped(pt))
 
   private implicit val cww: Writes[ConfigWarning] = {
     implicit val ef  = Environment.format
@@ -139,7 +139,7 @@ object ConfigController {
     ~ (__ \ "key"        ).write[KeyName]
     ~ (__ \ "value"      ).write[RenderedConfigSourceValue]
     ~ (__ \ "warning"    ).write[String]
-    )(unlift(ConfigWarning.unapply))
+    )(pt => Tuple.fromProductTyped(pt))
   }
 
   implicit val rnf: Format[RepoName] = RepoName.format

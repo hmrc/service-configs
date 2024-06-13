@@ -28,7 +28,7 @@ class BuildJobDashboardRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[BuildJob] {
 
-  override lazy val repository = new BuildJobRepository(mongoComponent)
+  override val repository: BuildJobRepository = new BuildJobRepository(mongoComponent)
 
   "BuildJobRepository" should {
     "put and retrieve" in {

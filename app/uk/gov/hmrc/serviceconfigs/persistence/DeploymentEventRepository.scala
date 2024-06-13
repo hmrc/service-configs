@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits.toTraverseOps
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.bson.conversions
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions, Sorts}
@@ -120,7 +121,7 @@ object DeploymentEventRepository {
         ~ (__ \ "configChanged").formatNullable[Boolean]
         ~ (__ \ "configId").formatNullable[String]
         ~ (__ \ "lastUpdated").format[Instant]
-        )(DeploymentEvent.apply, unlift(DeploymentEvent.unapply))
+        )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
     }
   }
 }

@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.mockito.Mockito.{never, times, verify, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
@@ -292,25 +294,25 @@ class SlugInfoServiceSpec
         ))
 
       when(mockedConfigConnector.appConfigBaseConf(any[ServiceName], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+        .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](1)}")))
 
       when(mockedConfigConnector.appConfigCommonYaml(any[FileName], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((fileName: FileName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+        .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](1)}")))
 
       when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[ServiceName], any[CommitId])(any[HeaderCarrier]))
-        .thenAnswer((environment: Environment, serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+        .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](2)}")))
 
       when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
         .thenReturn(Future.unit)
 
       when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
-        .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, version: Option[Version], latest: Boolean) =>
-          Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> ConfigValue("v")))))
+        .thenAnswer(answer =>
+          Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v")))))
         )
 
       when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
-        .thenAnswer((cses: Seq[ConfigSourceEntries]) =>
-          cses.headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
+        .thenAnswer(answer =>
+          answer.getArgument[Seq[ConfigSourceEntries]](0).headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
         )
 
       when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
@@ -532,7 +534,6 @@ class SlugInfoServiceSpec
   trait Setup {
     val mockedSlugInfoRepository         = mock[SlugInfoRepository]
     val mockedAppliedConfigRepository    = mock[AppliedConfigRepository]
-    val mockedAppConfigService           = mock[AppConfigService]
     val mockedDeployedConfigRepository   = mock[DeployedConfigRepository]
     val mockedDeploymentConfigRepository = mock[DeploymentConfigRepository]
     val mockedDeploymentEventRepository = mock[DeploymentEventRepository]
@@ -548,7 +549,6 @@ class SlugInfoServiceSpec
       new SlugInfoService(
         mockedSlugInfoRepository
       , mockedAppliedConfigRepository
-      , mockedAppConfigService
       , mockedDeployedConfigRepository
       , mockedDeploymentConfigRepository
       , mockedDeploymentEventRepository
@@ -557,7 +557,6 @@ class SlugInfoServiceSpec
       , mockedGithubRawConnector
       , mockedConfigConnector
       , mockedConfigService
-      , Clock.fixed(now, ZoneOffset.UTC)
       )
 
     def toSlugInfo(name: ServiceName): SlugInfo =
@@ -582,13 +581,13 @@ class SlugInfoServiceSpec
       .thenReturn(Future.unit)
 
     when(mockedConfigConnector.appConfigBaseConf(any[ServiceName], any[CommitId])(any[HeaderCarrier]))
-      .thenAnswer((serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+      .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](1)}")))
 
     when(mockedConfigConnector.appConfigCommonYaml(any[FileName], any[CommitId])(any[HeaderCarrier]))
-      .thenAnswer((fileName: FileName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+      .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](1)}")))
 
     when(mockedConfigConnector.appConfigEnvYaml(any[Environment], any[ServiceName], any[CommitId])(any[HeaderCarrier]))
-      .thenAnswer((environment: Environment, serviceName: ServiceName, commitId: CommitId) => Future.successful(Some(s"content${commitId.asString}")))
+      .thenAnswer(answer => Future.successful(Some(s"content${answer.getArgument[String](2)}")))
 
     when(mockedDeployedConfigRepository.put(any[DeployedConfigRepository.DeployedConfig]))
       .thenReturn(Future.unit)
@@ -597,13 +596,13 @@ class SlugInfoServiceSpec
       .thenReturn(Future.unit)
 
     when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
-      .thenAnswer((configEnvironment: ConfigService.ConfigEnvironment, serviceName: ServiceName, version: Option[Version], latest: Boolean) =>
-        Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${configEnvironment.name}.${serviceName.asString}" -> ConfigValue("v")))))
+      .thenAnswer(answer =>
+        Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v")))))
       )
 
     when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
-      .thenAnswer((cses: Seq[ConfigSourceEntries]) =>
-        cses.headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
+      .thenAnswer(answer =>
+        answer.getArgument[Seq[ConfigSourceEntries]](0).headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
       )
 
     when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))

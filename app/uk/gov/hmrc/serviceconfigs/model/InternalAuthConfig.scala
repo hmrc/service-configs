@@ -43,7 +43,7 @@ object InternalAuthConfig {
     ( (__ \ "serviceName").format[ServiceName]
     ~ (__ \ "environment").format[InternalAuthEnvironment]
     ~ (__ \ "grantType"  ).format[GrantType]
-    )(InternalAuthConfig.apply, unlift(InternalAuthConfig.unapply))
+    )(InternalAuthConfig.apply, pt => Tuple.fromProductTyped(pt))
   }
 }
 

@@ -29,7 +29,7 @@ class ServiceManagerConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[ServiceManagerConfig] {
 
-  override lazy val repository = new ServiceManagerConfigRepository(mongoComponent)
+  override val repository: ServiceManagerConfigRepository = new ServiceManagerConfigRepository(mongoComponent)
 
   "ServiceManagerConfigRepository" should {
     "put and retrieve" in {

@@ -94,5 +94,5 @@ object LatestConfigRepository {
     ( (__ \ "repoName").format[String]
     ~ (__ \ "fileName").format[String]
     ~ (__ \ "content" ).format[String]
-    )(LatestConfig.apply, unlift(LatestConfig.unapply))
+    )(LatestConfig.apply, pt => Tuple.fromProductTyped(pt))
 }

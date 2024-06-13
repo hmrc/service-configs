@@ -27,7 +27,7 @@ class LatestConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig] {
 
-  override protected val repository = new LatestConfigRepository(mongoComponent)
+  override protected val repository: LatestConfigRepository = new LatestConfigRepository(mongoComponent)
 
   "LatestConfigRepository.put" should {
     "put correctly" in {

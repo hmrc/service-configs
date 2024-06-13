@@ -77,7 +77,7 @@ object FrontendRoutes {
     ~ (__ \ "environment").format[Environment]
     ~ (__ \ "routesFile" ).format[String]
     ~ (__ \ "routes"     ).format[Seq[FrontendRoute]]
-    )(FrontendRoutes.apply, unlift(FrontendRoutes.unapply))
+    )(FrontendRoutes.apply, pt => Tuple.fromProductTyped(pt))
   }
 
   def fromMongo(mfr: MongoFrontendRoute): FrontendRoutes =

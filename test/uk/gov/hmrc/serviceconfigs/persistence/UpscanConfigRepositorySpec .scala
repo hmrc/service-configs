@@ -28,7 +28,7 @@ class UpscanConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[UpscanConfig] {
 
-  override lazy val repository = new UpscanConfigRepository(mongoComponent)
+  override val repository: UpscanConfigRepository = new UpscanConfigRepository(mongoComponent)
 
   "UpscanConfigRepository" should {
     "put and retrieve" in {

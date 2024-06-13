@@ -28,7 +28,7 @@ class InternalAuthConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[InternalAuthConfig] {
 
-  override lazy val repository = new InternalAuthConfigRepository(mongoComponent)
+  override val repository: InternalAuthConfigRepository = new InternalAuthConfigRepository(mongoComponent)
 
   "InternalAuthConfigRepository" should {
     "put and retrieve" in {

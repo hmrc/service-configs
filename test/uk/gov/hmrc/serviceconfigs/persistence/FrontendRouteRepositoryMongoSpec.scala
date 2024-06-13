@@ -36,7 +36,7 @@ class FrontendRouteRepositoryMongoSpec
 
   import ExecutionContext.Implicits.global
 
-  override lazy val repository = new FrontendRouteRepository(mongoComponent)
+  override val repository: FrontendRouteRepository = new FrontendRouteRepository(mongoComponent)
 
   override protected val checkIndexedQueries: Boolean =
     // we run unindexed queries

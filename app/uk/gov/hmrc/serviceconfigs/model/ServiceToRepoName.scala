@@ -30,5 +30,5 @@ object ServiceToRepoName {
     ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "artefactName").format[ArtefactName](ArtefactName.format)
     ~ (__ \ "repoName"    ).format[RepoName](RepoName.format)
-    ) (ServiceToRepoName.apply, unlift(ServiceToRepoName.unapply))
+    ) (ServiceToRepoName.apply, pt => Tuple.fromProductTyped(pt))
 }

@@ -31,6 +31,6 @@ object AlertEnvironmentHandler {
     ( (__ \ "serviceName").format[ServiceName]
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
-    )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
+    )(AlertEnvironmentHandler.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

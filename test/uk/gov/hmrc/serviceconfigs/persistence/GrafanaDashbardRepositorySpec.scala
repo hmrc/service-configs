@@ -28,7 +28,7 @@ class GrafanaDashboardRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[Dashboard] {
 
-  override lazy val repository = new GrafanaDashboardRepository(mongoComponent)
+  override val repository: GrafanaDashboardRepository = new GrafanaDashboardRepository(mongoComponent)
 
   "GrafanaDashboardRepository" should {
     "put and retrieve" in {

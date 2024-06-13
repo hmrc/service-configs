@@ -25,5 +25,5 @@ object LastHash {
   val formats: Format[LastHash] =
     ( (__ \ "key" ).format[String]
     ~ (__ \ "hash").format[String]
-    )(LastHash.apply, unlift(LastHash.unapply))
+    )(LastHash.apply, pt => Tuple.fromProductTyped(pt))
 }

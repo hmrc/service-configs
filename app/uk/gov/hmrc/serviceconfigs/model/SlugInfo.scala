@@ -69,7 +69,7 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "group"   ).format[String]
     ~ (__ \ "artifact").format[String]
     ~ (__ \ "meta"    ).formatWithDefault[String]("")
-    )(SlugDependency.apply, unlift(SlugDependency.unapply))
+    )(SlugDependency.apply, pt => Tuple.fromProductTyped(pt))
 
   private def ignore[A]: OWrites[A] =
     OWrites[A](_ => Json.obj())
@@ -91,7 +91,7 @@ trait MongoSlugInfoFormats {
                                 .inmap[String](_.getOrElse(""), Option.apply)
     ~ (__ \ "slugConfig"       ).formatNullable[String]
                                 .inmap[String](_.getOrElse(""), Option.apply)
-    )(SlugInfo.apply, unlift(SlugInfo.unapply))
+    )(SlugInfo.apply, pt => Tuple.fromProductTyped(pt))
   }
 
   val dependencyConfigFormat: OFormat[DependencyConfig] =
@@ -103,7 +103,7 @@ trait MongoSlugInfoFormats {
                          _.map { case (k, v) => (k.replaceAll("_DOT_", "."    ), v) }  // for mongo < 3.6 compatibility - '.' and '$'' not permitted in keys
                        , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
                        )
-    )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
+    )(DependencyConfig.apply, pt => Tuple.fromProductTyped(pt))
 }
 
 object MongoSlugInfoFormats extends MongoSlugInfoFormats
@@ -115,7 +115,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "group"   ).format[String]
     ~ (__ \ "artifact").format[String]
     ~ (__ \ "meta"    ).formatWithDefault[String]("")
-    )(SlugDependency.apply, unlift(SlugDependency.unapply))
+    )(SlugDependency.apply, pt => Tuple.fromProductTyped(pt))
 
   val slugInfoFormat: OFormat[SlugInfo] = {
     implicit val sdf = slugDependencyFormat
@@ -131,7 +131,7 @@ trait ApiSlugInfoFormats {
                                 .inmap[Map[String, String]](_.getOrElse(Map.empty), Option.apply)
     ~ (__ \ "loggerConfig"     ).format[String]
     ~ (__ \ "slugConfig"       ).format[String]
-    )(SlugInfo.apply, unlift(SlugInfo.unapply))
+    )(SlugInfo.apply, pt => Tuple.fromProductTyped(pt))
   }
 
   val dependencyConfigFormat: OFormat[DependencyConfig] =
@@ -139,7 +139,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
-    )(DependencyConfig.apply, unlift(DependencyConfig.unapply))
+    )(DependencyConfig.apply, pt => Tuple.fromProductTyped(pt))
 }
 
 object ApiSlugInfoFormats extends ApiSlugInfoFormats

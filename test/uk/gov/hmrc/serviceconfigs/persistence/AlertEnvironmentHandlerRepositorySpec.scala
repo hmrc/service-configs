@@ -28,7 +28,7 @@ class AlertEnvironmentHandlerRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler] {
 
-  override protected val repository = new AlertEnvironmentHandlerRepository(mongoComponent)
+  override protected val repository: AlertEnvironmentHandlerRepository = new AlertEnvironmentHandlerRepository(mongoComponent)
 
   "AlertEnvironmentHandlerRepository" should {
     "putAll correctly" in {

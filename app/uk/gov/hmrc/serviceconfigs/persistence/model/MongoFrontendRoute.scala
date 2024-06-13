@@ -50,7 +50,7 @@ object MongoFrontendRoute {
     ~ (__ \ "statusCode").formatNullable[Int]
     ~ (__ \ "errorPage").formatNullable[String]
     ~ (__ \ "rewriteRule").formatNullable[String]
-    )(MongoShutterSwitch.apply, unlift(MongoShutterSwitch.unapply))
+    )(MongoShutterSwitch.apply, pt => Tuple.fromProductTyped(pt))
 
   val formats: Format[MongoFrontendRoute] = {
     implicit val jif = MongoJavatimeFormats.instantFormat
@@ -67,6 +67,6 @@ object MongoFrontendRoute {
     ~ (__ \ "ruleConfigurationUrl").format[String]
     ~ (__ \ "isRegex"             ).formatWithDefault[Boolean](false)
     ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())
-    )(MongoFrontendRoute.apply, unlift(MongoFrontendRoute.unapply))
+    )(MongoFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

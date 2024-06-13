@@ -35,17 +35,17 @@ case class TeamName(asString: String) extends AnyVal
 
 object ArtefactName {
   val format =
-    implicitly[Format[String]].inmap(ArtefactName.apply, unlift(ArtefactName.unapply))
+    implicitly[Format[String]].inmap(ArtefactName.apply, _.asString)
 }
 
 object RepoName {
   val format =
-    implicitly[Format[String]].inmap(RepoName.apply, unlift(RepoName.unapply))
+    implicitly[Format[String]].inmap(RepoName.apply, _.asString)
 }
 
 object ServiceName {
   val format =
-    implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
+    implicitly[Format[String]].inmap(ServiceName.apply, _.asString)
 }
 
 object JsonUtil {

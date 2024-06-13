@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.scalatest.MockitoSugar
-import org.mongodb.scala.ClientSession
+import org.mongodb.scala.{ClientSession, SingleObservableFuture}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ResourceUsage, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository.PlanOfWork
@@ -41,7 +41,7 @@ class ResourceUsageRepositorySpec
 
   private val as = ActorSystem()
 
-  override lazy val repository =
+  override val repository: ResourceUsageRepository =
     new ResourceUsageRepository(mockedDeploymentConfigRepository, mongoComponent, as)
 
   "ResourceUsageRepository" should {

@@ -29,7 +29,7 @@ class BobbyRulesRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[BobbyRules] {
 
-  override protected val repository = new BobbyRulesRepository(mongoComponent)
+  override protected val repository: BobbyRulesRepository = new BobbyRulesRepository(mongoComponent)
 
   "BobbyRulesRepository" should {
     "putAll correctly" in {

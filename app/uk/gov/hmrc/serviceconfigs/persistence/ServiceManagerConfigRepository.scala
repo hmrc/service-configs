@@ -73,7 +73,7 @@ object ServiceManagerConfigRepository {
       implicit val snf = ServiceName.format
       ( (__ \ "service" ).format[ServiceName]
       ~ (__ \ "location").format[String]
-      )(ServiceManagerConfig.apply, unlift(ServiceManagerConfig.unapply))
+      )(ServiceManagerConfig.apply, pt => Tuple.fromProductTyped(pt))
     }
   }
 }

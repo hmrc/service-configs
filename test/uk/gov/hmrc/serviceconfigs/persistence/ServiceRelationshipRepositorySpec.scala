@@ -28,7 +28,7 @@ class ServiceRelationshipRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[ServiceRelationship] {
 
-  override lazy val repository = new ServiceRelationshipRepository(mongoComponent)
+  override val repository: ServiceRelationshipRepository = new ServiceRelationshipRepository(mongoComponent)
 
   private val serviceA = ServiceName("service-a")
   private val serviceB = ServiceName("service-b")

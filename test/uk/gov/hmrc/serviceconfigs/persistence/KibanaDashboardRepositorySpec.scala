@@ -28,7 +28,7 @@ class KibabaDashboardRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[Dashboard] {
 
-  override lazy val repository = new KibanaDashboardRepository(mongoComponent)
+  override val repository: KibanaDashboardRepository = new KibanaDashboardRepository(mongoComponent)
 
   "KibanaDashboardRepository" should {
     "put and retrieve" in {

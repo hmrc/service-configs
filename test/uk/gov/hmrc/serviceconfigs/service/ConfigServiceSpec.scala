@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+
+import org.mongodb.scala.SingleObservableFuture
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.BeforeAndAfterAll

@@ -51,7 +51,7 @@ class DeploymentHandler @Inject()(
 
   override protected def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing Deployment message with ID '${message.messageId()}'")
-      (for {
+      val et = for {
          payload <- EitherT.fromEither[Future](
                       Json.parse(message.body)
                         .validate(mdtpEventReads)
@@ -85,11 +85,12 @@ class DeploymentHandler @Inject()(
                         logger.info(s"Not processing message '${message.messageId()}' with event_type $eventType")
                         EitherT.pure[Future, String](())
                     }
-        } yield {
-          logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
-          MessageAction.Delete(message)
-        }
-      ).value.map {
+      } yield {
+        logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
+        MessageAction.Delete(message)
+      }
+
+      et.value.map {
         case Left(error)   => logger.error(error)
                               MessageAction.Ignore(message)
         case Right(action) => action
@@ -159,7 +160,7 @@ object DeploymentHandler {
     ~ (__ \ "microservice"        ).read[ServiceName]
     ~ (__ \ "microservice_version").read[Version]
     ~ (__ \ "stack_id"            ).read[String]
-    ~ Reads.pure(Seq.empty) // config - to be added
+    ~ Reads.pure(Seq.empty[ReleasesApiConnector.DeploymentConfigFile]) // config - to be added
     ~ (__ \ "event_date_time"     ).read[Instant]
       ){
       (eventType, environment, serviceName, version, deploymentId, config, time) =>

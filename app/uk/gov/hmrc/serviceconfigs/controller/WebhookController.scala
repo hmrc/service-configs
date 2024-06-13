@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 import cats.implicits._
 import cats.data.EitherT
 import play.api.{Configuration, Logging}
-import play.api.mvc.ControllerComponents
+import play.api.mvc.{Action, ControllerComponents}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
@@ -59,7 +59,7 @@ class WebhookController @Inject()(
     ~ (__ \ "ref"                ).read[String].map(_.stripPrefix("refs/heads/"))
     )(Push.apply _)
 
-  val processGithubWebhook =
+  val processGithubWebhook: Action[Push] =
     Action(parse.json[Push]){ implicit request =>
       (request.body match {
         case Push("alert-config"           , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory

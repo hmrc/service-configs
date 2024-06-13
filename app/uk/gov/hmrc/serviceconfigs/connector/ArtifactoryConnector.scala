@@ -22,9 +22,8 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.StreamConverters
 import play.api.Logging
 
-import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
-import uk.gov.hmrc.http.UpstreamErrorResponse
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
+import uk.gov.hmrc.http.client.{HttpClientV2, readEitherSource}
 import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
 
 import javax.inject.{Inject, Singleton}

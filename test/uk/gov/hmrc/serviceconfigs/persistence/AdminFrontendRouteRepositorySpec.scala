@@ -28,7 +28,7 @@ class AdminFrontendRouteRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[AdminFrontendRoute] {
 
-  override protected val repository = new AdminFrontendRouteRepository(mongoComponent)
+  override protected val repository: AdminFrontendRouteRepository = new AdminFrontendRouteRepository(mongoComponent)
 
   "AdminFrontendRouteRepository" should {
     "putAll correctly" in {

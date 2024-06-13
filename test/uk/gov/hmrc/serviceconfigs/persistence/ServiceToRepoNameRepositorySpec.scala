@@ -28,7 +28,7 @@ class ServiceToRepoNameRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[ServiceToRepoName] {
 
-  override lazy val repository = new ServiceToRepoNameRepository(mongoComponent)
+  override val repository: ServiceToRepoNameRepository = new ServiceToRepoNameRepository(mongoComponent)
 
   private val serviceA  = ServiceName("serviceNameA")
   private val artefactA = ArtefactName("artefactNameA")

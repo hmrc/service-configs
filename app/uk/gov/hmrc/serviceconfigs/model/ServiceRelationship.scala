@@ -29,7 +29,7 @@ object ServiceRelationship {
     implicit val snf = ServiceName.format
     ( (__ \ "source").format[ServiceName]
     ~ (__ \ "target").format[ServiceName]
-    )(ServiceRelationship.apply, unlift(ServiceRelationship.unapply))
+    )(ServiceRelationship.apply, pt => Tuple.fromProductTyped(pt))
   }
 }
 
@@ -43,6 +43,6 @@ object ServiceRelationships {
     implicit val snf = ServiceName.format
     ( (__ \ "inboundServices").write[Set[ServiceName]]
     ~ (__ \ "outboundServices").write[Set[ServiceName]]
-    )(unlift(ServiceRelationships.unapply))
+    )(pt => Tuple.fromProductTyped(pt))
   }
 }

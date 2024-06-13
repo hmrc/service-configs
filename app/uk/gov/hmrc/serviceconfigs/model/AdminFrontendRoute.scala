@@ -33,6 +33,6 @@ object AdminFrontendRoute {
     ~ (__ \ "route"   ).format[String]
     ~ (__ \ "allow"   ).format[Map[String, List[String]]]
     ~ (__ \ "location").format[String]
-    )(AdminFrontendRoute.apply, unlift(AdminFrontendRoute.unapply))
+    )(AdminFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

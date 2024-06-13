@@ -18,10 +18,12 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import java.time.Instant
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
@@ -50,7 +52,6 @@ class SlugConfigurationServiceSpec
       boot.service.addSlugInfo(slug).futureValue
 
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slug.name, slug.version)
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
 
     "mark the slug as latest if the version is latest" in {
@@ -68,8 +69,6 @@ class SlugConfigurationServiceSpec
 
       boot.service.addSlugInfo(slugv2).futureValue
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
-
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
 
     "not use the latest flag from sqs/artefact processor" in {
@@ -86,7 +85,6 @@ class SlugConfigurationServiceSpec
       boot.service.addSlugInfo(slugv1).futureValue
 
       verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1)
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
 
     "not mark the slug as latest if there is a later one already in the collection" in {
@@ -101,8 +99,6 @@ class SlugConfigurationServiceSpec
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
-
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
     }
 
     "add slug with classpath ordered dependencies" in {

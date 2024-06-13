@@ -28,7 +28,7 @@ class DependencyConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[DependencyConfig] {
 
-  override lazy val repository = new DependencyConfigRepository(mongoComponent)
+  override val repository: DependencyConfigRepository = new DependencyConfigRepository(mongoComponent)
 
   override protected def checkTtlIndex: Boolean =
     // disabled until we address cleanup

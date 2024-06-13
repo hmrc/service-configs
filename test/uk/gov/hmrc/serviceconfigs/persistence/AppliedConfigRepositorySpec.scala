@@ -33,7 +33,7 @@ class AppliedConfigRepositorySpec
   val configSearchLimit = 5
   private val config = play.api.Configuration("config-search.max-limit" -> configSearchLimit)
 
-  override protected val repository = new AppliedConfigRepository(config, mongoComponent)
+  override protected val repository: AppliedConfigRepository = new AppliedConfigRepository(config, mongoComponent)
 
   "AppliedConfigRepository" should {
     "put correctly" in {

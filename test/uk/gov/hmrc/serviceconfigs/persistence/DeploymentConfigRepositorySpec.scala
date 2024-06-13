@@ -29,7 +29,7 @@ class DeploymentConfigRepositorySpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[DeploymentConfig] {
 
-  override lazy val repository = new DeploymentConfigRepository(mongoComponent)
+  override val repository: DeploymentConfigRepository = new DeploymentConfigRepository(mongoComponent)
 
   "DeploymentConfigRepository" should {
     val applied = true

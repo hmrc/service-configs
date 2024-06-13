@@ -32,6 +32,6 @@ object  UpscanConfig {
     ( (__ \ "service"    ).format[ServiceName]
     ~ (__ \ "location"   ).format[String]
     ~ (__ \ "environment").format[Environment]
-    )(UpscanConfig.apply, unlift(UpscanConfig.unapply))
+    )(UpscanConfig.apply, pt => Tuple.fromProductTyped(pt))
   }
 }
