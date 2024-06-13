@@ -39,8 +39,8 @@ class DeploymentEventRepositorySpec
     Environment.Development,
     Version("0.1.0"),
     "testDeploymentId",
-    configChanged = true,
-    "testConfigId",
+    configChanged = Some(true),
+    Some("testConfigId"),
     now
   )
 
@@ -57,7 +57,7 @@ class DeploymentEventRepositorySpec
     "successfully upsert a DeploymentEvent" in {
       repository.put(event).futureValue
 
-      val updatedEvent = event.copy(configChanged = false)
+      val updatedEvent = event.copy(configChanged = Some(false))
 
       repository.put(updatedEvent).futureValue
 

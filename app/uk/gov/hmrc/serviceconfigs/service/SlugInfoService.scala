@@ -149,8 +149,8 @@ class SlugInfoService @Inject()(
                                   env,
                                   deployment.version,
                                   deployment.deploymentId.getOrElse(s"${serviceName.asString}-${env}-${deployment.version}-${deployment.lastDeployed.toEpochMilli}"),
-                                  requiresUpdate,
-                                  deployment.configId,
+                                  Some(requiresUpdate),
+                                  Some(deployment.configId),
                                   deployment.lastDeployed
                                 )
         _                     <- deploymentEventRepository.put(depEvent)

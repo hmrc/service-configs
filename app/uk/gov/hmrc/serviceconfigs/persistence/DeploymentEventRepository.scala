@@ -117,8 +117,8 @@ object DeploymentEventRepository {
     environment    : Environment,
     version        : Version,
     deploymentId   : String,
-    configChanged  : Boolean,
-    configId       : String,
+    configChanged  : Option[Boolean],
+    configId       : Option[String],
     lastUpdated    : Instant
   )
 
@@ -132,8 +132,8 @@ object DeploymentEventRepository {
         ~ (__ \ "environment").format[Environment]
         ~ (__ \ "version").format[Version]
         ~ (__ \ "deploymentId").format[String]
-        ~ (__ \ "configChanged").format[Boolean]
-        ~ (__ \ "configId").format[String]
+        ~ (__ \ "configChanged").formatNullable[Boolean]
+        ~ (__ \ "configId").formatNullable[String]
         ~ (__ \ "lastUpdated").format[Instant]
         )(DeploymentEvent.apply, unlift(DeploymentEvent.unapply))
     }

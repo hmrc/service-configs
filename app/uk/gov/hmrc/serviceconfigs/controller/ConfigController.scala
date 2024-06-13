@@ -17,18 +17,18 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import play.api.Configuration
-import play.api.libs.json._
 import play.api.libs.functional.syntax._
+import play.api.libs.json._
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentDateRange, DeploymentEventsRequest, Environment, FilterType, RepoName, ServiceName, ServiceType, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, ServiceToRepoNameRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository, ServiceToRepoNameRepository}
+import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigController @Inject()(

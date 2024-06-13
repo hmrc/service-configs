@@ -165,7 +165,7 @@ object DeploymentHandler {
       (eventType, environment, serviceName, version, deploymentId, config, time) =>
         val uniqueDeploymentId = environment.fold(deploymentId) { env =>
           if (deploymentId.startsWith("arn")) {
-            s"${serviceName.asString}-${env.asString}-${version}-${time.toEpochMilli}"
+            s"gen-${serviceName.asString}-${env.asString}-${time.toEpochMilli}"
           } else {
             deploymentId
           }

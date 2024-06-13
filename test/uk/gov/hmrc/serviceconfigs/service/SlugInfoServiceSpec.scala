@@ -26,10 +26,8 @@ import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeployedConfigRepository, DeploymentConfigRepository, DeploymentEventRepository, SlugInfoRepository}
+import uk.gov.hmrc.serviceconfigs.persistence._
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, RenderedConfigSourceValue}
-import ConfigService.ConfigSourceEntries
-import ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 
 import java.time.temporal.ChronoUnit
 import java.time.{Clock, Instant, ZoneOffset}

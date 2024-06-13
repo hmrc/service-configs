@@ -141,11 +141,13 @@ function migrateReleaseEvents() {
                 environment: event.environment,
                 version: version,
                 deploymentId: event.deploymentId,
-                configChanged: false, // Default to false, will be updated later
-                configId: configId,
                 lastUpdated: event.timestamp
             };
 
+            if (configId !== "") {
+                newEvent.configId = configId;
+            }
+            
             bulk.insert(newEvent);
             lastId = event._id;
         });
@@ -157,61 +159,4 @@ function migrateReleaseEvents() {
     print("Data migration completed!");
 }
 migrateReleaseEvents();
-```
-
-### Update configChanged field for migrated deployment events
-
-```javascript
-function updateConfigChanged() {
-    const targetDb = db.getSiblingDB('service-configs');
-    const batchSize = 1000;
-
-    const collections = targetDb.deploymentEvents.distinct("serviceName");
-
-    targetDb.deploymentEvents.createIndex({ serviceName: 1 });
-    targetDb.deploymentEvents.createIndex({ environment: 1 });
-    targetDb.deploymentEvents.createIndex({ lastUpdated: 1 });
-
-    collections.forEach(serviceName => {
-        let environments = targetDb.deploymentEvents.distinct("environment", { serviceName: serviceName });
-
-        environments.forEach(environment => {
-            let query = { serviceName: serviceName, environment: environment };
-            let cursor = targetDb.deploymentEvents.find(query, { _id: 0, serviceName: 1, environment: 1, lastUpdated: 1, configId: 1 }).sort({ lastUpdated: 1 });
-
-            let bulkUpdate = targetDb.deploymentEvents.initializeUnorderedBulkOp();
-            let count = 0;
-
-            let previousConfigId = null;
-
-            while (cursor.hasNext()) {
-                let event = cursor.next();
-                const configIdWithoutVersion = event.configId.split("_").slice(2).join("_");
-
-                let configChanged = false;
-
-                if (previousConfigId && previousConfigId !== configIdWithoutVersion) {
-                    configChanged = true;
-                }
-
-                bulkUpdate.find({ serviceName: event.serviceName, environment: event.environment, lastUpdated: event.lastUpdated, configId: event.configId }).updateOne({ $set: { configChanged: configChanged } });
-
-                count++;
-
-                if (count === batchSize || !cursor.hasNext()) {
-                    bulkUpdate.execute();
-                    bulkUpdate = targetDb.deploymentEvents.initializeUnorderedBulkOp();
-                    count = 0;
-                }
-
-                previousConfigId = configIdWithoutVersion;
-            }
-
-            print(`Processed batches for serviceName: ${serviceName} and environment: ${environment}`);
-        });
-    });
-
-    print("ConfigChanged update completed!");
-}
-updateConfigChanged();
 ```
