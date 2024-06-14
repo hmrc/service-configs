@@ -145,15 +145,15 @@ class SlugInfoService @Inject()(
                                      true
                                  }
         configChanged         <- hasConfigChanged(serviceName, env, deployment.version)
-        depEvent              = DeploymentEventRepository.DeploymentEvent(
-                                  serviceName,
-                                  env,
-                                  deployment.version,
-                                  deployment.deploymentId.getOrElse(s"${serviceName.asString}-${env}-${deployment.version}-${deployment.lastDeployed.toEpochMilli}"),
-                                  Some(configChanged),
-                                  Some(deployment.configId),
-                                  deployment.lastDeployed
-                                )
+        depEvent              =  DeploymentEventRepository.DeploymentEvent(
+                                   serviceName,
+                                   env,
+                                   deployment.version,
+                                   deployment.deploymentId.getOrElse(s"gen-${serviceName.asString}-${env}-${deployment.lastDeployed.toEpochMilli}"),
+                                   Some(configChanged),
+                                   Some(deployment.configId),
+                                   deployment.lastDeployed
+                                 )
         _                     <- deploymentEventRepository.put(depEvent)
         _                     <- if (requiresUpdate)
                                    updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), deployment.lastDeployed)
