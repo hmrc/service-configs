@@ -35,11 +35,11 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class FrontendRouteRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[MongoFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "frontendRoutes",
-  domainFormat   = MongoFrontendRoute.formats,
+  domainFormat   = MongoFrontendRoute.format,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))

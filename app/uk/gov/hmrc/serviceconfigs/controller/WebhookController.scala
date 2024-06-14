@@ -44,7 +44,7 @@ class WebhookController @Inject()(
   serviceManagerConfigService: ServiceManagerConfigService,
   upscanConfigService        : UpscanConfigService,
   cc                         : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc)
      with Logging {
@@ -54,7 +54,7 @@ class WebhookController @Inject()(
 
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  private implicit val readsPush: Reads[Push] =
+  private given Reads[Push] =
     ( (__ \ "repository" \ "name").read[String]
     ~ (__ \ "ref"                ).read[String].map(_.stripPrefix("refs/heads/"))
     )(Push.apply _)

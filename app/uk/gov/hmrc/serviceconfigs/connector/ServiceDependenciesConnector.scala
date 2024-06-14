@@ -26,21 +26,23 @@ import uk.gov.hmrc.serviceconfigs.model.{ServiceName, TeamName}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+
 @Singleton
 class ServiceDependenciesConnector @Inject() (
   httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig)
-(implicit
+(using
   ec : ExecutionContext,
 ) extends Logging {
 
   import HttpReads.Implicits._
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val serviceUrl = servicesConfig.baseUrl("service-dependencies")
 
   def getAffectedServices(group: String, artefact: String, versionRange: String): Future[Seq[AffectedService]] =
+    given Reads[AffectedService] = AffectedService.reads
     httpClientV2
       .get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=$versionRange")
       .execute[Seq[AffectedService]]
@@ -49,8 +51,8 @@ class ServiceDependenciesConnector @Inject() (
 case class AffectedService(serviceName: ServiceName, teamNames: List[TeamName])
 
 object AffectedService {
-  implicit val reads: Reads[AffectedService] =
-   ( (__ \ "repoName").read[String      ].map(ServiceName.apply)
-   ~ (__ \ "teams"   ).read[List[String]].map(_.map(TeamName.apply))
-   )(AffectedService.apply _)
+  val reads: Reads[AffectedService] =
+    ( (__ \ "repoName").read[String      ].map(ServiceName.apply)
+    ~ (__ \ "teams"   ).read[List[String]].map(_.map(TeamName.apply))
+    )(AffectedService.apply _)
 }

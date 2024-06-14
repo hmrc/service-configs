@@ -33,14 +33,14 @@ import scala.concurrent.{ExecutionContext, Future}
 class ReleasesApiConnector @Inject()(
   httpClientV2 : HttpClientV2,
   serviceConfig: ServicesConfig
-)(implicit ec: ExecutionContext) {
+)(using ec: ExecutionContext) {
   import ReleasesApiConnector._
 
   private val serviceUrl: URL = url"${serviceConfig.baseUrl("releases-api")}"
 
-  implicit val sdir: Reads[ServiceDeploymentInformation] = ServiceDeploymentInformation.reads
+  private given Reads[ServiceDeploymentInformation] = ServiceDeploymentInformation.reads
 
-  def getWhatsRunningWhere()(implicit hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
+  def getWhatsRunningWhere()(using hc: HeaderCarrier): Future[Seq[ServiceDeploymentInformation]] =
     httpClientV2
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]
@@ -85,9 +85,9 @@ object ReleasesApiConnector {
 
   object ServiceDeploymentInformation {
     private def deploymentReads(serviceName: ServiceName): Reads[Deployment] = {
-      implicit val er  = environmentReads
-      implicit val vf  = Version.format
-      implicit val dcf = DeploymentConfigFile.reads
+      given Reads[Option[Environment]]  = environmentReads
+      given Format[Version]             = Version.format
+      given Reads[DeploymentConfigFile] = DeploymentConfigFile.reads
       ( Reads.pure(serviceName)
       ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
@@ -98,11 +98,11 @@ object ReleasesApiConnector {
     }
 
     val reads: Reads[ServiceDeploymentInformation] = {
-      implicit val snf = ServiceName.format
+      given Format[ServiceName] = ServiceName.format
       ( (__ \ "applicationName").read[ServiceName]
       ~ (__ \ "applicationName").read[ServiceName].flatMap { serviceName =>
-          implicit val dr = deploymentReads(serviceName)
-          (__ \ "versions"       ).read[Seq[Deployment]]
+          given Reads[Deployment] = deploymentReads(serviceName)
+          (__ \ "versions").read[Seq[Deployment]]
         }
       )(ServiceDeploymentInformation.apply _)
     }

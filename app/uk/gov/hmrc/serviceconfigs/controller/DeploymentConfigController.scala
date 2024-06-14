@@ -31,11 +31,11 @@ class DeploymentConfigController @Inject()(
   deploymentConfigRepository   : DeploymentConfigRepository,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
   cc                           : ControllerComponents
-)(implicit
+)(using
   ec                           : ExecutionContext
 ) extends BackendController(cc) {
 
-  implicit val dcw: Writes[DeploymentConfig] = DeploymentConfig.apiFormat
+  private given Writes[DeploymentConfig] = DeploymentConfig.apiFormat
 
   def deploymentConfig(
     environments: Seq[Environment],

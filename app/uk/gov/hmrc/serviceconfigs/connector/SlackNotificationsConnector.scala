@@ -36,7 +36,7 @@ class SlackNotificationsConnector @Inject()(
   httpClientV2  : HttpClientV2,
   configuration : Configuration,
   servicesConfig: ServicesConfig,
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends Logging{
 
@@ -46,8 +46,10 @@ class SlackNotificationsConnector @Inject()(
 
   private val internalAuthToken = configuration.get[String]("internal-auth.token")
 
-  def sendMessage(message: SlackNotificationRequest)(implicit hc: HeaderCarrier): Future[SlackNotificationResponse] = {
-    implicit val snrR: Reads[SlackNotificationResponse] = SlackNotificationResponse.reads
+  def sendMessage(message: SlackNotificationRequest)(using hc: HeaderCarrier): Future[SlackNotificationResponse] = {
+    given Writes[SlackNotificationRequest] = SlackNotificationRequest.writes
+    given Reads[SlackNotificationResponse] = SlackNotificationResponse.reads
+
     httpClientV2
       .post(url"$serviceUrl/slack-notifications/v2/notification")
       .withBody(Json.toJson(message))
@@ -72,7 +74,7 @@ final case class SlackNotificationResponse(
 
 object SlackNotificationResponse {
   val reads: Reads[SlackNotificationResponse] = {
-    implicit val sneReads: Reads[SlackNotificationError] =
+    given sneReads: Reads[SlackNotificationError] =
       ( (__ \ "code"   ).read[String]
       ~ (__ \ "message").read[String]
       )(SlackNotificationError.apply _)
@@ -88,7 +90,7 @@ final case class GithubTeam(
   by: String = "github-team"
  )
 object GithubTeam {
-  implicit val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
+  val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
 }
 
 final case class SlackNotificationRequest(
@@ -100,7 +102,10 @@ final case class SlackNotificationRequest(
 )
 
 object SlackNotificationRequest {
-  implicit val writes: OWrites[SlackNotificationRequest] = Json.writes[SlackNotificationRequest]
+  val writes: Writes[SlackNotificationRequest] = {
+    given Writes[GithubTeam] = GithubTeam.writes
+    Json.writes[SlackNotificationRequest]
+  }
 
   def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
 

@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class AlertConfigController @Inject()(
   alertConfigService: AlertConfigService,
   cc                : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc){
 
-  private implicit val aehf: Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
+  private given Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
 
   def getAlertConfigs(): Action[AnyContent] =
     Action.async {

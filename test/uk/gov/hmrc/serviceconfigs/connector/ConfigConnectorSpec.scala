@@ -36,7 +36,7 @@ class ConfigConnectorSpec
      with WireMockSupport
      with HttpClientV2Support {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val token = "token"
 

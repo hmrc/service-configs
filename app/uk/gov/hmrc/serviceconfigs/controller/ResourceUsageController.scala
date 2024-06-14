@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class ResourceUsageController @Inject()(
   resourceUsageRepository: ResourceUsageRepository,
   cc                     : ControllerComponents
-)(implicit
+)(using
   ec                     : ExecutionContext
 ) extends BackendController(cc) {
 
-  private implicit val resourceUsageFormat: Format[ResourceUsage] =
+  private given Format[ResourceUsage] =
     ResourceUsage.apiFormat
 
   def resourceUsageSnapshotsForService(serviceName: ServiceName): Action[AnyContent] =

@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class AppliedConfigRepository @Inject()(
   configuration : Configuration,
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[AppliedConfigRepository.AppliedConfig](
   mongoComponent = mongoComponent,
@@ -157,14 +157,13 @@ object AppliedConfigRepository {
 
   object AppliedConfig {
     val format: Format[AppliedConfig] = {
-      implicit val snf = ServiceName.format
-      implicit val rcsvf: Format[RenderedConfigSourceValue] =
+      given Format[RenderedConfigSourceValue] =
         ( (__ \ "source"   ).format[String]
         ~ (__ \ "sourceUrl").formatNullable[String]
         ~ (__ \ "value"    ).format[String]
         )(RenderedConfigSourceValue.apply, pt => Tuple.fromProductTyped(pt))
 
-      implicit val readsEnvMap: Format[Map[Environment, RenderedConfigSourceValue]] =
+      given Format[Map[Environment, RenderedConfigSourceValue]] =
         Format(
           Reads
             .of[Map[String, RenderedConfigSourceValue]]
@@ -173,7 +172,7 @@ object AppliedConfigRepository {
             .apply { xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }) }
         )
 
-      ( (__ \ "serviceName"  ).format[ServiceName]
+      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
       ~ (__ \ "key"          ).format[String]
       ~ (__ \ "environments" ).format[Map[Environment, RenderedConfigSourceValue]]
       ~ (__ \ "onlyReference").format[Boolean]

@@ -38,7 +38,7 @@ class ArtefactProcessorConnectorSpec
      with WireMockSupport
      with HttpClientV2Support {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val servicesConfig = new ServicesConfig(Configuration(
     "microservice.services.artefact-processor.host" -> wireMockHost,

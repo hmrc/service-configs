@@ -37,7 +37,7 @@ class ConfigScheduler @Inject()(
   upscanConfigService       : UpscanConfigService,
   resourceUsageRepository   : ResourceUsageRepository,
   timestampSupport          : TimestampSupport
-)(implicit
+)(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext

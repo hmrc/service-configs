@@ -41,7 +41,7 @@ class MissedWebhookEventsScheduler @Inject()(
   serviceManagerConfigService: ServiceManagerConfigService,
   outagePageService          : OutagePageService,
   timestampSupport           : TimestampSupport
-)(implicit
+)(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext

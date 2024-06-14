@@ -30,11 +30,11 @@ class DashboardController @Inject()(
   kibanaDashboardRepository: KibanaDashboardRepository,
   grafanaDashboardRepository: GrafanaDashboardRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val dashboardFormat: Format[Dashboard] = Dashboard.format
+  private given Format[Dashboard] = Dashboard.format
 
   def grafana(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

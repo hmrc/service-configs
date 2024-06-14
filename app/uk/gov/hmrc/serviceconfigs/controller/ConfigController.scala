@@ -23,7 +23,7 @@ import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, ServiceToRepoNameRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository, ServiceToRepoNameRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 
@@ -37,7 +37,7 @@ class ConfigController @Inject()(
   configWarningService       : ConfigWarningService,
   cc                         : ControllerComponents,
   serviceToRepoNameRepository: ServiceToRepoNameRepository,
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc) {
   import ConfigController._
@@ -54,8 +54,9 @@ class ConfigController @Inject()(
   }
 
   def deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange): Action[AnyContent] = Action.async {
-        configService.getDeploymentEvents(serviceName, range).map { events =>
-          Ok(Json.toJson(events))
+    given Format[DeploymentEventRepository.DeploymentEvent] = DeploymentEventRepository.DeploymentEvent.apiFormat
+    configService.getDeploymentEvents(serviceName, range).map { events =>
+      Ok(Json.toJson(events))
     }
   }
 

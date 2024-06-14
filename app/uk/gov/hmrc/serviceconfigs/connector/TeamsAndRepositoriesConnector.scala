@@ -50,14 +50,14 @@ class TeamsAndRepositoriesConnector @Inject()(
   serviceConfigs: ServicesConfig,
   httpClientV2  : HttpClientV2,
   cache         : AsyncCacheApi
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging {
   import uk.gov.hmrc.http.HttpReads.Implicits._
 
   private val teamsAndServicesUrl =
     serviceConfigs.baseUrl("teams-and-repositories")
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
-  implicit private val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
+  private given HeaderCarrier                             = HeaderCarrier()
+  private given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
 
   def getRepos(
     archived   : Option[Boolean]      = None

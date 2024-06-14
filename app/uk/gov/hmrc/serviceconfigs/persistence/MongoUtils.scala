@@ -52,7 +52,7 @@ object MongoUtils {
     oldValsFilter: Bson = Filters.empty(),
     compareById  : (A, A) => Boolean, // TODO would a `uniqueId: A => String` be more practical?
     filterById   : A => Bson
-  )(implicit ec: ExecutionContext): Future[Unit] =
+  )(using ec: ExecutionContext): Future[Unit] =
     for {
       old         <- collection.find(oldValsFilter).toFuture()
       bulkUpdates =  //upsert any that were not present already

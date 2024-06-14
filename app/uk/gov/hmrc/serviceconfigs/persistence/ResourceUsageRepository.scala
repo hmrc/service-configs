@@ -38,7 +38,7 @@ class ResourceUsageRepository @Inject()(
   deploymentConfigRepository : DeploymentConfigRepository,
   override val mongoComponent: MongoComponent,
   as                         : ActorSystem
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[ResourceUsage](
   mongoComponent = mongoComponent,
@@ -55,7 +55,7 @@ class ResourceUsageRepository @Inject()(
   with Logging {
   import ResourceUsageRepository._
 
-  private implicit val tc: TransactionConfiguration =
+  private given TransactionConfiguration =
     TransactionConfiguration(
       clientSessionOptions = Some(
                                ClientSessionOptions.builder()

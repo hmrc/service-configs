@@ -32,7 +32,7 @@ class ServiceRelationshipService @Inject()(
   configService                 : ConfigService,
   slugInfoRepository            : SlugInfoRepository,
   serviceRelationshipsRepository: ServiceRelationshipRepository
-)(implicit
+)(using
   ec: ExecutionContext
 ) {
 

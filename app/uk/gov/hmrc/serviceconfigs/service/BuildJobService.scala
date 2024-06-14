@@ -32,7 +32,7 @@ class BuildJobService @Inject()(
   buildJobRepository           : BuildJobRepository
 , configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
 
   def updateBuildJobs(): Future[Unit] =

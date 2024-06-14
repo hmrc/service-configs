@@ -33,7 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SlugInfoRepository @Inject()(
   override val mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[SlugInfo](
   mongoComponent = mongoComponent,
   collectionName = SlugInfoRepository.collectionName,
@@ -58,7 +58,7 @@ class SlugInfoRepository @Inject()(
   // we delete explicitly when we get a delete notification
   override lazy val requiresTtlIndex = false
 
-  private implicit val tc: TransactionConfiguration =
+  private given TransactionConfiguration =
     TransactionConfiguration(
       clientSessionOptions = Some(
                                ClientSessionOptions.builder()

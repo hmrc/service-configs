@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class OutagePageController @Inject()(
   outagePageService: OutagePageService,
   cc               : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc){
 
-  private implicit val ef: Format[Environment] = Environment.format
+  private given Format[Environment] = Environment.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

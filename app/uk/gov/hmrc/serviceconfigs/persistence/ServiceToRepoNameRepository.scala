@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ServiceToRepoNameRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceToRepoName](
   mongoComponent = mongoComponent,

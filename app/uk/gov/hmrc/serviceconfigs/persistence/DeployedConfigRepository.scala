@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeployedConfigRepository @Inject()(
   val mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeployedConfigRepository.DeployedConfig](
   mongoComponent = mongoComponent,
@@ -100,17 +100,14 @@ object DeployedConfigRepository {
   )
 
   val mongoFormats: Format[DeployedConfig] = {
-    implicit val instantFormat = MongoJavatimeFormats.instantFormat
-    implicit val ef  = Environment.format
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName"    ).format[ServiceName]
-    ~ (__ \ "environment"    ).format[Environment]
+    ( (__ \ "serviceName"    ).format[ServiceName](ServiceName.format)
+    ~ (__ \ "environment"    ).format[Environment](Environment.format)
     ~ (__ \ "deploymentId"   ).format[String]
     ~ (__ \ "configId"       ).formatWithDefault[String]("")
     ~ (__ \ "appConfigBase"  ).formatNullable[String]
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
-    ~ (__ \ "lastUpdated"    ).format[Instant]
+    ~ (__ \ "lastUpdated"    ).format[Instant](MongoJavatimeFormats.instantFormat)
     )(DeployedConfig.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

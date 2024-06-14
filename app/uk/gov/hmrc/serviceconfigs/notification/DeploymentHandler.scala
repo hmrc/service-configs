@@ -38,7 +38,7 @@ class DeploymentHandler @Inject()(
   configuration  : Configuration,
   slugInfoService: SlugInfoService,
   clock          : Clock
-)(implicit
+)(using
   actorSystem    : ActorSystem,
   ec             : ExecutionContext
 ) extends SqsConsumer(
@@ -47,7 +47,7 @@ class DeploymentHandler @Inject()(
 )(actorSystem, ec) {
   import DeploymentHandler._
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   override protected def processMessage(message: Message): Future[MessageAction] = {
     logger.info(s"Starting processing Deployment message with ID '${message.messageId()}'")
@@ -113,7 +113,7 @@ object DeploymentHandler {
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Reads, JsObject, __}
 
-   private implicit val appReads: Applicative[Reads] =
+   private given Applicative[Reads] =
     new Applicative[Reads] {
       override def pure[A](a: A): Reads[A] =
         Reads.pure(a)
@@ -150,15 +150,12 @@ object DeploymentHandler {
       }
 
   private lazy val deploymentEventReads1: Reads[DeploymentEvent] = {
-    implicit val er: Reads[Option[Environment]] =
-      __.read[String].map(Environment.parse)
-    implicit val snf = ServiceName.format
-    implicit val vf  = Version.format
+    given Reads[Option[Environment]] = __.read[String].map(Environment.parse)
 
     ( (__ \ "event_type"          ).read[String]
     ~ (__ \ "environment"         ).read[Option[Environment]]
-    ~ (__ \ "microservice"        ).read[ServiceName]
-    ~ (__ \ "microservice_version").read[Version]
+    ~ (__ \ "microservice"        ).read[ServiceName](ServiceName.format)
+    ~ (__ \ "microservice_version").read[Version](Version.format)
     ~ (__ \ "stack_id"            ).read[String]
     ~ Reads.pure(Seq.empty[ReleasesApiConnector.DeploymentConfigFile]) // config - to be added
     ~ (__ \ "event_date_time"     ).read[Instant]

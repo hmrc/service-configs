@@ -35,13 +35,13 @@ class SlugMetadataUpdateScheduler @Inject()(
   slugInfoService     : SlugInfoService,
   mongoLockRepository : MongoLockRepository,
   timestampSupport    : TimestampSupport
-)(implicit
+)(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
 ) extends SchedulerUtils
   with Logging {
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   scheduleWithTimePeriodLock(
     label           = "SlugMetadataUpdateScheduler",

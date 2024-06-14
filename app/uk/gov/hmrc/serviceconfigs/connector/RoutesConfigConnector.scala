@@ -16,9 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.libs.json.{JsValue, Reads, __}
+import play.api.libs.json.{Format, JsValue, Reads, __}
 import play.api.libs.functional.syntax._
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -28,18 +27,19 @@ import uk.gov.hmrc.http.StringContextOps
 import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class RoutesConfigConnector @Inject()(
   httpClientV2: HttpClientV2
 , githubConfig: GithubConfig
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private def readsAdminFrontendRoute(route: String, lines: List[String]): Reads[AdminFrontendRoute] = {
-    implicit val snf = ServiceName.format
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "microservice").read[ServiceName]
     ~ Reads.pure(route)
     ~ (__ \ "allow").read[Map[String, List[String]]]

@@ -27,7 +27,7 @@ class InternalAuthConfigService @Inject()(
   configAsCodeConnector       : ConfigAsCodeConnector
 , internalAuthConfigRepository: InternalAuthConfigRepository
 , parser                      : InternalAuthConfigParser
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) {
 
   def updateInternalAuth(): Future[Unit] =

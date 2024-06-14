@@ -24,7 +24,7 @@ import play.api.{ConfigLoader, Configuration}
 @Singleton
 class NginxConfig @Inject()(configuration: Configuration) {
 
-  def getValue[T](key: String)(implicit loader: ConfigLoader[T]): T =
+  def getValue[T](key: String)(using loader: ConfigLoader[T]): T =
     configuration
       .getOptional[T](key)
       .getOrElse(sys.error(s"$key not specified"))

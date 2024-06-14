@@ -26,7 +26,7 @@ import play.api.Configuration
 @Singleton
 class DeploymentDeadLetterHandler @Inject()(
   configuration: Configuration
-)(implicit
+)(using
   actorSystem  : ActorSystem,
   ec           : ExecutionContext
 ) extends SqsConsumer(
@@ -47,7 +47,7 @@ class DeploymentDeadLetterHandler @Inject()(
 @Singleton
 class SlugDeadLetterHandler @Inject()(
   configuration: Configuration
-)(implicit
+)(using
   actorSystem  : ActorSystem,
   ec           : ExecutionContext
 ) extends SqsConsumer(

@@ -24,7 +24,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.DeploymentEventRepository.Deployme
 
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DAYS
 
 class DeploymentEventRepositorySpec
   extends AnyWordSpec

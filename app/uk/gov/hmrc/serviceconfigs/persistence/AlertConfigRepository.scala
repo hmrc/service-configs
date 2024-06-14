@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AlertEnvironmentHandlerRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[AlertEnvironmentHandler](
   mongoComponent = mongoComponent,

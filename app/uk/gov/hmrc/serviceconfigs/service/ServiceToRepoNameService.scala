@@ -32,7 +32,7 @@ class ServiceToRepoNameService @Inject()(
   configAsCodeConnector       : ConfigAsCodeConnector
 , deploymentConfigRepository  : DeploymentConfigRepository
 , serviceToRepoNamesRepository: ServiceToRepoNameRepository
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
   import ServiceToRepoNameService._
 

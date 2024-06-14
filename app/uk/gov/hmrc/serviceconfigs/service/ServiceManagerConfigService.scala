@@ -32,10 +32,10 @@ class ServiceManagerConfigService @Inject()(
   serviceManagerConfigRepository: ServiceManagerConfigRepository
 , configConnector               : ConfigConnector
 , teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def update(): Future[Unit] =
     for {

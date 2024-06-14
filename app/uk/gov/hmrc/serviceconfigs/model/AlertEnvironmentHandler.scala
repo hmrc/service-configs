@@ -27,7 +27,7 @@ case class AlertEnvironmentHandler(
 
 object AlertEnvironmentHandler {
   val format: Format[AlertEnvironmentHandler] = {
-    implicit val snf = ServiceName.format
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "serviceName").format[ServiceName]
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]

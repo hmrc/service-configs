@@ -32,7 +32,7 @@ class UpscanConfigService @Inject()(
   upscanConfigRepository        : UpscanConfigRepository
 , configAsCodeConnector         : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging {
 
   def update(): Future[Unit] =
     for {

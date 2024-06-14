@@ -28,7 +28,7 @@ case class AdminFrontendRoute(
 
 object AdminFrontendRoute {
   val format: Format[AdminFrontendRoute] = {
-    implicit val snf = ServiceName.format
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "route"   ).format[String]
     ~ (__ \ "allow"   ).format[Map[String, List[String]]]

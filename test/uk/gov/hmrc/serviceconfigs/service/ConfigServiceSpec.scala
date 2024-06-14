@@ -50,7 +50,9 @@ class ConfigServiceSpec
      with MongoSupport {
   import ConfigService._
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
+  private given Format[SlugInfo] = MongoSlugInfoFormats.slugInfoFormat
+
 
   override def fakeApplication(): Application =
     new GuiceApplicationBuilder()
@@ -169,7 +171,6 @@ class ConfigServiceSpec
         """.stripMargin
       withAppConfigEnvForHEAD("qa", serviceName, appConfigQa)
 
-      implicit val sif = MongoSlugInfoFormats.slugInfoFormat
       slugInfoCollection
         .insertOne {
           val json =
@@ -293,7 +294,6 @@ class ConfigServiceSpec
       withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa , now.minus(2, ChronoUnit.DAYS))
     }
 
-    implicit val sif = MongoSlugInfoFormats.slugInfoFormat
     slugInfoCollection
       .insertOne {
         val json =

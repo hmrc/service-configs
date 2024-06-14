@@ -42,14 +42,14 @@ object BobbyRules {
     )(BobbyRule.apply, pt => Tuple.fromProductTyped(pt))
 
   val mongoFormat: Format[BobbyRules] = {
-    implicit val brf: Format[BobbyRule] = bobbyRuleFormat(uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats.localDateFormat)
+    given Format[BobbyRule] = bobbyRuleFormat(uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats.localDateFormat)
     ( (__ \ "libraries").format[Seq[BobbyRule]]
     ~ (__ \ "plugins"  ).format[Seq[BobbyRule]]
     )(BobbyRules.apply, pt => Tuple.fromProductTyped(pt))
   }
 
   val apiFormat: Format[BobbyRules] = {
-    implicit val brf: Format[BobbyRule] = bobbyRuleFormat(implicitly[Format[LocalDate]])
+    given Format[BobbyRule] = bobbyRuleFormat(implicitly[Format[LocalDate]])
     ( (__ \ "libraries").format[Seq[BobbyRule]]
     ~ (__ \ "plugins"  ).format[Seq[BobbyRule]]
     )(BobbyRules.apply, pt => Tuple.fromProductTyped(pt))

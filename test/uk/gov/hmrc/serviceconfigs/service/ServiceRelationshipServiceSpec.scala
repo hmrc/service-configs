@@ -89,7 +89,7 @@ class ServiceRelationshipServiceSpec
         "microservice.services.teams-and-repositories.host" -> "localhost",
       ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+      when(mockConfigService.appConfig(any[SlugInfo])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq(
@@ -118,7 +118,7 @@ class ServiceRelationshipServiceSpec
         "microservice.services.service-dependencies.host"    -> "localhost",
       ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+      when(mockConfigService.appConfig(any[SlugInfo])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq(
@@ -140,7 +140,7 @@ class ServiceRelationshipServiceSpec
         "microservice.services.cacheable.session-cache.host" -> "localhost"
       ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+      when(mockConfigService.appConfig(any[SlugInfo])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth", "key-store")
@@ -174,7 +174,7 @@ class ServiceRelationshipServiceSpec
         "microservice.services.des.host"  -> "localhost"
       ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+      when(mockConfigService.appConfig(any[SlugInfo])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth")
@@ -205,7 +205,7 @@ class ServiceRelationshipServiceSpec
         "microservice.services.des.host" -> "localhost"
       ))
 
-      when(mockConfigService.appConfig(any[SlugInfo])(any[HeaderCarrier]))
+      when(mockConfigService.appConfig(any[SlugInfo])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq(config)))
 
       val knownServices = Seq("auth")

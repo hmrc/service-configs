@@ -23,7 +23,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
-import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector._
@@ -131,15 +130,15 @@ class DeprecationWarningsNotificationServiceSpec
 
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(deprecatedRepo, repo2, repo3, repo4)))
       when(mockServiceRelationshipRepository.getInboundServices(ServiceName(deprecatedRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString))))
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
-      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(using any[HeaderCarrier])
     }
 
     "send deprecated notifications to relevant teams and group repos belong to same team" in new Setup {
@@ -153,15 +152,15 @@ class DeprecationWarningsNotificationServiceSpec
 
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(deprecatedRepo, repo2, repo3, repo4)))
       when(mockServiceRelationshipRepository.getInboundServices(ServiceName(deprecatedRepo.repoName.asString))).thenReturn(Future.successful(Seq(ServiceName(repo2.repoName.asString), ServiceName(repo3.repoName.asString), ServiceName(repo4.repoName.asString))))
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
 
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
-      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(any[HeaderCarrier])
-      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(3)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(using any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(using any[HeaderCarrier])
     }
 
     "run for the first time" in new Setup {
@@ -171,13 +170,13 @@ class DeprecationWarningsNotificationServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib2"      , range)).thenReturn(Future.successful(Seq(sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
       underTest.sendNotifications(nowAsInstant).futureValue
-      verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
     }
 
     "be run if the last time the service was run before the notifications period" in new Setup {
@@ -187,12 +186,12 @@ class DeprecationWarningsNotificationServiceSpec
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib"        , range)).thenReturn(Future.successful(Seq(sd1, sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation,"exampleLib2"       , range)).thenReturn(Future.successful(Seq(sd2)))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "anotherExampleLib", range)).thenReturn(Future.successful(Nil))
-      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
+      when(mockSlackNotificationsConnector.sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])).thenReturn(Future.successful(SlackNotificationResponse(List.empty)))
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq.empty))
 
       underTest.sendNotifications(nowAsInstant).futureValue
-      verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(any[HeaderCarrier])
+      verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
     }
   }
 

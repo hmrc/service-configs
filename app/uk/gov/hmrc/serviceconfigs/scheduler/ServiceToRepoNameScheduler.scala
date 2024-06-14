@@ -32,7 +32,7 @@ class ServiceToRepoNameScheduler @Inject()(
   mongoLockRepository     : MongoLockRepository,
   timestampSupport        : TimestampSupport,
   serviceToRepoNameService: ServiceToRepoNameService
-)(implicit
+)(using
   actorSystem             : ActorSystem,
   applicationLifecycle    : ApplicationLifecycle,
   ec                      : ExecutionContext

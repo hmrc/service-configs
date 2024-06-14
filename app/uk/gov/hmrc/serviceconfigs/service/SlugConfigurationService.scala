@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugConfigurationService @Inject()(
   slugInfoRepository         : SlugInfoRepository,
   dependencyConfigRepository : DependencyConfigRepository
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging {
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] = {
     slugInfo.classpath

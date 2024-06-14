@@ -17,11 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.Mockito.{times, verify, when, verifyNoInteractions}
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Span, Microseconds}
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
@@ -41,8 +40,6 @@ class WebhookControllerSpec
      with MockitoSugar
      with ScalaFutures
      with IntegrationPatience {
-
-  private val mockitoTimeoutMs = Span(1000, Microseconds)
 
   "processGithubWebhook" should {
     "accept unknown repository" in new Setup {
@@ -143,7 +140,7 @@ class WebhookControllerSpec
 
   trait Setup {
 
-    implicit val as: ActorSystem = ActorSystem()
+    given ActorSystem = ActorSystem()
 
     val mockConfiguration               = mock[Configuration              ]
     val mockNginxConfig                 = mock[NginxConfig                ]

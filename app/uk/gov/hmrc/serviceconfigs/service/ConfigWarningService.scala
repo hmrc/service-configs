@@ -29,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ConfigWarningService @Inject()(
   configService: ConfigService
-)(implicit
+)(using
   ec: ExecutionContext
 ){
 
@@ -38,7 +38,7 @@ class ConfigWarningService @Inject()(
     serviceName : ServiceName,
     version     : Option[Version],
     latest      : Boolean
-  )(implicit hc: HeaderCarrier): Future[Seq[ConfigWarning]] = {
+  )(using hc: HeaderCarrier): Future[Seq[ConfigWarning]] = {
     environments.traverse { environment =>
       def toConfigWarning(k: String, csv: ConfigSourceValue, warning: String) =
         ConfigWarning(

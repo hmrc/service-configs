@@ -33,7 +33,7 @@ class DeprecationWarningsNotificationScheduler @Inject()(
   mongoLockRepository       : MongoLockRepository,
   timestampSupport          : TimestampSupport,
   deprecationWarningService : DeprecationWarningsNotificationService
-)(implicit
+)(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext

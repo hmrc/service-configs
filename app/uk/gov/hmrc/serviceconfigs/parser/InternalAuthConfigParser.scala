@@ -30,9 +30,7 @@ class InternalAuthConfigParser extends Logging {
 
   private def readEntry(
     zipInputStream: ZipInputStream,
-    entry         : ZipEntry,
     env           : InternalAuthEnvironment,
-    path          : String
   ): Set[InternalAuthConfig] = {
     val outputStream = new ByteArrayOutputStream
     val buffer       = new Array[Byte](4096)
@@ -46,7 +44,7 @@ class InternalAuthConfigParser extends Logging {
   }
 
   def parseGrants(parsedYaml: String, env: InternalAuthEnvironment): Set[InternalAuthConfig] = {
-    implicit val reads: Reads[Option[GrantGroup]] = GrantGroup.grantGroupReads
+    given Reads[Option[GrantGroup]] = GrantGroup.grantGroupReads
 
     fromYaml[List[Option[GrantGroup]]](parsedYaml)
       .flatten
@@ -66,8 +64,8 @@ class InternalAuthConfigParser extends Logging {
       .foldLeft(Set.empty[InternalAuthConfig]) { (acc, entry) =>
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
         path match {
-          case prodConfigRegex(_) => acc ++ readEntry(z, entry, Prod, path)
-          case qaConfigRegex(_)   => acc ++ readEntry(z, entry, Qa, path)
+          case prodConfigRegex(_) => acc ++ readEntry(z, Prod)
+          case qaConfigRegex(_)   => acc ++ readEntry(z, Qa)
           case _                  => acc
         }
       }

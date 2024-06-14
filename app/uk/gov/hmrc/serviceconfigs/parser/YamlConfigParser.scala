@@ -62,7 +62,7 @@ object YamlConfigParser {
   }
 
   private def yamlConfigReads(key: String): Reads[YamlConfig] = {
-    implicit val lcR: Reads[LocationConfig] = LocationConfig.reads
+    given Reads[LocationConfig] = LocationConfig.reads
 
     ( Reads.pure(key)
     ~ (__ \ "environments" \ "development" ).readWithDefault[Seq[LocationConfig]](Seq.empty)

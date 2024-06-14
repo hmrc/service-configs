@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class KibanaDashboardRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[Dashboard](
   mongoComponent = mongoComponent,

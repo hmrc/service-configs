@@ -33,7 +33,7 @@ class DashboardService @Inject()(
 , kibanaDashboardRepo          : KibanaDashboardRepository
 , configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
 
   def updateGrafanaDashboards(): Future[Unit] =

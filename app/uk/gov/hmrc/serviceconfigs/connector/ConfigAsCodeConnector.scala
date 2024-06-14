@@ -35,13 +35,13 @@ import scala.concurrent.{ExecutionContext, Future}
 class ConfigAsCodeConnector @Inject()(
   githubConfig: GithubConfig,
   httpClientV2: HttpClientV2
-)(implicit
+)(using
   ec : ExecutionContext,
   mat: Materializer
 ) extends Logging {
   import HttpReads.Implicits._
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def streamInternalAuth(): Future[ZipInputStream] =
     streamGithub(RepoName("internal-auth-config"))

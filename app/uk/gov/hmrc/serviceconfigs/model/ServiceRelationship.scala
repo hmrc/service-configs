@@ -26,9 +26,8 @@ case class ServiceRelationship(
 
 object ServiceRelationship {
   val serviceRelationshipFormat: OFormat[ServiceRelationship] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "source").format[ServiceName]
-    ~ (__ \ "target").format[ServiceName]
+    ( (__ \ "source").format[ServiceName](ServiceName.format)
+    ~ (__ \ "target").format[ServiceName](ServiceName.format)
     )(ServiceRelationship.apply, pt => Tuple.fromProductTyped(pt))
   }
 }
@@ -40,7 +39,7 @@ case class ServiceRelationships(
 
 object ServiceRelationships {
   val writes: OWrites[ServiceRelationships] = {
-    implicit val snf = ServiceName.format
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "inboundServices").write[Set[ServiceName]]
     ~ (__ \ "outboundServices").write[Set[ServiceName]]
     )(pt => Tuple.fromProductTyped(pt))

@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class UpscanConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[UpscanConfig](
   mongoComponent = mongoComponent,

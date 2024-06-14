@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class BuildJobController @Inject()(
   buildJobRepository: BuildJobRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val buildJobFormat: Format[BuildJob] = BuildJob.format
+  private given Format[BuildJob] = BuildJob.format
 
   def buildJob(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

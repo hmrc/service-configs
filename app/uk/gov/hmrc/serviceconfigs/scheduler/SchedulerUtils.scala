@@ -29,7 +29,7 @@ trait SchedulerUtils extends Logging {
     label          : String
   , schedulerConfig: SchedulerConfig
   )(f: => Future[Unit]
-  )(implicit
+  )(using
     actorSystem         : ActorSystem,
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
@@ -60,7 +60,7 @@ trait SchedulerUtils extends Logging {
   , schedulerConfig: SchedulerConfig
   , lock           : ScheduledLockService
   )(f: => Future[Unit]
-  )(implicit
+  )(using
     actorSystem         : ActorSystem,
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
@@ -78,12 +78,12 @@ trait SchedulerUtils extends Logging {
   private type WriterT2 [A] = WriterT[Future, List[Throwable], A]
   type ScheduledItem[A] = ReaderT[WriterT2, Option[Throwable], A]
 
-  def runAllAndFailWithFirstError(k: ScheduledItem[Unit])(implicit ec: ExecutionContext) =
+  def runAllAndFailWithFirstError(k: ScheduledItem[Unit])(using ec: ExecutionContext) =
     k.run(None)
      .run
      .flatMap(_._1.headOption.fold(Future.unit)(Future.failed))
 
-  def accumulateErrors(name: String, f: Future[Unit])(implicit ec: ExecutionContext): ScheduledItem[Unit] =
+  def accumulateErrors(name: String, f: Future[Unit])(using ec: ExecutionContext): ScheduledItem[Unit] =
     for {
       _  <- ReaderT.pure(logger.info(s"Starting scheduled task: $name"))
       op <- ReaderT.liftF(WriterT.liftF(

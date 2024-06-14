@@ -44,7 +44,7 @@ class NginxService @Inject()(
   configAsCodeConnector : ConfigAsCodeConnector,
   nginxConfig           : NginxConfig,
   githubConfig          : GithubConfig
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
 
   def update(environments: List[Environment]): Future[Unit] =

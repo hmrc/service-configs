@@ -26,8 +26,7 @@ case class BuildJob(
 
 object BuildJob {
   val format: Format[BuildJob] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "service" ).format[ServiceName]
+    ( (__ \ "service" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "location").format[String]
     )(BuildJob.apply, pt => Tuple.fromProductTyped(pt))
   }

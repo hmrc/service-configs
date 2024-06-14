@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -25,6 +24,7 @@ import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile}
 import uk.gov.hmrc.http.StringContextOps
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -32,10 +32,10 @@ class NginxConfigConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
   nginxConfig : NginxConfig
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends Logging {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def getNginxRoutesFile(fileName: String, environment: Environment): Future[NginxConfigFile] = {
     val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/${environment.asString}/$fileName"

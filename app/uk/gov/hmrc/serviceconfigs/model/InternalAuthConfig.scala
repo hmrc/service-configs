@@ -39,10 +39,9 @@ case class InternalAuthConfig(
 
 object InternalAuthConfig {
   val format: Format[InternalAuthConfig] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName").format[ServiceName]
-    ~ (__ \ "environment").format[InternalAuthEnvironment]
-    ~ (__ \ "grantType"  ).format[GrantType]
+    ( (__ \ "serviceName").format[ServiceName](ServiceName.format)
+    ~ (__ \ "environment").format[InternalAuthEnvironment](InternalAuthEnvironment.format)
+    ~ (__ \ "grantType"  ).format[GrantType](GrantType.format)
     )(InternalAuthConfig.apply, pt => Tuple.fromProductTyped(pt))
   }
 }
@@ -58,7 +57,7 @@ object GrantType {
     val asString = "grantor"
   }
 
-  implicit val format: Format[GrantType] = new Format[GrantType] {
+  val format: Format[GrantType] = new Format[GrantType] {
     override def writes(grantType: GrantType): JsValue =
       JsString(grantType.asString)
 
@@ -84,7 +83,7 @@ object InternalAuthEnvironment {
     val asString = "qa"
   }
 
-  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
+  val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
     override def writes(o: InternalAuthEnvironment): JsValue =
       JsString(o.asString)
 

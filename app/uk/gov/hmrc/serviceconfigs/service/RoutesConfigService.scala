@@ -27,7 +27,7 @@ import uk.gov.hmrc.serviceconfigs.connector.RoutesConfigConnector
 class RoutesConfigService @Inject()(
   adminFrontendRouteRepo: AdminFrontendRouteRepository
 , routesConfigConnector:  RoutesConfigConnector
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends Logging {
 

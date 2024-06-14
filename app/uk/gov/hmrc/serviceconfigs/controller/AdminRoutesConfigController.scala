@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class AdminRoutesConfigController @Inject()(
   db : AdminFrontendRouteRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  implicit val adminFrontendRouteFormat: Format[AdminFrontendRoute] = AdminFrontendRoute.format
+  private given Format[AdminFrontendRoute] = AdminFrontendRoute.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async {
@@ -44,7 +44,7 @@ class AdminRoutesConfigController @Inject()(
 
   def allAdminFrontendServices(): Action[AnyContent] =
     Action.async {
-      implicit val snf = ServiceName.format
+      given Format[ServiceName] = ServiceName.format
       db.findAllAdminFrontendServices()
         .map(Json.toJson(_))
         .map(Ok(_))

@@ -33,7 +33,7 @@ class ServiceRelationshipScheduler @Inject()(
   mongoLockRepository               : MongoLockRepository,
   serviceRelationshipService        : ServiceRelationshipService,
   timestampSupport                  : TimestampSupport
-)(implicit
+)(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext

@@ -30,12 +30,12 @@ import scala.concurrent.ExecutionContext
 class ServiceRelationshipController @Inject()(
   serviceRelationshipService: ServiceRelationshipService,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
   def serviceRelationships(serviceName: ServiceName): Action[AnyContent] = Action.async {
-    implicit val serviceRelationshipWrites: OWrites[ServiceRelationships] = ServiceRelationships.writes
+    given OWrites[ServiceRelationships] = ServiceRelationships.writes
     serviceRelationshipService.getServiceRelationships(serviceName).map { res =>
       Ok(Json.toJson(res))
     }

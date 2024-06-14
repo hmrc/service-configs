@@ -35,13 +35,13 @@ import scala.concurrent.{ExecutionContext, Future}
 class ArtifactoryConnector @Inject()(
   config      : ArtifactoryConfig,
   httpClientV2: HttpClientV2
-)(implicit
+)(using
   ec : ExecutionContext,
   mat: Materializer
 ) extends Logging {
   import HttpReads.Implicits._
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def getSensuZip(): Future[ZipInputStream] =
     stream(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")

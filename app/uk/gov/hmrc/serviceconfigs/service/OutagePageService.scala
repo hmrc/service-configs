@@ -31,7 +31,7 @@ class OutagePageService @Inject()(
   configAsCodeConnector: ConfigAsCodeConnector,
   lastHashRepository   : LastHashRepository,
   outagePageRepository : OutagePageRepository,
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging {
   def findByServiceName(serviceName: ServiceName): Future[Option[Seq[Environment]]] =
     outagePageRepository.findByServiceName(serviceName)
 

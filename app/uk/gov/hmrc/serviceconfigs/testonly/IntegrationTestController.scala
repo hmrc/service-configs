@@ -21,7 +21,7 @@ import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.bson.BsonDocument
-import play.api.libs.json.{JsError, Json, JsObject, JsValue, Reads}
+import play.api.libs.json.{Format, JsError, Json, JsObject, JsValue, Reads}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, Environment, ResourceUsage, SlugInfo, SlugInfoFlag}
@@ -41,7 +41,7 @@ class IntegrationTestController @Inject()(
   appliedConfigRepository   : AppliedConfigRepository,
   latestConfigRepository    : LatestConfigRepository,
   mcc                       : MessagesControllerComponents
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends BackendController(mcc) {
 
   def delete(dataType: String): Action[AnyContent] = Action.async {
@@ -77,7 +77,7 @@ class IntegrationTestController @Inject()(
     json.validate[A].asEither.left.map(JsError.toJson)
 
   private def addFrontendRoutes(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val frf = MongoFrontendRoute.formats
+    given Format[MongoFrontendRoute] = MongoFrontendRoute.format
     validateJson[Seq[MongoFrontendRoute]](json)
       .traverse(_.traverse_(frontendRouteRepository.update))
   }
@@ -93,7 +93,7 @@ class IntegrationTestController @Inject()(
   }
 
   private def addSlugs(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val siwfr: Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
+    given Reads[SlugInfoWithFlags] = SlugInfoWithFlags.reads
     validateJson[Seq[SlugInfoWithFlags]](json)
       .traverse(
         _.traverse_ { slugInfoWithFlag =>
@@ -118,25 +118,25 @@ class IntegrationTestController @Inject()(
   }
 
   private def addDeploymentConfigs(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val deploymentConfigReads: Reads[DeploymentConfig] = DeploymentConfig.apiFormat
+    given Reads[DeploymentConfig] = DeploymentConfig.apiFormat
     validateJson[Seq[DeploymentConfig]](json)
       .traverse(_.traverse_(deploymentConfigRepository.add))
   }
 
   private def addResourceUsages(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val resourceUsageReads: Reads[ResourceUsage] = ResourceUsage.apiFormat
+    given Reads[ResourceUsage] = ResourceUsage.apiFormat
     validateJson[Seq[ResourceUsage]](json)
       .traverse(_.traverse_(resourceUsageRepository.add))
   }
 
   private def addAppliedConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val appliedConfigReads: Reads[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
+    given Reads[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
     validateJson[Seq[AppliedConfigRepository.AppliedConfig]](json)
       .traverse[Future, JsObject, Unit](configEntries => appliedConfigRepository.collection.insertMany(configEntries).toFuture().map(_ => ()))
   }
 
   private def addLatestConfig(json: JsValue): Future[Either[JsObject, Unit]] = {
-    implicit val latestConfigReads: Reads[LatestConfigRepository.LatestConfig] = LatestConfigRepository.mongoFormats
+    given Reads[LatestConfigRepository.LatestConfig] = LatestConfigRepository.mongoFormats
     validateJson[Seq[LatestConfigRepository.LatestConfig]](json)
       .traverse[Future, JsObject, Unit](configEntries => latestConfigRepository.collection.insertMany(configEntries).toFuture().map(_ => ()))
   }
@@ -157,16 +157,15 @@ class IntegrationTestController @Inject()(
     import play.api.libs.json.__
 
     val reads: Reads[SlugInfoWithFlags] = {
-        implicit val sif = ApiSlugInfoFormats.slugInfoFormat
-        ( (__                 ).read[SlugInfo]
-        ~ (__ \ "latest"      ).read[Boolean]
-        ~ (__ \ "production"  ).read[Boolean]
-        ~ (__ \ "qa"          ).read[Boolean]
-        ~ (__ \ "staging"     ).read[Boolean]
-        ~ (__ \ "development" ).read[Boolean]
-        ~ (__ \ "externalTest").read[Boolean]
-        ~ (__ \ "integration" ).read[Boolean]
-        )(SlugInfoWithFlags.apply _)
+      ( (__                 ).read[SlugInfo](ApiSlugInfoFormats.slugInfoFormat)
+      ~ (__ \ "latest"      ).read[Boolean]
+      ~ (__ \ "production"  ).read[Boolean]
+      ~ (__ \ "qa"          ).read[Boolean]
+      ~ (__ \ "staging"     ).read[Boolean]
+      ~ (__ \ "development" ).read[Boolean]
+      ~ (__ \ "externalTest").read[Boolean]
+      ~ (__ \ "integration" ).read[Boolean]
+      )(SlugInfoWithFlags.apply _)
     }
   }
 }

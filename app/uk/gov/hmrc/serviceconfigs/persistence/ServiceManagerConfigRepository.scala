@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ServiceManagerConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceManagerConfigRepository.ServiceManagerConfig](
   mongoComponent = mongoComponent,
   collectionName = "serviceManagerConfig",
@@ -70,8 +70,7 @@ object ServiceManagerConfigRepository {
 
   object ServiceManagerConfig {
     val format: Format[ServiceManagerConfig] = {
-      implicit val snf = ServiceName.format
-      ( (__ \ "service" ).format[ServiceName]
+      ( (__ \ "service" ).format[ServiceName](ServiceName.format)
       ~ (__ \ "location").format[String]
       )(ServiceManagerConfig.apply, pt => Tuple.fromProductTyped(pt))
     }

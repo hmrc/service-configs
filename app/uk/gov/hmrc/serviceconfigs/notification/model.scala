@@ -22,6 +22,7 @@ sealed trait MessagePayload
 
 object MessagePayload {
   import play.api.libs.json.{Reads, __}
+  import play.api.libs.functional.syntax._
 
   case class JobAvailable(
     jobType: String,
@@ -38,21 +39,17 @@ object MessagePayload {
   ) extends MessagePayload
 
   private val jobAvailableReads: Reads[JobAvailable] = {
-    import play.api.libs.functional.syntax._
-    implicit val vr  = Version.format
     ( (__ \ "jobType").read[String]
     ~ (__ \ "name"   ).read[String]
-    ~ (__ \ "version").read[Version]
+    ~ (__ \ "version").read[Version](Version.format)
     ~ (__ \ "url"    ).read[String]
     )(JobAvailable.apply _)
   }
 
   private val jobDeletedReads: Reads[JobDeleted] = {
-    import play.api.libs.functional.syntax._
-    implicit val vr  = Version.format
     ( (__ \ "jobType").read[String]
     ~ (__ \ "name"   ).read[String]
-    ~ (__ \ "version").read[Version]
+    ~ (__ \ "version").read[Version](Version.format)
     ~ (__ \ "url"    ).read[String]
     )(JobDeleted.apply _)
   }

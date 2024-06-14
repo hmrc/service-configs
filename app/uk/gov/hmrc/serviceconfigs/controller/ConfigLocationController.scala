@@ -39,7 +39,7 @@ class ConfigLocationController @Inject()(
 , outagePageRepository             : OutagePageRepository
 , upscanConfigRepository           : UpscanConfigRepository
 ,  mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 

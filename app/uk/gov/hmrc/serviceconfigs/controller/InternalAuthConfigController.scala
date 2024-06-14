@@ -30,12 +30,12 @@ import scala.concurrent.ExecutionContext
 class InternalAuthConfigController @Inject()(
   internalAuthConfigRepository : InternalAuthConfigRepository,
   cc                           : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc)
      with Logging {
 
-  private implicit val format: Format[InternalAuthConfig] = InternalAuthConfig.format
+  private given Format[InternalAuthConfig] = InternalAuthConfig.format
 
   def internalAuthConfig(serviceName: ServiceName): Action[AnyContent] =
     Action.async {

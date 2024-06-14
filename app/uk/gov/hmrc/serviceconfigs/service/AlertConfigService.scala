@@ -34,7 +34,7 @@ class AlertConfigService @Inject()(
   lastHashRepository               : LastHashRepository,
   artifactoryConnector             : ArtifactoryConnector,
   configAsCodeConnector            : ConfigAsCodeConnector
-)(implicit
+)(using
   ec : ExecutionContext
 ) {
   import AlertConfigService._
@@ -80,14 +80,14 @@ object AlertConfigService {
     handlers: Seq[String]
   )
 
-  private implicit val alertsConfigReads: Reads[AlertConfig] =
+  private given Reads[AlertConfig] =
     ( (__ \ "app"     ).read[String]
     ~ (__ \ "handlers").read[Seq[String]]
     )(AlertConfig.apply _)
 
   case class Handler(command: String)
 
-  private implicit val readsHandler: Reads[Handler] =
+  private given Reads[Handler] =
     Reads.at[String]((__ \ "command")).map(Handler.apply)
 
   case class SensuConfig(

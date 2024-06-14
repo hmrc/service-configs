@@ -37,7 +37,7 @@ class ConfigWarningServiceSpec
      with MockitoSugar
      with IntegrationPatience {
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   "ConfigWarningService.warnings" when {
     val env         = Environment.Production
@@ -50,7 +50,7 @@ class ConfigWarningServiceSpec
         val value1 = ConfigValue("v1")
         val value2 = ConfigValue("v2")
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("baseConfig"          , None, Map(key1 -> value1)),
             ConfigSourceEntries("appConfigEnvironment", None, Map(key2 -> value2))
@@ -65,7 +65,7 @@ class ConfigWarningServiceSpec
       "ignore system properties" in new Setup {
         val value = ConfigValue("v")
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("baseConfig"          , None, Map("logger.application" -> value)),
             ConfigSourceEntries("baseConfig"          , None, Map("java.asd"           -> value)),
@@ -77,7 +77,7 @@ class ConfigWarningServiceSpec
       }
 
       "ignore if enabled key exists" in new Setup {
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("baseConfig"          , None, Map("k.k"       -> ConfigValue("v"))),
             ConfigSourceEntries("referenceConf"       , None, Map("k.enabled" -> ConfigValue("false")))
@@ -88,7 +88,7 @@ class ConfigWarningServiceSpec
 
       "ignore list positional notation overriding list" in new Setup {
         val value = ConfigValue("v")
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("referenceConf"       , None, Map("list"   -> value)),
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.0" -> value))
@@ -99,7 +99,7 @@ class ConfigWarningServiceSpec
 
       "ignore list positional notation overriding positional notation" in new Setup {
         val value = ConfigValue("v")
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("referenceConf"       , None, Map("list.0" -> value)),
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.1" -> value))
@@ -110,7 +110,7 @@ class ConfigWarningServiceSpec
 
       "ignore list positional notation with sub-objects" in new Setup {
         val value = ConfigValue("v")
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("referenceConf"       , None, Map("list"       -> value)),
             ConfigSourceEntries("appConfigEnvironment", None, Map("list.0.key" -> value))
@@ -121,7 +121,7 @@ class ConfigWarningServiceSpec
 
       "ignore base64 overrides" in new Setup {
         val value = ConfigValue("v")
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("referenceConf"       , None, Map("k"   -> value)),
             ConfigSourceEntries("appConfigEnvironment", None, Map("k.base64" -> value))
@@ -137,7 +137,7 @@ class ConfigWarningServiceSpec
         val key2 = "k2"
         val key3 = "k3"
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             // list -> simple
             ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("[]", ConfigValueType.List))),
@@ -161,7 +161,7 @@ class ConfigWarningServiceSpec
         val key1 = "k1"
         val key2 = "k2"
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             // simple -> null
             ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("s", ConfigValueType.SimpleValue))),
@@ -184,7 +184,7 @@ class ConfigWarningServiceSpec
         val key1 = "k1"
         val key2 = "k2"
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             // suppressed by array positional syntax
             ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("[]", ConfigValueType.List))),
@@ -204,7 +204,7 @@ class ConfigWarningServiceSpec
         val key1 = "k1"
         val key2 = "k2"
 
-        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             // suppressed by array positional syntax
             ConfigSourceEntries("applicationConf"     , None, Map(key1 -> ConfigValue("s", ConfigValueType.SimpleValue))),
@@ -333,7 +333,7 @@ class ConfigWarningServiceSpec
   trait Setup {
     val mockedConfigService = mock[ConfigService]
 
-    when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(any[HeaderCarrier]))
+    when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
       .thenReturn(Future.successful(Seq.empty))
 
     when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))

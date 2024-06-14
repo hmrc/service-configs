@@ -28,10 +28,9 @@ object OutagePage {
   val outagePageName = "index.html"
 
   lazy val outagePageFormat: Format[OutagePage] = {
-    implicit val ef: Format[Environment] = Environment.format
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName"  ).format[ServiceName]
-    ~ (__ \ "environments" ).format[List[Environment]]
+    given Format[Environment] = Environment.format
+    ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
+    ~ (__ \ "environments").format[List[Environment]]
     ) (OutagePage.apply _, pt => Tuple.fromProductTyped(pt))
   }
 }

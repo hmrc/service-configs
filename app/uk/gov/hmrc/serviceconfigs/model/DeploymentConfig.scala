@@ -38,8 +38,8 @@ case class DeploymentConfig(
 )
 
 object DeploymentConfig {
-  private implicit val snf: Format[ServiceName] = ServiceName.format
-  private implicit val anf: Format[ArtefactName] = ArtefactName.format
+  private given Format[ServiceName] = ServiceName.format
+  private given Format[ArtefactName] = ArtefactName.format
 
   val mongoFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]

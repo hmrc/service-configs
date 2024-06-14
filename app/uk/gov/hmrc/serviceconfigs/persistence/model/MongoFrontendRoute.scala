@@ -45,28 +45,25 @@ case class MongoShutterSwitch(
 )
 
 object MongoFrontendRoute {
-  private implicit val shutterSwitchFormat: Format[MongoShutterSwitch] =
+  private given Format[MongoShutterSwitch] =
     ( (__ \ "switchFile").format[String]
     ~ (__ \ "statusCode").formatNullable[Int]
     ~ (__ \ "errorPage").formatNullable[String]
     ~ (__ \ "rewriteRule").formatNullable[String]
     )(MongoShutterSwitch.apply, pt => Tuple.fromProductTyped(pt))
 
-  val formats: Format[MongoFrontendRoute] = {
-    implicit val jif = MongoJavatimeFormats.instantFormat
-    implicit val ef  = Environment.format
-    implicit val snf = ServiceName.format
-    ( (__ \ "service"             ).format[ServiceName]
+  val format: Format[MongoFrontendRoute] = {
+    ( (__ \ "service"             ).format[ServiceName](ServiceName.format)
     ~ (__ \ "frontendPath"        ).format[String]
     ~ (__ \ "backendPath"         ).format[String]
-    ~ (__ \ "environment"         ).format[Environment]
+    ~ (__ \ "environment"         ).format[Environment](Environment.format)
     ~ (__ \ "routesFile"          ).format[String]
     ~ (__ \ "markerComments"      ).formatWithDefault[Set[String]](Set.empty)
     ~ (__ \ "shutterKillswitch"   ).formatNullable[MongoShutterSwitch]
     ~ (__ \ "shutterServiceSwitch").formatNullable[MongoShutterSwitch]
     ~ (__ \ "ruleConfigurationUrl").format[String]
     ~ (__ \ "isRegex"             ).formatWithDefault[Boolean](false)
-    ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())
+    ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())(MongoJavatimeFormats.instantFormat)
     )(MongoFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))
   }
 }

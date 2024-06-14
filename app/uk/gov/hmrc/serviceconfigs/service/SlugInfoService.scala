@@ -41,7 +41,7 @@ class SlugInfoService @Inject()(
 , githubRawConnector        : GithubRawConnector
 , configConnector           : ConfigConnector
 , configService             : ConfigService
-)(implicit
+)(using
   ec: ExecutionContext
 ) {
   private val logger = Logger(getClass)
@@ -52,7 +52,7 @@ class SlugInfoService @Inject()(
     updated: Int
   )
 
-  def updateMetadata()(implicit hc: HeaderCarrier): Future[Unit] =
+  def updateMetadata()(using hc: HeaderCarrier): Future[Unit] =
     for {
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
@@ -165,7 +165,7 @@ class SlugInfoService @Inject()(
     serviceName: ServiceName,
     environment: Environment,
     version: Version
-  )(implicit
+  )(using
     hc: HeaderCarrier
   ): Future[Boolean] =
     for {
@@ -179,7 +179,7 @@ class SlugInfoService @Inject()(
     deployment   : ReleasesApiConnector.Deployment,
     deploymentId : String,
     dataTimestamp: Instant
-  )(implicit
+  )(using
     hc: HeaderCarrier
   ): EitherT[Future, String, Unit] =
     for {

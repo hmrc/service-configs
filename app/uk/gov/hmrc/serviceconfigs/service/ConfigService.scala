@@ -44,7 +44,7 @@ class ConfigService @Inject()(
   deployedConfigRepository  : DeployedConfigRepository,
   appConfigService          : AppConfigService,
   teamsAndReposConnector    : TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext) {
+)(using ec: ExecutionContext) {
 
   import ConfigService._
 
@@ -79,7 +79,7 @@ class ConfigService @Inject()(
     serviceName     : ServiceName,
     referenceConfigs: List[DependencyConfig],
     optSlugInfo     : Option[SlugInfo]
-  )(implicit hc: HeaderCarrier): Future[(Config, Map[String, Config])] =
+  )(using hc: HeaderCarrier): Future[(Config, Map[String, Config])] =
     for {
       applicationConfRaw <- optSlugInfo.traverse {
                               // if no slug info (e.g. java apps) get from github
@@ -149,7 +149,7 @@ class ConfigService @Inject()(
     serviceName : ServiceName,
     version     : Option[Version],
     latest      : Boolean // true - latest (as would be deployed), false - as currently deployed
-  )(implicit
+  )(using
     hc: HeaderCarrier
   ): Future[Seq[ConfigSourceEntries]] =
     environment.slugInfoFlag match {
@@ -245,7 +245,7 @@ class ConfigService @Inject()(
           )
     }
 
-  def configByEnvironment(serviceName: ServiceName, environments: Seq[Environment], version: Option[Version], latest: Boolean)(implicit hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
+  def configByEnvironment(serviceName: ServiceName, environments: Seq[Environment], version: Option[Version], latest: Boolean)(using hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
     ConfigEnvironment
       .values
       .filter {
@@ -304,7 +304,7 @@ class ConfigService @Inject()(
                    } yield configKeys
     }
 
-  def appConfig(slugInfo: SlugInfo)(implicit hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
+  def appConfig(slugInfo: SlugInfo)(using hc: HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     for {
       dc      <- lookupDependencyConfigs(Some(slugInfo))
       (ac, _) <- lookupApplicationConf(slugInfo.name, dc, Some(slugInfo))

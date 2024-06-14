@@ -39,11 +39,11 @@ class DeprecationWarningsNotificationService @Inject()(
   serviceRelationshipsRepository            : ServiceRelationshipRepository,
   teamsAndRepositoriesConnector             : TeamsAndRepositoriesConnector,
   configuration : Configuration
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends Logging {
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val futureDatedRuleWindow  = configuration.get[Duration]("deprecation-warnings-notification-service.rule-notification-window")
   private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
@@ -93,7 +93,7 @@ class DeprecationWarningsNotificationService @Inject()(
     }
   }
 
-  private def deprecatedNotifications()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
+  private def deprecatedNotifications()(using hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
     if (endOfLifeNotificationEnabled) {
       for {
         repositories          <- teamsAndRepositoriesConnector.getRepos()

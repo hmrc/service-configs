@@ -29,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class BobbyRulesRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[BobbyRules](
   mongoComponent = mongoComponent,

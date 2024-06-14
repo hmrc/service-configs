@@ -63,7 +63,7 @@ case class DependencyConfig(
 )
 
 trait MongoSlugInfoFormats {
-  private val slugDependencyFormat: OFormat[SlugDependency] =
+  private given OFormat[SlugDependency] =
     ( (__ \ "path"    ).format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "group"   ).format[String]
@@ -75,11 +75,9 @@ trait MongoSlugInfoFormats {
     OWrites[A](_ => Json.obj())
 
   val slugInfoFormat: OFormat[SlugInfo] = {
-    implicit val sdf = slugDependencyFormat
-    implicit val snf = ServiceName.format
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
-    ~ (__ \ "name"             ).format[ServiceName]
+    ~ (__ \ "name"             ).format[ServiceName](ServiceName.format)
     ~ (__ \ "version"          ).format[Version](Version.format)
     ~ OFormat(Reads.pure(""), ignore[String])
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]
@@ -109,7 +107,7 @@ trait MongoSlugInfoFormats {
 object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
 trait ApiSlugInfoFormats {
-  private val slugDependencyFormat: OFormat[SlugDependency] =
+  private given OFormat[SlugDependency] =
     ( (__ \ "path"    ).format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "group"   ).format[String]
@@ -118,11 +116,9 @@ trait ApiSlugInfoFormats {
     )(SlugDependency.apply, pt => Tuple.fromProductTyped(pt))
 
   val slugInfoFormat: OFormat[SlugInfo] = {
-    implicit val sdf = slugDependencyFormat
-    implicit val snf = ServiceName.format
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant]
-    ~ (__ \ "name"             ).format[ServiceName]
+    ~ (__ \ "name"             ).format[ServiceName](ServiceName.format)
     ~ (__ \ "version"          ).format[Version](Version.format)
     ~ (__ \ "classpath"        ).format[String]
     ~ (__ \ "dependencies"     ).format[List[SlugDependency]]

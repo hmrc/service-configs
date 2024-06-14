@@ -33,12 +33,12 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeploymentEventRepository @Inject()(
   val mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeploymentEventRepository.DeploymentEvent](
   mongoComponent = mongoComponent,
   collectionName = DeploymentEventRepository.collectionName,
-  domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormats,
+  domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormat,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName")),
                      IndexModel(Indexes.ascending("deploymentId")),
@@ -109,19 +109,26 @@ object DeploymentEventRepository {
   )
 
   object DeploymentEvent {
-    implicit val mongoFormats: Format[DeploymentEvent] = {
-      implicit val instantFormat = MongoJavatimeFormats.instantFormat
-      implicit val ef = Environment.format
-      implicit val snf = ServiceName.format
-      implicit val vf = Version.format
-      ((__ \ "serviceName").format[ServiceName]
-        ~ (__ \ "environment").format[Environment]
-        ~ (__ \ "version").format[Version]
-        ~ (__ \ "deploymentId").format[String]
-        ~ (__ \ "configChanged").formatNullable[Boolean]
-        ~ (__ \ "configId").formatNullable[String]
-        ~ (__ \ "lastUpdated").format[Instant]
-        )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
+    val apiFormat: Format[DeploymentEvent] = {
+      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"  ).format[Environment](Environment.format)
+      ~ (__ \ "version"      ).format[Version](Version.format)
+      ~ (__ \ "deploymentId" ).format[String]
+      ~ (__ \ "configChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"     ).formatNullable[String]
+      ~ (__ \ "lastUpdated"  ).format[Instant]
+      )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
+    }
+
+    val mongoFormat: Format[DeploymentEvent] = {
+      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"  ).format[Environment](Environment.format)
+      ~ (__ \ "version"      ).format[Version](Version.format)
+      ~ (__ \ "deploymentId" ).format[String]
+      ~ (__ \ "configChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"     ).formatNullable[String]
+      ~ (__ \ "lastUpdated"  ).format[Instant](MongoJavatimeFormats.instantFormat)
+      )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
     }
   }
 }

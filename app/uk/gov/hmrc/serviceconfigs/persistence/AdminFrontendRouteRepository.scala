@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AdminFrontendRouteRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[AdminFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "adminFrontendRoutes",

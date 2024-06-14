@@ -29,11 +29,11 @@ import scala.concurrent.ExecutionContext
 class BobbyRulesController @Inject()(
   bobbyRulesService: BobbyRulesService,
   mcc              : MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(mcc) {
 
-  private implicit val bdf: Format[BobbyRules] = BobbyRules.apiFormat
+  private given Format[BobbyRules] = BobbyRules.apiFormat
 
   val allRules: Action[AnyContent] =
     Action.async {

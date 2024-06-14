@@ -34,7 +34,7 @@ class AppConfigService @Inject()(
   lastHashRepository        : LastHashRepository,
   deploymentConfigRepository: DeploymentConfigRepository,
   configAsCodeConnector     : ConfigAsCodeConnector
-)(implicit
+)(using
   ec : ExecutionContext
 ) {
   private val logger = Logger(this.getClass)
