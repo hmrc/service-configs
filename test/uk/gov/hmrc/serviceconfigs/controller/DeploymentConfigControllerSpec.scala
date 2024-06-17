@@ -40,10 +40,10 @@ class DeploymentConfigControllerSpec
      with Matchers
      with WireMockSupport
      with OptionValues
-     with MockitoSugar {
+     with MockitoSugar:
 
-  "deploymentConfig" should {
-    "return configs and get repositories when team name is a defined parameters" in new Setup {
+  "deploymentConfig" should:
+    "return configs and get repositories when team name is a defined parameters" in new Setup:
       val teamName = TeamName("test")
       val applied = true
 
@@ -78,9 +78,8 @@ class DeploymentConfigControllerSpec
         repoType = Some("Service"),
         teamName = Some(teamName)
       )
-    }
 
-    "return configs and not get repositories when team name is not defined" in new Setup {
+    "return configs and not get repositories when team name is not defined" in new Setup:
       val applied = false
 
       when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
@@ -108,19 +107,15 @@ class DeploymentConfigControllerSpec
       }]""")
 
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     implicit val as: ActorSystem = ActorSystem()
 
     val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val mockDeploymentConfigRepository    = mock[DeploymentConfigRepository]
 
-    val controller = new DeploymentConfigController(
+    val controller = DeploymentConfigController(
       deploymentConfigRepository    = mockDeploymentConfigRepository,
       teamsAndRepositoriesConnector = mockTeamsAndRepositoriesConnector,
       cc                            = stubControllerComponents()
     )
-  }
-}

@@ -27,13 +27,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class DeploymentConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[DeploymentConfig] {
+     with DefaultPlayMongoRepositorySupport[DeploymentConfig]:
 
-  override val repository: DeploymentConfigRepository = new DeploymentConfigRepository(mongoComponent)
+  override val repository: DeploymentConfigRepository =
+    DeploymentConfigRepository(mongoComponent)
 
-  "DeploymentConfigRepository" should {
+  "DeploymentConfigRepository" should:
     val applied = true
-    "replaceEnv correctly" in {
+    "replaceEnv correctly" in:
       val developmentDeploymentConfigs = Seq(
         mkDeploymentConfig(ServiceName("service1"), Environment.Development, applied),
         mkDeploymentConfig(ServiceName("service2"), Environment.Development, applied)
@@ -58,9 +59,8 @@ class DeploymentConfigRepositorySpec
 
       repository.find(applied, Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
       repository.find(applied, Seq(Environment.Production )).futureValue shouldBe productionDeploymentConfigs
-    }
 
-    "find one by matching service name and environment" in {
+    "find one by matching service name and environment" in:
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
@@ -86,9 +86,8 @@ class DeploymentConfigRepositorySpec
       repository.find(applied , Seq(Environment.Development), Seq(serviceName1)).futureValue shouldBe developmentDeploymentConfigs         .filter(_.serviceName == serviceName1)
       repository.find(applied , Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigs          .filter(_.serviceName == serviceName1)
       repository.find(!applied, Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigsNotApplied.filter(_.serviceName == serviceName1)
-    }
 
-    "find by matching service names" in {
+    "find by matching service names" in:
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
@@ -106,8 +105,6 @@ class DeploymentConfigRepositorySpec
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
 
       repository.find(applied, serviceNames = Seq(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
-    }
-  }
 
   def mkDeploymentConfig(
     serviceName : ServiceName,
@@ -138,4 +135,3 @@ class DeploymentConfigRepositorySpec
       "slots"        -> deploymentConfig.slots.toString,
       "instances"    -> deploymentConfig.instances.toString
     )
-}

@@ -33,7 +33,7 @@ class ServiceDependenciesConnector @Inject() (
   servicesConfig: ServicesConfig)
 (using
   ec : ExecutionContext,
-) extends Logging {
+) extends Logging:
 
   import HttpReads.Implicits._
 
@@ -46,13 +46,11 @@ class ServiceDependenciesConnector @Inject() (
     httpClientV2
       .get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=$versionRange")
       .execute[Seq[AffectedService]]
-}
 
 case class AffectedService(serviceName: ServiceName, teamNames: List[TeamName])
 
-object AffectedService {
+object AffectedService:
   val reads: Reads[AffectedService] =
     ( (__ \ "repoName").read[String      ].map(ServiceName.apply)
     ~ (__ \ "teams"   ).read[List[String]].map(_.map(TeamName.apply))
     )(AffectedService.apply _)
-}

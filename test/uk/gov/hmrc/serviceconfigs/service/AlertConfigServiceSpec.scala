@@ -37,16 +37,16 @@ class AlertConfigServiceSpec
      with Matchers
      with ScalaFutures
      with IntegrationPatience
-     with MockitoSugar {
+     with MockitoSugar:
 
   import AlertConfigService._
 
-  "AlertConfigService.update" should {
-    "update configs when run for the first time" in new Setup {
+  "AlertConfigService.update" should:
+    "update configs when run for the first time" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test1")))
       when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(None))
-      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
-      when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
+      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
+      when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test1")).thenReturn(Future.unit)
 
@@ -56,13 +56,12 @@ class AlertConfigServiceSpec
       verify(mockLastHashRepository               , times(1)).getHash("alert-config")
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockLastHashRepository               , times(1)).update("alert-config", "Test1")
-    }
 
-    "update configs when Artifactory returns a new Hash" in new Setup {
+    "update configs when Artifactory returns a new Hash" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test2")))
       when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(Some("Test1")))
-      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
-      when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(new ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
+      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
+      when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test2")).thenReturn(Future.unit)
 
@@ -70,19 +69,16 @@ class AlertConfigServiceSpec
 
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockLastHashRepository               , times(1)).update("alert-config", "Test2")
-    }
 
-    "return successful when Artifactory has no updated Hash" in new Setup {
+    "return successful when Artifactory has no updated Hash" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()      ).thenReturn(Future.successful(Some("Test3")))
       when(mockLastHashRepository.getHash("alert-config")).thenReturn(Future.successful(Some("Test3")))
 
       alertConfigService.update().futureValue
-    }
-  }
 
-  "AlertConfigService.processZip" should {
-    "produce a SensuConfig that contains app name and handler name" in {
-      val zip = new ZipInputStream(new FileInputStream("./test/resources/happy-output.zip"))
+  "AlertConfigService.processZip" should:
+    "produce a SensuConfig that contains app name and handler name" in:
+      val zip  = ZipInputStream(FileInputStream("./test/resources/happy-output.zip"))
       val file = processZip(zip)
 
       file.alertConfigs.exists(_.app == "accessibility-statement-frontend.public.mdtp") shouldBe true
@@ -90,10 +86,9 @@ class AlertConfigServiceSpec
 
       file.productionHandler.get("yta") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team yta -e aws_production"))
       file.productionHandler.get("platform-ui") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
-    }
 
-    "produce a SensuConfig that contains app name and None, when handler does not exist" in {
-      val zip = new ZipInputStream(new FileInputStream("./test/resources/missing-handler-output.zip"))
+    "produce a SensuConfig that contains app name and None, when handler does not exist" in:
+      val zip  = ZipInputStream(FileInputStream("./test/resources/missing-handler-output.zip"))
       val file = processZip(zip)
 
       file.alertConfigs.exists(_.app == "accessibility-statement-frontend.public.mdtp") shouldBe true
@@ -101,66 +96,56 @@ class AlertConfigServiceSpec
 
       file.productionHandler.get("yta") shouldBe None
       file.productionHandler.get("platform-ui") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
-    }
-  }
 
-  "AlertConfigService.toAlertEnvironmentHandler" should {
+  "AlertConfigService.toAlertEnvironmentHandler" should:
     val locations = Seq(RepoName("test") -> "line1")
-    "produce an AlertEnvironmentHandler for a service that has alert config enabled" in {
+    "produce an AlertEnvironmentHandler for a service that has alert config enabled" in:
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",
         Seq("TEST"))),
         Map("TEST" -> Handler("test/command"))
       )
       toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = true, location = "line1"))
-    }
 
-    "produce an AlertEnvironmentHandler for a service that has Alert Config Disabled" in {
+    "produce an AlertEnvironmentHandler for a service that has Alert Config Disabled" in:
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",
         Seq("TEST"))),
         Map("TEST" -> Handler("test/noop.rb"))
       )
       toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
-    }
 
-    "produce an AlertEnvironmentHandler when a service has No Matching Handler Found in Production" in {
+    "produce an AlertEnvironmentHandler when a service has No Matching Handler Found in Production" in:
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",
         Seq("TEST")))
       )
       toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
-    }
 
-    "produce an AlertEnvironmentHandler for a service that has No Handler Name Defined in Config" in {
+    "produce an AlertEnvironmentHandler for a service that has No Handler Name Defined in Config" in:
       val sensuConfig = SensuConfig(
         Seq(AlertConfig("test.public.mdtp",
         Seq())),
         Map("TEST" -> Handler("test/command"))
       )
       toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
-    }
 
-    "produce an empty list when there is No Existing Alert Config" in {
+    "produce an empty list when there is No Existing Alert Config" in:
       val sensuConfig = SensuConfig(
         Seq(),
         Map("TEST" -> Handler("test/command"))
       )
       toAlertEnvironmentHandler(sensuConfig, Nil) shouldBe List.empty
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     lazy val mockLastHashRepository                = mock[LastHashRepository]
     lazy val mockAlertEnvironmentHandlerRepository = mock[AlertEnvironmentHandlerRepository]
     lazy val mockArtifactoryConnector              = mock[ArtifactoryConnector]
     lazy val mockConfigAsCodeConnector             = mock[ConfigAsCodeConnector]
 
-    val alertConfigService = new AlertConfigService(
+    val alertConfigService = AlertConfigService(
       mockAlertEnvironmentHandlerRepository,
       mockLastHashRepository,
       mockArtifactoryConnector,
       mockConfigAsCodeConnector
     )
-  }
-}

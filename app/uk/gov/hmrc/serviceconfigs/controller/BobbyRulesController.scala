@@ -31,13 +31,12 @@ class BobbyRulesController @Inject()(
   mcc              : MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
-
-  private given Format[BobbyRules] = BobbyRules.apiFormat
+) extends BackendController(mcc):
 
   val allRules: Action[AnyContent] =
-    Action.async {
-      bobbyRulesService.findAllRules()
-        .map(br => Ok(Json.toJson(br)))
-    }
-}
+    given Format[BobbyRules] = BobbyRules.apiFormat
+    Action.async:
+      bobbyRulesService
+        .findAllRules()
+        .map: br =>
+          Ok(Json.toJson(br))

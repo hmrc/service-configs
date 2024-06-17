@@ -40,8 +40,7 @@ class LatestConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("repoName", "fileName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -59,13 +58,14 @@ class LatestConfigRepository @Inject()(
   def put(repoName: String)(config: Map[String, String]): Future[Unit] =
     MongoUtils.replace[LatestConfigRepository.LatestConfig](
       collection    = collection,
-      newVals       = config.toSeq.map { case (fileName, content) =>
-                        LatestConfigRepository.LatestConfig(
-                          repoName = repoName,
-                          fileName = fileName,
-                          content  = content
-                        )
-                      },
+      newVals       = config.toSeq.map:
+                        case (fileName, content) =>
+                          LatestConfigRepository.LatestConfig(
+                            repoName = repoName,
+                            fileName = fileName,
+                            content  = content
+                          )
+                      ,
       oldValsFilter = equal("repoName", repoName),
       compareById   = (a, b) =>
                         a.repoName == b.repoName &&
@@ -76,9 +76,8 @@ class LatestConfigRepository @Inject()(
                           equal("fileName", entry.fileName)
                         )
     )
-}
 
-object LatestConfigRepository {
+object LatestConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -95,4 +94,3 @@ object LatestConfigRepository {
     ~ (__ \ "fileName").format[String]
     ~ (__ \ "content" ).format[String]
     )(LatestConfig.apply, pt => Tuple.fromProductTyped(pt))
-}

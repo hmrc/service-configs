@@ -33,19 +33,19 @@ class BobbyRulesConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
   config      : Configuration
-)( using ec: ExecutionContext
-) extends Logging {
+)(using
+  ec: ExecutionContext
+) extends Logging:
 
   private given HeaderCarrier = HeaderCarrier()
 
-  private val bobbyRulesUrl: String = config.get[String]("bobby.url")
+  private val bobbyRulesUrl: String =
+    config.get[String]("bobby.url")
 
-  def findAllRules(): Future[BobbyRules] = {
+  def findAllRules(): Future[BobbyRules] =
     given Format[BobbyRules] = BobbyRules.apiFormat
     httpClientV2
       .get(url"$bobbyRulesUrl")
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[BobbyRules]
-  }
-}

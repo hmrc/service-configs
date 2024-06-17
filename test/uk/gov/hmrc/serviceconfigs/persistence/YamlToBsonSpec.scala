@@ -27,7 +27,7 @@ import org.yaml.snakeyaml.Yaml
 class YamlToBsonSpec
   extends AnyWordSpec
      with Matchers
-     with TryValues {
+     with TryValues:
 
   val yaml =
     """
@@ -51,17 +51,13 @@ class YamlToBsonSpec
     )
   )
 
-  "YamlToBson" should {
+  "YamlToBson" should:
     import scala.jdk.CollectionConverters._
 
-    "convert yaml to bson" in {
-      val data   = new Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
+    "convert yaml to bson" in:
+      val data = Yaml().load(yaml).asInstanceOf[util.LinkedHashMap[String, Object]].asScala
       YamlToBson(data).success.value shouldBe bson
-    }
 
-    "escapes dots in keynames" in {
-      val data   = new Yaml().load("dot.dot: dash").asInstanceOf[util.LinkedHashMap[String, Object]].asScala
+    "escapes dots in keynames" in:
+      val data = Yaml().load("dot.dot: dash").asInstanceOf[util.LinkedHashMap[String, Object]].asScala
       YamlToBson(data).success.value shouldBe BsonDocument("dot\\.dot" -> BsonString("dash"))
-    }
-  }
-}

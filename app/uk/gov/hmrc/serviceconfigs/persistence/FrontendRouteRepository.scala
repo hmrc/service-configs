@@ -45,14 +45,13 @@ class FrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-){
-
+):
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
 
   private val logger = Logger(this.getClass)
 
-  def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
+  def update(frontendRoute: MongoFrontendRoute): Future[Unit] =
     logger.debug(
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
@@ -69,10 +68,8 @@ class FrontendRouteRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
-      .recover {
-        case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
-      }
-  }
+      .recover:
+        case lastError => throw RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
 
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
     *
@@ -80,26 +77,22 @@ class FrontendRouteRepository @Inject()(
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
-  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
-
+  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] =
     def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection
         .find(query)
         .limit(100)
         .toFuture()
-        .map { res =>
+        .map: res =>
           logger.info(s"query $query returned ${res.size} results")
           res
-        }
 
     FrontendRouteRepository
       .queries(path)
       .toList
-      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) { (prevRes, query) =>
-        if (prevRes.isEmpty) search(query)
-        else Future.successful(prevRes)
-      }
-  }
+      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty): (prevRes, query) =>
+        if   prevRes.isEmpty then search(query)
+        else                      Future.successful(prevRes)
 
   def findByService(serviceName: ServiceName): Future[Seq[MongoFrontendRoute]] =
     collection
@@ -136,9 +129,8 @@ class FrontendRouteRepository @Inject()(
       .distinct[String]("service")
       .toFuture()
       .map(_.map(ServiceName.apply))
-}
 
-object FrontendRouteRepository {
+object FrontendRouteRepository:
   def pathsToRegex(paths: Seq[String]): String =
     paths
       .map(_.replace("-", "(-|\\\\-)")) // '-' is escaped in regex expression
@@ -166,4 +158,3 @@ object FrontendRouteRepository {
       .toSeq
       .dropRight(1)
       .map(toQuery)
-}

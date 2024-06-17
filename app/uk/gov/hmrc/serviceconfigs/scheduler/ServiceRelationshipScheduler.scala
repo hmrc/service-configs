@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
 import play.api.inject.ApplicationLifecycle
-import play.api.Logging
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
@@ -37,17 +36,14 @@ class ServiceRelationshipScheduler @Inject()(
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils with Logging {
+) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
     label           = "ServiceRelationshipScheduler",
     schedulerConfig = schedulerConfigs.serviceRelationshipScheduler,
     lock            = ScheduledLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfigs.serviceRelationshipScheduler.interval)
-  ) {
+  ):
     logger.info("Updating service relationships")
-    for {
+    for
       _ <- serviceRelationshipService.updateServiceRelationships()
-    } yield logger.info("Finished updating service relationships")
-  }
-
-}
+    yield logger.info("Finished updating service relationships")

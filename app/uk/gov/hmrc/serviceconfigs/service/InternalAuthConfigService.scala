@@ -28,11 +28,10 @@ class InternalAuthConfigService @Inject()(
 , internalAuthConfigRepository: InternalAuthConfigRepository
 , parser                      : InternalAuthConfigParser
 )(using ec: ExecutionContext
-) {
+):
 
   def updateInternalAuth(): Future[Unit] =
-    for {
+    for
       zip <- configAsCodeConnector.streamInternalAuth()
       _   <- internalAuthConfigRepository.putAll(parser.parseZip(zip))
-    } yield ()
-}
+    yield ()

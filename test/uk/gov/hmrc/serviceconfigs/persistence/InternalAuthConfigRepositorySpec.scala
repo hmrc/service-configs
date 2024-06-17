@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class InternalAuthConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[InternalAuthConfig] {
+     with DefaultPlayMongoRepositorySupport[InternalAuthConfig]:
 
-  override val repository: InternalAuthConfigRepository = new InternalAuthConfigRepository(mongoComponent)
+  override val repository: InternalAuthConfigRepository =
+    InternalAuthConfigRepository(mongoComponent)
 
-  "InternalAuthConfigRepository" should {
-    "put and retrieve" in {
+  "InternalAuthConfigRepository" should:
+    "put and retrieve" in:
       val config1 = InternalAuthConfig(ServiceName("serviceName1"), InternalAuthEnvironment.Qa,  GrantType.Grantee)
       val config2 = InternalAuthConfig(ServiceName("serviceName2"), InternalAuthEnvironment.Prod, GrantType.Grantor)
       repository.putAll(Set(config1, config2)).futureValue
@@ -42,6 +43,3 @@ class InternalAuthConfigRepositorySpec
       repository.putAll(Set(config1.copy(grantType = GrantType.Grantor))).futureValue
       repository.findByService(config1.serviceName).futureValue shouldBe Seq(config1.copy(grantType = GrantType.Grantor))
       repository.findByService(config2.serviceName).futureValue shouldBe Seq.empty
-    }
-  }
-}

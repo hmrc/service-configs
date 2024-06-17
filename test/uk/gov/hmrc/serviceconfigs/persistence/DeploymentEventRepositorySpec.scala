@@ -28,9 +28,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class DeploymentEventRepositorySpec
   extends AnyWordSpec
     with Matchers
-    with DefaultPlayMongoRepositorySupport[DeploymentEvent] {
+    with DefaultPlayMongoRepositorySupport[DeploymentEvent]:
 
-  override val repository: DeploymentEventRepository = new DeploymentEventRepository(mongoComponent)
+  override val repository: DeploymentEventRepository =
+    DeploymentEventRepository(mongoComponent)
 
   val now: Instant = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
   val yesterday = now.minusSeconds(24 * 60 * 60)
@@ -45,28 +46,19 @@ class DeploymentEventRepositorySpec
     now
   )
 
-  "DeploymentEventRepository" should {
+  "DeploymentEventRepository" should:
 
-    "successfully insert and find a DeploymentEvent" in {
+    "successfully insert and find a DeploymentEvent" in:
       repository.put(event).futureValue
 
       val foundEvent = repository.findAllForService(ServiceName("testService"), DeploymentDateRange(yesterday, now)).futureValue
-
       foundEvent shouldBe Seq(event)
-    }
 
-    "successfully upsert a DeploymentEvent" in {
+    "successfully upsert a DeploymentEvent" in:
       repository.put(event).futureValue
 
       val updatedEvent = event.copy(configChanged = Some(false))
-
       repository.put(updatedEvent).futureValue
 
       val foundEvent = repository.findAllForService(ServiceName("testService"), DeploymentDateRange(yesterday, now)).futureValue
-
       foundEvent shouldBe Seq(updatedEvent)
-    }
-
-
-  }
-}

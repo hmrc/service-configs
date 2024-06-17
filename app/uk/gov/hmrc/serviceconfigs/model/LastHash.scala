@@ -21,9 +21,8 @@ import play.api.libs.json.{Format, __}
 
 case class LastHash(key: String, hash: String)
 
-object LastHash {
+object LastHash:
   val formats: Format[LastHash] =
     ( (__ \ "key" ).format[String]
     ~ (__ \ "hash").format[String]
     )(LastHash.apply, pt => Tuple.fromProductTyped(pt))
-}

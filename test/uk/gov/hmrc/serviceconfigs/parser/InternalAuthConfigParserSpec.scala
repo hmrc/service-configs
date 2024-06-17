@@ -24,10 +24,10 @@ import java.util.zip.ZipInputStream
 
 class InternalAuthConfigParserSpec
   extends AnyWordSpec
-  with Matchers {
+     with Matchers:
 
-  lazy val configZip = new ZipInputStream(this.getClass.getResource("/internal-auth-config-main.zip").openStream())
-  lazy val parser    = new InternalAuthConfigParser
+  lazy val configZip = ZipInputStream(this.getClass.getResource("/internal-auth-config-main.zip").openStream())
+  lazy val parser    = InternalAuthConfigParser()
 
   val grants =
     """
@@ -52,7 +52,6 @@ class InternalAuthConfigParserSpec
       |      actions: [ '*' ]
       |""".stripMargin
 
-
   val resourceTypes =
     """
       |- resourceType: internal-auth
@@ -66,28 +65,22 @@ class InternalAuthConfigParserSpec
       |  granteeTypes: [ members-of-team, owners-of-service, service ]
       |""".stripMargin
 
-
-  "An InternalAuthConfigParser" should {
-    "parse a zip file " in {
+  "An InternalAuthConfigParser" should:
+    "parse a zip file " in:
       val result: Set[InternalAuthConfig] = parser.parseZip(configZip)
       result.size shouldBe 218
-    }
 
-    "parse grants as grantees" in {
+    "parse grants as grantees" in:
       parser.parseGrants(grants, InternalAuthEnvironment.Qa) shouldBe
         Set(
           InternalAuthConfig(ServiceName("hello-world-object-store"), InternalAuthEnvironment.Qa, GrantType.Grantee),
           InternalAuthConfig(ServiceName("internal-auth-perf-test") , InternalAuthEnvironment.Qa, GrantType.Grantee)
         )
-    }
 
-    "parse resources definitions as grantors" in {
+    "parse resources definitions as grantors" in:
       parser.parseGrants(resourceTypes, InternalAuthEnvironment.Prod) shouldBe
         Set(
           InternalAuthConfig(ServiceName("internal-auth")               , InternalAuthEnvironment.Prod, GrantType.Grantor),
           InternalAuthConfig(ServiceName("internal-auth-admin-frontend"), InternalAuthEnvironment.Prod, GrantType.Grantor),
           InternalAuthConfig(ServiceName("object-store")                , InternalAuthEnvironment.Prod, GrantType.Grantor)
         )
-    }
-  }
-}

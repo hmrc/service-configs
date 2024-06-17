@@ -31,22 +31,19 @@ class AdminRoutesConfigController @Inject()(
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
   private given Format[AdminFrontendRoute] = AdminFrontendRoute.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findByService(serviceName)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def allAdminFrontendServices(): Action[AnyContent] =
-    Action.async {
-      given Format[ServiceName] = ServiceName.format
+    given Format[ServiceName] = ServiceName.format
+    Action.async:
       db.findAllAdminFrontendServices()
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
-}

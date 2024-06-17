@@ -32,12 +32,12 @@ class ServiceRelationshipController @Inject()(
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
-  def serviceRelationships(serviceName: ServiceName): Action[AnyContent] = Action.async {
+  def serviceRelationships(serviceName: ServiceName): Action[AnyContent] =
     given OWrites[ServiceRelationships] = ServiceRelationships.writes
-    serviceRelationshipService.getServiceRelationships(serviceName).map { res =>
-      Ok(Json.toJson(res))
-    }
-  }
-}
+    Action.async:
+      serviceRelationshipService
+        .getServiceRelationships(serviceName)
+        .map: res =>
+          Ok(Json.toJson(res))

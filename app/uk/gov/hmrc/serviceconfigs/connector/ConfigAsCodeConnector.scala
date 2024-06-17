@@ -38,7 +38,7 @@ class ConfigAsCodeConnector @Inject()(
 )(using
   ec : ExecutionContext,
   mat: Materializer
-) extends Logging {
+) extends Logging:
   import HttpReads.Implicits._
 
   private given HeaderCarrier = HeaderCarrier()
@@ -64,7 +64,7 @@ class ConfigAsCodeConnector @Inject()(
   def streamUpscanAppConfig(): Future[ZipInputStream] =
     streamGithub(RepoName("upscan-app-config"))
 
-  def getLatestCommitId(repo: RepoName): Future[CommitId] = {
+  def getLatestCommitId(repo: RepoName): Future[CommitId] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD"
     httpClientV2
       .get(url)
@@ -75,15 +75,13 @@ class ConfigAsCodeConnector @Inject()(
       )
       .withProxy
       .execute[Either[UpstreamErrorResponse, HttpResponse]]
-      .map {
+      .map:
         case Right(rsp)  => CommitId(rsp.body)
         case Left(error) =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
-      }
-    }
 
-  def streamGithub(repo: RepoName): Future[ZipInputStream] = {
+  def streamGithub(repo: RepoName): Future[ZipInputStream] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/HEAD"
     httpClientV2
       .get(url)
@@ -91,13 +89,10 @@ class ConfigAsCodeConnector @Inject()(
       .withProxy
       .transform(_.withRequestTimeout(120.seconds))
       .stream[Either[UpstreamErrorResponse, Source[ByteString, _]]]
-      .map {
+      .map:
         case Right(source) =>
           logger.info(s"Successfully streaming $url")
-          new ZipInputStream(source.runWith(StreamConverters.asInputStream()))
+          ZipInputStream(source.runWith(StreamConverters.asInputStream()))
         case Left(error)   =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
-      }
-  }
-}

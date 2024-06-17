@@ -36,9 +36,9 @@ class GithubRawConnector @Inject()(
 , githubConfig: GithubConfig
 )(using
   ec: ExecutionContext
-) {
+):
 
-  def decommissionedServices()(using hc: HeaderCarrier): Future[List[ServiceName]] = {
+  def decommissionedServices()(using hc: HeaderCarrier): Future[List[ServiceName]] =
     val url = url"${githubConfig.githubRawUrl}/hmrc/decommissioning/main/decommissioned-microservices.yaml"
     httpClientV2
       .get(url)
@@ -48,14 +48,12 @@ class GithubRawConnector @Inject()(
       .flatMap(
         _.flatMap(res =>
           Try(
-            new Yaml()
+            Yaml()
               .load(res.body)
               .asInstanceOf[java.util.List[java.util.LinkedHashMap[String, String]]].asScala.toList
               .flatMap(_.asScala.get("service_name").map(ServiceName.apply).toList)
           ).toEither
         )
-        .leftMap(e => new RuntimeException(s"Failed to call $url: $e", e))
+        .leftMap(e => RuntimeException(s"Failed to call $url: $e", e))
         .fold(Future.failed, Future.successful)
       )
-  }
-}

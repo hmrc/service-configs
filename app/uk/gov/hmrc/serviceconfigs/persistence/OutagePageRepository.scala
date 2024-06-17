@@ -37,8 +37,7 @@ class OutagePageRepository @Inject() (
 , domainFormat   = OutagePage.outagePageFormat
 , indexes        = Seq(IndexModel(ascending("serviceName"), IndexOptions().unique(true)))
 , extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-){
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -55,4 +54,3 @@ class OutagePageRepository @Inject() (
       filterById    = entry =>
                         equal("serviceName", entry.serviceName)
     )
-}

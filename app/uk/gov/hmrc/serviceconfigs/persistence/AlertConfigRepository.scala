@@ -38,8 +38,7 @@ class AlertEnvironmentHandlerRepository @Inject()(
                      IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -61,4 +60,3 @@ class AlertEnvironmentHandlerRepository @Inject()(
       .find()
       .toFuture()
       .map(_.toList)
-}

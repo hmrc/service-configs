@@ -43,32 +43,28 @@ class DeprecationWarningsNotificationServiceSpec
   with Matchers
   with ScalaFutures
   with IntegrationPatience
-  with MockitoSugar {
+  with MockitoSugar:
 
+  "DeprecationWarningsNotificationService.sendNotifications" should:
 
-  "DeprecationWarningsNotificationService.sendNotifications" should {
-
-    "do nothing if out of hours" in new Setup{
+    "do nothing if out of hours" in new Setup:
       val outOfHoursInstant = LocalDateTime.of(2023, 9, 22, 22, 0, 0).toInstant(ZoneOffset.UTC)
       underTest.sendNotifications(outOfHoursInstant)
       verifyNoInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockDeprecationWarningsNotificationRepository, mockSlackNotificationsConnector)
-    }
 
-    "do nothing if the service has already been run in the notifications period" in new Setup {
+    "do nothing if the service has already been run in the notifications period" in new Setup:
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(yesterday)))
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyNoInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
-    }
 
-    "do nothing if the service has already been run today" in new Setup {
+    "do nothing if the service has already been run today" in new Setup:
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(nowAsInstant)))
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyNoInteractions(mockBobbyRulesService, mockServiceDependenciesConnector, mockSlackNotificationsConnector)
-    }
 
-    "do nothing if the service is exempt and there are no deprecated repositories" in new Setup {
+    "do nothing if the service is exempt and there are no deprecated repositories" in new Setup:
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib"       , range)).thenReturn(Future.successful(Seq(sd3)))
@@ -81,9 +77,8 @@ class DeprecationWarningsNotificationServiceSpec
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyNoInteractions(mockSlackNotificationsConnector)
-    }
 
-    "must not run bobby notifications when disabled" in new Setup(bobbyNotification = false) {
+    "must not run bobby notifications when disabled" in new Setup(bobbyNotification = false):
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
 
       when(mockTeamsAndRepositoriesConnector.getRepos()).thenReturn(Future.successful(Seq(Repo(RepoName("Test"), Seq.empty, None))))
@@ -93,9 +88,8 @@ class DeprecationWarningsNotificationServiceSpec
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyNoInteractions(mockBobbyRulesService)
       verifyNoInteractions(mockServiceDependenciesConnector)
-    }
 
-    "must not run deprecated notifications when disabled" in new Setup(endOfLifeNotification = false) {
+    "must not run deprecated notifications when disabled" in new Setup(endOfLifeNotification = false):
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
       when(mockServiceDependenciesConnector.getAffectedServices(organisation, "exampleLib", range)).thenReturn(Future.successful(Seq(sd3)))
@@ -106,9 +100,8 @@ class DeprecationWarningsNotificationServiceSpec
       underTest.sendNotifications(nowAsInstant).futureValue
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)
       verifyNoInteractions(mockServiceRelationshipRepository)
-    }
 
-    "must not run any notifications if both are disabled" in new Setup(bobbyNotification = false, endOfLifeNotification = false) {
+    "must not run any notifications if both are disabled" in new Setup(bobbyNotification = false, endOfLifeNotification = false):
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockDeprecationWarningsNotificationRepository.setLastRunTime(nowAsInstant)).thenReturn(Future.unit)
 
@@ -117,10 +110,8 @@ class DeprecationWarningsNotificationServiceSpec
       verifyNoInteractions(mockServiceRelationshipRepository)
       verifyNoInteractions(mockBobbyRulesService)
       verifyNoInteractions(mockServiceDependenciesConnector)
-    }
 
-    "send deprecated notifications to relevant teams" in new Setup {
-
+    "send deprecated notifications to relevant teams" in new Setup:
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
@@ -139,10 +130,8 @@ class DeprecationWarningsNotificationServiceSpec
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(using any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(using any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(using any[HeaderCarrier])
-    }
 
-    "send deprecated notifications to relevant teams and group repos belong to same team" in new Setup {
-
+    "send deprecated notifications to relevant teams and group repos belong to same team" in new Setup:
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(BobbyRules(Seq.empty, Seq.empty)))
 
@@ -161,9 +150,8 @@ class DeprecationWarningsNotificationServiceSpec
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification1))(using any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification2))(using any[HeaderCarrier])
       verify(mockSlackNotificationsConnector, times(1)).sendMessage(eqTo(expectedSlackNotification3))(using any[HeaderCarrier])
-    }
 
-    "run for the first time" in new Setup {
+    "run for the first time" in new Setup:
       when(mockConfiguration.getOptional[String]("deprecation-warnings-notification-service.test-team")).thenReturn(None)
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(None))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
@@ -177,9 +165,8 @@ class DeprecationWarningsNotificationServiceSpec
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
-    }
 
-    "be run if the last time the service was run before the notifications period" in new Setup {
+    "be run if the last time the service was run before the notifications period" in new Setup:
       when(mockConfiguration.getOptional[String]("deprecation-warnings-notification-service.test-team")).thenReturn(None)
       when(mockDeprecationWarningsNotificationRepository.getLastWarningsRunTime()).thenReturn(Future.successful(Some(eightDays)))
       when(mockBobbyRulesService.findAllRules()).thenReturn(Future.successful(bobbyRules))
@@ -192,10 +179,8 @@ class DeprecationWarningsNotificationServiceSpec
 
       underTest.sendNotifications(nowAsInstant).futureValue
       verify(mockSlackNotificationsConnector, times(2)).sendMessage(any[SlackNotificationRequest])(using any[HeaderCarrier])
-    }
-  }
 
-  case class Setup(bobbyNotification: Boolean = true, endOfLifeNotification: Boolean = true)  {
+  case class Setup(bobbyNotification: Boolean = true, endOfLifeNotification: Boolean = true):
 
     val hc = HeaderCarrier()
     val team1 = TeamName("Team1")
@@ -242,6 +227,3 @@ class DeprecationWarningsNotificationServiceSpec
     when(mockConfiguration.get[Boolean]("deprecation-warnings-notification-service.end-of-life-notification-enabled")).thenReturn(endOfLifeNotification)
 
     val underTest = new DeprecationWarningsNotificationService(mockBobbyRulesService, mockServiceDependenciesConnector, mockDeprecationWarningsNotificationRepository, mockSlackNotificationsConnector, mockServiceRelationshipRepository, mockTeamsAndRepositoriesConnector,  mockConfiguration)
-  }
-
-}

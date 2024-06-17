@@ -32,25 +32,22 @@ class NginxConfigConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
   nginxConfig : NginxConfig
-)(using ec: ExecutionContext
-) extends Logging {
+)(using
+  ec: ExecutionContext
+) extends Logging:
 
   private given HeaderCarrier = HeaderCarrier()
 
-  def getNginxRoutesFile(fileName: String, environment: Environment): Future[NginxConfigFile] = {
+  def getNginxRoutesFile(fileName: String, environment: Environment): Future[NginxConfigFile] =
     val url = url"${githubConfig.githubRawUrl}/hmrc/${nginxConfig.configRepo}/${nginxConfig.configRepoBranch}/${environment.asString}/$fileName"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[HttpResponse]
-      .map {
+      .map:
         case response if response.status != 200 =>
           sys.error(s"Failed to download nginx config from $url, server returned ${response.status}")
         case response =>
           logger.info(s"Retrieved Nginx routes file at $url")
           NginxConfigFile(environment, url.toString, response.body, branch = nginxConfig.configRepoBranch)
-      }
-  }
-
-}

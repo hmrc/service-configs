@@ -45,67 +45,67 @@ class NginxService @Inject()(
   nginxConfig           : NginxConfig,
   githubConfig          : GithubConfig
 )(using ec: ExecutionContext
-) extends Logging {
+) extends Logging:
 
   def update(environments: List[Environment]): Future[Unit] =
-    for {
+    for
       _          <- Future.successful(logger.info(s"Update started..."))
       yamlConfig <- configAsCodeConnector.streamFrontendRoutes().map(getYamlRoutesFromZip)
-      _          <- environments.traverse { environment =>
+      _          <- environments.traverse: environment =>
                       val yamlRoutes = yamlConfig.filter(_.environment == environment)
-                      updateNginxRoutesForEnv(environment, yamlRoutes)
-                        .recover { case e => logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e); Nil }
-                    }
+                      updateNginxRoutesForEnv(environment, yamlRoutes).recover:
+                        case e =>
+                          logger.error(s"Failed to update routes for $environment: ${e.getMessage}", e)
+                          Nil
       _          =  logger.info(s"Update complete...")
-    } yield ()
+    yield ()
 
-  private def getYamlRoutesFromZip(zip: ZipInputStream): Set[MongoFrontendRoute] = {
+  private def getYamlRoutesFromZip(zip: ZipInputStream): Set[MongoFrontendRoute] =
     val yamlRegex: Regex = """config/(.*).yaml""".r
 
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Set.empty[MongoFrontendRoute]){ (acc, entry) =>
-        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        path match {
-          case yamlRegex(_) =>
-            val branch  = "main"
-            val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
-            val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
-            val content = Source.fromInputStream(zip).mkString
-            acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch))
-          case _ => acc
-        }
-      }
-  }
+      .foldLeft(Set.empty[MongoFrontendRoute]):
+        (acc, entry) =>
+          val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          path match
+            case yamlRegex(_) =>
+              val branch  = "main"
+              val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
+              val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
+              val content = Source.fromInputStream(zip).mkString
+              acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch))
+            case _ => acc
 
   private def updateNginxRoutesForEnv(environment: Environment, yamlRoutes: Set[MongoFrontendRoute]): Future[List[MongoFrontendRoute]] =
-    for {
-      _        <- Future.successful(logger.info(s"Refreshing frontend route data for $environment..."))
-      routes   <- nginxConfig.frontendConfigFileNames
-                   .traverse { configFile =>
-                     nginxConnector.getNginxRoutesFile(configFile, environment)
-                      .map(processNginxRouteFile)
-                   }.map(_.flatten)
-      _        <- frontendRouteRepo.replaceEnv(environment, routes.toSet ++ yamlRoutes)
-    } yield routes
+    for
+      _      <- Future.successful(logger.info(s"Refreshing frontend route data for $environment..."))
+      routes <- nginxConfig.frontendConfigFileNames
+                  .traverse: configFile =>
+                    nginxConnector
+                     .getNginxRoutesFile(configFile, environment)
+                     .map(processNginxRouteFile)
+                  .map(_.flatten)
+      _      <- frontendRouteRepo.replaceEnv(environment, routes.toSet ++ yamlRoutes)
+    yield routes
 
   private def processNginxRouteFile(nginxConfigFile: NginxConfigFile): List[MongoFrontendRoute] =
-    NginxService.parseConfig(parser, nginxConfigFile)
+    NginxService
+      .parseConfig(parser, nginxConfigFile)
       .fold(error => sys.error(s"Failed to parse nginx configs: ${nginxConfigFile.url}: $error"), identity)
-}
 
-object NginxService extends Logging {
+object NginxService extends Logging:
 
   def urlToService(url: String): ServiceName =
-    Try(new URL(url).getHost)
+    Try(URL(url).getHost)
       .map(url => ServiceName(url.split("\\.").headOption.getOrElse(url)))
       .getOrElse(ServiceName(url))
 
   def parseConfig(
     parser    : FrontendRouteParser,
     configFile: NginxConfigFile
-  ): Either[String, List[MongoFrontendRoute]] = {
+  ): Either[String, List[MongoFrontendRoute]] =
 
     logger.info(s"Parsing ${configFile.environment} frontend config from ${configFile.url}")
 
@@ -114,24 +114,20 @@ object NginxService extends Logging {
 
     parser
       .parseConfig(configFile.content)
-      .map(
-        _.map(
-          r =>
-            MongoFrontendRoute(
-              service              = NginxService.urlToService(r.backendPath),
-              frontendPath         = r.frontendPath,
-              backendPath          = r.backendPath,
-              environment          = configFile.environment,
-              routesFile           = configFile.fileName,
-              ruleConfigurationUrl = NginxConfigIndexer
-                                       .generateUrl(configFile.fileName, configFile.branch, configFile.environment, r.frontendPath, indexes)
-                                       .getOrElse(""),
-              markerComments       = r.markerComments,
-              shutterKillswitch    = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
-              shutterServiceSwitch = r.shutterServiceSwitch.map(s =>
-                MongoShutterSwitch(s.switchFile, s.statusCode, s.errorPage, s.rewriteRule)),
-              isRegex              = r.isRegex
-          ))
-      )
-  }
-}
+      .map:
+        _.map: r =>
+          MongoFrontendRoute(
+            service              = NginxService.urlToService(r.backendPath),
+            frontendPath         = r.frontendPath,
+            backendPath          = r.backendPath,
+            environment          = configFile.environment,
+            routesFile           = configFile.fileName,
+            ruleConfigurationUrl = NginxConfigIndexer
+                                      .generateUrl(configFile.fileName, configFile.branch, configFile.environment, r.frontendPath, indexes)
+                                      .getOrElse(""),
+            markerComments       = r.markerComments,
+            shutterKillswitch    = r.shutterKillswitch.map(ks => MongoShutterSwitch(ks.switchFile, ks.statusCode)),
+            shutterServiceSwitch = r.shutterServiceSwitch.map(s =>
+              MongoShutterSwitch(s.switchFile, s.statusCode, s.errorPage, s.rewriteRule)),
+            isRegex              = r.isRegex
+        )

@@ -37,10 +37,10 @@ class BobbyRulesControllerSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "processGithubWebhook" should {
-    "accept unknown repository" in new Setup {
+  "processGithubWebhook" should:
+    "accept unknown repository" in new Setup:
       when(mockBobbyRulesService.findAllRules())
         .thenReturn(Future.successful(
           BobbyRules(
@@ -87,9 +87,8 @@ class BobbyRulesControllerSpec
           } ]
         }"""
       )
-    }
 
-    "convert * to [0.0.0,) in range field to represent all versions" in new Setup {
+    "convert * to [0.0.0,) in range field to represent all versions" in new Setup:
       val json = Json.parse(
         s"""{
           "libraries": [ {
@@ -129,12 +128,9 @@ class BobbyRulesControllerSpec
       )
 
       val result = Json.fromJson[BobbyRules](json)(BobbyRules.apiFormat)
-
       result shouldBe JsSuccess(expected)
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     implicit val as: ActorSystem = ActorSystem()
 
     val mockBobbyRulesService = mock[BobbyRulesService]
@@ -143,5 +139,3 @@ class BobbyRulesControllerSpec
       bobbyRulesService = mockBobbyRulesService,
       mcc               = stubMessagesControllerComponents()
     )
-  }
-}

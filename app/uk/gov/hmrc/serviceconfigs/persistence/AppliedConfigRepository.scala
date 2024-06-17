@@ -44,49 +44,40 @@ class AppliedConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("key"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) {
+):
   import AppliedConfigRepository._
 
   // irrelevant data is cleaned up by `delete` explicitly
   override lazy val requiresTtlIndex = false
 
   def put(serviceName: ServiceName, environment: Environment, config: Map[String, RenderedConfigSourceValue]): Future[Unit] =
-    for {
-      old     <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
-      updated =  old.map(x => x.copy(environments = config.get(x.key) match {
-                    case Some(configSourceValue) => x.environments ++ Map(environment -> configSourceValue)
-                    case None                    => x.environments - environment
-                  }))
-      newConfig =  config
-                  .filterNot { case (k, _) => old.exists(_.key == k) }
-                  .map { case (k, configSourceValue) => AppliedConfig(serviceName, k, Map(environment -> configSourceValue), onlyReference = false) }
-      entries =  (updated ++ newConfig)
-                   .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
+    for
+      old                  <- collection.find(Filters.equal("serviceName", serviceName)).toFuture()
+      updated              =  old.map: x =>
+                                x.copy(environments = config.get(x.key) match
+                                  case Some(configSourceValue) => x.environments ++ Map(environment -> configSourceValue)
+                                  case None                    => x.environments - environment
+                                )
+      newConfig            =  config
+                                .filterNot:
+                                  case (k, _) => old.exists(_.key == k)
+                                .map:
+                                  case (k, configSourceValue) => AppliedConfig(serviceName, k, Map(environment -> configSourceValue), onlyReference = false)
+      entries              = (updated ++ newConfig)
+                                .map(x => x.copy(onlyReference = !x.environments.exists(_._2.source != "referenceConf")))
       (toUpdate, toDelete) = entries.partition(_.environments.nonEmpty)
-      bulkUpdates = toUpdate
-                     .filterNot(old.contains) // we could use update rather than replace to avoid unnecessary modifications, but filtering out
-                                              // those that have not changed here is easier
-                     .map(entry =>
-                       ReplaceOneModel(
-                         Filters.and(
-                           Filters.equal("serviceName", serviceName),
-                           Filters.equal("key"        , entry.key)
-                         ),
-                         entry,
-                         ReplaceOptions().upsert(true)
-                       )
-                     ) ++
-                     toDelete.map(entry =>
-                       DeleteOneModel(
-                         Filters.and(
-                           Filters.equal("serviceName", serviceName),
-                           Filters.equal("key"        , entry.key)
-                         )
-                       )
-                     )
-       _      <- if (bulkUpdates.isEmpty) Future.unit
-                 else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
-    } yield ()
+      bulkUpdates          = List.concat(
+                               toUpdate
+                                 .filterNot(old.contains) // we could use update rather than replace to avoid unnecessary modifications, but filtering out those that have not changed here is easier
+                                 .map: entry =>
+                                    ReplaceOneModel(Filters.and(Filters.equal("serviceName", serviceName), Filters.equal("key", entry.key)), entry, ReplaceOptions().upsert(true))
+                             , toDelete
+                                 .map: entry =>
+                                   DeleteOneModel(Filters.and(Filters.equal("serviceName", serviceName), Filters.equal("key", entry.key)))
+                             )
+       _      <- if   bulkUpdates.isEmpty then Future.unit
+                 else                          collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    yield ()
 
   def delete(serviceName: ServiceName, environment: Environment): Future[Unit] =
     put(serviceName, environment, Map.empty)
@@ -95,7 +86,7 @@ class AppliedConfigRepository @Inject()(
 
   import java.util.regex.Pattern
   private def toFilter(field: String, fieldValue: Option[String], filterType: FilterType) =
-    (fieldValue, filterType) match {
+    (fieldValue, filterType) match
       case (Some(v), FilterType.Contains)                 => Filters.regex(field, Pattern.quote(v).r)
       case (Some(v), FilterType.ContainsIgnoreCase)       => Filters.regex(field, s"(?i)${Pattern.quote(v)}".r)
       case (Some(v), FilterType.DoesNotContain)           => Filters.not(Filters.regex(field, Pattern.quote(v).r))
@@ -106,7 +97,6 @@ class AppliedConfigRepository @Inject()(
       case (Some(v), FilterType.NotEqualToIgnoreCase)     => Filters.not(Filters.regex(field, s"(?i)^${Pattern.quote(v)}$$".r))
       case (_      , FilterType.IsEmpty)                  => Filters.equal(field, "")
       case _                                              => Filters.empty()
-    }
 
   def search(
     serviceNames   : Option[Seq[ServiceName]],
@@ -124,12 +114,12 @@ class AppliedConfigRepository @Inject()(
             serviceNames.fold(Filters.empty())(xs => Filters.in("serviceName", xs.map(_.asString): _*)),
             toFilter("key", key, keyFilterType),
             Filters.or(
-              (if (environments.isEmpty) Environment.values else environments).map { e =>
+              (if environments.isEmpty then Environment.values.toList else environments).map( e =>
                 Filters.and(
                   Filters.notEqual(s"environments.${e.asString}", null),
                   toFilter(s"environments.${e.asString}.value", value, valueFilterType)
                 )
-              }: _*
+              ): _*
             )
           )
         ),
@@ -142,9 +132,8 @@ class AppliedConfigRepository @Inject()(
       .distinct[String]("key", Filters.and(Filters.equal("onlyReference", false), serviceNames.fold(Filters.empty())(s => Filters.in("serviceName", s.map(_.asString): _*))))
       .toFuture()
       .map(_.sorted)
-}
 
-object AppliedConfigRepository {
+object AppliedConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, Json, Reads, Writes, __}
 
@@ -155,8 +144,8 @@ object AppliedConfigRepository {
   , onlyReference: Boolean
   )
 
-  object AppliedConfig {
-    val format: Format[AppliedConfig] = {
+  object AppliedConfig:
+    val format: Format[AppliedConfig] =
       given Format[RenderedConfigSourceValue] =
         ( (__ \ "source"   ).format[String]
         ~ (__ \ "sourceUrl").formatNullable[String]
@@ -169,7 +158,7 @@ object AppliedConfigRepository {
             .of[Map[String, RenderedConfigSourceValue]]
             .map(_.map { case (k, v) => (Environment.parse(k).getOrElse(sys.error(s"Invalid Environment: $k")), v) })
         , Writes
-            .apply { xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }) }
+            .apply(xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }))
         )
 
       ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
@@ -177,6 +166,3 @@ object AppliedConfigRepository {
       ~ (__ \ "environments" ).format[Map[Environment, RenderedConfigSourceValue]]
       ~ (__ \ "onlyReference").format[Boolean]
       )(AppliedConfig.apply, pt => Tuple.fromProductTyped(pt))
-    }
-  }
-}

@@ -27,13 +27,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class BobbyRulesRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[BobbyRules] {
+     with DefaultPlayMongoRepositorySupport[BobbyRules]:
 
-  override protected val repository: BobbyRulesRepository = new BobbyRulesRepository(mongoComponent)
+  override protected val repository: BobbyRulesRepository =
+    BobbyRulesRepository(mongoComponent)
 
-  "BobbyRulesRepository" should {
-    "putAll correctly" in {
-      locally {
+  "BobbyRulesRepository" should:
+    "putAll correctly" in:
+      locally:
         val config = BobbyRules(
          libraries      = Seq(BobbyRule(
             organisation   = "uk.gov.hmrc",
@@ -53,9 +54,8 @@ class BobbyRulesRepositorySpec
         )
         repository.putAll(config).futureValue
         repository.findAll().futureValue shouldBe config
-      }
 
-      locally {
+      locally:
         val config = BobbyRules(
           libraries = Seq(BobbyRule(
               organisation = "uk.gov.hmrc",
@@ -75,7 +75,3 @@ class BobbyRulesRepositorySpec
         )
         repository.putAll(config).futureValue
         repository.findAll().futureValue shouldBe config
-      }
-    }
-  }
-}

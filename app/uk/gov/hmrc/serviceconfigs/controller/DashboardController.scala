@@ -32,21 +32,20 @@ class DashboardController @Inject()(
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
   private given Format[Dashboard] = Dashboard.format
 
   def grafana(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       grafanaDashboardRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))
 
   def kibana(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       kibanaDashboardRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
-}
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))

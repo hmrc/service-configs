@@ -40,14 +40,13 @@ class LastHashRepository @Inject()(
   indexes        = Seq(
                      IndexModel(ascending("key"), IndexOptions().unique(true))
                    )
-) {
-
+):
   def update(key: String, hash: String): Future[Unit] =
     collection
       .replaceOne(
         filter      = equal("key", key),
         replacement = LastHash(key, hash),
-        options     = new ReplaceOptions().upsert(true)
+        options     = ReplaceOptions().upsert(true)
       )
       .toFuture()
       .map(_ => ())
@@ -58,4 +57,3 @@ class LastHashRepository @Inject()(
       .toFuture()
       .map(_.headOption)
       .map(_.map(_.hash))
-}

@@ -43,11 +43,11 @@ class ServiceToRepoNameRepository @Inject()(
                      Codecs.playFormatCodec(ServiceName.format),
                      Codecs.playFormatCodec(RepoName.format)
                    )
-){
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def findRepoName(serviceName: Option[ServiceName] = None, artefactName: Option[ArtefactName] = None): Future[Option[RepoName]] = {
+  def findRepoName(serviceName: Option[ServiceName] = None, artefactName: Option[ArtefactName] = None): Future[Option[RepoName]] =
     val filters = Seq(
       serviceName.map(sn => equal("serviceName", sn)),
       artefactName.map(an => equal("artefactName", an))
@@ -57,7 +57,6 @@ class ServiceToRepoNameRepository @Inject()(
       .find(if (filters.nonEmpty) and(filters: _*) else empty())
       .map(_.repoName)
       .headOption()
-  }
 
   def putAll(serviceToRepoNames: Seq[ServiceToRepoName]): Future[Unit] =
     MongoUtils.replace[ServiceToRepoName](
@@ -74,4 +73,3 @@ class ServiceToRepoNameRepository @Inject()(
                           equal("repoName"    , entry.repoName)
                         )
     )
-}

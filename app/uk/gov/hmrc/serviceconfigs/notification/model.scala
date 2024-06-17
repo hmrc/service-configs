@@ -20,7 +20,7 @@ import uk.gov.hmrc.serviceconfigs.model.Version
 
 sealed trait MessagePayload
 
-object MessagePayload {
+object MessagePayload:
   import play.api.libs.json.{Reads, __}
   import play.api.libs.functional.syntax._
 
@@ -38,25 +38,21 @@ object MessagePayload {
     url    : String
   ) extends MessagePayload
 
-  private val jobAvailableReads: Reads[JobAvailable] = {
+  private val jobAvailableReads: Reads[JobAvailable] =
     ( (__ \ "jobType").read[String]
     ~ (__ \ "name"   ).read[String]
     ~ (__ \ "version").read[Version](Version.format)
     ~ (__ \ "url"    ).read[String]
     )(JobAvailable.apply _)
-  }
 
-  private val jobDeletedReads: Reads[JobDeleted] = {
+  private val jobDeletedReads: Reads[JobDeleted] =
     ( (__ \ "jobType").read[String]
     ~ (__ \ "name"   ).read[String]
     ~ (__ \ "version").read[Version](Version.format)
     ~ (__ \ "url"    ).read[String]
     )(JobDeleted.apply _)
-  }
 
   val reads: Reads[MessagePayload] =
-    (__ \ "type").read[String].flatMap {
+    (__ \ "type").read[String].flatMap:
       case "creation" => jobAvailableReads.map[MessagePayload](identity)
       case "deletion" => jobDeletedReads.map[MessagePayload](identity)
-    }
-}

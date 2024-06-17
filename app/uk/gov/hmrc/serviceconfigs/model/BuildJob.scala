@@ -24,10 +24,8 @@ case class BuildJob(
   location   : String
 )
 
-object BuildJob {
-  val format: Format[BuildJob] = {
+object BuildJob:
+  val format: Format[BuildJob] =
     ( (__ \ "service" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "location").format[String]
     )(BuildJob.apply, pt => Tuple.fromProductTyped(pt))
-  }
-}

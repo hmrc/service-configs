@@ -36,19 +36,19 @@ class ArtefactProcessorConnectorSpec
      with ScalaFutures
      with IntegrationPatience
      with WireMockSupport
-     with HttpClientV2Support {
+     with HttpClientV2Support:
 
   private given HeaderCarrier = HeaderCarrier()
 
-  private val servicesConfig = new ServicesConfig(Configuration(
+  private val servicesConfig = ServicesConfig(Configuration(
     "microservice.services.artefact-processor.host" -> wireMockHost,
     "microservice.services.artefact-processor.port" -> wireMockPort,
   ))
 
-  private val connector = new ArtefactProcessorConnector(httpClientV2, servicesConfig)
+  private val connector = ArtefactProcessorConnector(httpClientV2, servicesConfig)
 
-  "ArtefactProcessorConnector.getSlugInfo" should {
-    "correctly parse json response" in {
+  "ArtefactProcessorConnector.getSlugInfo" should:
+    "correctly parse json response" in:
       stubFor(
         get(urlEqualTo(s"/result/slug/name/1.0.0"))
           .willReturn(aResponse().withBodyFile("artefact-processor/slug-info.json"))
@@ -68,11 +68,9 @@ class ArtefactProcessorConnectorSpec
           slugConfig           = "some-slug-config"
         )
       )
-    }
-  }
 
-  "ArtefactProcessorConnector.getDependencyConfigs" should {
-    "correctly parse json response" in {
+  "ArtefactProcessorConnector.getDependencyConfigs" should:
+    "correctly parse json response" in:
       stubFor(
         get(urlEqualTo(s"/slugInfoConfigs/name/1.0.0"))
           .willReturn(aResponse().withBodyFile("artefact-processor/dependency-configs.json"))
@@ -92,6 +90,3 @@ class ArtefactProcessorConnectorSpec
                      )
         )
       ))
-    }
-  }
-}

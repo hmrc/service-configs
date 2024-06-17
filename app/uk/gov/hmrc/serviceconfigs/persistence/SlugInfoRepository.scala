@@ -53,7 +53,7 @@ class SlugInfoRepository @Inject()(
                    ),
   replaceIndexes = true
 ) with Logging
-  with Transactions {
+  with Transactions:
 
   // we delete explicitly when we get a delete notification
   override lazy val requiresTtlIndex = false
@@ -110,12 +110,14 @@ class SlugInfoRepository @Inject()(
       .toFutureOption()
 
   def getSlugInfos(name: ServiceName, version: Option[Version]): Future[Seq[SlugInfo]] =
-    collection.find(
-      and(
-        equal("name", name.asString)
-      , version.fold(empty())(v => equal("version", v.original))
+    collection
+      .find(
+        and(
+          equal("name", name.asString)
+        , version.fold(empty())(v => equal("version", v.original))
+        )
       )
-    ).toFuture()
+      .toFuture()
 
   def getAllLatestSlugInfos(): Future[Seq[SlugInfo]] =
     collection.find(equal("latest", value = true)).toFuture()
@@ -126,41 +128,38 @@ class SlugInfoRepository @Inject()(
       .map(_.map(ServiceName.apply))
 
   def clearFlag(flag: SlugInfoFlag, name: ServiceName): Future[Unit] =
-    withSessionAndTransaction { session =>
+    withSessionAndTransaction: session =>
       clearFlag(flag, name, session)
-    }
 
   private def clearFlag(flag: SlugInfoFlag, name: ServiceName, session: ClientSession): Future[Unit] =
-   for {
-    _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on ${name.asString}"))
-    _ <- collection
-           .updateMany(
-               clientSession = session
-             , filter        = and( equal("name", name)
-                                  , equal(flag.asString, true)
-                                  )
-             , update        = set(flag.asString, false)
-             )
-           .toFuture()
-   } yield ()
+    for
+     _ <- Future.successful(logger.debug(s"clear ${flag.asString} flag on ${name.asString}"))
+     _ <- collection
+            .updateMany(
+                clientSession = session
+              , filter        = and( equal("name", name)
+                                   , equal(flag.asString, true)
+                                   )
+              , update        = set(flag.asString, false)
+              )
+            .toFuture()
+    yield ()
 
-  def clearFlags(flag: SlugInfoFlag, names: Seq[ServiceName]): Future[Unit] = {
+  def clearFlags(flag: SlugInfoFlag, names: Seq[ServiceName]): Future[Unit] =
     logger.debug(s"Clearing ${flag.asString} flag on ${names.size} services")
     collection
       .updateMany(
-        filter = and (
-                   in("name", names: _ *)
-                 , equal(flag.asString, true)
-                 ),
-        update = set(flag.asString, false)
+        filter = and( in("name", names: _ *)
+                    , equal(flag.asString, true)
+                    )
+      , update = set(flag.asString, false)
       )
       .toFuture()
       .map(_ => ())
-  }
 
   def setFlag(flag: SlugInfoFlag, name: ServiceName, version: Version): Future[Unit] =
-    withSessionAndTransaction { session =>
-      for {
+    withSessionAndTransaction: session =>
+      for
         _ <- clearFlag(flag, name, session)
         _ =  logger.debug(s"mark slug ${name.asString} $version with ${flag.asString} flag")
         _ <- collection
@@ -171,19 +170,16 @@ class SlugInfoRepository @Inject()(
                                       )
                  , update        = set(flag.asString, true))
                .toFuture()
-      } yield ()
-    }
+      yield ()
 
   def getMaxVersion(name: ServiceName): Future[Option[Version]] =
     collection
       .find[Version](equal("name", name))
       .projection(include("version"))
-      .foldLeft(Option.empty[Version]){
+      .foldLeft(Option.empty[Version]):
         case (optMax, version) if optMax.exists(_ > version) => optMax
         case (_     , version)                               => Some(version)
-      }.toFuture()
-}
+      .toFuture()
 
-object SlugInfoRepository {
+object SlugInfoRepository:
   val collectionName = "slugConfigurations"
-}

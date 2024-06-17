@@ -41,8 +41,7 @@ class AdminFrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -68,4 +67,3 @@ class AdminFrontendRouteRepository @Inject()(
       .distinct[String]("service")
       .toFuture()
       .map(_.map(ServiceName.apply))
-}

@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
-import org.apache.pekko.actor.ActorSystem
 import org.mongodb.scala.{ClientSession, ClientSessionOptions, ObservableFuture, ReadConcern, ReadPreference, SingleObservableFuture, TransactionOptions, WriteConcern}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
 import org.mongodb.scala.model.Filters.{and, equal}
@@ -36,8 +35,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ResourceUsageRepository @Inject()(
   deploymentConfigRepository : DeploymentConfigRepository,
-  override val mongoComponent: MongoComponent,
-  as                         : ActorSystem
+  override val mongoComponent: MongoComponent
 )(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[ResourceUsage](
@@ -52,7 +50,7 @@ class ResourceUsageRepository @Inject()(
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions
-  with Logging {
+  with Logging:
   import ResourceUsageRepository._
 
   private given TransactionConfiguration =
@@ -70,7 +68,6 @@ class ResourceUsageRepository @Inject()(
                                  .build()
                              )
     )
-
 
   def find(serviceName: ServiceName): Future[Seq[ResourceUsage]] =
     collection
@@ -137,21 +134,21 @@ class ResourceUsageRepository @Inject()(
       .map(_ =>())
 
   def populate(date: Instant): Future[Unit] =
-    Environment.values.foldLeftM[Future, Unit](())((_, environment) =>
-      for {
-        deploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
-        latestSnapshots   <- latestSnapshotsInEnvironment(environment)
-        planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
-        _                 <- executePlanOfWork(planOfWork, environment)
-      } yield ()
-    )
+    Environment.values.toList.foldLeftM[Future, Unit](()):
+      (_, environment) =>
+        for
+          deploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
+          latestSnapshots   <- latestSnapshotsInEnvironment(environment)
+          planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
+          _                 <- executePlanOfWork(planOfWork, environment)
+        yield ()
 
-  private[persistence] def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
+  private[persistence] def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] =
     logger.debug(s"Processing `ResourceUsage`s for ${environment.asString}")
 
     def insertSnapshot(snapshot: ResourceUsage) =
-      withSessionAndTransaction { session =>
-        for {
+      withSessionAndTransaction: session =>
+        for
           res <- collection.updateMany(
                   session,
                   filter = and(
@@ -163,46 +160,39 @@ class ResourceUsageRepository @Inject()(
                 )
                 .toFuture()
           _ <- collection.insertOne(session, snapshot).toFuture()
-        } yield ()
-      }
+        yield ()
 
-    def reintroduceServiceSnapshot(snapshot: ResourceUsage) = {
+    def reintroduceServiceSnapshot(snapshot: ResourceUsage) =
       logger.debug(s"Creating a snapshot for reintroduced service: $snapshot")
-      withSessionAndTransaction { session =>
-        for {
+      withSessionAndTransaction: session =>
+        for
           _ <- removeLatestFlagForServiceInEnvironment(
                  snapshot.serviceName,
                  snapshot.environment,
                  session
                )
           _ <- collection.insertOne(session, snapshot).toFuture()
-        } yield ()
-      }
-    }
+        yield ()
 
-    for {
+    for
       _ <- planOfWork.snapshots.foldLeftM(()) { case (_, snapshot) => insertSnapshot(snapshot) }
            // reintroductions are treated separately to ensure latest flag is removed from previously deleted entries -
            // not covered by above bulk flag removal
       _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
-    } yield ()
-  }
-}
+    yield ()
 
-object ResourceUsageRepository {
-
+object ResourceUsageRepository:
   final case class PlanOfWork(
     snapshots                     : List[ResourceUsage],
     snapshotServiceReintroductions: List[ResourceUsage]
   )
 
-  object PlanOfWork {
-
+  object PlanOfWork:
     def fromLatestSnapshotsAndCurrentDeploymentConfigs(
       latestSnapshots         : List[ResourceUsage],
       currentDeploymentConfigs: List[DeploymentConfig],
       date                    : Instant
-    ): PlanOfWork = {
+    ): PlanOfWork =
       val latestSnapshotsByNameAndEnv =
         latestSnapshots
           .map(s => (s.serviceName, s.environment) -> s)
@@ -210,7 +200,7 @@ object ResourceUsageRepository {
 
       val planOfWork =
         currentDeploymentConfigs
-          .foldLeft(PlanOfWork(List.empty[ResourceUsage], List.empty[ResourceUsage])) {
+          .foldLeft(PlanOfWork(List.empty[ResourceUsage], List.empty[ResourceUsage])):
             case (acc, deploymentConfig) =>
               val deploymentConfigSnapshot =
                 ResourceUsage(
@@ -222,19 +212,17 @@ object ResourceUsageRepository {
                   latest      = true,
                   deleted     = false
                 )
-              latestSnapshotsByNameAndEnv.get((deploymentConfig.serviceName, deploymentConfig.environment)) match {
-                case Some(currentLatest) if currentLatest.deleted =>
-                  acc.copy(snapshotServiceReintroductions = deploymentConfigSnapshot +: acc.snapshotServiceReintroductions)
-                case Some(currentLatest) if currentLatest.slots     == deploymentConfig.slots &&
-                                            currentLatest.instances == deploymentConfig.instances =>
-                  // no change, ignore
-                  acc
-                case _ =>
-                  acc.copy(snapshots = deploymentConfigSnapshot +: acc.snapshots)
-              }
-          }
+              latestSnapshotsByNameAndEnv
+                .get((deploymentConfig.serviceName, deploymentConfig.environment)) match
+                  case Some(currentLatest) if currentLatest.deleted =>
+                    acc.copy(snapshotServiceReintroductions = deploymentConfigSnapshot +: acc.snapshotServiceReintroductions)
+                  case Some(currentLatest) if currentLatest.slots     == deploymentConfig.slots &&
+                                              currentLatest.instances == deploymentConfig.instances =>
+                    acc // no change, ignore
+                  case _ =>
+                    acc.copy(snapshots = deploymentConfigSnapshot +: acc.snapshots)
 
-      val snapshotSynthesisedDeletions = {
+      val snapshotSynthesisedDeletions =
         val nameAndEnvForCurrentDeploymentConfigs =
           currentDeploymentConfigs.map(c => (c.serviceName, c.environment))
 
@@ -242,10 +230,8 @@ object ResourceUsageRepository {
           .values
           .filterNot(_.deleted)
           .map(synthesiseDeletedDeploymentConfigSnapshot(_, date))
-      }
 
       planOfWork.copy(snapshots = planOfWork.snapshots ++ snapshotSynthesisedDeletions)
-    }
 
     private def synthesiseDeletedDeploymentConfigSnapshot(
       snapshot: ResourceUsage,
@@ -258,5 +244,3 @@ object ResourceUsageRepository {
         latest    = true,
         deleted   = true
       )
-  }
-}

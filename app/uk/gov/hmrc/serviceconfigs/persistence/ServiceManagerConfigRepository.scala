@@ -39,7 +39,7 @@ class ServiceManagerConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
+):
   import ServiceManagerConfigRepository._
 
   // we replace all the data for each call to putAll
@@ -57,9 +57,8 @@ class ServiceManagerConfigRepository @Inject()(
       compareById   = (a, b) => a.serviceName == b.serviceName,
       filterById    = entry => equal("service", entry.serviceName)
     )
-}
 
-object ServiceManagerConfigRepository {
+object ServiceManagerConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
@@ -68,11 +67,8 @@ object ServiceManagerConfigRepository {
     location   : String
   )
 
-  object ServiceManagerConfig {
-    val format: Format[ServiceManagerConfig] = {
+  object ServiceManagerConfig:
+    val format: Format[ServiceManagerConfig] =
       ( (__ \ "service" ).format[ServiceName](ServiceName.format)
       ~ (__ \ "location").format[String]
       )(ServiceManagerConfig.apply, pt => Tuple.fromProductTyped(pt))
-    }
-  }
-}

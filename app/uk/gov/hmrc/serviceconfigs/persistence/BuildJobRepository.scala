@@ -39,8 +39,7 @@ class BuildJobRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -56,4 +55,3 @@ class BuildJobRepository @Inject()(
       compareById   = (a, b) => a.serviceName == b.serviceName,
       filterById    = entry => equal("service", entry.serviceName)
     )
-}

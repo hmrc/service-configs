@@ -34,46 +34,49 @@ class ServiceRelationshipService @Inject()(
   serviceRelationshipsRepository: ServiceRelationshipRepository
 )(using
   ec: ExecutionContext
-) {
+):
 
   private val logger: Logger = Logger(getClass)
 
   def getServiceRelationships(serviceName: ServiceName): Future[ServiceRelationships] =
-    for {
+    for
       inbound  <- serviceRelationshipsRepository.getInboundServices(serviceName)
       outbound <- serviceRelationshipsRepository.getOutboundServices(serviceName)
-    } yield ServiceRelationships(inbound.toSet, outbound.toSet)
+    yield ServiceRelationships(inbound.toSet, outbound.toSet)
 
   def updateServiceRelationships(): Future[Unit] =
-    for {
+    for
       slugInfos       <- slugInfoRepository.getAllLatestSlugInfos()
       knownServices   =  slugInfos.map(_.name.asString)
-      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[ServiceName])](slugInfo =>
+      (srs, failures) <- slugInfos.toList.foldMapM[Future, (List[ServiceRelationship], List[ServiceName])]: slugInfo =>
                            serviceRelationshipsFromSlugInfo(slugInfo, knownServices)
-                             .map(res => (res.toList, List.empty[ServiceName]))
-                             .recover { case NonFatal(e) =>
-                               logger.warn(s"Error encountered when getting service relationships for ${slugInfo.name}", e)
-                               (List.empty[ServiceRelationship], List(slugInfo.name))
-                             }
-                         )
-      _               <- if (srs.nonEmpty)
+                             .map:
+                               res => (res.toList, List.empty[ServiceName])
+                             .recover:
+                               case NonFatal(e) =>
+                                 logger.warn(s"Error encountered when getting service relationships for ${slugInfo.name}", e)
+                                 (List.empty[ServiceRelationship], List(slugInfo.name))
+      _               <-
+                         if srs.nonEmpty then
                            serviceRelationshipsRepository.putAll(srs)
                          else Future.unit
-      _               =  if (failures.nonEmpty)
+      _               =
+                         if failures.nonEmpty then
                            logger.warn(s"Failed to update service relationships for ${failures.mkString(", ")}")
                          else ()
-    } yield ()
+    yield ()
 
   private val ServiceNameFromHost = "(.*)(?<!stub|stubs)\\.(?:public|protected)\\.mdtp".r
   private val ServiceNameFromKey  = "microservice\\.services\\.(.*)\\.host".r
 
   private[service] def serviceRelationshipsFromSlugInfo(slugInfo: SlugInfo, knownServices: Seq[String]): Future[Seq[ServiceRelationship]] =
-    if (slugInfo.applicationConfig.isEmpty)
+    if slugInfo.applicationConfig.isEmpty then
       Future.successful(Seq.empty[ServiceRelationship])
-    else {
+    else
       implicit val hc: HeaderCarrier = HeaderCarrier()
 
-      val appConfig: Future[Seq[ConfigService.ConfigSourceEntries]] = configService.appConfig(slugInfo)
+      val appConfig: Future[Seq[ConfigService.ConfigSourceEntries]] =
+        configService.appConfig(slugInfo)
 
       val appConfBase: Map[String, String] =
         ConfigParser.flattenConfigToDotNotation(
@@ -83,20 +86,16 @@ class ServiceRelationshipService @Inject()(
         )
         .view.mapValues(_.asString).toMap
 
-      appConfig.map(
+      appConfig.map:
         _.flatMap(_.entries)
-          .collect { case (k @ ServiceNameFromKey(service), _) => (k, service) }
-          .flatMap {
+          .collect:
+            case (k @ ServiceNameFromKey(service), _) => (k, service)
+          .flatMap:
             case (_, serviceFromKey) if knownServices.contains(serviceFromKey) =>
               Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromKey)))
             case (key, serviceFromKey) =>
-                appConfBase.get(key) match {
+                appConfBase.get(key) match
                   case Some(ServiceNameFromHost(serviceFromHost)) if knownServices.contains(serviceFromHost) =>
                     Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromHost)))
                   case _ =>
                     Seq(ServiceRelationship(slugInfo.name, ServiceName(serviceFromKey)))
-                }
-          }
-      )
-    }
-}

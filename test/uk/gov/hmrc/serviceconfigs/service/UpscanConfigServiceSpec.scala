@@ -36,10 +36,10 @@ class UpscanConfigServiceSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "UpscanConfigService.update" should {
-    "return the expecter services per environment" in new UpscanCofigServiceFixture {
+  "UpscanConfigService.update" should:
+    "return the expecter services per environment" in new UpscanCofigServiceFixture:
       val expectedUpscanConfigs = Seq(
         UpscanConfig(ServiceName("service1"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L10"        , Environment.QA),
         UpscanConfig(ServiceName("service2"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L12"        , Environment.QA),
@@ -57,13 +57,7 @@ class UpscanConfigServiceSpec
         .thenReturn(Future.successful(Nil))
 
       when(mockConfigAsCodeConnector.streamUpscanAppConfig())
-        .thenReturn(
-          Future.successful(
-            new ZipInputStream(
-              new FileInputStream("./test/resources/upscan-app-config.zip")
-            )
-        )
-      )
+        .thenReturn(Future.successful(ZipInputStream(FileInputStream("./test/resources/upscan-app-config.zip"))))
 
       when(mockUpscanConfigRepository.putAll(any[Seq[UpscanConfig]]))
         .thenReturn(Future.unit)
@@ -71,18 +65,14 @@ class UpscanConfigServiceSpec
       service.update().futureValue
 
       verify(mockUpscanConfigRepository, times(1)).putAll(expectedUpscanConfigs)
-    }
-  }
 
-  private abstract class UpscanCofigServiceFixture {
+  private abstract class UpscanCofigServiceFixture:
     val mockUpscanConfigRepository        = mock[UpscanConfigRepository]
     val mockConfigAsCodeConnector         = mock[ConfigAsCodeConnector]
     val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
 
-    val service = new UpscanConfigService(
+    val service = UpscanConfigService(
       mockUpscanConfigRepository,
       mockConfigAsCodeConnector,
       mockTeamsAndRepositoriesConnector,
     )
-  }
-}

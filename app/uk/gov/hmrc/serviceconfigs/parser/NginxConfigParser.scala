@@ -26,49 +26,44 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 @Singleton
 class NginxConfigParser @Inject()(
   nginxConfig: NginxConfig
-) extends FrontendRouteParser {
+) extends FrontendRouteParser:
 
   val shutterConfig = nginxConfig.shutterConfig
 
   override def parseConfig(config: String): Either[String, List[FrontendRoute]] =
     NginxTokenParser(NginxLexer(config))
 
-  object NginxTokenParser extends Parsers {
-    import Nginx._
+  object NginxTokenParser extends Parsers:
+    import Nginx._, NginxToken._
 
     override type Elem = NginxToken
 
-    class NginxTokenReader(tokens: Seq[NginxToken]) extends Reader[NginxToken] {
+    class NginxTokenReader(tokens: Seq[NginxToken]) extends Reader[NginxToken]:
       override def first: NginxToken = tokens.head
 
-      override def rest: Reader[NginxToken] = new NginxTokenReader(tokens.tail)
+      override def rest: Reader[NginxToken] = NginxTokenReader(tokens.tail)
 
       override def pos: Position = NoPosition
 
       override def atEnd: Boolean = tokens.isEmpty
-    }
 
-
-    def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] = {
-      val reader = new NginxTokenReader(tokens)
-      configFile(reader) match {
-        case Success(result, _) => Right(result.flatMap {
+    def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] =
+      val reader = NginxTokenReader(tokens)
+      configFile(reader) match
+        case Success(result, _) => Right(result.flatMap:
                                      case l: LOCATION => locToRoute(l)
                                      case _           => None
-                                   })
+                                   )
         case Failure(msg, _)    => Left(s"Failed to parse nginx config: $msg")
         case Error(msg, _)      => Left(s"Error while to parsing nginx config: $msg")
-      }
-    }
 
     def extractShutterSwitch(switchFile: String, ifBlock: IFBLOCK): ShutterSwitch =
-      ifBlock.body match {
+      ifBlock.body match
         case List(ERROR_PAGE(_, errorPage), RETURN(retCode, url))              => ShutterSwitch(switchFile, Some(retCode), Some(errorPage), url)
         case List(REWRITE(rule), ERROR_PAGE(_, errorPage), RETURN(retCode, _)) => ShutterSwitch(switchFile, Some(retCode), Some(errorPage), Some(rule))
         case List(REWRITE(rule))                                               => ShutterSwitch(switchFile, None, None, Some(rule))
         case List(RETURN(code, url))                                           => ShutterSwitch(switchFile, Some(code), None, url)
         case _                                                                 => ShutterSwitch(switchFile, None, None, None)
-      }
 
     def extractKillSwitch(ifblocks: List[IFBLOCK]): Option[ShutterSwitch] =
       ifblocks
@@ -81,19 +76,19 @@ class NginxConfigParser @Inject()(
     def extractShutterSwitch(ifblocks: List[IFBLOCK]): Option[ShutterSwitch] =
       ifblocks
         .filterNot(_.predicate.contains(shutterConfig.shutterKillswitchPath))
-        .map(ib =>
+        .map: ib =>
           p.findFirstMatchIn(ib.predicate)
            .map(switch => extractShutterSwitch(switch.group(1), ib))
-        )
         .collectFirst { case Some(s) => s }
 
     def extractMarkerComments(loc: LOCATION): Set[String] =
       //comments that start with #! which are processed by other services, e.g. #!NOT_SHUTTERABLE
-      loc.body.collect {
-        case c: MARKER_COMMENT => c.comment
-      }.toSet
+      loc
+        .body
+        .collect { case c: MARKER_COMMENT => c.comment }
+        .toSet
 
-    def locToRoute(loc: LOCATION): Option[FrontendRoute] = {
+    def locToRoute(loc: LOCATION): Option[FrontendRoute] =
       val ifs = loc.body.collect { case ib: IFBLOCK => ib }
 
       val shutterKillswitch = extractKillSwitch(ifs)
@@ -101,8 +96,9 @@ class NginxConfigParser @Inject()(
       val markerComments = extractMarkerComments(loc)
 
       loc.body
-        .collectFirst { case pp: PROXY_PASS => pp.url }
-        .map(proxy =>
+        .collectFirst:
+          case pp: PROXY_PASS => pp.url
+        .map: proxy =>
           FrontendRoute(
             frontendPath         = loc.path,
             backendPath          = proxy,
@@ -111,12 +107,8 @@ class NginxConfigParser @Inject()(
             shutterKillswitch    = shutterKillswitch,
             shutterServiceSwitch = shutterServiceSwitch
           )
-        )
-    }
-
 
     sealed trait NGINX_AST
-
     case class LOCATION(path: String, body: List[NGINX_AST], regex: Boolean = false) extends NGINX_AST
     case class IFBLOCK(predicate: String, body: List[NGINX_AST])                     extends NGINX_AST
 
@@ -176,22 +168,18 @@ class NginxConfigParser @Inject()(
 
     def configFile: NginxTokenParser.Parser[List[NGINX_AST]] =
       phrase(rep1(context | parameter))
-  }
-}
 
-object Nginx {
-  sealed trait NginxToken
+object Nginx:
+  enum NginxToken:
+    case OPEN_BRACKET()
+    case CLOSE_BRACKET()
+    case SEMICOLON()
+    case COMMENT(comment: String)
+    case KEYWORD(keyword: String)
+    case VALUE(value: String)
 
-  case class OPEN_BRACKET()           extends NginxToken
-  case class CLOSE_BRACKET()          extends NginxToken
-  case class SEMICOLON()              extends NginxToken
-  case class COMMENT(comment: String) extends NginxToken
-  case class KEYWORD(keyword: String) extends NginxToken
-  case class VALUE(value: String)     extends NginxToken
-}
-
-object NginxLexer extends RegexParsers {
-  import Nginx._
+object NginxLexer extends RegexParsers:
+  import Nginx._, NginxToken._
 
   override def skipWhitespace: Boolean =
     true
@@ -234,4 +222,3 @@ object NginxLexer extends RegexParsers {
 
   def apply(config: String): Seq[NginxToken] =
     parse(tokens, config).get
-}

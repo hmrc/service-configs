@@ -35,10 +35,10 @@ import scala.util.control.NonFatal
 class SlackNotificationsConnector @Inject()(
   httpClientV2  : HttpClientV2,
   configuration : Configuration,
-  servicesConfig: ServicesConfig,
+  servicesConfig: ServicesConfig
 )(using
   ec: ExecutionContext
-) extends Logging{
+) extends Logging:
 
   import HttpReads.Implicits._
 
@@ -46,7 +46,7 @@ class SlackNotificationsConnector @Inject()(
 
   private val internalAuthToken = configuration.get[String]("internal-auth.token")
 
-  def sendMessage(message: SlackNotificationRequest)(using hc: HeaderCarrier): Future[SlackNotificationResponse] = {
+  def sendMessage(message: SlackNotificationRequest)(using hc: HeaderCarrier): Future[SlackNotificationResponse] =
     given Writes[SlackNotificationRequest] = SlackNotificationRequest.writes
     given Reads[SlackNotificationResponse] = SlackNotificationResponse.reads
 
@@ -55,13 +55,10 @@ class SlackNotificationsConnector @Inject()(
       .withBody(Json.toJson(message))
       .setHeader("Authorization" -> internalAuthToken)
       .execute[SlackNotificationResponse]
-      .recoverWith {
+      .recoverWith:
         case NonFatal(ex) =>
           logger.error(s"Unable to notify ${message.channelLookup} on Slack", ex)
           Future.failed(ex)
-      }
-  }
-}
 
 final case class SlackNotificationError(
   code   : String,
@@ -72,8 +69,8 @@ final case class SlackNotificationResponse(
   errors: List[SlackNotificationError]
 )
 
-object SlackNotificationResponse {
-  val reads: Reads[SlackNotificationResponse] = {
+object SlackNotificationResponse:
+  val reads: Reads[SlackNotificationResponse] =
     given sneReads: Reads[SlackNotificationError] =
       ( (__ \ "code"   ).read[String]
       ~ (__ \ "message").read[String]
@@ -82,13 +79,12 @@ object SlackNotificationResponse {
     (__ \ "errors")
       .readWithDefault[List[SlackNotificationError]](List.empty)
       .map(SlackNotificationResponse.apply)
-  }
-}
 
 final case class GithubTeam(
   teamName: String,
   by: String = "github-team"
  )
+
 object GithubTeam {
   val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
 }
@@ -101,26 +97,23 @@ final case class SlackNotificationRequest(
   blocks       : Seq[JsObject]
 )
 
-object SlackNotificationRequest {
-  val writes: Writes[SlackNotificationRequest] = {
+object SlackNotificationRequest:
+  val writes: Writes[SlackNotificationRequest] =
     given Writes[GithubTeam] = GithubTeam.writes
     Json.writes[SlackNotificationRequest]
-  }
 
-  def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest = {
-
+  def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest =
     val repositoryHref: String = s"<https://catalogue.tax.service.gov.uk/repositories/${eolRepository.asString}|${eolRepository.asString}>"
+    val deprecatedText: String =
+      eol match
+        case Some(date) =>
+          val utc = ZoneId.of("UTC")
+          val eolFormatted = date.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
+          s"$repositoryHref is marked as deprecated with an end of life date of `$eolFormatted`."
+        case _          => s"$repositoryHref is marked as deprecated."
 
-    val deprecatedText: String = eol match {
-      case Some(date) =>
-        val utc = ZoneId.of("UTC")
-        val eolFormatted = date.atZone(utc).toLocalDate.format(DateTimeFormatter.ofPattern("dd MMM uuuu"))
-        s"$repositoryHref is marked as deprecated with an end of life date of `$eolFormatted`."
-      case _          => s"$repositoryHref is marked as deprecated."
-    }
-
-    val repositoryElements: Seq[JsObject] = impactedRepositories.map {
-      repoName =>
+    val repositoryElements: Seq[JsObject] =
+      impactedRepositories.map: repoName =>
         Json.parse(
           s"""
            |{
@@ -135,7 +128,6 @@ object SlackNotificationRequest {
            |}
            |""".stripMargin
         ).as[JsObject]
-    }
 
     val block1: JsObject = Json.parse(
       s"""
@@ -173,7 +165,6 @@ object SlackNotificationRequest {
          |""".stripMargin
     ).as[JsObject]
 
-
     SlackNotificationRequest(
       channelLookup = channelLookup,
       displayName   = "MDTP Catalogue",
@@ -181,10 +172,8 @@ object SlackNotificationRequest {
       text          = s"A downstream service has been marked as deprecated",
       blocks        = Seq(block1, block2)
     )
-  }
 
-
-  def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest = {
+  def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest =
     val msg: JsObject = Json.parse(
       s"""
          |{
@@ -197,19 +186,19 @@ object SlackNotificationRequest {
          |""".stripMargin
     ).as[JsObject]
 
-    val rules = warnings.map { case (serviceName, rule) =>
-      Json.parse(
-        s"""
-           |{
-           |  "type": "section",
-           |  "text": {
-           |    "type": "mrkdwn",
-           |    "text": "`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
-           |  }
-           |}
-           |""".stripMargin
-      ).as[JsObject]
-    }
+    val rules = warnings.map:
+      case (serviceName, rule) =>
+        Json.parse(
+          s"""
+             |{
+             |  "type": "section",
+             |  "text": {
+             |    "type": "mrkdwn",
+             |    "text": "`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
+             |  }
+             |}
+             |""".stripMargin
+        ).as[JsObject]
 
     SlackNotificationRequest(
       channelLookup = channelLookup,
@@ -218,6 +207,3 @@ object SlackNotificationRequest {
       text          = "There are upcoming Bobby Rules affecting your service(s)",
       blocks        = msg :: rules
     )
-  }
-}
-

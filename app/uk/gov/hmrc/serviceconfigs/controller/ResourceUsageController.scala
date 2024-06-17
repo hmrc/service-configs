@@ -31,15 +31,12 @@ class ResourceUsageController @Inject()(
   cc                     : ControllerComponents
 )(using
   ec                     : ExecutionContext
-) extends BackendController(cc) {
-
-  private given Format[ResourceUsage] =
-    ResourceUsage.apiFormat
+) extends BackendController(cc):
 
   def resourceUsageSnapshotsForService(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    given Format[ResourceUsage] = ResourceUsage.apiFormat
+    Action.async:
       resourceUsageRepository
         .find(serviceName)
-        .map(r => Ok(Json.toJson(r)))
-    }
-}
+        .map: r =>
+          Ok(Json.toJson(r))

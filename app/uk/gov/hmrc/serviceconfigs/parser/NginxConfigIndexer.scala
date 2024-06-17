@@ -23,11 +23,11 @@ import uk.gov.hmrc.serviceconfigs.model.Environment
   * NginxConfigIndexer takes nginx config files and returns a map containing
   * the line number of each path in the file.
   */
-object NginxConfigIndexer {
+object NginxConfigIndexer:
 
   private val locationRegex = """location\s+[\^\~\~*\^~=]*\s*(.+)\s*\{""".r
 
-  def index(source: String) : Map[String, Int] = {
+  def index(source: String) : Map[String, Int] =
     Source.fromString(source)
       .getLines()
       .zipWithIndex
@@ -35,14 +35,7 @@ object NginxConfigIndexer {
       .map(z => locationRegex.findFirstMatchIn(z._1).map(_.group(1).trim).getOrElse(z._1) -> (1 + z._2))
       .toMap
 
-  }
-
   private val baseURL = "https://github.com/hmrc/mdtp-frontend-routes/blob"
 
-  def generateUrl(fileName: String, branch: String, env: Environment, frontendPath: String, indexes: Map[String, Int]) : Option[String] = {
+  def generateUrl(fileName: String, branch: String, env: Environment, frontendPath: String, indexes: Map[String, Int]) : Option[String] =
     indexes.get(frontendPath).map( idx => s"$baseURL/$branch/${env.asString}/$fileName#L$idx")
-  }
-
-
-
-}

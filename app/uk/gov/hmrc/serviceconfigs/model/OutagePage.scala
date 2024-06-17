@@ -24,13 +24,11 @@ case class OutagePage(
   environments: List[Environment],
 )
 
-object OutagePage {
+object OutagePage:
   val outagePageName = "index.html"
 
-  lazy val outagePageFormat: Format[OutagePage] = {
+  lazy val outagePageFormat: Format[OutagePage] =
     given Format[Environment] = Environment.format
     ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "environments").format[List[Environment]]
     ) (OutagePage.apply _, pt => Tuple.fromProductTyped(pt))
-  }
-}

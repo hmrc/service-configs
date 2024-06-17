@@ -32,17 +32,15 @@ class DeploymentDeadLetterHandler @Inject()(
 ) extends SqsConsumer(
   name         = "Deployment Dead Letter"
 , config       = SqsConfig("aws.sqs.deploymentDeadLetter", configuration)
-)(actorSystem, ec) {
+):
 
-  protected def processMessage(message: Message) = {
+  protected def processMessage(message: Message) =
     logger.warn(
       s"""Deployment dead letter message with
          |ID: '${message.messageId}'
          |Body: '${message.body}'""".stripMargin
     )
     Future.successful(MessageAction.Delete(message))
-  }
-}
 
 @Singleton
 class SlugDeadLetterHandler @Inject()(
@@ -53,14 +51,12 @@ class SlugDeadLetterHandler @Inject()(
 ) extends SqsConsumer(
   name         = "Slug Dead Letter"
 , config       = SqsConfig("aws.sqs.slugDeadLetter", configuration)
-)(actorSystem, ec) {
+):
 
-  protected def processMessage(message: Message) = {
+  protected def processMessage(message: Message) =
     logger.warn(
       s"""Slug dead letter message with
          |ID: '${message.messageId}'
          |Body: '${message.body}'""".stripMargin
     )
     Future.successful(MessageAction.Delete(message))
-  }
-}

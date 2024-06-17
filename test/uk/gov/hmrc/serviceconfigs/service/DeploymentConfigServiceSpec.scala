@@ -24,11 +24,11 @@ import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environ
 class DeploymentConfigServiceSpec
   extends AnyWordSpec
      with Matchers
-     with OptionValues {
+     with OptionValues:
   import DeploymentConfigService._
 
-  "toDeploymentConfig" should {
-    "discard the 0.0.0 root element, hmrc_config and add name and environment" in {
+  "toDeploymentConfig" should:
+    "discard the 0.0.0 root element, hmrc_config and add name and environment" in:
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
@@ -57,9 +57,8 @@ class DeploymentConfigServiceSpec
       , jvm            = Map.empty
       , applied        = true
       ))
-    }
 
-    "return None when there is no 0.0.0 root element" in {
+    "return None when there is no 0.0.0 root element" in:
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
@@ -68,9 +67,8 @@ class DeploymentConfigServiceSpec
                       |any-other-key: {}
                       |""".stripMargin
       ) shouldBe None
-    }
 
-    "returns None when the config is missing required keys" in {
+    "returns None when the config is missing required keys" in:
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
@@ -82,9 +80,8 @@ class DeploymentConfigServiceSpec
                       |  instances: 1
                       |""".stripMargin
       ) shouldBe None
-    }
 
-    "keep env vars and jvm config when available" in {
+    "keep env vars and jvm config when available" in:
       toDeploymentConfig(
         serviceName = ServiceName("service-name")
       , environment = Environment.Production
@@ -130,6 +127,3 @@ class DeploymentConfigServiceSpec
                          )
       , applied        = true
       ))
-    }
-  }
-}

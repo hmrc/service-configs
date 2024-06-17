@@ -31,14 +31,12 @@ class BuildJobController @Inject()(
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
-
-  private given Format[BuildJob] = BuildJob.format
+) extends BackendController(mcc):
 
   def buildJob(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    given Format[BuildJob] = BuildJob.format
+    Action.async:
       buildJobRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
-}
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))

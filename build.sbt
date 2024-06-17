@@ -16,5 +16,3 @@ lazy val microservice = Project("service-configs", file("."))
       "uk.gov.hmrc.serviceconfigs.model.QueryBinders._",
     )
   )
-
-// addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full)

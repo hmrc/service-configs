@@ -31,23 +31,20 @@ class AlertConfigController @Inject()(
   cc                : ControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(cc){
+) extends BackendController(cc):
 
   private given Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
 
   def getAlertConfigs(): Action[AnyContent] =
-    Action.async {
-      for {
+    Action.async:
+      for
         configs <- alertConfigService.findConfigs()
         result  =  Ok(Json.toJson(configs))
-      } yield result
-    }
+      yield result
 
   def getAlertConfigForService(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      for {
+    Action.async:
+      for
         config <- alertConfigService.findConfigByServiceName(serviceName)
         result =  config.fold(NotFound(""))(c => Ok(Json.toJson(c)))
-      } yield result
-    }
-}
+      yield result

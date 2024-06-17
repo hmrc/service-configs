@@ -24,7 +24,7 @@ import uk.gov.hmrc.serviceconfigs.config.SchedulerConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait SchedulerUtils extends Logging {
+trait SchedulerUtils extends Logging:
   private def schedule(
     label          : String
   , schedulerConfig: SchedulerConfig
@@ -34,25 +34,22 @@ trait SchedulerUtils extends Logging {
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
   ): Unit =
-    if (schedulerConfig.enabled) {
+    if schedulerConfig.enabled then
       val initialDelay = schedulerConfig.initialDelay
       val interval     = schedulerConfig.interval
       logger.info(s"Enabling $label scheduler, running every $interval (after initial delay $initialDelay)")
       val cancellable =
-        actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, interval){ () =>
+        actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, interval): () =>
           val start = System.currentTimeMillis
           logger.info(s"Scheduler $label started")
-          f.map { res =>
+          f.map: res =>
             logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
             res
-          }
-          .recover {
+          .recover:
             case e => logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
-          }
-        }
 
       applicationLifecycle.addStopHook(() => Future.successful(cancellable.cancel()))
-    } else
+    else
       logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
 
   def scheduleWithTimePeriodLock(
@@ -65,12 +62,10 @@ trait SchedulerUtils extends Logging {
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
   ): Unit =
-    schedule(label, schedulerConfig) {
-      lock.withLock(f).map {
+    schedule(label, schedulerConfig):
+      lock.withLock(f).map:
         case Some(_) => logger.debug(s"$label finished - releasing lock")
         case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
-      }
-    }
 
   import cats.data._
   import cats.implicits._
@@ -84,14 +79,17 @@ trait SchedulerUtils extends Logging {
      .flatMap(_._1.headOption.fold(Future.unit)(Future.failed))
 
   def accumulateErrors(name: String, f: Future[Unit])(using ec: ExecutionContext): ScheduledItem[Unit] =
-    for {
+    for
       _  <- ReaderT.pure(logger.info(s"Starting scheduled task: $name"))
       op <- ReaderT.liftF(WriterT.liftF(
-             f.map { _ => logger.info(s"Successfully run scheduled task: $name"); None }
-              .recover { case e => logger.error(s"Error running scheduled task $name", e); Some(e) }
+             f.map: _ =>
+                logger.info(s"Successfully run scheduled task: $name")
+                None
+              .recover:
+                case e => logger.error(s"Error running scheduled task $name", e)
+                          Some(e)
             )): ScheduledItem[Option[Throwable]]
       re <- op.fold(ReaderT.pure(()): ScheduledItem[Unit])(ex => ReaderT.liftF(WriterT.tell(List(ex)))): ScheduledItem[Unit]
-    } yield re
-}
+    yield re
 
 object SchedulerUtils extends SchedulerUtils

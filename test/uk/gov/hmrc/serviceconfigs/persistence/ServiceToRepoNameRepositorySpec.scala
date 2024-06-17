@@ -26,9 +26,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ServiceToRepoNameRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[ServiceToRepoName] {
+     with DefaultPlayMongoRepositorySupport[ServiceToRepoName]:
 
-  override val repository: ServiceToRepoNameRepository = new ServiceToRepoNameRepository(mongoComponent)
+  override val repository: ServiceToRepoNameRepository =
+    ServiceToRepoNameRepository(mongoComponent)
 
   private val serviceA  = ServiceName("serviceNameA")
   private val artefactA = ArtefactName("artefactNameA")
@@ -42,28 +43,24 @@ class ServiceToRepoNameRepositorySpec
     ServiceToRepoName(serviceA, artefactA, repoA)
   )
 
-  "ServiceToRepoNameRepository" should {
-    "return the repo name for a given service name" in {
+  "ServiceToRepoNameRepository" should:
+    "return the repo name for a given service name" in:
       repository.putAll(seed).futureValue
       repository.findRepoName(serviceName = Some(serviceA)).futureValue shouldBe Some(repoA)
-    }
 
-    "return None when no service to repo mapping is found" in {
+    "return None when no service to repo mapping is found" in:
       repository.putAll(seed).futureValue
       repository.findRepoName(serviceName = Some(serviceB)).futureValue shouldBe None
-    }
 
-    "return the repo name for a given artefact name" in {
+    "return the repo name for a given artefact name" in:
       repository.putAll(seed).futureValue
       repository.findRepoName(artefactName = Some(artefactA)).futureValue shouldBe Some(repoA)
-    }
 
-    "return None when no artefact to repo mapping is found" in {
+    "return None when no artefact to repo mapping is found" in:
       repository.putAll(seed).futureValue
       repository.findRepoName(artefactName = Some(artefactB)).futureValue shouldBe None
-    }
 
-    "clear the collection and refresh" in {
+    "clear the collection and refresh" in:
       repository.putAll(seed).futureValue
 
       val latest: Seq[ServiceToRepoName] =
@@ -78,6 +75,3 @@ class ServiceToRepoNameRepositorySpec
           ServiceToRepoName(serviceA, artefactA, repoA),
           ServiceToRepoName(serviceB, artefactB, repoB)
         )
-    }
-  }
-}

@@ -25,12 +25,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class LatestConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig] {
+     with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig]:
 
-  override protected val repository: LatestConfigRepository = new LatestConfigRepository(mongoComponent)
+  override protected val repository: LatestConfigRepository =
+    LatestConfigRepository(mongoComponent)
 
-  "LatestConfigRepository.put" should {
-    "put correctly" in {
+  "LatestConfigRepository.put" should:
+    "put correctly" in:
       val repoName1 = "app-config-base"
       repository.put(repoName1)(Map("file1" -> "content1", "file2" -> "content2")).futureValue
       val repoName2 = "app-config-production"
@@ -47,6 +48,3 @@ class LatestConfigRepositorySpec
       repository.find(repoName1, "file2").futureValue shouldBe None
       repository.find(repoName2, "file3").futureValue shouldBe Some("content3")
       repository.find(repoName2, "file4").futureValue shouldBe Some("content4")
-    }
-  }
-}

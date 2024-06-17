@@ -33,13 +33,12 @@ class InternalAuthConfigController @Inject()(
 )(using
   ec: ExecutionContext
 ) extends BackendController(cc)
-     with Logging {
-
-  private given Format[InternalAuthConfig] = InternalAuthConfig.format
+     with Logging:
 
   def internalAuthConfig(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      internalAuthConfigRepository.findByService(serviceName)
-        .map(e => Ok(Json.toJson(e)))
-    }
-}
+    given Format[InternalAuthConfig] = InternalAuthConfig.format
+    Action.async:
+      internalAuthConfigRepository
+        .findByService(serviceName)
+        .map: e =>
+          Ok(Json.toJson(e))

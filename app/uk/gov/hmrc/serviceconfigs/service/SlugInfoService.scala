@@ -43,7 +43,7 @@ class SlugInfoService @Inject()(
 , configService             : ConfigService
 )(using
   ec: ExecutionContext
-) {
+):
   private val logger = Logger(getClass)
 
   private case class Count(
@@ -53,7 +53,7 @@ class SlugInfoService @Inject()(
   )
 
   def updateMetadata()(using hc: HeaderCarrier): Future[Unit] =
-    for {
+    for
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
       repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
@@ -64,7 +64,9 @@ class SlugInfoService @Inject()(
       inactiveServices       =  latestServices.diff(repos)
       allServiceDeployments  =  serviceNames.map { serviceName =>
                                   val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
-                                  val deploymentsByEnv = Environment.values
+                                  val deploymentsByEnv = Environment
+                                                           .values
+                                                           .toList
                                                            .map(env =>
                                                              ( env
                                                              , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
@@ -73,7 +75,7 @@ class SlugInfoService @Inject()(
                                   (serviceName, deploymentsByEnv)
                                 } ++
                                   // map decomissioned services to No deployment in all environments in order to clean up
-                                  decommissionedServices.map( _ -> Environment.values.map(_ -> None))
+                                  decommissionedServices.map( _ -> Environment.values.toList.map(_ -> None))
       _                      =  logger.info(s"Updating config")
       count                  <- allServiceDeployments.toList.foldLeftM(Count(0, 0, 0)) { case (acc, (serviceName, deployments)) =>
                                   deployments.foldLeftM(acc) {
@@ -108,14 +110,14 @@ class SlugInfoService @Inject()(
                                     } yield ()
                                   )
                                 } else Future.unit
-    } yield ()
+    yield ()
 
   private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
-    for {
+    for
       _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
       _ <- deployedConfigRepository.delete(serviceName, env)
       _ <- appliedConfigRepository.delete(serviceName, env)
-    } yield ()
+    yield ()
 
   def updateDeployment(
     env           : Environment,
@@ -124,10 +126,10 @@ class SlugInfoService @Inject()(
   )(using
     hc: HeaderCarrier
   ): Future[Boolean] =
-    for {
+    for
       _                     <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
       currentDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
-      requiresUpdate        =  currentDeploymentInfo match {
+      requiresUpdate        =  currentDeploymentInfo match
                                   case None  =>
                                     logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
                                     true
@@ -141,7 +143,6 @@ class SlugInfoService @Inject()(
                                   case _    =>
                                     logger.debug(s"Detected a change in configId, updating deployedConfig repository for $serviceName ${deployment.version} in $env")
                                     true
-                                }
       configChanged         <- hasConfigChanged(serviceName, env, deployment.version)
       depEvent              =  DeploymentEventRepository.DeploymentEvent(
                                   serviceName,
@@ -153,13 +154,17 @@ class SlugInfoService @Inject()(
                                   deployment.lastDeployed
                                 )
       _                     <- deploymentEventRepository.put(depEvent)
-      _                     <- if (requiresUpdate)
+      _                     <-
+                                if requiresUpdate then
                                   updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId.getOrElse("undefined"), deployment.lastDeployed)
-                                    .fold(e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e"), _ => ())
-                                    .recover { case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex) }
+                                    .fold(
+                                      e => logger.warn(s"Failed to update deployed config for $serviceName in $env: $e")
+                                    , _ => ()
+                                    ).recover:
+                                      case NonFatal(ex) => logger.error(s"Failed to update $serviceName $env: ${ex.getMessage()}", ex)
                                 else
                                   Future.unit
-    } yield requiresUpdate
+    yield requiresUpdate
 
   private def hasConfigChanged(
     serviceName: ServiceName,
@@ -168,10 +173,10 @@ class SlugInfoService @Inject()(
   )(using
     hc: HeaderCarrier
   ): Future[Boolean] =
-    for {
-      latestConfig <- configService.configByEnvironment(serviceName, Seq(environment), Some(version), latest = true)
+    for
+      latestConfig   <- configService.configByEnvironment(serviceName, Seq(environment), Some(version), latest = true)
       deployedConfig <- configService.configByEnvironment(serviceName, Seq(environment), None, latest = false)
-    } yield latestConfig != deployedConfig
+    yield latestConfig != deployedConfig
 
   private def updateDeployedConfig(
     env          : Environment,
@@ -182,36 +187,35 @@ class SlugInfoService @Inject()(
   )(using
     hc: HeaderCarrier
   ): EitherT[Future, String, Unit] =
-    for {
-      deployedConfigMap <- deployment.config.toList.foldMapM { config =>
-                              config.repoName match {
-                                case RepoName("app-config-common") =>
-                                  for {
-                                    optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
-                                    appConfigCommon    <- optAppConfigCommon match {
-                                                            case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
-                                                            case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
-                                                          }
-                                  } yield List("app-config-common" -> appConfigCommon)
-                                case RepoName("app-config-base") =>
-                                  for {
-                                    optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
-                                    appConfigBase      <- optAppConfigBase match {
-                                                            case Some(appConfigBase) => EitherT.pure[Future, String](appConfigBase)
-                                                            case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
-                                                          }
-                                  } yield List("app-config-base" -> appConfigBase)
-                                case RepoName(s"app-config-${_}") =>
-                                  for {
-                                    optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
-                                    appConfigEnv       <- optAppConfigEnv match {
-                                                            case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
-                                                            case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
-                                                          }
-                                  } yield List(s"app-config-${env.asString}" -> appConfigEnv)
-                                case other => EitherT.pure[Future, String] { logger.warn(s"Received commitId for unexpected repo $other"); List.empty }
-                              }
-                            }.map(_.toMap)
+    for
+      deployedConfigMap <- deployment
+                             .config
+                             .toList
+                             .foldMapM: config =>
+                               config.repoName match
+                                 case RepoName("app-config-common") =>
+                                   for
+                                     optAppConfigCommon <- EitherT.right(configConnector.appConfigCommonYaml(config.fileName, config.commitId))
+                                     appConfigCommon    <- optAppConfigCommon match
+                                                             case Some(appConfigCommon) => EitherT.pure[Future, String](appConfigCommon)
+                                                             case None                  => EitherT.leftT[Future, String](s"Could not find app-config-common data for commit ${config.commitId}")
+                                   yield List("app-config-common" -> appConfigCommon)
+                                 case RepoName("app-config-base") =>
+                                   for
+                                     optAppConfigBase   <- EitherT.right(configConnector.appConfigBaseConf(serviceName, config.commitId))
+                                     appConfigBase      <- optAppConfigBase match
+                                                             case Some(appConfigBase) => EitherT.pure[Future, String](appConfigBase)
+                                                             case None                => EitherT.leftT[Future, String](s"Could not find app-config-base data for commit ${config.commitId}")
+                                   yield List("app-config-base" -> appConfigBase)
+                                 case RepoName(s"app-config-${_}") =>
+                                   for
+                                     optAppConfigEnv    <- EitherT.right(configConnector.appConfigEnvYaml(env, serviceName, config.commitId))
+                                     appConfigEnv       <- optAppConfigEnv match
+                                                             case Some(appConfigEnv) => EitherT.pure[Future, String](appConfigEnv)
+                                                             case None               => EitherT.leftT[Future, String](s"Could not find app-config-${env.asString} data for commit ${config.commitId}")
+                                   yield List(s"app-config-${env.asString}" -> appConfigEnv)
+                                 case other => EitherT.pure[Future, String] { logger.warn(s"Received commitId for unexpected repo $other"); List.empty }
+                             .map(_.toMap)
       deployedConfig    =  DeployedConfigRepository.DeployedConfig(
                               serviceName     = serviceName,
                               environment     = env,
@@ -223,24 +227,24 @@ class SlugInfoService @Inject()(
                               lastUpdated     = dataTimestamp
                             )
       _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
-      deploymentConfig  =  deployedConfig.appConfigEnv
-                              .flatMap(content =>
+      deploymentConfig  =  deployedConfig
+                              .appConfigEnv
+                              .flatMap: content =>
                                 DeploymentConfigService.toDeploymentConfig(
                                   serviceName = serviceName,
                                   environment = env,
                                   applied     = true,
                                   fileContent = content
                                 )
-                              )
-      _                 <- // we let the scheduler populate the DeploymenConfigSnapshot from this
-                            EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
+      // we let the scheduler populate the DeploymenConfigSnapshot from this
+      _                 <- EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
       // now we have stored the deployed configs, we can calculate the resulting configs
       cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
       resultingConfigs  =  configService.resultingConfig(cses)
-      renderedDeploymentConfig = resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
-      _                 <- if (renderedDeploymentConfig.nonEmpty)
-                              EitherT.right[String](appliedConfigRepository.put(serviceName, env, renderedDeploymentConfig))
+      results           =  resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
+      _                 <-
+                            if (results.nonEmpty) then
+                              EitherT.right[String](appliedConfigRepository.put(serviceName, env, results))
                             else
                               EitherT.pure[Future, String](logger.warn(s"No deployment config resolved for ${env.asString}, $serviceName"))
-    } yield ()
-}
+    yield ()

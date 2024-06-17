@@ -21,46 +21,42 @@ import play.api.mvc.{PathBindable, QueryStringBindable}
 import java.time.Instant
 import scala.util.Try
 
-object QueryBinders {
+object QueryBinders:
 
   implicit def filterTypeBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[FilterType] =
-    new QueryStringBindable[FilterType] {
+    new QueryStringBindable[FilterType]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, FilterType]] =
-        strBinder.bind(key, params)
-          .map(_.flatMap(s =>
-            FilterType.parse(s).toRight(s"Invalid FilterType '$s'")
-          ))
+        strBinder
+          .bind(key, params)
+          .map:
+            _.flatMap(s => FilterType.parse(s).toRight(s"Invalid FilterType '$s'"))
 
       override def unbind(key: String, value: FilterType): String =
         strBinder.unbind(key, value.asString)
-    }
 
   implicit def environmentBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[Environment] =
-    new QueryStringBindable[Environment] {
+    new QueryStringBindable[Environment]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Environment]] =
-        strBinder.bind(key, params)
-          .map(_.flatMap(s =>
-            Environment.parse(s).toRight(s"Invalid Environment '$s'")
-          ))
+        strBinder
+          .bind(key, params)
+          .map:
+            _.flatMap(s => Environment.parse(s).toRight(s"Invalid Environment '$s'"))
 
       override def unbind(key: String, value: Environment): String =
         strBinder.unbind(key, value.asString)
-    }
 
   implicit def environmentParamBindable(using strBinder: PathBindable[String]): PathBindable[Environment] =
-    new PathBindable[Environment] {
+    new PathBindable[Environment]:
       override def bind(key: String, value: String): Either[String, Environment] =
-        Environment.parse(value) match {
+        Environment.parse(value) match
           case None      => Left(s"Invalid Environment $value")
           case Some(env) => Right(env)
-        }
 
       override def unbind(key: String, value: Environment): String =
         strBinder.unbind(key, value.asString)
-    }
 
   implicit def serviceTypeBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceType] =
-    new QueryStringBindable[ServiceType] {
+    new QueryStringBindable[ServiceType]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, ServiceType]] =
         strBinder.bind(key, params)
           .map(_.flatMap(s =>
@@ -69,10 +65,9 @@ object QueryBinders {
 
       override def unbind(key: String, value: ServiceType): String =
         strBinder.unbind(key, value.asString)
-    }
 
   implicit def versionBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[Version] =
-    new QueryStringBindable[Version] {
+    new QueryStringBindable[Version]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Version]] =
         strBinder.bind(key, params)
           .map(_.flatMap(s =>
@@ -81,7 +76,6 @@ object QueryBinders {
 
       override def unbind(key: String, value: Version): String =
         strBinder.unbind(key, value.original)
-    }
 
   implicit def serviceNameBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
     strBinder.transform(ServiceName.apply, _.asString)
@@ -97,29 +91,25 @@ object QueryBinders {
 
   /** DeploymentDateRange */
   implicit def instantBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[Instant] =
-    new QueryStringBindable[Instant] {
+    new QueryStringBindable[Instant]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Instant]] =
         strBinder.bind(key, params)
           .map(_.flatMap(s => Try(Instant.parse(s)).toEither.left.map(_.getMessage)))
 
       override def unbind(key: String, value: Instant): String =
         strBinder.unbind(key, value.toString)
-    }
 
   implicit def deploymentDateRangeBindable(using instantBinder: QueryStringBindable[Instant]): QueryStringBindable[DeploymentDateRange] =
-    new QueryStringBindable[DeploymentDateRange] {
+    new QueryStringBindable[DeploymentDateRange]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, DeploymentDateRange]] =
-        for {
+        for
           from <- instantBinder.bind("from", params)
           to   <- instantBinder.bind("to"  , params).orElse(Some(Right(Instant.now())))
-        } yield
-          (from, to) match {
+        yield
+          (from, to) match
             case (Right(from), Right(to)) if from.compareTo(to) <= 0 => Right(DeploymentDateRange(from, to))
             case (Right(from), Right(to))               => Left("Invalid date range, from should be before to")
             case _                                      => Left("Unable to bind an deployment date range.")
-          }
 
       override def unbind(key: String, value: DeploymentDateRange): String =
         instantBinder.unbind("from", value.from) + "&" + instantBinder.unbind("to", value.to)
-    }
-}

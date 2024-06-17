@@ -36,8 +36,7 @@ class BobbyRulesRepository @Inject()(
   collectionName = "bobbyRules",
   domainFormat   = BobbyRules.mongoFormat,
   indexes        = Seq.empty
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -46,7 +45,7 @@ class BobbyRulesRepository @Inject()(
       .replaceOne(
         filter      = BsonDocument(),
         replacement = config,
-        options     = new ReplaceOptions().upsert(true)
+        options     = ReplaceOptions().upsert(true)
       )
       .toFuture()
       .map(_ => ())
@@ -55,4 +54,3 @@ class BobbyRulesRepository @Inject()(
     collection
       .find()
       .head()
-}

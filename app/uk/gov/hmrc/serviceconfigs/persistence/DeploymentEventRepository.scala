@@ -46,8 +46,7 @@ class DeploymentEventRepository @Inject()(
                      IndexModel(Indexes.descending("lastUpdated", "environment", "serviceName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) {
-
+):
   override lazy val requiresTtlIndex = false
 
   def put(config: DeploymentEventRepository.DeploymentEvent): Future[Unit] =
@@ -60,8 +59,8 @@ class DeploymentEventRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
-    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
+  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
       val filter: Environment => conversions.Bson = (environment: Environment) => and(
         equal("serviceName", serviceName),
         equal("environment", environment),
@@ -81,18 +80,15 @@ class DeploymentEventRepository @Inject()(
         gte("lastUpdated", dateRange.to),
       )
 
-      for {
+      for
         inside <- collection.find(filter(environment)).sort(Sorts.ascending("lastUpdated")).toFuture()
         before <- collection.find(filterBefore(environment)).sort(Sorts.descending("lastUpdated")).headOption()
         after <- collection.find(filterAfter(environment)).sort(Sorts.ascending("lastUpdated")).headOption()
-      } yield before.toSeq ++ inside ++ after.toSeq
-    }
+      yield before.toSeq ++ inside ++ after.toSeq
 
-    Environment.values.traverse(fetchEvents).map(_.flatten)
-  }
-}
+    Environment.values.toList.traverse(fetchEvents).map(_.flatten)
 
-object DeploymentEventRepository {
+object DeploymentEventRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -108,8 +104,8 @@ object DeploymentEventRepository {
     lastUpdated    : Instant
   )
 
-  object DeploymentEvent {
-    val apiFormat: Format[DeploymentEvent] = {
+  object DeploymentEvent:
+    val apiFormat: Format[DeploymentEvent] =
       ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
       ~ (__ \ "environment"  ).format[Environment](Environment.format)
       ~ (__ \ "version"      ).format[Version](Version.format)
@@ -118,9 +114,8 @@ object DeploymentEventRepository {
       ~ (__ \ "configId"     ).formatNullable[String]
       ~ (__ \ "lastUpdated"  ).format[Instant]
       )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
-    }
 
-    val mongoFormat: Format[DeploymentEvent] = {
+    val mongoFormat: Format[DeploymentEvent] =
       ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
       ~ (__ \ "environment"  ).format[Environment](Environment.format)
       ~ (__ \ "version"      ).format[Version](Version.format)
@@ -129,6 +124,3 @@ object DeploymentEventRepository {
       ~ (__ \ "configId"     ).formatNullable[String]
       ~ (__ \ "lastUpdated"  ).format[Instant](MongoJavatimeFormats.instantFormat)
       )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
-    }
-  }
-}

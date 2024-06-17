@@ -41,21 +41,24 @@ class SlugHandler @Inject()(
 ) extends SqsConsumer(
   name                      = "SlugInfo"
 , config                    = SqsConfig("aws.sqs.slug", configuration)
-)(actorSystem, ec) {
+):
 
   private given HeaderCarrier = HeaderCarrier()
 
-  override protected def processMessage(message: Message): Future[MessageAction] = {
+  override protected def processMessage(message: Message): Future[MessageAction] =
     logger.info(s"Starting processing SlugInfo message with ID '${message.messageId()}'")
-    (for {
+    (for
        payload <- EitherT.fromEither[Future](
-                    Json.parse(message.body)
+                    Json
+                      .parse(message.body)
                       .validate(MessagePayload.reads)
-                      .asEither.left.map(error => s"Could not parse message with ID '${message.messageId}'.  Reason: " + error.toString)
+                      .asEither
+                      .left
+                      .map(error => s"Could not parse message with ID '${message.messageId}'.  Reason: " + error.toString)
                   )
-       action  <- payload match {
+       action  <- payload match
                     case available: MessagePayload.JobAvailable =>
-                      for {
+                      for
                         _                 <- EitherT.cond[Future](available.jobType == "slug", (), s"${available.jobType} was not 'slug'")
                         slugInfo          <- EitherT.fromOptionF(
                                                artefactProcessorConnector.getSlugInfo(available.name, available.version),
@@ -68,53 +71,44 @@ class SlugHandler @Inject()(
                         _                 <- EitherT[Future, String, Unit](
                                                slugConfigurationService.addSlugInfo(slugInfo)
                                                .map(Right.apply)
-                                               .recover {
+                                               .recover:
                                                  case e =>
                                                    val errorMessage = s"Could not store SlugInfo for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
                                                    logger.error(errorMessage, e)
                                                    Left(s"$errorMessage ${e.getMessage}")
-                                               }
                                              )
                         _                 <- EitherT[Future, String, Unit](
                                                slugConfigurationService
                                                  .addDependencyConfigurations(dependencyConfigs)
                                                  .map(Right.apply)
-                                                 .recover {
+                                                 .recover:
                                                    case e =>
                                                      val errorMessage = s"Could not store DependencyConfigs for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
                                                      logger.error(errorMessage, e)
                                                      Left(s"$errorMessage ${e.getMessage}")
-                                                 }
                                              )
-                      } yield {
+                      yield
                         logger.info(s"SlugInfo message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version}) successfully processed.")
                         MessageAction.Delete(message)
-                      }
                     case deleted: MessagePayload.JobDeleted =>
-                      for {
+                      for
                         _ <- EitherT.cond[Future](deleted.jobType == "slug", (), s"${deleted.jobType} was not 'slug'")
                         _ <- EitherT(
                                slugConfigurationService.deleteSlugInfo(ServiceName(deleted.name), deleted.version)
                                  .map(Right.apply)
-                                 .recover {
+                                 .recover:
                                    case e =>
                                      val errorMessage = s"Could not delete SlugInfo for message with ID '${message.messageId()}' (${deleted.name} ${deleted.version})"
                                      logger.error(errorMessage, e)
                                      Left(s"$errorMessage ${e.getMessage}")
-                                 }
                              )
-                      } yield {
+                      yield
                         logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
                         MessageAction.Delete(message)
-                      }
-                  }
-     } yield action
-    ).value.map {
+     yield action
+    ).value.map:
       case Left(error) =>
         logger.error(error)
         MessageAction.Ignore(message)
       case Right(action) =>
         action
-    }
-  }
-}

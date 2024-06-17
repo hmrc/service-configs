@@ -31,15 +31,12 @@ class OutagePageController @Inject()(
   cc               : ControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(cc){
-
-  private given Format[Environment] = Environment.format
+) extends BackendController(cc):
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      for {
+    given Format[Environment] = Environment.format
+    Action.async:
+      for
         optEnvironments <- outagePageService.findByServiceName(serviceName)
         result          =  optEnvironments.fold(NotFound(""))(e => Ok(Json.toJson(e)))
-      } yield result
-    }
-}
+      yield result

@@ -29,77 +29,72 @@ import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, Environment, FileName, RepoName, ServiceName, Version}
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
-import java.time.{Instant, Clock}
+import java.time.Instant
 import scala.collection.immutable.TreeMap
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class DeploymentHandler @Inject()(
   configuration  : Configuration,
-  slugInfoService: SlugInfoService,
-  clock          : Clock
+  slugInfoService: SlugInfoService
 )(using
   actorSystem    : ActorSystem,
   ec             : ExecutionContext
 ) extends SqsConsumer(
   name           = "Deployment"
 , config         = SqsConfig("aws.sqs.deployment", configuration)
-)(actorSystem, ec) {
+):
   import DeploymentHandler._
 
   private given HeaderCarrier = HeaderCarrier()
 
-  override protected def processMessage(message: Message): Future[MessageAction] = {
+  override protected def processMessage(message: Message): Future[MessageAction] =
     logger.info(s"Starting processing Deployment message with ID '${message.messageId()}'")
-      val et = for {
-         payload <- EitherT.fromEither[Future](
-                      Json.parse(message.body)
-                        .validate(mdtpEventReads)
-                        .asEither.left.map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString)
-                    )
-         _       <- (payload.eventType, payload.optEnvironment) match {
-                      case ("deployment-complete", Some(environment)) =>
-                        EitherT.liftF[Future, String, Boolean](
-                          slugInfoService.updateDeployment(
-                            env         = environment,
-                            serviceName = payload.serviceName,
-                            deployment  = ReleasesApiConnector.Deployment(
-                                            serviceName    = payload.serviceName
-                                          , optEnvironment = Some(environment)
-                                          , version        = payload.version
-                                          , lastDeployed   = payload.time
-                                          , deploymentId   = Some(payload.deploymentId)
-                                          , config         = payload.config
-                                          )
-                          )
-                        ).map { requiresUpdate =>
-                          if (requiresUpdate)
-                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has been processed")
-                          else
-                            logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
-                        }
-                      case (_, None) =>
-                        logger.info(s"Not processing message '${message.messageId()}' with unrecognised environment")
-                        EitherT.pure[Future, String](())
-                      case (eventType, _) =>
-                        logger.info(s"Not processing message '${message.messageId()}' with event_type $eventType")
-                        EitherT.pure[Future, String](())
-                    }
-      } yield {
-        logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
-        MessageAction.Delete(message)
-      }
+    val et = for
+      payload <- EitherT.fromEither[Future](
+                   Json
+                     .parse(message.body)
+                     .validate(mdtpEventReads)
+                     .asEither
+                     .left
+                     .map(error => s"Could not parse message with ID '${message.messageId()}'.  Reason: " + error.toString)
+                 )
+        _     <- (payload.eventType, payload.optEnvironment) match
+                   case ("deployment-complete", Some(environment)) =>
+                     EitherT.liftF[Future, String, Boolean](
+                       slugInfoService.updateDeployment(
+                         env         = environment,
+                         serviceName = payload.serviceName,
+                         deployment  = ReleasesApiConnector.Deployment(
+                                         serviceName    = payload.serviceName
+                                       , optEnvironment = Some(environment)
+                                       , version        = payload.version
+                                       , lastDeployed   = payload.time
+                                       , deploymentId   = Some(payload.deploymentId)
+                                       , config         = payload.config
+                                       )
+                       )
+                     ).map: requiresUpdate =>
+                       if requiresUpdate then
+                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has been processed")
+                       else
+                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
+                   case (_, None) =>
+                     logger.info(s"Not processing message '${message.messageId()}' with unrecognised environment")
+                     EitherT.pure[Future, String](())
+                   case (eventType, _) =>
+                     logger.info(s"Not processing message '${message.messageId()}' with event_type $eventType")
+                     EitherT.pure[Future, String](())
+    yield
+      logger.info(s"Deployment message with ID '${message.messageId()}' successfully processed.")
+      MessageAction.Delete(message)
 
-      et.value.map {
-        case Left(error)   => logger.error(error)
-                              MessageAction.Ignore(message)
-        case Right(action) => action
-      }
-  }
-}
+    et.value.map:
+      case Left(error)   => logger.error(error)
+                            MessageAction.Ignore(message)
+      case Right(action) => action
 
-object DeploymentHandler {
-
+object DeploymentHandler:
   case class DeploymentEvent(
     eventType     : String
   , optEnvironment: Option[Environment]
@@ -114,42 +109,41 @@ object DeploymentHandler {
   import play.api.libs.json.{Reads, JsObject, __}
 
    private given Applicative[Reads] =
-    new Applicative[Reads] {
+    new Applicative[Reads]:
       override def pure[A](a: A): Reads[A] =
         Reads.pure(a)
 
       override def ap[A, B](ff: Reads[A => B])(fa: Reads[A]): Reads[B] =
-        for {
+        for
           f <- ff
           a <- fa
-        } yield f(a)
-    }
+        yield f(a)
 
   private val ConfigKey = ".*\\.(\\d+)\\.(\\w+)".r
 
   lazy val mdtpEventReads: Reads[DeploymentEvent] =
     implicitly[Reads[JsObject]]
-      .flatMap { jsObject =>
-        for {
+      .flatMap: jsObject =>
+        for
           config <- TreeMap(
                       jsObject.fields
-                        .collect { case (ConfigKey(i, k), v) => (i.toInt, k, v.as[String]) }
+                        .collect:
+                          case (ConfigKey(i, k), v) => (i.toInt, k, v.as[String])
                         .groupBy(_._1)
                         .toSeq: _*
                       )
                       .toList
-                      .traverse { case (i, s) =>
-                        for {
-                          repoName <- s.collectFirst { case (_, k, v) if k == "repoName" => Reads.pure(RepoName(v)) }.getOrElse(Reads.failed(s"config.$i missing repoName"))
-                          fileName <- s.collectFirst { case (_, k, v) if k == "fileName" => Reads.pure(FileName(v)) }.getOrElse(Reads.failed(s"config.$i missing fileName"))
-                          commitId <- s.collectFirst { case (_, k, v) if k == "gitSha"   => Reads.pure(CommitId(v)) }.getOrElse(Reads.failed(s"config.$i missing gitSha"))
-                        } yield ReleasesApiConnector.DeploymentConfigFile(repoName = repoName, fileName = fileName, commitId = commitId)
-                      }
+                      .traverse:
+                        case (i, s) =>
+                          for
+                            repoName <- s.collectFirst { case (_, k, v) if k == "repoName" => Reads.pure(RepoName(v)) }.getOrElse(Reads.failed(s"config.$i missing repoName"))
+                            fileName <- s.collectFirst { case (_, k, v) if k == "fileName" => Reads.pure(FileName(v)) }.getOrElse(Reads.failed(s"config.$i missing fileName"))
+                            commitId <- s.collectFirst { case (_, k, v) if k == "gitSha"   => Reads.pure(CommitId(v)) }.getOrElse(Reads.failed(s"config.$i missing gitSha"))
+                          yield ReleasesApiConnector.DeploymentConfigFile(repoName = repoName, fileName = fileName, commitId = commitId)
           res    <- deploymentEventReads1.map(_.copy(config = config))
-        } yield res
-      }
+        yield res
 
-  private lazy val deploymentEventReads1: Reads[DeploymentEvent] = {
+  private lazy val deploymentEventReads1: Reads[DeploymentEvent] =
     given Reads[Option[Environment]] = __.read[String].map(Environment.parse)
 
     ( (__ \ "event_type"          ).read[String]
@@ -159,16 +153,12 @@ object DeploymentHandler {
     ~ (__ \ "stack_id"            ).read[String]
     ~ Reads.pure(Seq.empty[ReleasesApiConnector.DeploymentConfigFile]) // config - to be added
     ~ (__ \ "event_date_time"     ).read[Instant]
-      ){
-      (eventType, environment, serviceName, version, deploymentId, config, time) =>
-        val uniqueDeploymentId = environment.fold(deploymentId) { env =>
-          if (deploymentId.startsWith("arn")) {
-            s"gen-${serviceName.asString}-${env.asString}-${time.toEpochMilli}"
-          } else {
-            deploymentId
-          }
-        }
+    ): (eventType, environment, serviceName, version, deploymentId, config, time) =>
+        val uniqueDeploymentId =
+          environment
+            .fold(deploymentId): env =>
+              if deploymentId.startsWith("arn") then
+                s"gen-${serviceName.asString}-${env.asString}-${time.toEpochMilli}"
+              else
+                deploymentId
         DeploymentEvent(eventType, environment, serviceName, version, uniqueDeploymentId, config, time)
-    }
-  }
-}

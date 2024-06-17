@@ -33,7 +33,9 @@ import scala.concurrent.{ExecutionContext, Future}
 class ReleasesApiConnector @Inject()(
   httpClientV2 : HttpClientV2,
   serviceConfig: ServicesConfig
-)(using ec: ExecutionContext) {
+)(using
+  ec: ExecutionContext
+):
   import ReleasesApiConnector._
 
   private val serviceUrl: URL = url"${serviceConfig.baseUrl("releases-api")}"
@@ -44,9 +46,8 @@ class ReleasesApiConnector @Inject()(
     httpClientV2
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]
-}
 
-object ReleasesApiConnector {
+object ReleasesApiConnector:
   val environmentReads: Reads[Option[Environment]] =
       JsPath.read[String].map(Environment.parse)
 
@@ -56,13 +57,12 @@ object ReleasesApiConnector {
     commitId: CommitId
   )
 
-  object DeploymentConfigFile {
+  object DeploymentConfigFile:
     val reads: Reads[DeploymentConfigFile] =
       ( (__ \ "repoName").read[String].map(RepoName.apply)
       ~ (__ \ "fileName").read[String].map(FileName.apply)
       ~ (__ \ "commitId").read[String].map(CommitId.apply)
       )(DeploymentConfigFile.apply _)
-  }
 
   case class Deployment(
     serviceName   : ServiceName
@@ -71,33 +71,31 @@ object ReleasesApiConnector {
   , lastDeployed  : Instant
   , deploymentId  : Option[String]
   , config        : Seq[DeploymentConfigFile]
-  ) {
+  ):
     lazy val configId =
-      config.foldLeft(serviceName.asString + "_" + version.original)((acc, c) =>
-        acc + "_" + c.repoName.asString + "_" + c.commitId.asString.take(7)
-      )
-  }
+      config
+        .foldLeft(serviceName.asString + "_" + version.original):
+          (acc, c) => acc + "_" + c.repoName.asString + "_" + c.commitId.asString.take(7)
 
   case class ServiceDeploymentInformation(
     serviceName: ServiceName
   , deployments: Seq[Deployment]
   )
 
-  object ServiceDeploymentInformation {
-    private def deploymentReads(serviceName: ServiceName): Reads[Deployment] = {
+  object ServiceDeploymentInformation:
+    private def deploymentReads(serviceName: ServiceName): Reads[Deployment] =
       given Reads[Option[Environment]]  = environmentReads
       given Format[Version]             = Version.format
       given Reads[DeploymentConfigFile] = DeploymentConfigFile.reads
       ( Reads.pure(serviceName)
       ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
-      ~ (__ \ "lastDeployed").read[Instant]
+      ~ (__ \ "lastDeployed" ).read[Instant]
       ~ (__ \ "deploymentId" ).readNullable[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
-    }
 
-    val reads: Reads[ServiceDeploymentInformation] = {
+    val reads: Reads[ServiceDeploymentInformation] =
       given Format[ServiceName] = ServiceName.format
       ( (__ \ "applicationName").read[ServiceName]
       ~ (__ \ "applicationName").read[ServiceName].flatMap { serviceName =>
@@ -105,6 +103,3 @@ object ReleasesApiConnector {
           (__ \ "versions").read[Seq[Deployment]]
         }
       )(ServiceDeploymentInformation.apply _)
-    }
-  }
-}

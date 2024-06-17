@@ -30,32 +30,30 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigScheduler @Inject()(
-  schedulerConfigs          : SchedulerConfigs,
-  mongoLockRepository       : MongoLockRepository,
-  alertConfigService        : AlertConfigService,
-  internalAuthConfigService : InternalAuthConfigService,
-  upscanConfigService       : UpscanConfigService,
-  resourceUsageRepository   : ResourceUsageRepository,
-  timestampSupport          : TimestampSupport
+  schedulerConfigs         : SchedulerConfigs,
+  mongoLockRepository      : MongoLockRepository,
+  alertConfigService       : AlertConfigService,
+  internalAuthConfigService: InternalAuthConfigService,
+  upscanConfigService      : UpscanConfigService,
+  resourceUsageRepository  : ResourceUsageRepository,
+  timestampSupport         : TimestampSupport
 )(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils {
+) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
     lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval)
-  ) {
+  ):
     logger.info("Updating config")
     runAllAndFailWithFirstError(
-      for {
+      for
         _ <- accumulateErrors("snapshot Deployments" , resourceUsageRepository.populate(Instant.now()))
         _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
         - <- accumulateErrors("update Upscan Config", upscanConfigService.update())
-      } yield logger.info("Finished updating config")
+      yield logger.info("Finished updating config")
     )
-  }
-}

@@ -44,7 +44,7 @@ case class MongoShutterSwitch(
   rewriteRule: Option[String] = None
 )
 
-object MongoFrontendRoute {
+object MongoFrontendRoute:
   private given Format[MongoShutterSwitch] =
     ( (__ \ "switchFile").format[String]
     ~ (__ \ "statusCode").formatNullable[Int]
@@ -52,7 +52,7 @@ object MongoFrontendRoute {
     ~ (__ \ "rewriteRule").formatNullable[String]
     )(MongoShutterSwitch.apply, pt => Tuple.fromProductTyped(pt))
 
-  val format: Format[MongoFrontendRoute] = {
+  val format: Format[MongoFrontendRoute] =
     ( (__ \ "service"             ).format[ServiceName](ServiceName.format)
     ~ (__ \ "frontendPath"        ).format[String]
     ~ (__ \ "backendPath"         ).format[String]
@@ -65,5 +65,3 @@ object MongoFrontendRoute {
     ~ (__ \ "isRegex"             ).formatWithDefault[Boolean](false)
     ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())(MongoJavatimeFormats.instantFormat)
     )(MongoFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))
-  }
-}

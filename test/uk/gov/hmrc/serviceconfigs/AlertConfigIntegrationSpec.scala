@@ -36,7 +36,7 @@ class AlertConfigIntegrationSpec
      with Matchers
      with ScalaFutures
      with IntegrationPatience
-     with Eventually {
+     with Eventually:
 
   protected val repository: AlertEnvironmentHandlerRepository = app.injector.instanceOf[AlertEnvironmentHandlerRepository]
 
@@ -51,14 +51,12 @@ class AlertConfigIntegrationSpec
       )
       .build()
 
-  "Alert Config Controller" should {
-    "return 200 when it starts correctly and receives GET /ping/ping" in {
+  "Alert Config Controller" should:
+    "return 200 when it starts correctly and receives GET /ping/ping" in:
       val response = wsClient.url(s"http://localhost:$port/ping/ping").get().futureValue
-
       response.status shouldBe 200
-    }
 
-    "return correct json when getAlertConfigs receives a get request" in {
+    "return correct json when getAlertConfigs receives a get request" in:
       val testData = Seq(
         AlertEnvironmentHandler(ServiceName("testNameTwo"), true, "L2"),
         AlertEnvironmentHandler(ServiceName("testNameOne"), true, "L1")
@@ -69,16 +67,13 @@ class AlertConfigIntegrationSpec
       val expectedResultOne = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
       val expectedResultTwo = """{"serviceName":"testNameTwo","production":true,"location":"L2"}"""
 
-      eventually {
+      eventually:
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs").get().futureValue
-
         response.status shouldBe 200
         response.body should include(expectedResultOne)
         response.body should include(expectedResultTwo)
-      }
-    }
 
-    "return correct json when getAlertConfigForService receives a get request" in {
+    "return correct json when getAlertConfigForService receives a get request" in:
       val testData =
         Seq(
           AlertEnvironmentHandler(ServiceName("testNameOne"), true, "L1"),
@@ -89,15 +84,12 @@ class AlertConfigIntegrationSpec
 
       val expectedResult = """{"serviceName":"testNameOne","production":true,"location":"L1"}"""
 
-      eventually {
+      eventually:
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs/testNameOne").get().futureValue
-
         response.status shouldBe 200
         response.body should include(expectedResult)
-      }
-    }
 
-    "return NotFound when getAlertConfigForService receives a get request for a non-existing service" in {
+    "return NotFound when getAlertConfigForService receives a get request for a non-existing service" in:
       val testData =
         Seq(
           AlertEnvironmentHandler(ServiceName("testNameOne"), true, ""),
@@ -106,19 +98,12 @@ class AlertConfigIntegrationSpec
 
       repository.collection.insertMany(testData).toFuture().futureValue
 
-      eventually {
+      eventually:
         val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs/testNameNonExisting").get().futureValue
-
         response.status shouldBe 404
         response.body shouldBe ""
-      }
-    }
 
-    "return NotFound when getAlertConfigs receives a get request and the repository has no data" in {
+    "return NotFound when getAlertConfigs receives a get request and the repository has no data" in:
       val response = wsClient.url(s"http://localhost:$port/service-configs/alert-configs/testNameOne").get().futureValue
-
       response.status shouldBe 404
       response.body shouldBe ""
-    }
-  }
-}

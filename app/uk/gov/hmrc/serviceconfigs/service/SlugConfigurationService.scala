@@ -28,32 +28,29 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugConfigurationService @Inject()(
   slugInfoRepository         : SlugInfoRepository,
   dependencyConfigRepository : DependencyConfigRepository
-)(using ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging:
 
-  private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] = {
+  private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
     slugInfo.classpath
       .split(":")
       .map(_.replace("$lib_dir/", s"${slugInfo.name.asString}-${slugInfo.version}/lib/"))
       .toList
       .flatMap(path => slugInfo.dependencies.filter(_.path == path))
-  }
 
-  def addSlugInfo(slugInfo: SlugInfo): Future[Unit] = {
+  def addSlugInfo(slugInfo: SlugInfo): Future[Unit] =
     val slug = slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
 
-    for {
+    for
       // Determine which slug is latest from the existing collection, not relying on the potentially stale state of the message
       _        <- slugInfoRepository.add(slug)
       isLatest <- slugInfoRepository.getMaxVersion(name = slug.name)
-                    .map {
+                    .map:
                       case None             => true
                       case Some(maxVersion) => val isLatest = maxVersion == slug.version
-                        logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (latest is: $maxVersion)")
-                        isLatest
-                    }
-      _        <- if (isLatest) slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future.unit
-    } yield ()
-  }
+                                               logger.info(s"Slug ${slug.name} ${slug.version} isLatest=$isLatest (latest is: $maxVersion)")
+                                               isLatest
+      _        <- if isLatest then slugInfoRepository.setFlag(SlugInfoFlag.Latest, slug.name, slug.version) else Future.unit
+    yield ()
 
   def deleteSlugInfo(serviceName: ServiceName, slugVersion: Version): Future[Unit] =
     slugInfoRepository.delete(serviceName, slugVersion)
@@ -66,4 +63,3 @@ class SlugConfigurationService @Inject()(
 
   def findDependencyConfig(group: String, artefact: String, version: String): Future[Option[DependencyConfig]] =
     dependencyConfigRepository.getDependencyConfig(group, artefact, version)
-}

@@ -40,8 +40,7 @@ class DeploymentConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("applied", "environment"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-){
-
+):
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
 
@@ -97,4 +96,3 @@ class DeploymentConfigRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
-}

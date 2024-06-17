@@ -24,24 +24,20 @@ case class ServiceRelationship(
   target: ServiceName
 )
 
-object ServiceRelationship {
-  val serviceRelationshipFormat: OFormat[ServiceRelationship] = {
+object ServiceRelationship:
+  val serviceRelationshipFormat: OFormat[ServiceRelationship] =
     ( (__ \ "source").format[ServiceName](ServiceName.format)
     ~ (__ \ "target").format[ServiceName](ServiceName.format)
     )(ServiceRelationship.apply, pt => Tuple.fromProductTyped(pt))
-  }
-}
 
 case class ServiceRelationships(
   inboundServices : Set[ServiceName],
   outboundServices: Set[ServiceName]
 )
 
-object ServiceRelationships {
-  val writes: OWrites[ServiceRelationships] = {
+object ServiceRelationships:
+  val writes: OWrites[ServiceRelationships] =
     given Format[ServiceName] = ServiceName.format
     ( (__ \ "inboundServices").write[Set[ServiceName]]
     ~ (__ \ "outboundServices").write[Set[ServiceName]]
     )(pt => Tuple.fromProductTyped(pt))
-  }
-}

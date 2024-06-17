@@ -22,7 +22,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.{ConfigLoader, Configuration}
 
 @Singleton
-class NginxConfig @Inject()(configuration: Configuration) {
+class NginxConfig @Inject()(configuration: Configuration):
 
   def getValue[T](key: String)(using loader: ConfigLoader[T]): T =
     configuration
@@ -36,12 +36,10 @@ class NginxConfig @Inject()(configuration: Configuration) {
   val configRepoBranch       : String       = getValue[String]("nginx.config-repo-branch")
   val frontendConfigFileNames: List[String] = getStringList("nginx.config-files")
 
-  val shutterConfig: NginxShutterConfig = {
+  val shutterConfig: NginxShutterConfig =
     val ks = getValue[String]("nginx.shutter-killswitch-path")
     val ss = getValue[String]("nginx.shutter-serviceswitch-path-prefix")
     NginxShutterConfig(ks, ss)
-  }
-}
 
 case class NginxShutterConfig(
   shutterKillswitchPath         : String,

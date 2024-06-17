@@ -42,8 +42,7 @@ class DeployedConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("configId"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -80,9 +79,8 @@ class DeployedConfigRepository @Inject()(
       )
       .toFuture()
       .map(_ => ())
-}
 
-object DeployedConfigRepository {
+object DeployedConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -99,7 +97,7 @@ object DeployedConfigRepository {
     lastUpdated    : Instant
   )
 
-  val mongoFormats: Format[DeployedConfig] = {
+  val mongoFormats: Format[DeployedConfig] =
     ( (__ \ "serviceName"    ).format[ServiceName](ServiceName.format)
     ~ (__ \ "environment"    ).format[Environment](Environment.format)
     ~ (__ \ "deploymentId"   ).format[String]
@@ -109,5 +107,3 @@ object DeployedConfigRepository {
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
     ~ (__ \ "lastUpdated"    ).format[Instant](MongoJavatimeFormats.instantFormat)
     )(DeployedConfig.apply, pt => Tuple.fromProductTyped(pt))
-  }
-}

@@ -22,11 +22,11 @@ import play.api.libs.json.Json
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries}
 
-class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
+class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers:
   import ConfigController._
 
-  "ConfigByEnvironment" should {
-    "unmarshal" in {
+  "ConfigByEnvironment" should:
+    "unmarshal" in:
       val cbe: Map[ConfigEnvironment, Seq[ConfigSourceEntries]] = Map(
         ConfigEnvironment.Local -> Seq(
           ConfigSourceEntries(
@@ -67,6 +67,3 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers {
           ]
         }
       """)
-    }
-  }
-}

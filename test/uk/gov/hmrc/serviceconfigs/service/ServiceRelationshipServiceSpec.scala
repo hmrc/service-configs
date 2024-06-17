@@ -36,14 +36,14 @@ class ServiceRelationshipServiceSpec
   extends AnyWordSpec
   with Matchers
   with ScalaFutures
-  with MockitoSugar {
+  with MockitoSugar:
 
   private val mockConfigService    = mock[ConfigService]
   private val mockRelationshipRepo = mock[ServiceRelationshipRepository]
-  private val service              = new ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mockRelationshipRepo)
+  private val service              = ServiceRelationshipService(mockConfigService, mock[SlugInfoRepository], mockRelationshipRepo)
 
-  "serviceRelationships" should {
-    "return inbound and outbound services for a given service" in {
+  "serviceRelationships" should:
+    "return inbound and outbound services for a given service" in:
       when(mockRelationshipRepo.getInboundServices(any[ServiceName])).thenReturn(Future.successful(Seq(ServiceName("service-b"), ServiceName("service-c"))))
       when(mockRelationshipRepo.getOutboundServices(any[ServiceName])).thenReturn(Future.successful(Seq(ServiceName("service-d"), ServiceName("service-e"))))
 
@@ -56,8 +56,6 @@ class ServiceRelationshipServiceSpec
 
       result.inboundServices should contain theSameElementsAs expected.inboundServices
       result.outboundServices should contain theSameElementsAs expected.outboundServices
-    }
-  }
 
   private val dummyServiceName = ServiceName("service")
 
@@ -75,12 +73,11 @@ class ServiceRelationshipServiceSpec
       slugConfig        = baseConf
     )
 
-  "serviceRelationshipsFromSlugInfo" should {
-    "return an empty sequence when applicationConfig is empty" in {
+  "serviceRelationshipsFromSlugInfo" should:
+    "return an empty sequence when applicationConfig is empty" in:
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(appConf = ""), Seq.empty).futureValue shouldBe Seq.empty[ServiceRelationship]
-    }
 
-    "produce a ServiceRelationship for each downstream that's defined in config under microservice.services" in {
+    "produce a ServiceRelationship for each downstream that's defined in config under microservice.services" in:
       val config = configSourceEntries(Map(
         "microservice.services.artefact-processor.host"     -> "localhost",
         "microservice.services.auth.host"                   -> "localhost",
@@ -109,9 +106,8 @@ class ServiceRelationshipServiceSpec
       )
 
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(), knownServices).futureValue should contain theSameElementsAs expected
-    }
 
-    "not support Prod/Dev/Test config key prefixes" in {
+    "not support Prod/Dev/Test config key prefixes" in:
       val config = configSourceEntries(Map(
         "Prod.microservice.services.artefact-processor.host" -> "localhost",
         "Dev.microservice.services.auth.host"                -> "localhost",
@@ -132,9 +128,8 @@ class ServiceRelationshipServiceSpec
       )
 
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(), knownServices).futureValue should contain theSameElementsAs expected
-    }
 
-    "extract the value from slugInfo.slugConfig if the value from appConf key isn't recognised" in {
+    "extract the value from slugInfo.slugConfig if the value from appConf key isn't recognised" in:
       val config = configSourceEntries(Map(
         "microservice.services.auth.host"                    -> "localhost",
         "microservice.services.cacheable.session-cache.host" -> "localhost"
@@ -166,9 +161,8 @@ class ServiceRelationshipServiceSpec
       )
 
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
-    }
 
-    "use the value from appConf key if the value found in baseConf is unrecognised" in {
+    "use the value from appConf key if the value found in baseConf is unrecognised" in:
       val config = configSourceEntries(Map(
         "microservice.services.auth.host" -> "localhost",
         "microservice.services.des.host"  -> "localhost"
@@ -197,9 +191,8 @@ class ServiceRelationshipServiceSpec
       )
 
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
-    }
 
-    "ignore stub/stubs hosts in baseConf and use the value from appConf key instead" in {
+    "ignore stub/stubs hosts in baseConf and use the value from appConf key instead" in:
       val config = configSourceEntries(Map(
         "microservice.services.auth.host" -> "localhost",
         "microservice.services.des.host" -> "localhost"
@@ -226,9 +219,6 @@ class ServiceRelationshipServiceSpec
       )
 
       service.serviceRelationshipsFromSlugInfo(dummySlugInfo(baseConf = baseConf), knownServices).futureValue should contain theSameElementsAs expected
-    }
-
-  }
 
   def configSourceEntries(entries: Map[String, String]): ConfigSourceEntries =
     ConfigSourceEntries(
@@ -236,4 +226,3 @@ class ServiceRelationshipServiceSpec
       sourceUrl = None,
       entries   = entries.view.mapValues(ConfigValue.apply).toMap
     )
-}

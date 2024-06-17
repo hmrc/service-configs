@@ -46,7 +46,7 @@ class AppConfigService @Inject()(
     updateLatest(RepoName("app-config-common"), _.endsWith(".yaml"))(latestConfigRepository.put("app-config-common"))
 
   def updateAllAppConfigEnv(): Future[Unit] =
-    Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
+    Environment.values.toList.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
     updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")){ data =>

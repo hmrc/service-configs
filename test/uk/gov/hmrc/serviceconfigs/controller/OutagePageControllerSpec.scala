@@ -36,10 +36,10 @@ class OutagePageControllerSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "searchByServiceName" should {
-    "return list of environments" in new Setup {
+  "searchByServiceName" should:
+    "return list of environments" in new Setup:
       val serviceName = ServiceName("service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(
@@ -55,8 +55,8 @@ class OutagePageControllerSpec
       contentAsJson(response) shouldBe Json.parse(
         s"""["qa", "production"]"""
       )
-    }
-    "return not found" in new Setup{
+
+    "return not found" in new Setup:
       val serviceName = ServiceName("not-found-service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(None))
@@ -67,17 +67,13 @@ class OutagePageControllerSpec
       )
 
       status(response) shouldBe 404
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     given ActorSystem = ActorSystem()
 
     val mockOutagePageService = mock[OutagePageService]
 
-    val controller = new OutagePageController(
+    val controller = OutagePageController(
       outagePageService = mockOutagePageService,
       cc                = stubControllerComponents()
     )
-  }
-}

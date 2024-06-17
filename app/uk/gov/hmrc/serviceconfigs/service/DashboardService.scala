@@ -33,11 +33,12 @@ class DashboardService @Inject()(
 , kibanaDashboardRepo          : KibanaDashboardRepository
 , configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
-)(using ec: ExecutionContext
-) extends Logging {
+)(using
+  ec: ExecutionContext
+) extends Logging:
 
   def updateGrafanaDashboards(): Future[Unit] =
-    for {
+    for
       _       <- Future.successful(logger.info(s"Updating Grafana Dashboards..."))
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
@@ -47,15 +48,16 @@ class DashboardService @Inject()(
       blob     = "https://github.com/hmrc/grafana-dashboards/blob"
       items    = ZipUtil
                    .findRepos(zip, repos.map(_.repoName), regex, blob)
-                   .map { case (name, location) => Dashboard(serviceName = ServiceName(name.asString), location = location) }
+                   .map:
+                     case (name, location) => Dashboard(serviceName = ServiceName(name.asString), location = location)
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Grafana Dashboards into mongo")
       count   <- grafanaDashboardRepo.putAll(items)
       _        = logger.info(s"Inserted $count Grafana Dashboards into mongo")
-    } yield ()
+    yield ()
 
   def updateKibanaDashboards(): Future[Unit] =
-    for {
+    for
       _       <- Future.successful(logger.info(s"Updating Kibana Dashboards..."))
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
@@ -65,10 +67,10 @@ class DashboardService @Inject()(
       blob     = "https://github.com/hmrc/kibana-dashboards/blob"
       items    = ZipUtil
                    .findRepos(zip, repos.map(_.repoName), regex, blob)
-                   .map { case (repo, location) => Dashboard(serviceName = ServiceName(repo.asString), location = location) }
+                   .map:
+                     case (repo, location) => Dashboard(serviceName = ServiceName(repo.asString), location = location)
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Kibana Dashboards into mongo")
       count   <- kibanaDashboardRepo.putAll(items)
       _        = logger.info(s"Inserted $count Kibana Dashboards into mongo")
-    } yield ()
-  }
+    yield ()

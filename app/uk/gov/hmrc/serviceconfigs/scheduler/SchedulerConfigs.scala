@@ -21,35 +21,29 @@ import play.api.Configuration
 import scala.concurrent.duration.FiniteDuration
 
 case class SchedulerConfig(
-    enabledKey  : String
-  , enabled     : Boolean
-  , interval    : FiniteDuration
-  , initialDelay: FiniteDuration
-  )
+  enabledKey  : String
+, enabled     : Boolean
+, interval    : FiniteDuration
+, initialDelay: FiniteDuration
+)
 
-object SchedulerConfig {
+object SchedulerConfig:
   def apply(
-      configuration   : Configuration
-    , schedulerKey    : String
-    ): SchedulerConfig = {
-      val enabledKey      = s"$schedulerKey.enabled"
-      val intervalKey     = s"$schedulerKey.interval"
-      val initialDelayKey = s"$schedulerKey.initialDelay"
-      SchedulerConfig(
-          enabledKey   = enabledKey
-        , enabled      = configuration.get[Boolean](enabledKey)
-        , interval     = configuration.get[FiniteDuration](intervalKey)
-        , initialDelay = configuration.get[FiniteDuration](initialDelayKey)
-        )
-    }
-}
+    configuration   : Configuration
+  , schedulerKey    : String
+  ): SchedulerConfig =
+    SchedulerConfig(
+      enabledKey   = s"$schedulerKey.enabled"
+    , enabled      = configuration.get[Boolean]( s"$schedulerKey.enabled")
+    , interval     = configuration.get[FiniteDuration](s"$schedulerKey.interval")
+    , initialDelay = configuration.get[FiniteDuration](s"$schedulerKey.initialDelay")
+    )
 
 @Singleton
-class SchedulerConfigs @Inject()(configuration: Configuration) {
+class SchedulerConfigs @Inject()(configuration: Configuration):
   val configScheduler                           = SchedulerConfig(configuration, "config-scheduler")
   val missedWebhookEventsScheduler              = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
   val slugMetadataScheduler                     = SchedulerConfig(configuration, "slug-metadata-scheduler")
   val serviceRelationshipScheduler              = SchedulerConfig(configuration, "service-relationship-scheduler")
   val deprecationWarningsNotificationScheduler  = SchedulerConfig(configuration, "deprecation-warnings-notification-scheduler")
   val serviceToRepoNameScheduler                = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
-}

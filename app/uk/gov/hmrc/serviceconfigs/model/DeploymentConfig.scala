@@ -37,7 +37,7 @@ case class DeploymentConfig(
   applied       : Boolean
 )
 
-object DeploymentConfig {
+object DeploymentConfig:
   private given Format[ServiceName] = ServiceName.format
   private given Format[ArtefactName] = ArtefactName.format
 
@@ -66,4 +66,3 @@ object DeploymentConfig {
     ~ (__ \ "jvm"         ).format[Map[String, String]]
     ~ ignoreOnWrite[Boolean](__ \ "applied")
     )(DeploymentConfig.apply, pt => Tuple.fromProductTyped(pt))
-}

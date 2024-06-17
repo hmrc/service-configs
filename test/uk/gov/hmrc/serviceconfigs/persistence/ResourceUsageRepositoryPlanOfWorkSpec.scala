@@ -23,10 +23,10 @@ import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository.PlanOfWork
 
 import java.time.Instant
 
-class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
+class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers:
 
-  "The correct `PlanOfWork`" should {
-    "Be produced for the scenario of: a new snapshot being taken of a deployed service" in {
+  "The correct `PlanOfWork`" should:
+    "Be produced for the scenario of: a new snapshot being taken of a deployed service" in:
       val currentDeploymentConfig =
         someDeploymentConfig.copy(slots = someDeploymentConfig.slots + 1)
 
@@ -51,9 +51,8 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe expectedPlanOfWork
-    }
 
-    "Be skipped for a new snapshot with no change" in {
+    "Be skipped for a new snapshot with no change" in:
       someResourceUsage.slots     shouldBe someDeploymentConfig.slots
       someResourceUsage.instances shouldBe someDeploymentConfig.instances
 
@@ -65,9 +64,8 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe PlanOfWork(snapshots = List.empty, snapshotServiceReintroductions = List.empty)
-    }
 
-    "Be produced for the scenario of: a service that was decommissioned and then reintroduced" in {
+    "Be produced for the scenario of: a service that was decommissioned and then reintroduced" in:
       val latestSnapshots =
         List(someResourceUsage.copy(deleted = true))
 
@@ -89,9 +87,8 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe expectedPlanOfWork
-    }
 
-    "Be produced for the scenario of: a newly-introduced service" in {
+    "Be produced for the scenario of: a newly-introduced service" in:
       val latestSnapshots =
         List.empty[ResourceUsage]
 
@@ -112,9 +109,8 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe expectedPlanOfWork
-    }
 
-    "Be produced for the scenario of: a service being decommissioned" in {
+    "Be produced for the scenario of: a service being decommissioned" in:
       val latestSnapshots =
         List(someResourceUsage)
 
@@ -145,9 +141,8 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe expectedPlanOfWork
-    }
 
-    "Be produced for the scenario of: a service that was decommissioned and not reintroduced" in {
+    "Be produced for the scenario of: a service that was decommissioned and not reintroduced" in:
       val latestSnapshots =
         List(someResourceUsage.copy(deleted = true))
 
@@ -168,8 +163,6 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
         )
 
       actualPlanOfWork shouldBe expectedPlanOfWork
-    }
-  }
 
   private lazy val now =
     Instant.now()
@@ -190,4 +183,3 @@ class ResourceUsageRepositoryPlanOfWorkSpec extends AnyWordSpec with Matchers {
       latest      = false,
       deleted     = false
     )
-}

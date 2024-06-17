@@ -24,23 +24,21 @@ import uk.gov.hmrc.serviceconfigs.scheduler._
 
 import java.time.Clock
 
-class Module extends play.api.inject.Module {
+class Module extends play.api.inject.Module:
 
   private val logger = Logger(getClass)
 
-  private def ecsDeploymentsBindings(configuration: Configuration): Seq[Binding[_]] = {
-    if (configuration.get[Boolean]("aws.sqs.enabled"))
+  private def ecsDeploymentsBindings(configuration: Configuration): Seq[Binding[_]] =
+    if configuration.get[Boolean]("aws.sqs.enabled") then
       Seq(
         bind[DeploymentHandler          ].toSelf.eagerly()
       , bind[DeploymentDeadLetterHandler].toSelf.eagerly()
       , bind[SlugHandler                ].toSelf.eagerly()
       , bind[SlugDeadLetterHandler      ].toSelf.eagerly()
       )
-    else {
+    else
       logger.warn("SQS handlers are disabled")
       Seq.empty
-    }
-  }
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] =
     Seq(
@@ -54,4 +52,3 @@ class Module extends play.api.inject.Module {
     , bind[Clock                                    ].toInstance(Clock.systemUTC())
     ) ++
     ecsDeploymentsBindings(configuration)
-}

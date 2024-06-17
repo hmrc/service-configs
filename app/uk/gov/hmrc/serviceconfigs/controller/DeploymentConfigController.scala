@@ -33,26 +33,28 @@ class DeploymentConfigController @Inject()(
   cc                           : ControllerComponents
 )(using
   ec                           : ExecutionContext
-) extends BackendController(cc) {
-
-  private given Writes[DeploymentConfig] = DeploymentConfig.apiFormat
+) extends BackendController(cc):
 
   def deploymentConfig(
     environments: Seq[Environment],
     serviceName : Option[ServiceName],
     teamName    : Option[TeamName],
     applied     : Boolean
-  ): Action[AnyContent] =
-    Action.async {
-      for {
-        serviceNames      <- if (teamName.isDefined)
-                               teamsAndRepositoriesConnector.getRepos(teamName = teamName, repoType = Some("Service"))
-                                 .map(_.map(repo => ServiceName(repo.repoName.asString)))
-                                 .map(teamServiceNames => if (serviceName.isDefined) teamServiceNames.intersect(serviceName.toSeq) else teamServiceNames)
+    ): Action[AnyContent] =
+    given Writes[DeploymentConfig] = DeploymentConfig.apiFormat
+    Action.async:
+      for
+        serviceNames      <-
+                             if teamName.isDefined then
+                               teamsAndRepositoriesConnector
+                                 .getRepos(teamName = teamName, repoType = Some("Service"))
+                                 .map:
+                                  _.map(repo => ServiceName(repo.repoName.asString))
+                                 .map: teamServiceNames =>
+                                   if serviceName.isDefined then teamServiceNames.intersect(serviceName.toSeq)
+                                   else                          teamServiceNames
                              else
                                Future.successful(serviceName.toSeq)
         deploymentConfigs <- deploymentConfigRepository.find(applied, environments, serviceNames)
-      } yield
+      yield
         Ok(Json.toJson(deploymentConfigs))
-    }
-}

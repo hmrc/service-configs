@@ -35,16 +35,16 @@ class ConfigWarningServiceSpec
      with Matchers
      with ScalaFutures
      with MockitoSugar
-     with IntegrationPatience {
+     with IntegrationPatience:
 
   private given HeaderCarrier = HeaderCarrier()
 
-  "ConfigWarningService.warnings" when {
+  "ConfigWarningService.warnings" when:
     val env         = Environment.Production
     val serviceName = ServiceName("service")
 
-    "detecting NotOverridden" should {
-      "detect NotOverriding" in new Setup {
+    "detecting NotOverridden" should:
+      "detect NotOverriding" in new Setup:
         val key1 = "k1"
         val key2 = "k2"
         val value1 = ConfigValue("v1")
@@ -60,9 +60,8 @@ class ConfigWarningServiceSpec
           ConfigWarning(env, serviceName, key1, RenderedConfigSourceValue("baseConfig"          , None, value1.asString), "NotOverriding"),
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, value2.asString), "NotOverriding")
         )
-      }
 
-      "ignore system properties" in new Setup {
+      "ignore system properties" in new Setup:
         val value = ConfigValue("v")
 
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
@@ -74,9 +73,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore if enabled key exists" in new Setup {
+      "ignore if enabled key exists" in new Setup:
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
             ConfigSourceEntries("baseConfig"          , None, Map("k.k"       -> ConfigValue("v"))),
@@ -84,9 +82,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), ServiceName("service"), version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore list positional notation overriding list" in new Setup {
+      "ignore list positional notation overriding list" in new Setup:
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
@@ -95,9 +92,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore list positional notation overriding positional notation" in new Setup {
+      "ignore list positional notation overriding positional notation" in new Setup:
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
@@ -106,9 +102,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore list positional notation with sub-objects" in new Setup {
+      "ignore list positional notation with sub-objects" in new Setup:
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
@@ -117,9 +112,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore base64 overrides" in new Setup {
+      "ignore base64 overrides" in new Setup:
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
           .thenReturn(Future.successful(Seq(
@@ -128,11 +122,9 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
-    }
 
-    "detecting config type changes" should {
-      "detect Type changes" in new Setup {
+    "detecting config type changes" should:
+      "detect Type changes" in new Setup:
         val key1 = "k1"
         val key2 = "k2"
         val key3 = "k3"
@@ -155,9 +147,8 @@ class ConfigWarningServiceSpec
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "s" ), "TypeChange"),
           ConfigWarning(env, serviceName, key3, RenderedConfigSourceValue("appConfigEnvironment", None, "{}"), "TypeChange")
         )
-      }
 
-      "ignore Null and Unmerged " in new Setup {
+      "ignore Null and Unmerged " in new Setup:
         val key1 = "k1"
         val key2 = "k2"
 
@@ -178,9 +169,8 @@ class ConfigWarningServiceSpec
           )))
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
-      }
 
-      "ignore Suppressed of List if caused by array positional syntax" in new Setup {
+      "ignore Suppressed of List if caused by array positional syntax" in new Setup:
         val key1 = "k1"
         val key2 = "k2"
 
@@ -198,9 +188,8 @@ class ConfigWarningServiceSpec
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "<<SUPPRESSED>>"), "TypeChange")
         )
-      }
 
-      "ignore Suppressed of SimpleValue if caused by base64" in new Setup {
+      "ignore Suppressed of SimpleValue if caused by base64" in new Setup:
         val key1 = "k1"
         val key2 = "k2"
 
@@ -218,11 +207,9 @@ class ConfigWarningServiceSpec
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, key2, RenderedConfigSourceValue("appConfigEnvironment", None, "<<SUPPRESSED>>"), "TypeChange")
         )
-      }
-    }
 
-    "detecting Localhost" should {
-      "detect Localhost" in new Setup {
+    "detecting Localhost" should:
+      "detect Localhost" in new Setup:
         val key1 = "url"
         val key2 = "array"
         val value1 = ConfigSourceValue("baseConfig", None, ConfigValue("[\"^.*\\.service$\",\"^localhost$\"]", ConfigValueType.List))
@@ -238,9 +225,8 @@ class ConfigWarningServiceSpec
           ConfigWarning(env, serviceName, key2, value2.toRenderedConfigSourceValue, "Localhost"),
           ConfigWarning(env, serviceName, key1, value1.toRenderedConfigSourceValue, "Localhost")
         )
-      }
 
-      "ignore if disabled" in new Setup {
+      "ignore if disabled" in new Setup:
         val value = ConfigSourceValue("baseConfig", None, ConfigValue("http://localhost:123"))
         val trueValue = ConfigSourceValue("baseConfig", None, ConfigValue("true"))
         val falseValue = ConfigSourceValue("baseConfig", None, ConfigValue("false"))
@@ -256,9 +242,8 @@ class ConfigWarningServiceSpec
         service.warnings(Seq(env), ServiceName("service"), version = None, latest = true).futureValue shouldBe Seq(
           ConfigWarning(env, serviceName, "k1.k", value.toRenderedConfigSourceValue, "Localhost")
         )
-      }
 
-      "ignore if provided by referenceConf" in new Setup {
+      "ignore if provided by referenceConf" in new Setup:
         val value = ConfigSourceValue("referenceConf", None, ConfigValue("http://localhost:123"))
 
         when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
@@ -267,10 +252,8 @@ class ConfigWarningServiceSpec
           ))
 
         service.warnings(Seq(env), ServiceName("service"), version = None, latest = true).futureValue shouldBe Seq.empty
-      }
-    }
 
-    "detect Debug" in new Setup {
+    "detect Debug" in new Setup:
       val key   = "logger.application"
       val value = ConfigSourceValue("baseConfig", None, ConfigValue("DEBUG"))
 
@@ -282,9 +265,8 @@ class ConfigWarningServiceSpec
       service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Debug")
       )
-    }
 
-    "detect TestOnlyRoutes" in new Setup {
+    "detect TestOnlyRoutes" in new Setup:
       val key1  = "application.router"
       val key2  = "play.http.router"
       val value = ConfigSourceValue("baseConfig", None, ConfigValue("testOnlyDoNotUseInAppConf.Routes"))
@@ -299,9 +281,8 @@ class ConfigWarningServiceSpec
         ConfigWarning(env, serviceName, key1, value.toRenderedConfigSourceValue, "TestOnlyRoutes"),
         ConfigWarning(env, serviceName, key2, value.toRenderedConfigSourceValue, "TestOnlyRoutes")
       )
-    }
 
-    "detect reactiveMongoConfig" in new Setup {
+    "detect reactiveMongoConfig" in new Setup:
       val key   = "mongodb.uri"
       val value = ConfigSourceValue("baseConfig", None, ConfigValue("mongodb://protected-mongo-1:27017,protected-mongo-2:27017,protected-mongo-3:27017/service?writeConcernW=2&writeConcernJ=true&writeConcernTimeout=5000&sslEnabled=true"))
 
@@ -313,9 +294,8 @@ class ConfigWarningServiceSpec
       service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "ReactiveMongoConfig")
       )
-    }
 
-    "detect unencrypted config" in new Setup {
+    "detect unencrypted config" in new Setup:
       val key   = "mykey"
       val value = ConfigSourceValue("baseConfig", None, ConfigValue("ASD=="))
 
@@ -327,10 +307,8 @@ class ConfigWarningServiceSpec
       service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq(
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Unencrypted")
       )
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     val mockedConfigService = mock[ConfigService]
 
     when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
@@ -340,8 +318,6 @@ class ConfigWarningServiceSpec
       .thenReturn(Map.empty)
 
     val service =
-      new ConfigWarningService(
+      ConfigWarningService(
         mockedConfigService
       )
-  }
-}

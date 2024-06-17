@@ -32,18 +32,19 @@ class FrontendRouteRepositoryMongoSpec
   extends AnyWordSpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[MongoFrontendRoute]
-     with IntegrationPatience {
+     with IntegrationPatience:
 
   import ExecutionContext.Implicits.global
 
-  override val repository: FrontendRouteRepository = new FrontendRouteRepository(mongoComponent)
+  override val repository: FrontendRouteRepository =
+    FrontendRouteRepository(mongoComponent)
 
   override protected val checkIndexedQueries: Boolean =
     // we run unindexed queries
     false
 
-  "FrontendRouteRepository.update" should {
-    "add new route" in {
+  "FrontendRouteRepository.update" should:
+    "add new route" in:
       val frontendRoute = newFrontendRoute()
 
       repository.update(frontendRoute).futureValue
@@ -52,11 +53,9 @@ class FrontendRouteRepositoryMongoSpec
       allEntries should have size 1
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
-    }
-  }
 
-  "FrontendRouteRepository.findByService" should {
-    "return only routes with the service" in {
+  "FrontendRouteRepository.findByService" should:
+    "return only routes with the service" in:
       val service1Name = ServiceName("service1")
       val service2Name = ServiceName("service2")
       repository.update(newFrontendRoute(serviceName = service1Name)).futureValue
@@ -69,11 +68,9 @@ class FrontendRouteRepositoryMongoSpec
       service1Entries should have size 1
       val service1Route = service1Entries.head
       service1Route.service shouldBe service1Name
-    }
-  }
 
-  "FrontendRouteRepository.findByEnvironment" should {
-    "return only routes with the environment" in {
+  "FrontendRouteRepository.findByEnvironment" should:
+    "return only routes with the environment" in:
       repository.update(newFrontendRoute(environment = Environment.Production)).futureValue
       repository.update(newFrontendRoute(environment = Environment.QA)).futureValue
 
@@ -84,19 +81,16 @@ class FrontendRouteRepositoryMongoSpec
       productionEntries should have size 1
       val route = productionEntries.head
       route.environment shouldBe Environment.Production
-    }
-  }
 
-  "FrontendRouteRepository.searchByFrontendPath" should {
-    "return only routes with the path" in {
+  "FrontendRouteRepository.searchByFrontendPath" should:
+    "return only routes with the path" in:
       addFrontendRoutes("a", "b").futureValue
 
       val service1Entries = repository.searchByFrontendPath("a").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a")
-    }
 
-    "FrontendRouteRepository.findAllFrontendServices" should {
-      "return list of all services" in {
+    "FrontendRouteRepository.findAllFrontendServices" should:
+      "return list of all services" in:
         repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Production )).futureValue
         repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Development)).futureValue
         repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Production )).futureValue
@@ -109,10 +103,8 @@ class FrontendRouteRepositoryMongoSpec
         val services = repository.findAllFrontendServices().futureValue
         services should have size 2
         services shouldBe List(ServiceName("service1"), ServiceName("service2"))
-      }
-    }
 
-    "return routes with the subpath" in {
+    "return routes with the subpath" in:
       addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb").futureValue
 
       val service1Entries = repository.searchByFrontendPath("a/b").futureValue
@@ -121,16 +113,14 @@ class FrontendRouteRepositoryMongoSpec
         "a/b/c",
         "a/b/d"
       )
-    }
 
-    "return routes with the parent path if no match" in {
+    "return routes with the parent path if no match" in:
       addFrontendRoutes("a/1", "b/1").futureValue
 
       val service1Entries = repository.searchByFrontendPath("a/2").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a/1")
-    }
 
-    "put and retrieve" in {
+    "put and retrieve" in:
       val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production)
       val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production)
       val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath3", environment = Environment.Production)
@@ -142,8 +132,6 @@ class FrontendRouteRepositoryMongoSpec
       repository.replaceEnv(Environment.Production, Set(frontendRoute1.copy(frontendPath = "frontendPath4"))).futureValue
       repository.findByService(frontendRoute1.service).futureValue shouldBe Seq(frontendRoute1.copy(frontendPath = "frontendPath4"))
       repository.findByService(frontendRoute3.service).futureValue shouldBe empty
-    }
-  }
 
   def newFrontendRoute(
     serviceName : ServiceName = ServiceName("service"),
@@ -167,4 +155,3 @@ class FrontendRouteRepositoryMongoSpec
     path.toList
       .traverse(p => repository.update(newFrontendRoute(frontendPath = p)))
       .map(_ => ())
-}

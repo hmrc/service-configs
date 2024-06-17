@@ -22,10 +22,10 @@ import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 class ParserFrontendRoutesSpec
   extends AnyWordSpec
-     with Matchers {
+     with Matchers:
 
-  "frontendRoutes" should {
-    "group routes by environment" in {
+  "frontendRoutes" should:
+    "group routes by environment" in:
       val mongRoutes = Seq(
         MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com",  Environment.Production , routesFile = "file1"),
         MongoFrontendRoute(ServiceName("testService"), "/test2", "http://test2.com", Environment.Production , routesFile = "file1"),
@@ -47,14 +47,9 @@ class ParserFrontendRoutesSpec
       dev.routes.contains( FrontendRoute("/test1", "http://test.com")) shouldBe true
       dev.routes.contains( FrontendRoute("/test2", "http://test2.com")) shouldBe true
       dev.routes.contains(FrontendRoute("/test3", "http://test3.com")) shouldBe true
-    }
-  }
 
-  "frontendRoute" should {
-    "be creatable from a MongoFrontendRoute" in {
+  "frontendRoute" should:
+    "be creatable from a MongoFrontendRoute" in:
       val mongoRoute = MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com", Environment.Production, routesFile = "file1")
       val route      = FrontendRoute.fromMongo(mongoRoute)
       route shouldBe FrontendRoute(frontendPath = "/test1", backendPath = "http://test.com")
-    }
-  }
-}

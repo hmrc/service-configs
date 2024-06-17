@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class BuildJobDashboardRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[BuildJob] {
+     with DefaultPlayMongoRepositorySupport[BuildJob]:
 
-  override val repository: BuildJobRepository = new BuildJobRepository(mongoComponent)
+  override val repository: BuildJobRepository =
+    BuildJobRepository(mongoComponent)
 
-  "BuildJobRepository" should {
-    "put and retrieve" in {
+  "BuildJobRepository" should:
+    "put and retrieve" in:
       val buildJob1 = BuildJob(serviceName = ServiceName("testName1"), location = "1")
       val buildJob2 = BuildJob(serviceName = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(buildJob1, buildJob2)).futureValue
@@ -42,6 +43,4 @@ class BuildJobDashboardRepositorySpec
       repository.putAll(Seq(buildJob1.copy(location = "2"))).futureValue
       repository.findByService(buildJob1.serviceName).futureValue shouldBe Some(buildJob1.copy(location = "2"))
       repository.findByService(buildJob2.serviceName).futureValue shouldBe None
-    }
-  }
-}
+

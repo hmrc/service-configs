@@ -41,12 +41,12 @@ class SlugInfoServiceSpec
      with Matchers
      with ScalaFutures
      with MockitoSugar
-     with IntegrationPatience {
+     with IntegrationPatience:
 
   private given HeaderCarrier = HeaderCarrier()
 
-  "SlugInfoService.updateMetadata" should {
-    "clear flags of decommissioned services" in new Setup {
+  "SlugInfoService.updateMetadata" should:
+    "clear flags of decommissioned services" in new Setup:
       val decommissionedServices = List(ServiceName("service1"), ServiceName("service2"))
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
@@ -78,18 +78,17 @@ class SlugInfoServiceSpec
 
       service.updateMetadata().futureValue
 
-      Environment.values.foreach { env =>
+      Environment.values.foreach: env =>
         verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), ServiceName("service1"))
         verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), ServiceName("service2"))
         verify(mockedDeployedConfigRepository).delete(ServiceName("service1"), env)
         verify(mockedDeployedConfigRepository).delete(ServiceName("service2"), env)
         verify(mockedAppliedConfigRepository).delete(ServiceName("service1"), env)
         verify(mockedAppliedConfigRepository).delete(ServiceName("service2"), env)
-      }
-      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, decommissionedServices)
-    }
 
-    "clear latest flag for services that have been deleted/archived" in new Setup {
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, decommissionedServices)
+
+    "clear latest flag for services that have been deleted/archived" in new Setup:
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
       val activeServices = List(Repo(RepoName("service1"), Seq.empty, None), Repo(RepoName("service3"), Seq.empty, None))
       val archived       = List(ServiceName("service2"))
@@ -123,17 +122,15 @@ class SlugInfoServiceSpec
 
       service.updateMetadata().futureValue
 
-      Environment.values.foreach { env =>
-        archived.foreach { service =>
+      Environment.values.foreach: env =>
+        archived.foreach: service =>
           verify(mockedSlugInfoRepository).clearFlag(SlugInfoFlag.ForEnvironment(env), service)
           verify(mockedDeployedConfigRepository).delete(service, env)
           verify(mockedAppliedConfigRepository).delete(service, env)
-        }
-      }
-      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, archived)
-    }
 
-    "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup {
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, archived)
+
+    "detect any services that do not have a 'latest' flag and set based on maxVersion" in new Setup:
       val activeServices = List(Repo       (RepoName("service1"), Seq.empty, None), Repo(RepoName("service2"), Seq.empty, None), Repo(RepoName("service3"), Seq.empty, None))
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
       val latestServices = List(ServiceName("service1")                         , ServiceName("service3"))
@@ -176,9 +173,8 @@ class SlugInfoServiceSpec
       service.updateMetadata().futureValue
 
       verify(mockedSlugInfoRepository).setFlag(SlugInfoFlag.Latest, missingLatest, maxVersion)
-    }
 
-    "lookup and store config files for deployment" in new Setup {
+    "lookup and store config files for deployment" in new Setup:
       val serviceName1 = ServiceName("service1")
       val serviceName2 = ServiceName("service2")
       val knownServices  = List(serviceName1, serviceName2)
@@ -364,13 +360,11 @@ class SlugInfoServiceSpec
       verify(mockedAppliedConfigRepository).put(serviceName1, Environment.QA        , Map("qa.service1"         -> RenderedConfigSourceValue("s", Some("u"), "v")))
       verify(mockedAppliedConfigRepository).put(serviceName1, Environment.Production, Map("production.service1" -> RenderedConfigSourceValue("s", Some("u"), "v")))
       verify(mockedAppliedConfigRepository).put(serviceName2, Environment.QA        , Map("qa.service2"         -> RenderedConfigSourceValue("s", Some("u"), "v")))
-    }
-  }
 
-  "SlugInfoService.updateDeployment" should {
-    "updateDeployedConfig when :" +
-      "1. The current deployedConfig configID differs from the latest Deployment ConfigID" +
-      "2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp." in new SetupUpdateDeployment {
+  "SlugInfoService.updateDeployment" should:
+    """updateDeployedConfig when :
+    |  1. The current deployedConfig configID differs from the latest Deployment ConfigID
+    |  2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp.""" in new SetupUpdateDeployment:
       when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Map.empty))
 
@@ -402,9 +396,8 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-    }
 
-    "updateDeployedConfig when no deployedConfig exists for the given serviceName/environment" in new SetupUpdateDeployment {
+    "updateDeployedConfig when no deployedConfig exists for the given serviceName/environment" in new SetupUpdateDeployment:
       when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Map.empty))
 
@@ -425,11 +418,10 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-    }
 
-    "Not update deployedConfig when :" +
-      "1. The current deployedConfig lastUpdated timestamp is after the latest Deployment timestamp" +
-      "2. The config Ids differ" in new Setup {
+    """Not update deployedConfig when :
+    |  1. The current deployedConfig lastUpdated timestamp is after the latest Deployment timestamp
+    |  2. The config Ids differ""" in new Setup:
       val serviceName1 = ServiceName("service1")
 
       when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
@@ -475,11 +467,10 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-    }
 
-    "Not update deployedConfig when:" +
-      "1. the latest Deployment configId is the same as that of the current deployedConfig, " +
-      "2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp" in new Setup {
+    """Not update deployedConfig when:
+    |  1. the latest Deployment configId is the same as that of the current deployedConfig,
+    |  2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp""".stripMargin in new Setup:
       val serviceName1 = ServiceName("service1")
 
       when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
@@ -528,10 +519,8 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     val mockedSlugInfoRepository         = mock[SlugInfoRepository]
     val mockedAppliedConfigRepository    = mock[AppliedConfigRepository]
     val mockedDeployedConfigRepository   = mock[DeployedConfigRepository]
@@ -546,7 +535,7 @@ class SlugInfoServiceSpec
     val now = Instant.now()
 
     val service =
-      new SlugInfoService(
+      SlugInfoService(
         mockedSlugInfoRepository
       , mockedAppliedConfigRepository
       , mockedDeployedConfigRepository
@@ -572,9 +561,8 @@ class SlugInfoServiceSpec
       , loggerConfig      = ""
       , slugConfig        = ""
       )
-  }
 
-  trait SetupUpdateDeployment extends Setup {
+  trait SetupUpdateDeployment extends Setup:
     val serviceName1 = ServiceName("service1")
 
     when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
@@ -602,7 +590,9 @@ class SlugInfoServiceSpec
 
     when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
       .thenAnswer(answer =>
-        answer.getArgument[Seq[ConfigSourceEntries]](0).headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
+        answer.getArgument[Seq[ConfigSourceEntries]](0).headOption.toSeq.flatMap(cse => cse.entries.map:
+          case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value)
+        ).toMap
       )
 
     when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
@@ -613,5 +603,3 @@ class SlugInfoServiceSpec
       DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
       DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
     ), lastDeployed = now)
-  }
-}

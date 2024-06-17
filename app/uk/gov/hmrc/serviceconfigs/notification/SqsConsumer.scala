@@ -30,36 +30,34 @@ import scala.jdk.FutureConverters._
 import scala.util.control.NonFatal
 import java.net.URL
 
-case class SqsConfig(keyPrefix: String, configuration: Configuration) {
-  lazy val queueUrl           : URL = new URL(configuration.get[String](s"$keyPrefix.queueUrl"))
+case class SqsConfig(
+  keyPrefix    : String,
+  configuration: Configuration
+):
+  lazy val queueUrl           : URL = URL(configuration.get[String](s"$keyPrefix.queueUrl"))
   lazy val maxNumberOfMessages: Int = configuration.get[Int](s"$keyPrefix.maxNumberOfMessages")
   lazy val waitTimeSeconds    : Int = configuration.get[Int](s"$keyPrefix.waitTimeSeconds")
-}
 
 abstract class SqsConsumer(
   name       : String
 , config     : SqsConfig
-)
-(implicit
+)(using
   actorSystem: ActorSystem,
   ec         : ExecutionContext
-) extends Logging {
+) extends Logging:
 
-  private val awsSqsClient: SqsAsyncClient = {
+  private val awsSqsClient: SqsAsyncClient =
     val client = SqsAsyncClient.builder().build()
     actorSystem.registerOnTermination(client.close())
     client
-  }
 
-  private def getMessages(req: ReceiveMessageRequest): Future[Seq[Message]] = {
+  private def getMessages(req: ReceiveMessageRequest): Future[Seq[Message]] =
     logger.info(s"receiving $name messages")
     awsSqsClient.receiveMessage(req).asScala
      .map(_.messages.asScala.toSeq)
-     .map { res =>
-      logger.info(s"received $name ${res.size} messages")
-      res
-     }
-  }
+     .map: res =>
+       logger.info(s"received $name ${res.size} messages")
+       res
 
   private def deleteMessage(message: Message): Future[Unit] =
     awsSqsClient.deleteMessage(
@@ -86,36 +84,33 @@ abstract class SqsConsumer(
 
   def runQueue(): Future[Done] =
     dedupe(
-      Source.repeat(
-        ReceiveMessageRequest.builder()
-          .queueUrl(config.queueUrl.toString)
-          .maxNumberOfMessages(config.maxNumberOfMessages)
-          .waitTimeSeconds(config.waitTimeSeconds)
-          .build()
-      ).mapAsync(parallelism = 1)(getMessages)
-       .mapConcat(xs => xs)
+      Source
+        .repeat:
+          ReceiveMessageRequest.builder()
+            .queueUrl(config.queueUrl.toString)
+            .maxNumberOfMessages(config.maxNumberOfMessages)
+            .waitTimeSeconds(config.waitTimeSeconds)
+            .build()
+        .mapAsync(parallelism = 1)(getMessages)
+        .mapConcat(xs => xs)
     )
     .mapAsync(parallelism = 1) { message =>
-      processMessage(message).flatMap {
-        case MessageAction.Delete(message) => deleteMessage(message)
-        case MessageAction.Ignore(_)       => Future.unit
-      }.recover {
-        case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
-      }
+      processMessage(message)
+        .flatMap:
+          case MessageAction.Delete(message) => deleteMessage(message)
+          case MessageAction.Ignore(_)       => Future.unit
+        .recover:
+          case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
     }
     .run()
-    .andThen { res =>
-      logger.info(s"Queue $name terminated: $res - restarting")
+    .andThen: res =>
+      logger.warn(s"Queue $name terminated: $res - restarting")
       actorSystem.scheduler.scheduleOnce(10.seconds)(runQueue())
-    }
 
   runQueue()
 
   protected def processMessage(message: Message): Future[MessageAction]
-}
 
-sealed trait MessageAction
-object MessageAction {
-  case class Delete(message: Message) extends MessageAction
-  case class Ignore(message: Message) extends MessageAction
-}
+enum MessageAction:
+  case Delete(message: Message)
+  case Ignore(message: Message)

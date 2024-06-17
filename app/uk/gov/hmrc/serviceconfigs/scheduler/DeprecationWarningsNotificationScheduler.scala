@@ -37,15 +37,12 @@ class DeprecationWarningsNotificationScheduler @Inject()(
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils {
-
+) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
     label = "deprecationWarningsNotification",
     schedulerConfig = schedulerConfigs.deprecationWarningsNotificationScheduler,
     lock = ScheduledLockService(mongoLockRepository, "deprecation-warnings-notification-scheduler", timestampSupport, schedulerConfigs.deprecationWarningsNotificationScheduler.interval)
-  ) {
+  ):
     logger.info("Running deprecation warning notifications")
     deprecationWarningService.sendNotifications(Instant.now())
-  }
-}

@@ -26,27 +26,25 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class DependencyConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[DependencyConfig] {
+     with DefaultPlayMongoRepositorySupport[DependencyConfig]:
 
-  override val repository: DependencyConfigRepository = new DependencyConfigRepository(mongoComponent)
+  override val repository: DependencyConfigRepository =
+    DependencyConfigRepository(mongoComponent)
 
   override protected def checkTtlIndex: Boolean =
     // disabled until we address cleanup
     false
 
-  "DependencyConfigRepository" should {
-    "work correctly" in {
+  "DependencyConfigRepository" should:
+    "work correctly" in:
       val dc1 = mkDependencyConfig(1)
       val dc2 = mkDependencyConfig(2)
 
       repository.add(dc1).futureValue
       repository.add(dc2).futureValue
-
       repository.getAllEntries().futureValue shouldBe Seq(dc1, dc2)
-
       repository.getDependencyConfig(group = dc1.group, artefact = dc1.artefact, version = dc1.version).futureValue shouldBe Some(dc1)
-    }
-  }
+
 
   def mkDependencyConfig(i: Int): DependencyConfig =
     DependencyConfig(
@@ -55,4 +53,3 @@ class DependencyConfigRepositorySpec
       version  = s"v$i",
       configs  = Map(s"k${i}1"-> s"v${i}1", s"k${i}2" -> s"v${i}2")
     )
-}

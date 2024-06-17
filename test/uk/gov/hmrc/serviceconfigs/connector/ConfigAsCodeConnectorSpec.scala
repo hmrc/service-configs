@@ -34,22 +34,22 @@ class ConfigAsCodeConnectorSpec
      with ScalaFutures
      with IntegrationPatience
      with WireMockSupport
-     with HttpClientV2Support {
+     with HttpClientV2Support:
 
   private val token = "TOKEN"
 
   private implicit val system: ActorSystem = ActorSystem()
 
-  private val githubConfig = new GithubConfig(Configuration(
+  private val githubConfig = GithubConfig(Configuration(
     "github.open.api.apiurl" -> s"$wireMockUrl/api",
     "github.open.api.rawurl" -> s"$wireMockUrl/raw",
     "github.open.api.token"  -> token
   ))
 
-  private val connector = new ConfigAsCodeConnector(githubConfig, httpClientV2)
+  private val connector = ConfigAsCodeConnector(githubConfig, httpClientV2)
 
-  "ConfigAsCode.streamGithub" should {
-    "return stream" in {
+  "ConfigAsCode.streamGithub" should:
+    "return stream" in:
       stubFor(
         get(urlEqualTo(s"/api/repos/hmrc/app-config-common/zipball/HEAD"))
           .willReturn(aResponse().withBodyFile("test.zip"))
@@ -66,16 +66,13 @@ class ConfigAsCodeConnectorSpec
           acc + (name -> content)
         } shouldBe Map("test.txt" -> "TEST\n")
 
-
       wireMockServer.verify(
         getRequestedFor(urlPathEqualTo("/api/repos/hmrc/app-config-common/zipball/HEAD"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
-    }
-  }
 
-  "ConfigAsCode.getLatestCommitId" should {
-    "return commitId" in {
+  "ConfigAsCode.getLatestCommitId" should:
+    "return commitId" in:
       stubFor(
         get(urlEqualTo(s"/api/repos/hmrc/app-config-common/commits/HEAD"))
           .willReturn(aResponse().withBody("27a469be69c988822b2bda722833b24301afb691"))
@@ -88,6 +85,3 @@ class ConfigAsCodeConnectorSpec
           .withHeader("Authorization", equalTo(s"token $token"))
           .withHeader("Accept"       , equalTo(s"application/vnd.github.sha"))
       )
-    }
-  }
-}

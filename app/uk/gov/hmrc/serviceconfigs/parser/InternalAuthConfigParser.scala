@@ -23,51 +23,46 @@ import uk.gov.hmrc.serviceconfigs.model.{GrantGroup, InternalAuthConfig, Interna
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import java.io.ByteArrayOutputStream
-import java.util.zip.{ZipEntry, ZipInputStream}
+import java.util.zip.ZipInputStream
 import scala.util.matching.Regex
 
-class InternalAuthConfigParser extends Logging {
+class InternalAuthConfigParser extends Logging:
 
   private def readEntry(
     zipInputStream: ZipInputStream,
     env           : InternalAuthEnvironment,
-  ): Set[InternalAuthConfig] = {
-    val outputStream = new ByteArrayOutputStream
+  ): Set[InternalAuthConfig] =
+    val outputStream = ByteArrayOutputStream()
     val buffer       = new Array[Byte](4096)
     var bytesRead    = zipInputStream.read(buffer)
-    while (bytesRead != -1) {
+
+    while (bytesRead != -1)
       outputStream.write(buffer, 0, bytesRead)
       bytesRead = zipInputStream.read(buffer)
-    }
-    val output = new String(outputStream.toByteArray, "UTF-8")
-    parseGrants(output, env)
-  }
 
-  def parseGrants(parsedYaml: String, env: InternalAuthEnvironment): Set[InternalAuthConfig] = {
+    val output = String(outputStream.toByteArray, "UTF-8")
+    parseGrants(output, env)
+
+  def parseGrants(parsedYaml: String, env: InternalAuthEnvironment): Set[InternalAuthConfig] =
     given Reads[Option[GrantGroup]] = GrantGroup.grantGroupReads
 
     fromYaml[List[Option[GrantGroup]]](parsedYaml)
       .flatten
       .toSet[GrantGroup]
-      .flatMap {
+      .flatMap:
         case GrantGroup(services, grant) => services.map(s => InternalAuthConfig(ServiceName(s), env, grant))
-      }
-  }
 
-  def parseZip(z: ZipInputStream): Set[InternalAuthConfig] = {
+  def parseZip(z: ZipInputStream): Set[InternalAuthConfig] =
     val prodConfigRegex: Regex = """prod/([^index].*).yaml""".r
     val qaConfigRegex  : Regex = """qa/([^index].*).yaml""".r
 
     Iterator
       .continually(z.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Set.empty[InternalAuthConfig]) { (acc, entry) =>
-        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        path match {
-          case prodConfigRegex(_) => acc ++ readEntry(z, Prod)
-          case qaConfigRegex(_)   => acc ++ readEntry(z, Qa)
-          case _                  => acc
-        }
-      }
-  }
-}
+      .foldLeft(Set.empty[InternalAuthConfig]):
+        (acc, entry) =>
+          val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          path match
+            case prodConfigRegex(_) => acc ++ readEntry(z, Prod)
+            case qaConfigRegex(_)   => acc ++ readEntry(z, Qa)
+            case _                  => acc

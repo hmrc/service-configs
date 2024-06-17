@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class OutagePageRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[OutagePage] {
+     with DefaultPlayMongoRepositorySupport[OutagePage]:
 
-  override protected val repository: OutagePageRepository = new OutagePageRepository(mongoComponent)
+  override protected val repository: OutagePageRepository =
+    OutagePageRepository(mongoComponent)
 
-  "OutagePageRepository" should {
-    "putAll correctly" in {
+  "OutagePageRepository" should:
+    "putAll correctly" in:
       val serviceName1 = ServiceName("service-1")
       val environments1 = List(Environment.Development, Environment.QA)
       val serviceName2 = ServiceName("service-2")
@@ -48,6 +49,3 @@ class OutagePageRepositorySpec
       repository.putAll(Seq(OutagePage(serviceName1, environments3))).futureValue
       repository.findByServiceName(serviceName1).futureValue shouldBe Some(environments3)
       repository.findByServiceName(serviceName2).futureValue shouldBe None
-    }
-  }
-}

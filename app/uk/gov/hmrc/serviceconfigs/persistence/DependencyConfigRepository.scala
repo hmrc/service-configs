@@ -40,8 +40,7 @@ class DependencyConfigRepository @Inject()(
                        Indexes.ascending("group", "artefact", "version"),
                        IndexOptions().unique(true).name("dependencyConfigUniqueIdx"))
                    )
-) {
-
+):
   // TODO We don't specify a TTL index - we should consider how to remove unused configuration
 
   def add(dependencyConfig: DependencyConfig): Future[Unit] =
@@ -70,4 +69,3 @@ class DependencyConfigRepository @Inject()(
       ))
       .first()
       .toFutureOption()
-}

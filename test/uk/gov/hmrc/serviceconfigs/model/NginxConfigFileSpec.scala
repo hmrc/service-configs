@@ -21,10 +21,10 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class NginxConfigFileSpec
   extends AnyWordSpec
-     with Matchers {
+     with Matchers:
 
-  "NginxConfigFile.fileName" should {
-    "retrieve just the filename from the url" in {
+  "NginxConfigFile.fileName" should:
+    "retrieve just the filename from the url" in:
       val configFile = NginxConfigFile(
         Environment.Production,
         "https://github.com/hmrc/mdtp-frontend-routes/blob/HEAD/development/frontend-proxy-application-rules.conf",
@@ -32,9 +32,8 @@ class NginxConfigFileSpec
         "HEAD"
       )
       configFile.fileName shouldBe "frontend-proxy-application-rules.conf"
-    }
 
-    "not throw an error if a filename can't be extracted from the url" in {
+    "not throw an error if a filename can't be extracted from the url" in:
       val configFile = NginxConfigFile(
         Environment.Production,
         "",
@@ -42,6 +41,3 @@ class NginxConfigFileSpec
         "HEAD"
       )
       configFile.fileName shouldBe ""
-    }
-  }
-}

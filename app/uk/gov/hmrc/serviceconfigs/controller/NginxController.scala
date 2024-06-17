@@ -31,40 +31,35 @@ class NginxController @Inject()(
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
   private given Format[FrontendRoutes] = FrontendRoutes.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findByService(serviceName)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def searchByEnvironment(environment: Environment): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findByEnvironment(environment)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.searchByFrontendPath(frontendPath)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def allFrontendServices(): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findAllFrontendServices()
         .map(_.map(_.asString))
         .map(_.filterNot(_.contains("$")))
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
-}

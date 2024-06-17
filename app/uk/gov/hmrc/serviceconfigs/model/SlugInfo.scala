@@ -22,17 +22,16 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
-sealed trait SlugInfoFlag { def asString: String }
-object SlugInfoFlag {
-  case object Latest                           extends SlugInfoFlag { override val asString = "latest"     }
-  case class  ForEnvironment(env: Environment) extends SlugInfoFlag { override val asString = env.asString }
+enum SlugInfoFlag(val asString: String):
+  case Latest                           extends SlugInfoFlag("latest")
+  case ForEnvironment(env: Environment) extends SlugInfoFlag(env.asString)
 
+object SlugInfoFlag:
   val values: List[SlugInfoFlag] =
-    Latest :: Environment.values.map(ForEnvironment.apply)
+    Latest :: Environment.values.toList.map(ForEnvironment.apply)
 
   def parse(s: String): Option[SlugInfoFlag] =
     values.find(_.asString.equalsIgnoreCase(s))
-}
 
 case class SlugDependency(
   path       : String,
@@ -62,8 +61,8 @@ case class DependencyConfig(
   configs : Map[String, String]
 )
 
-trait MongoSlugInfoFormats {
-  private given OFormat[SlugDependency] =
+trait MongoSlugInfoFormats:
+  private given Format[SlugDependency] =
     ( (__ \ "path"    ).format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "group"   ).format[String]
@@ -74,7 +73,7 @@ trait MongoSlugInfoFormats {
   private def ignore[A]: OWrites[A] =
     OWrites[A](_ => Json.obj())
 
-  val slugInfoFormat: OFormat[SlugInfo] = {
+  val slugInfoFormat: Format[SlugInfo] =
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant](MongoJavatimeFormats.instantFormat)
     ~ (__ \ "name"             ).format[ServiceName](ServiceName.format)
@@ -90,9 +89,8 @@ trait MongoSlugInfoFormats {
     ~ (__ \ "slugConfig"       ).formatNullable[String]
                                 .inmap[String](_.getOrElse(""), Option.apply)
     )(SlugInfo.apply, pt => Tuple.fromProductTyped(pt))
-  }
 
-  val dependencyConfigFormat: OFormat[DependencyConfig] =
+  val dependencyConfigFormat: Format[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
@@ -102,12 +100,11 @@ trait MongoSlugInfoFormats {
                        , _.map { case (k, v) => (k.replaceAll("\\."  , "_DOT_"), v) }
                        )
     )(DependencyConfig.apply, pt => Tuple.fromProductTyped(pt))
-}
 
 object MongoSlugInfoFormats extends MongoSlugInfoFormats
 
-trait ApiSlugInfoFormats {
-  private given OFormat[SlugDependency] =
+trait ApiSlugInfoFormats:
+  private given Format[SlugDependency] =
     ( (__ \ "path"    ).format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "group"   ).format[String]
@@ -115,7 +112,7 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "meta"    ).formatWithDefault[String]("")
     )(SlugDependency.apply, pt => Tuple.fromProductTyped(pt))
 
-  val slugInfoFormat: OFormat[SlugInfo] = {
+  val slugInfoFormat: Format[SlugInfo] =
     ( (__ \ "uri"              ).format[String]
     ~ (__ \ "created"          ).format[Instant]
     ~ (__ \ "name"             ).format[ServiceName](ServiceName.format)
@@ -128,14 +125,12 @@ trait ApiSlugInfoFormats {
     ~ (__ \ "loggerConfig"     ).format[String]
     ~ (__ \ "slugConfig"       ).format[String]
     )(SlugInfo.apply, pt => Tuple.fromProductTyped(pt))
-  }
 
-  val dependencyConfigFormat: OFormat[DependencyConfig] =
+  val dependencyConfigFormat: Format[DependencyConfig] =
     ( (__ \ "group"   ).format[String]
     ~ (__ \ "artefact").format[String]
     ~ (__ \ "version" ).format[String]
     ~ (__ \ "configs" ).format[Map[String, String]]
     )(DependencyConfig.apply, pt => Tuple.fromProductTyped(pt))
-}
 
 object ApiSlugInfoFormats extends ApiSlugInfoFormats
