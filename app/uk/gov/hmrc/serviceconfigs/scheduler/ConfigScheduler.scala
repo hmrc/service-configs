@@ -21,8 +21,7 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository
-import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, UpscanConfigService}
+import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, ResourceUsageService, UpscanConfigService}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -35,7 +34,7 @@ class ConfigScheduler @Inject()(
   alertConfigService        : AlertConfigService,
   internalAuthConfigService : InternalAuthConfigService,
   upscanConfigService       : UpscanConfigService,
-  resourceUsageRepository   : ResourceUsageRepository,
+  resourceUsageService      : ResourceUsageService,
   timestampSupport          : TimestampSupport
 )(implicit
   actorSystem         : ActorSystem,
@@ -51,7 +50,7 @@ class ConfigScheduler @Inject()(
     logger.info("Updating config")
     runAllAndFailWithFirstError(
       for {
-        _ <- accumulateErrors("snapshot Deployments" , resourceUsageRepository.populate(Instant.now()))
+        _ <- accumulateErrors("snapshot Deployments" , resourceUsageService.populate(Instant.now()))
         _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
         - <- accumulateErrors("update Upscan Config", upscanConfigService.update())

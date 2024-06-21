@@ -49,19 +49,28 @@ class AppConfigService @Inject()(
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")){ data =>
-      for {
-        _ <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
-        _ <- data.toSeq.foldLeftM(()){ case (_, (filename, content)) =>
-               DeploymentConfigService.toDeploymentConfig(
-                 serviceName = ServiceName(filename.stripSuffix(".yaml")),
-                 environment = env,
-                 applied     = false,
-                 fileContent = content
-               ).fold(Future.unit)(deploymentConfigRepository.add)
-             }
-      } yield ()
-    }
+     updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")) { data => //data = Map[String,String] (serviceFileName.yaml -> content)
+       for {
+         _ <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
+         _ <- deploymentConfigRepository.replaceEnv(applied = false, environment = env, configs = data.toSeq.flatMap {
+                case (filename, content) =>
+                  DeploymentConfigService.toDeploymentConfig(
+                    serviceName = ServiceName(filename.stripSuffix(".yaml")),
+                    environment = env,
+                    applied     = false,
+                    fileContent = content
+                  ).toSeq
+              })
+         _ <- updateAppliedDeploymentConfig(env, data.keySet.toSeq)
+       } yield ()
+     }
+
+  def updateAppliedDeploymentConfig(env: Environment, latestConfigs: Seq[String]): Future[Unit] =
+    for {
+      undeployedDeploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(env)).map(_.filter(_.instances == 0)) // ensure no aws usage
+      undeployedAndDeletedConfigs =  undeployedDeploymentConfigs.filter(dConfig => !latestConfigs.exists(_ == s"${dConfig.serviceName.asString}.yaml")) // check for deleted github config
+      _                           <- undeployedAndDeletedConfigs.traverse(config => deploymentConfigRepository.delete(config))
+    } yield ()
 
   private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[String, String] => Future[Unit]): Future[Unit] =
     (for {

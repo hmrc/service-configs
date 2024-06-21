@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.{Indexes, IndexModel}
 import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.{IndexModel, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.Environment
@@ -55,6 +55,11 @@ class LatestConfigRepository @Inject()(
       )
       .headOption()
       .map(_.map(_.content))
+
+  def findAll(repoName: String): Future[Seq[LatestConfigRepository.LatestConfig]] =
+    collection
+      .find(equal("repoName", repoName))
+      .toFuture()
 
   def put(repoName: String)(config: Map[String, String]): Future[Unit] =
     MongoUtils.replace[LatestConfigRepository.LatestConfig](

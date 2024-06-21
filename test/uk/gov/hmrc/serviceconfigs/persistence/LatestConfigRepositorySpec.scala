@@ -49,4 +49,19 @@ class LatestConfigRepositorySpec
       repository.find(repoName2, "file4").futureValue shouldBe Some("content4")
     }
   }
+
+  "LatestConfigRepository.findall" should {
+    "find correctly" in {
+      val repoName1 = "app-config-base"
+      repository.put(repoName1)(Map("file1" -> "content1", "file2" -> "content2")).futureValue
+      val repoName2 = "app-config-production"
+      repository.put(repoName2)(Map("file3" -> "content3", "file4" -> "content4")).futureValue
+
+      repository.findAll("app-config-production").futureValue shouldBe
+        Seq(
+          LatestConfigRepository.LatestConfig(repoName = "app-config-production", fileName = "file3", content = "content3"),
+          LatestConfigRepository.LatestConfig(repoName = "app-config-production", fileName = "file4", content = "content4")
+        )
+    }
+  }
 }
