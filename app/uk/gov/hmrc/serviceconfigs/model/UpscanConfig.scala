@@ -25,13 +25,9 @@ case class UpscanConfig(
   environment: Environment,
 )
 
-object  UpscanConfig {
-  val format: Format[UpscanConfig] = {
-    implicit val snf = ServiceName.format
-    implicit val ef  = Environment.format
-    ( (__ \ "service"    ).format[ServiceName]
+object  UpscanConfig:
+  val format: Format[UpscanConfig] =
+    ( (__ \ "service"    ).format[ServiceName](ServiceName.format)
     ~ (__ \ "location"   ).format[String]
-    ~ (__ \ "environment").format[Environment]
-    )(UpscanConfig.apply, unlift(UpscanConfig.unapply))
-  }
-}
+    ~ (__ \ "environment").format[Environment](Environment.format)
+    )(UpscanConfig.apply, pt => Tuple.fromProductTyped(pt))

@@ -32,44 +32,42 @@ class UpscanConfigService @Inject()(
   upscanConfigRepository        : UpscanConfigRepository
 , configAsCodeConnector         : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging:
 
   def update(): Future[Unit] =
-    for {
-      _             <- Future.successful(logger.info(s"Updating Upscan Config ..."))
-      repoNames     <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-                       , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
-                       ).mapN(_ ++ _)
-                        .map(_.map(_.repoName.asString))
-      yamlConfigs   <- configAsCodeConnector.streamUpscanAppConfig().map(getYamlConfigFromZip)
-      items         =  yamlConfigs.foldLeft(Seq.empty[UpscanConfig]){ case (acc, (env, yaml)) =>
-                          val yamlLines = yaml.linesIterator.zipWithIndex.toList
-                          repoNames.flatMap(repoName =>
-                            yamlLines
-                              .find { case (line, _) => line.contains(s""""$repoName"""") }
-                              .map  { case (_, idx ) => UpscanConfig(ServiceName(repoName), s"https://github.com/hmrc/upscan-app-config/blob/main/${env.asString}/verify.yaml#L${idx + 1}", env) }
-                          ) ++ acc
-                       }
-      _             =  logger.info(s"Inserting ${items.size} Upscan Config into mongo")
-      count         <- upscanConfigRepository.putAll(items)
-      _             =  logger.info(s"Inserted $count Upscan Config into mongo")
-    } yield ()
+    for
+      _           <- Future.successful(logger.info(s"Updating Upscan Config ..."))
+      repoNames   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+                     , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+                     ).mapN(_ ++ _)
+                      .map(_.map(_.repoName.asString))
+      yamlConfigs <- configAsCodeConnector.streamUpscanAppConfig().map(getYamlConfigFromZip)
+      items       =  yamlConfigs.foldLeft(Seq.empty[UpscanConfig]):
+                       case (acc, (env, yaml)) =>
+                         val yamlLines = yaml.linesIterator.zipWithIndex.toList
+                         repoNames.flatMap(repoName =>
+                           yamlLines
+                             .find:
+                               case (line, _) => line.contains(s""""$repoName"""")
+                             .map:
+                               case (_, idx ) => UpscanConfig(ServiceName(repoName), s"https://github.com/hmrc/upscan-app-config/blob/main/${env.asString}/verify.yaml#L${idx + 1}", env)
+                         ) ++ acc
+      _           =  logger.info(s"Inserting ${items.size} Upscan Config into mongo")
+      count       <- upscanConfigRepository.putAll(items)
+      _           =  logger.info(s"Inserted $count Upscan Config into mongo")
+    yield ()
 
-  private[service] def getYamlConfigFromZip(zip: ZipInputStream): Map[Environment, String] = {
+  private[service] def getYamlConfigFromZip(zip: ZipInputStream): Map[Environment, String] =
     val yamlRegex = """(.*)/verify.yaml""".r
 
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[Environment, String]){ (acc, entry) =>
-        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        path match {
-          case yamlRegex(environment) =>
-            val content: String = scala.io.Source.fromInputStream(zip).mkString
-            Environment.parse(environment).fold(acc)(e => acc + (e -> content))
-          case _ => acc
-        }
-      }
-  }
-
-}
+      .foldLeft(Map.empty[Environment, String]):
+        (acc, entry) =>
+          entry.getName.drop(entry.getName.indexOf('/') + 1) match
+            case yamlRegex(environment) => Environment
+                                             .parse(environment)
+                                             .fold(acc):
+                                               e => acc + (e -> scala.io.Source.fromInputStream(zip).mkString)
+            case _                      => acc

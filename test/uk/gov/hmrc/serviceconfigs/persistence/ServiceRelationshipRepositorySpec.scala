@@ -26,9 +26,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ServiceRelationshipRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[ServiceRelationship] {
+     with DefaultPlayMongoRepositorySupport[ServiceRelationship]:
 
-  override lazy val repository = new ServiceRelationshipRepository(mongoComponent)
+  override val repository: ServiceRelationshipRepository =
+    ServiceRelationshipRepository(mongoComponent)
 
   private val serviceA = ServiceName("service-a")
   private val serviceB = ServiceName("service-b")
@@ -43,20 +44,18 @@ class ServiceRelationshipRepositorySpec
     ServiceRelationship(serviceD, serviceA)
   )
 
-  "ServiceRelationshipsRepository" should {
-    "return upstream dependencies for a given service" in {
+  "ServiceRelationshipsRepository" should:
+    "return upstream dependencies for a given service" in:
       repository.putAll(seed).futureValue
 
       repository.getInboundServices(serviceB).futureValue shouldBe List(serviceA, serviceC)
-    }
 
-    "return downstream dependencies for a given service" in {
+    "return downstream dependencies for a given service" in:
       repository.putAll(seed).futureValue
 
       repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC)
-    }
 
-    "clear the collection and refresh" in {
+    "clear the collection and refresh" in:
       repository.putAll(seed).futureValue
 
       repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceB, serviceC)
@@ -73,6 +72,3 @@ class ServiceRelationshipRepositorySpec
       repository.putAll(latest).futureValue
 
       repository.getOutboundServices(serviceA).futureValue shouldBe List(serviceC, serviceD)
-    }
-  }
-}

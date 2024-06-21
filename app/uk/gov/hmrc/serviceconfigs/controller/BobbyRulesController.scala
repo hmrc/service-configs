@@ -29,15 +29,14 @@ import scala.concurrent.ExecutionContext
 class BobbyRulesController @Inject()(
   bobbyRulesService: BobbyRulesService,
   mcc              : MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
-
-  private implicit val bdf: Format[BobbyRules] = BobbyRules.apiFormat
+) extends BackendController(mcc):
 
   val allRules: Action[AnyContent] =
-    Action.async {
-      bobbyRulesService.findAllRules()
-        .map(br => Ok(Json.toJson(br)))
-    }
-}
+    given Format[BobbyRules] = BobbyRules.apiFormat
+    Action.async:
+      bobbyRulesService
+        .findAllRules()
+        .map: br =>
+          Ok(Json.toJson(br))

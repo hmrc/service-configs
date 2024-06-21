@@ -16,16 +16,14 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
+import play.api.{Configuration, Logging}
 import org.apache.pekko.stream.scaladsl.Source
 import org.apache.pekko.util.ByteString
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.StreamConverters
-import play.api.Logging
 
-import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
-import uk.gov.hmrc.http.UpstreamErrorResponse
-import uk.gov.hmrc.serviceconfigs.config.ArtifactoryConfig
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
+import uk.gov.hmrc.http.client.{HttpClientV2, readEitherSource}
 
 import javax.inject.{Inject, Singleton}
 import java.util.zip.ZipInputStream
@@ -34,22 +32,25 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ArtifactoryConnector @Inject()(
-  config      : ArtifactoryConfig,
+  config      : Configuration,
   httpClientV2: HttpClientV2
-)(implicit
+)(using
   ec : ExecutionContext,
   mat: Materializer
-) extends Logging {
+) extends Logging:
   import HttpReads.Implicits._
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  private val artifactoryUrl: String =
+    config.get[String]("artifactory.url")
+
+  private given HeaderCarrier = HeaderCarrier()
 
   def getSensuZip(): Future[ZipInputStream] =
-    stream(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
+    stream(url"$artifactoryUrl/artifactory/webstore/sensu-config/output.zip")
 
   def getLatestHash(): Future[Option[String]] =
     httpClientV2
-      .head(url"${config.artifactoryUrl}/artifactory/webstore/sensu-config/output.zip")
+      .head(url"$artifactoryUrl/artifactory/webstore/sensu-config/output.zip")
       .transform(_.withRequestTimeout(20.seconds))
       .execute[HttpResponse]
       .map(_.header("x-checksum-sha256"))
@@ -59,12 +60,10 @@ class ArtifactoryConnector @Inject()(
       .get(url)
       .transform(_.withRequestTimeout(60.seconds))
       .stream[Either[UpstreamErrorResponse, Source[ByteString, _]]]
-      .map {
+      .map:
         case Right(source) =>
           logger.info(s"Successfully streaming $url")
-          new ZipInputStream(source.runWith(StreamConverters.asInputStream()))
+          ZipInputStream(source.runWith(StreamConverters.asInputStream()))
         case Left(error)   =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
-      }
-}

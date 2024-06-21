@@ -20,8 +20,7 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 
 @Singleton
-class GithubConfig @Inject()(configuration: Configuration) {
+class GithubConfig @Inject()(configuration: Configuration):
   val githubApiUrl: String = configuration.get[String]("github.open.api.apiurl")
   val githubRawUrl: String = configuration.get[String]("github.open.api.rawurl")
   val githubToken : String = configuration.get[String]("github.open.api.token")
-}

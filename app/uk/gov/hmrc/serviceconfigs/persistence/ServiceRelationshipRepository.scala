@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes, ReplaceOneModel, ReplaceOptions, DeleteOneModel}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
@@ -28,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ServiceRelationshipRepository @Inject()(
   mongoComponent: MongoComponent,
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceRelationship](
   mongoComponent = mongoComponent,
@@ -39,7 +40,7 @@ class ServiceRelationshipRepository @Inject()(
                      IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) with Logging {
+) with Logging:
 
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
@@ -57,7 +58,7 @@ class ServiceRelationshipRepository @Inject()(
       .map(_.map(_.target))
 
   def putAll(srs: Seq[ServiceRelationship]): Future[Unit] =
-    for {
+    for
       old         <- collection.find().toFuture()
       bulkUpdates =  //upsert any that were not present already
                      srs
@@ -86,7 +87,6 @@ class ServiceRelationshipRepository @Inject()(
                            )
                          )
                        )
-       _          <- if (bulkUpdates.isEmpty) Future.unit
-                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
-    } yield ()
-}
+      _           <- if   bulkUpdates.isEmpty then Future.unit
+                     else                          collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    yield ()

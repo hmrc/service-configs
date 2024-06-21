@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.bson.conversions.Bson
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.{DeleteOneModel, Filters, ReplaceOptions, ReplaceOneModel}
 
@@ -24,15 +25,14 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
 
-object MongoUtils {
+object MongoUtils:
   /**
     * Equivalent to ```
-    *   withSessionAndTransacion { s =>
-    *     for {
+    *   withSessionAndTransacion: s =>
+    *     for
     *       _ <- collection.deleteMany(s, oldValsFilter).toFuture()
     *       _ <- collection.insertMany(s, newVals).toFuture()
-    *     } yield ()
-    *   }
+    *     yield ()
     * ```
     * but is more efficient on mongo since it avoids a transaction and avoids making changes
     * when the data hasn't changed.
@@ -51,26 +51,20 @@ object MongoUtils {
     oldValsFilter: Bson = Filters.empty(),
     compareById  : (A, A) => Boolean, // TODO would a `uniqueId: A => String` be more practical?
     filterById   : A => Bson
-  )(implicit ec: ExecutionContext): Future[Unit] =
-    for {
+  )(using ec: ExecutionContext): Future[Unit] =
+    for
       old         <- collection.find(oldValsFilter).toFuture()
-      bulkUpdates =  //upsert any that were not present already
-                     newVals
-                       .filterNot(old.contains)
-                       .map(entry =>
-                         ReplaceOneModel(
-                           filterById(entry),
-                           entry,
-                           ReplaceOptions().upsert(true)
-                         )
-                       ) ++
-                     // delete any that are no longer present
-                     old
-                       .filterNot(oldC => newVals.exists(newC => compareById(oldC, newC)))
-                       .map(entry =>
-                         DeleteOneModel(filterById(entry))
-                       )
-       _          <- if (bulkUpdates.isEmpty) Future.unit
-                     else collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
-    } yield ()
-}
+      bulkUpdates =  List.concat(
+                       newVals  //upsert any that were not present already
+                         .filterNot(old.contains)
+                         .map: entry =>
+                           ReplaceOneModel(filterById(entry), entry, ReplaceOptions().upsert(true))
+                     , old // delete any that are no longer present
+                         .filterNot: oldC =>
+                           newVals.exists(newC => compareById(oldC, newC))
+                         .map: entry =>
+                           DeleteOneModel(filterById(entry))
+                     )
+       _          <- if   bulkUpdates.isEmpty then Future.unit
+                     else                          collection.bulkWrite(bulkUpdates).toFuture().map(_=> ())
+    yield ()

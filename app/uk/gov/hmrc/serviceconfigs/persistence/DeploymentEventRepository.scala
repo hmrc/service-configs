@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits.toTraverseOps
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.bson.conversions
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions, Sorts}
@@ -32,12 +33,12 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeploymentEventRepository @Inject()(
   val mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeploymentEventRepository.DeploymentEvent](
   mongoComponent = mongoComponent,
   collectionName = DeploymentEventRepository.collectionName,
-  domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormats,
+  domainFormat   = DeploymentEventRepository.DeploymentEvent.mongoFormat,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName")),
                      IndexModel(Indexes.ascending("deploymentId")),
@@ -45,8 +46,7 @@ class DeploymentEventRepository @Inject()(
                      IndexModel(Indexes.descending("lastUpdated", "environment", "serviceName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) {
-
+):
   override lazy val requiresTtlIndex = false
 
   def put(config: DeploymentEventRepository.DeploymentEvent): Future[Unit] =
@@ -59,8 +59,8 @@ class DeploymentEventRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
-    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] = {
+  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
       val filter: Environment => conversions.Bson = (environment: Environment) => and(
         equal("serviceName", serviceName),
         equal("environment", environment),
@@ -80,18 +80,15 @@ class DeploymentEventRepository @Inject()(
         gte("lastUpdated", dateRange.to),
       )
 
-      for {
+      for
         inside <- collection.find(filter(environment)).sort(Sorts.ascending("lastUpdated")).toFuture()
         before <- collection.find(filterBefore(environment)).sort(Sorts.descending("lastUpdated")).headOption()
         after <- collection.find(filterAfter(environment)).sort(Sorts.ascending("lastUpdated")).headOption()
-      } yield before.toSeq ++ inside ++ after.toSeq
-    }
+      yield before.toSeq ++ inside ++ after.toSeq
 
-    Environment.values.traverse(fetchEvents).map(_.flatten)
-  }
-}
+    Environment.values.toList.traverse(fetchEvents).map(_.flatten)
 
-object DeploymentEventRepository {
+object DeploymentEventRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -107,20 +104,23 @@ object DeploymentEventRepository {
     lastUpdated    : Instant
   )
 
-  object DeploymentEvent {
-    implicit val mongoFormats: Format[DeploymentEvent] = {
-      implicit val instantFormat = MongoJavatimeFormats.instantFormat
-      implicit val ef = Environment.format
-      implicit val snf = ServiceName.format
-      implicit val vf = Version.format
-      ((__ \ "serviceName").format[ServiceName]
-        ~ (__ \ "environment").format[Environment]
-        ~ (__ \ "version").format[Version]
-        ~ (__ \ "deploymentId").format[String]
-        ~ (__ \ "configChanged").formatNullable[Boolean]
-        ~ (__ \ "configId").formatNullable[String]
-        ~ (__ \ "lastUpdated").format[Instant]
-        )(DeploymentEvent.apply, unlift(DeploymentEvent.unapply))
-    }
-  }
-}
+  object DeploymentEvent:
+    val apiFormat: Format[DeploymentEvent] =
+      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"  ).format[Environment](Environment.format)
+      ~ (__ \ "version"      ).format[Version](Version.format)
+      ~ (__ \ "deploymentId" ).format[String]
+      ~ (__ \ "configChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"     ).formatNullable[String]
+      ~ (__ \ "lastUpdated"  ).format[Instant]
+      )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
+
+    val mongoFormat: Format[DeploymentEvent] =
+      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"  ).format[Environment](Environment.format)
+      ~ (__ \ "version"      ).format[Version](Version.format)
+      ~ (__ \ "deploymentId" ).format[String]
+      ~ (__ \ "configChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"     ).formatNullable[String]
+      ~ (__ \ "lastUpdated"  ).format[Instant](MongoJavatimeFormats.instantFormat)
+      )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))

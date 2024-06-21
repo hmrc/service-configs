@@ -27,16 +27,17 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class AppliedConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig] {
+     with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig]:
   import AppliedConfigRepository._
 
   val configSearchLimit = 5
   private val config = play.api.Configuration("config-search.max-limit" -> configSearchLimit)
 
-  override protected val repository = new AppliedConfigRepository(config, mongoComponent)
+  override protected val repository: AppliedConfigRepository =
+    AppliedConfigRepository(config, mongoComponent)
 
-  "AppliedConfigRepository" should {
-    "put correctly" in {
+  "AppliedConfigRepository" should:
+    "put correctly" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "ENC[...]"))
@@ -57,9 +58,8 @@ class AppliedConfigRepositorySpec
       , AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName2, "k3", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3")), false)
       )
-    }
 
-    "delete correctly" in {
+    "delete correctly" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -96,9 +96,8 @@ class AppliedConfigRepositorySpec
         AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName2, "k3", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v3")), false)
       )
-    }
 
-    "search config key equal to" in {
+    "search config key equal to" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -132,9 +131,8 @@ class AppliedConfigRepositorySpec
       , environments    = Seq.empty
       , serviceNames    = None
       ).futureValue should be (Nil)
-    }
 
-    "search config key contains" in {
+    "search config key contains" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -168,9 +166,8 @@ class AppliedConfigRepositorySpec
                                               Environment.QA          -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       )
-    }
 
-    "search by service names when present" in {
+    "search by service names when present" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -227,9 +224,8 @@ class AppliedConfigRepositorySpec
                                           Environment.QA              -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       , AppliedConfig(serviceName2, "k1", Map(Environment.Development -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1")), false)
       )
-    }
 
-    "search per environment when present" in {
+    "search per environment when present" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -282,9 +278,8 @@ class AppliedConfigRepositorySpec
       , environments    = Seq(Environment.Production)
       , serviceNames    = None
       ).futureValue should be (Nil)
-    }
 
-    "return config keys" in {
+    "return config keys" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source", Some("some-url"), "v2"))
@@ -299,17 +294,15 @@ class AppliedConfigRepositorySpec
 
       repository.findConfigKeys(serviceNames = None).futureValue shouldBe Seq("k1", "k2", "k3", "k4")
       repository.findConfigKeys(serviceNames = Some(List(serviceName1))).futureValue shouldBe Seq("k1", "k2", "k4")
-    }
 
-    "hide reference only keys" in {
+    "hide reference only keys" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("referenceConf", Some("some-url"), "v1"),
                                                                 "k2" -> RenderedConfigSourceValue("some-source"  , Some("some-url"), "v2"))
       ).futureValue
       repository.findConfigKeys(serviceNames = None).futureValue shouldBe (Seq("k2"))
-    }
 
-    "hide reference only searches" in {
+    "hide reference only searches" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(serviceName1, Environment.Development, Map("k1" -> RenderedConfigSourceValue("referenceConf", Some("some-url"), "v1"))
       ).futureValue
@@ -335,6 +328,3 @@ class AppliedConfigRepositorySpec
         AppliedConfig(serviceName1, "k1", Map(Environment.Development -> RenderedConfigSourceValue("referenceConf", Some("some-url"), "v1"),
                                               Environment.QA          -> RenderedConfigSourceValue("some-source"  , Some("some-url"), "v1")), false)
       )
-    }
-  }
-}

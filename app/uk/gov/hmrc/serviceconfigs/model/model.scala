@@ -19,48 +19,35 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Json, JsPath, Format, OFormat, OWrites, Reads}
 
-case class ArtefactName(asString: String) extends AnyVal
+case class ArtefactName (asString: String) extends AnyVal
+case class CommitId     (asString: String) extends AnyVal
+case class RepoName     (asString: String) extends AnyVal
+case class FileName     (asString: String) extends AnyVal
+case class Content      (asString: String) extends AnyVal
+case class ServiceName  (asString: String) extends AnyVal
+case class Tag          (asString: String) extends AnyVal
+case class TeamName     (asString: String) extends AnyVal
 
-case class CommitId(asString: String) extends AnyVal
-
-case class RepoName(asString: String) extends AnyVal
-
-case class FileName(asString: String) extends AnyVal
-
-case class Content(asString: String) extends AnyVal
-
-case class ServiceName(asString: String) extends AnyVal
-
-case class Tag(asString: String) extends AnyVal
-
-case class TeamName(asString: String) extends AnyVal
-
-object ArtefactName {
+object ArtefactName:
   val format =
-    implicitly[Format[String]].inmap(ArtefactName.apply, unlift(ArtefactName.unapply))
-}
+    implicitly[Format[String]].inmap(ArtefactName.apply, _.asString)
 
-object RepoName {
+object RepoName:
   val format =
-    implicitly[Format[String]].inmap(RepoName.apply, unlift(RepoName.unapply))
-}
+    implicitly[Format[String]].inmap(RepoName.apply, _.asString)
 
-object FileName {
+object FileName:
   val format =
-    implicitly[Format[String]].inmap(FileName.apply, unlift(FileName.unapply))
-}
+    implicitly[Format[String]].inmap(FileName.apply, _.asString)
 
-object Content {
+object Content:
   val format =
-    implicitly[Format[String]].inmap(Content.apply, unlift(Content.unapply))
-}
+    implicitly[Format[String]].inmap(Content.apply, _.asString)
 
-object ServiceName {
+object ServiceName:
   val format =
-    implicitly[Format[String]].inmap(ServiceName.apply, unlift(ServiceName.unapply))
-}
+    implicitly[Format[String]].inmap(ServiceName.apply, _.asString)
 
-object JsonUtil {
+object JsonUtil:
   def ignoreOnWrite[A : Reads](path: JsPath) =
     OFormat[A](Reads.at[A](path), OWrites[A](_ => Json.obj()))
-}

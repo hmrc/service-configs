@@ -17,10 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.MockitoSugar
+import org.mockito.Mockito.when
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
 import uk.gov.hmrc.serviceconfigs.service._
 import play.api.libs.json._
@@ -36,10 +37,10 @@ class BobbyRulesControllerSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "processGithubWebhook" should {
-    "accept unknown repository" in new Setup {
+  "processGithubWebhook" should:
+    "accept unknown repository" in new Setup:
       when(mockBobbyRulesService.findAllRules())
         .thenReturn(Future.successful(
           BobbyRules(
@@ -86,9 +87,8 @@ class BobbyRulesControllerSpec
           } ]
         }"""
       )
-    }
 
-    "convert * to [0.0.0,) in range field to represent all versions" in new Setup {
+    "convert * to [0.0.0,) in range field to represent all versions" in new Setup:
       val json = Json.parse(
         s"""{
           "libraries": [ {
@@ -128,12 +128,9 @@ class BobbyRulesControllerSpec
       )
 
       val result = Json.fromJson[BobbyRules](json)(BobbyRules.apiFormat)
-
       result shouldBe JsSuccess(expected)
-    }
-  }
 
-  trait Setup {
+  trait Setup:
     implicit val as: ActorSystem = ActorSystem()
 
     val mockBobbyRulesService = mock[BobbyRulesService]
@@ -142,5 +139,3 @@ class BobbyRulesControllerSpec
       bobbyRulesService = mockBobbyRulesService,
       mcc               = stubMessagesControllerComponents()
     )
-  }
-}

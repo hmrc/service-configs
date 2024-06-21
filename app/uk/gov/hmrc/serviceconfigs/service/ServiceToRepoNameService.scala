@@ -32,38 +32,36 @@ class ServiceToRepoNameService @Inject()(
   configAsCodeConnector       : ConfigAsCodeConnector
 , deploymentConfigRepository  : DeploymentConfigRepository
 , serviceToRepoNamesRepository: ServiceToRepoNameRepository
-)(implicit ec: ExecutionContext
-) extends Logging {
+)(using
+  ec: ExecutionContext
+) extends Logging:
   import ServiceToRepoNameService._
 
   def update(): Future[Unit] =
-    for {
+    for
       configs       <- deploymentConfigRepository.find(applied = false)
       fromConfig    =  configs
-                         .collect {
+                         .collect:
                            case config if config.artefactName.exists(_.asString != config.serviceName.asString) =>
                              (config.serviceName, config.artefactName)
-                         }
-                         .collect {
+                         .collect:
                            case (serviceName, Some(artefactName)) =>
                              ServiceToRepoName(serviceName, artefactName, RepoName(artefactName.asString))
-                         }
                          .distinct
       _             =  logger.info("Fetching slug and repo name discrepancies from Build Jobs")
       zip           <- configAsCodeConnector.streamBuildJobs()
       fromBuildJobs =  extractServiceToRepoNames(zip)
-                         .map { case (repo, slug) =>
-                           ServiceToRepoName(
-                             serviceName  = ServiceName(slug),
-                             artefactName = ArtefactName(slug),
-                             repoName     = RepoName(repo)
-                           )
-                         }
+                         .map:
+                           case (repo, slug) =>
+                             ServiceToRepoName(
+                               serviceName  = ServiceName(slug),
+                               artefactName = ArtefactName(slug),
+                               repoName     = RepoName(repo)
+                             )
       _             =  serviceToRepoNamesRepository.putAll(fromConfig ++ fromBuildJobs)
-    } yield ()
-}
+    yield ()
 
-object ServiceToRepoNameService {
+object ServiceToRepoNameService:
   val MicroserviceMatch: Regex =
     """.*new MvnMicroserviceJobBuilder\([^,]*,\s*['"]([^'"]+)['"].*""".r
 
@@ -76,14 +74,17 @@ object ServiceToRepoNameService {
   private val pathRegex = """jobs/live/(.*).groovy""".r
 
   def extractServiceToRepoNames(zip: ZipInputStream): Seq[(String, String)] =
-    ZipUtil.extractFromFiles(zip){
-      case (pathRegex(_), lines) =>
-        lines.foldLeft((Option.empty[String], Seq.empty[(String, String)])) {
-          case ((_             , acc), MicroserviceMatch(repoName)  ) => (Some(repoName), acc)
-          case ((_             , acc), AemMatch(repoName)           ) => (Some(repoName), acc)
-          case ((Some(repoName), acc), UploadSlugMatch(artefactName)) => (Some(repoName), acc :+ (repoName, artefactName) )
-          case ((optRepoName   , acc), _                            ) => (optRepoName   , acc)
-        }._2.iterator
-      case _ => Iterator.empty
-    }.filterNot { case (repo, slug) => repo == slug }.toSeq
-}
+    ZipUtil
+      .extractFromFiles(zip):
+        case (pathRegex(_), lines) =>
+          lines
+            .foldLeft((Option.empty[String], Seq.empty[(String, String)])):
+              case ((_             , acc), MicroserviceMatch(repoName)  ) => (Some(repoName), acc)
+              case ((_             , acc), AemMatch(repoName)           ) => (Some(repoName), acc)
+              case ((Some(repoName), acc), UploadSlugMatch(artefactName)) => (Some(repoName), acc :+ (repoName, artefactName) )
+              case ((optRepoName   , acc), _                            ) => (optRepoName   , acc)
+            ._2.iterator
+        case _ => Iterator.empty
+      .filterNot:
+        case (repo, slug) => repo == slug
+      .toSeq

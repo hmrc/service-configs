@@ -18,11 +18,11 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.instances.all._
 import cats.syntax.all._
-import com.mongodb.client.model.Indexes
+import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions}
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -35,24 +35,23 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class FrontendRouteRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[MongoFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "frontendRoutes",
-  domainFormat   = MongoFrontendRoute.formats,
+  domainFormat   = MongoFrontendRoute.format,
   indexes        = Seq(
                      IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-){
-
+):
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
 
   private val logger = Logger(this.getClass)
 
-  def update(frontendRoute: MongoFrontendRoute): Future[Unit] = {
+  def update(frontendRoute: MongoFrontendRoute): Future[Unit] =
     logger.debug(
       s"updating ${frontendRoute.service} ${frontendRoute.frontendPath} -> ${frontendRoute.backendPath} for env ${frontendRoute.environment}"
     )
@@ -69,10 +68,8 @@ class FrontendRouteRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
-      .recover {
-        case lastError => throw new RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
-      }
-  }
+      .recover:
+        case lastError => throw RuntimeException(s"failed to persist frontendRoute $frontendRoute", lastError)
 
   /** Search for frontend routes which match the path as either a prefix, or a regular expression.
     *
@@ -80,26 +77,22 @@ class FrontendRouteRepository @Inject()(
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
   // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
-  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] = {
-
+  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] =
     def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection
         .find(query)
         .limit(100)
         .toFuture()
-        .map { res =>
+        .map: res =>
           logger.info(s"query $query returned ${res.size} results")
           res
-        }
 
     FrontendRouteRepository
       .queries(path)
       .toList
-      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty) { (prevRes, query) =>
-        if (prevRes.isEmpty) search(query)
-        else Future.successful(prevRes)
-      }
-  }
+      .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty): (prevRes, query) =>
+        if   prevRes.isEmpty then search(query)
+        else                      Future.successful(prevRes)
 
   def findByService(serviceName: ServiceName): Future[Seq[MongoFrontendRoute]] =
     collection
@@ -136,9 +129,8 @@ class FrontendRouteRepository @Inject()(
       .distinct[String]("service")
       .toFuture()
       .map(_.map(ServiceName.apply))
-}
 
-object FrontendRouteRepository {
+object FrontendRouteRepository:
   def pathsToRegex(paths: Seq[String]): String =
     paths
       .map(_.replace("-", "(-|\\\\-)")) // '-' is escaped in regex expression
@@ -166,4 +158,3 @@ object FrontendRouteRepository {
       .toSeq
       .dropRight(1)
       .map(toQuery)
-}

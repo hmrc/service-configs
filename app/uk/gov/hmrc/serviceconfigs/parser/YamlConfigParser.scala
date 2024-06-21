@@ -26,19 +26,18 @@ import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import javax.inject.{Inject, Singleton}
 
-object YamlConfigParser {
+object YamlConfigParser:
 
   private final case class LocationConfig(
     path        : String,
     shutterable : Boolean
   )
 
-  private object LocationConfig {
+  private object LocationConfig:
     val reads: Reads[LocationConfig] =
       ( (__ \ "path"       ).read[String]
       ~ (__ \ "shutterable").readWithDefault[Boolean](true)
       )(apply _)
-  }
 
   private final case class YamlConfig(
     service                   : String,
@@ -50,7 +49,7 @@ object YamlConfigParser {
     production                : Seq[LocationConfig],
     zone                      : String,
     platformShutteringEnabled : Boolean
-  ) {
+  ):
     val environments: Map[Environment, Seq[LocationConfig]] = Map(
       Environment.Development  -> development,
       Environment.Integration  -> integration,
@@ -59,10 +58,9 @@ object YamlConfigParser {
       Environment.ExternalTest -> externaltest,
       Environment.Production   -> production
     )
-  }
 
-  private def yamlConfigReads(key: String): Reads[YamlConfig] = {
-    implicit val lcR: Reads[LocationConfig] = LocationConfig.reads
+  private def yamlConfigReads(key: String): Reads[YamlConfig] =
+    given Reads[LocationConfig] = LocationConfig.reads
 
     ( Reads.pure(key)
     ~ (__ \ "environments" \ "development" ).readWithDefault[Seq[LocationConfig]](Seq.empty)
@@ -74,23 +72,21 @@ object YamlConfigParser {
     ~ (__ \ "zone"                         ).readWithDefault[String]("public")
     ~ (__ \ "platform-off-switch"          ).readWithDefault[Boolean](true)
     )(YamlConfig.apply _)
-  }
-}
 
 @Singleton
-class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
+class YamlConfigParser @Inject()(nginxConfig: NginxConfig):
 
   def parseConfig(config: YamlRoutesFile): Set[MongoFrontendRoute] =
-    if(config.content.isEmpty)
+    if config.content.isEmpty then
       Set.empty[MongoFrontendRoute]
-    else {
-      (for {
+    else
+      (for
         conf        <- fromYaml[Map[String, JsValue]](config.content)
                          .map { case (k, v) => v.as[YamlConfig](yamlConfigReads(k)) }
         lines       =  config.content.linesIterator.toList
         (env, locs) <- conf.environments
         loc         <- locs
-      } yield
+       yield
         MongoFrontendRoute(
           service              = ServiceName(conf.service),
           frontendPath         = stripModifiers(loc.path),
@@ -107,10 +103,9 @@ class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
                                    errorPage = Some(s"/shuttered$$LANG/${conf.service}")
                                  )).filter(_ => loc.shutterable),
           ruleConfigurationUrl = s"${config.blobUrl}#L${lines.indexWhere(_.contains(s"${conf.service}:")) + 1}",
-          isRegex = isRegex(loc.path) // https://nginx.org/en/docs/http/ngx_http_core_module.html#location
+          isRegex              = isRegex(loc.path) // https://nginx.org/en/docs/http/ngx_http_core_module.html#location
         )
       ).toSet
-    }
 
   private def stripModifiers(in: String): String = in
     .replaceAll("^= "   , "") // =
@@ -120,5 +115,3 @@ class YamlConfigParser @Inject()(nginxConfig: NginxConfig) {
 
   private def isRegex(loc: String): Boolean =
     loc.startsWith("= ") || loc.startsWith("~ ") || loc.startsWith("~* ") || loc.startsWith("^~ ")
-
-}

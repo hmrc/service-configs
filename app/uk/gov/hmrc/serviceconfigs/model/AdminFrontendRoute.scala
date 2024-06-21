@@ -26,13 +26,11 @@ case class AdminFrontendRoute(
 , location   : String
 )
 
-object AdminFrontendRoute {
-  val format: Format[AdminFrontendRoute] = {
-    implicit val snf = ServiceName.format
+object AdminFrontendRoute:
+  val format: Format[AdminFrontendRoute] =
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "route"   ).format[String]
     ~ (__ \ "allow"   ).format[Map[String, List[String]]]
     ~ (__ \ "location").format[String]
-    )(AdminFrontendRoute.apply, unlift(AdminFrontendRoute.unapply))
-  }
-}
+    )(AdminFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))

@@ -29,16 +29,14 @@ import scala.concurrent.ExecutionContext
 class BuildJobController @Inject()(
   buildJobRepository: BuildJobRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
-
-  implicit val buildJobFormat: Format[BuildJob] = BuildJob.format
+) extends BackendController(mcc):
 
   def buildJob(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    given Format[BuildJob] = BuildJob.format
+    Action.async:
       buildJobRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
-}
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))

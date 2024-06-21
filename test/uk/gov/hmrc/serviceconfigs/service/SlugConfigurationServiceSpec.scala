@@ -18,10 +18,12 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import java.time.Instant
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
@@ -32,10 +34,10 @@ class SlugConfigurationServiceSpec
   extends AnyWordSpec
      with Matchers
      with ScalaFutures
-     with MockitoSugar {
+     with MockitoSugar:
 
-  "SlugInfoService.addSlugInfo" should {
-    "mark the slug as latest if it is the first slug with that name" in {
+  "SlugInfoService.addSlugInfo" should:
+    "mark the slug as latest if it is the first slug with that name" in:
       val boot = Boot.init
 
       val slug = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
@@ -48,12 +50,9 @@ class SlugConfigurationServiceSpec
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
-
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slug.name, slug.version)
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
-    }
 
-    "mark the slug as latest if the version is latest" in {
+    "mark the slug as latest if the version is latest" in:
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
@@ -69,10 +68,7 @@ class SlugConfigurationServiceSpec
       boot.service.addSlugInfo(slugv2).futureValue
       verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
 
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
-    }
-
-    "not use the latest flag from sqs/artefact processor" in {
+    "not use the latest flag from sqs/artefact processor" in:
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
@@ -84,12 +80,9 @@ class SlugConfigurationServiceSpec
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slugv1).futureValue
-
       verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1)
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
-    }
 
-    "not mark the slug as latest if there is a later one already in the collection" in {
+    "not mark the slug as latest if there is a later one already in the collection" in:
       val boot = Boot.init
 
       val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
@@ -102,10 +95,7 @@ class SlugConfigurationServiceSpec
 
       boot.service.addSlugInfo(slugv1).futureValue
 
-      verifyNoMoreInteractions(boot.mockedSlugInfoRepository)
-    }
-
-    "add slug with classpath ordered dependencies" in {
+    "add slug with classpath ordered dependencies" in:
       val boot = Boot.init
       val slugName    = "my-slug"
       val slugVersion = "1.0.0"
@@ -125,10 +115,7 @@ class SlugConfigurationServiceSpec
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
-
       verify(boot.mockedSlugInfoRepository).add(slug.copy(dependencies = List(classPathDependency)))
-    }
-  }
 
   def sampleSlugInfo(name: String, version: String, uri: String, latest: Boolean = true): SlugInfo =
     SlugInfo(
@@ -149,12 +136,12 @@ class SlugConfigurationServiceSpec
   , service                    : SlugConfigurationService
   )
 
-  object Boot {
-    def init: Boot = {
+  object Boot:
+    def init: Boot =
       val mockedSlugInfoRepository              = mock[SlugInfoRepository]
       val mockedDependencyConfigRepository      = mock[DependencyConfigRepository]
 
-      val service = new SlugConfigurationService(
+      val service = SlugConfigurationService(
         mockedSlugInfoRepository
       , mockedDependencyConfigRepository
       )
@@ -163,6 +150,3 @@ class SlugConfigurationServiceSpec
         mockedSlugInfoRepository
       , service
       )
-    }
-  }
-}

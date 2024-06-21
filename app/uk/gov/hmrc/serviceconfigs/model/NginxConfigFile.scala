@@ -16,10 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-case class NginxConfigFile(environment: Environment, url: String, content: String, branch: String){
+case class NginxConfigFile(environment: Environment, url: String, content: String, branch: String):
   def fileName: String = url.split("/").last
-}
 
-final case class YamlRoutesFile(url: String, blobUrl: String, content: String, branch: String) {
+final case class YamlRoutesFile(url: String, blobUrl: String, content: String, branch: String):
   def fileName: String = url.split("/").last
-}

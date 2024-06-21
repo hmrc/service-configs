@@ -21,7 +21,7 @@ import play.api.{Configuration, Logging}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector._
 import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, ServiceName, TeamName}
-import uk.gov.hmrc.serviceconfigs.persistence.{DeprecationWarningsNotificationRepository, ServiceRelationshipRepository, SlackNotificationsRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{DeprecationWarningsNotificationRepository, ServiceRelationshipRepository}
 import uk.gov.hmrc.serviceconfigs.util.DateAndTimeOps._
 
 import java.time.temporal.ChronoUnit
@@ -39,11 +39,11 @@ class DeprecationWarningsNotificationService @Inject()(
   serviceRelationshipsRepository            : ServiceRelationshipRepository,
   teamsAndRepositoriesConnector             : TeamsAndRepositoriesConnector,
   configuration : Configuration
-)(implicit
+)(using
   ec: ExecutionContext
-) extends Logging {
+) extends Logging:
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val futureDatedRuleWindow  = configuration.get[Duration]("deprecation-warnings-notification-service.rule-notification-window")
   private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
@@ -53,89 +53,81 @@ class DeprecationWarningsNotificationService @Inject()(
   private val bobbyNotificationEnabled     = configuration.get[Boolean]("deprecation-warnings-notification-service.bobby-notification-enabled")
   private val endOfLifeNotificationEnabled = configuration.get[Boolean]("deprecation-warnings-notification-service.end-of-life-notification-enabled")
 
-  def sendNotifications(runTime: Instant): Future[Unit] = {
-    runNotificationsIfInWindow(runTime) {
-      for {
+  def sendNotifications(runTime: Instant): Future[Unit] =
+    runNotificationsIfInWindow(runTime):
+      for
         _ <- bobbyNotifications(runTime)
         _ <- deprecatedNotifications()
         _ <- deprecationWarningsNotificationRepository.setLastRunTime(runTime)
-      } yield logger.info("Completed sending deprecation warning messages")
-    }
-  }
+      yield logger.info("Completed sending deprecation warning messages")
 
-  private def bobbyNotifications(runTime: Instant): Future[Unit] = {
-    if (bobbyNotificationEnabled) {
-      for {
+  private def bobbyNotifications(runTime: Instant): Future[Unit] =
+    if (bobbyNotificationEnabled) then
+      for
         futureDatedRules          <- bobbyRulesService
                                        .findAllRules()
                                        .map(_.libraries.filter(rule => rule.from.toInstant.isAfter(runTime) && rule.from.toInstant.isBefore(endWindow)))
         _                         =  logger.info(s"There are ${futureDatedRules.size} future dated Bobby rules becoming active in the next [$futureDatedRuleWindow] to send slack notifications for.")
-        rulesWithAffectedServices <- futureDatedRules.foldLeftM(List.empty[(TeamName, (ServiceName, BobbyRule))])( (acc, rule) =>
-                                        serviceDependencies
-                                          .getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
-                                          .map(_.filterNot(x => rule.exemptProjects.contains(x.serviceName.asString)))
-                                          .map(sds => acc ++ sds.flatMap(sd => sd.teamNames.map(team => (team, (sd.serviceName, rule)))))
-                                     )
+        rulesWithAffectedServices <- futureDatedRules.foldLeftM(List.empty[(TeamName, (ServiceName, BobbyRule))]):
+                                       (acc, rule) =>
+                                         serviceDependencies
+                                           .getAffectedServices(group = rule.organisation, artefact = rule.name, versionRange = rule.range)
+                                           .map(_.filterNot(x => rule.exemptProjects.contains(x.serviceName.asString)))
+                                           .map(sds => acc ++ sds.flatMap(sd => sd.teamNames.map(team => (team, (sd.serviceName, rule)))))
         grouped                   =  rulesWithAffectedServices.groupMap(_._1)(_._2).toList
-        slackResponses            <- grouped.foldLeftM(List.empty[(TeamName, SlackNotificationResponse)]) { case (acc, (teamName, drs)) =>
+        slackResponses            <- grouped.foldLeftM(List.empty[(TeamName, SlackNotificationResponse)]):
+                                       case (acc, (teamName, drs)) =>
                                          val channelLookup = GithubTeam(testTeam.getOrElse(teamName.asString))
                                          val request       = SlackNotificationRequest.bobbyWarning(channelLookup, teamName, drs)
                                          slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (teamName, resp))
-                                     }
-        _                         =  slackResponses.map {
+        _                         =  slackResponses.map:
                                        case (teamName, rsp) if rsp.errors.nonEmpty => logger.warn(s"Sending Bobby Warning message to ${teamName.asString} had errors ${rsp.errors.mkString(" : ")}")
                                        case (teamName, _)                          => logger.info(s"Successfully sent Bobby Warning message to ${teamName.asString}")
-                                     }
-      } yield logger.info("Completed sending Slack messages for Bobby Warnings")
-    } else {
+      yield logger.info("Completed sending Slack messages for Bobby Warnings")
+    else
       logger.info("Bobby slack notifications disabled")
       Future.unit
-    }
-  }
 
-  private def deprecatedNotifications()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
-    if (endOfLifeNotificationEnabled) {
-      for {
+  private def deprecatedNotifications()(using hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] =
+    if endOfLifeNotificationEnabled then
+      for
         repositories          <- teamsAndRepositoriesConnector.getRepos()
-        eolRepositories       = repositories.filter(_.isDeprecated)
-        serviceRelationships  <- eolRepositories.foldLeftM(Seq.empty[(TeamsAndRepositoriesConnector.Repo, Seq[ServiceName])]) {
-          case (acc, eolRepo) =>
-            serviceRelationshipsRepository.getInboundServices(ServiceName(eolRepo.repoName.asString)).map {
-              inboundServices => acc :+ (eolRepo, inboundServices)
-            }
-        }
-        responses              <- serviceRelationships.foldLeftM(Seq.empty[SlackNotificationResponse]) {
-            case (acc, (repo, relationships)) =>
-              val enrichRelationships   = repositories.filter(repo => relationships.map(_.asString).contains(repo.repoName.asString))
-              val teamNames             = enrichRelationships.flatMap(_.teamNames).distinct
-              val groupReposByTeamNames = teamNames.map(name => name -> enrichRelationships.filter(_.teamNames.contains(name)))
-
-              groupReposByTeamNames.foldLeftM(Seq.empty[SlackNotificationResponse]) {
-                case (acc, (teamName, repos)) =>
-                  val msg = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate, repos.map(_.repoName))
-                  slackNotificationsConnector.sendMessage(msg).map(acc :+ _)
-              }.map(acc ++ _)
-          }
-      } yield logger.info(s"Completed sending ${responses.length} Slack messages for deprecated repositories")
-    } else {
+        eolRepositories       =  repositories.filter(_.isDeprecated)
+        serviceRelationships  <- eolRepositories
+                                   .foldLeftM(Seq.empty[(TeamsAndRepositoriesConnector.Repo, Seq[ServiceName])]):
+                                     case (acc, eolRepo) =>
+                                       serviceRelationshipsRepository
+                                         .getInboundServices(ServiceName(eolRepo.repoName.asString))
+                                         .map(inboundServices => acc :+ (eolRepo, inboundServices))
+        responses             <- serviceRelationships
+                                   .foldLeftM(Seq.empty[SlackNotificationResponse]):
+                                     case (acc, (repo, relationships)) =>
+                                        val enrichRelationships = repositories.filter(repo => relationships.map(_.asString).contains(repo.repoName.asString))
+                                        enrichRelationships
+                                          .flatMap(_.teamNames)
+                                          .distinct
+                                          .map(name => name -> enrichRelationships.filter(_.teamNames.contains(name)))
+                                          .foldLeftM(Seq.empty[SlackNotificationResponse]):
+                                            case (acc, (teamName, repos)) =>
+                                              val msg = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate, repos.map(_.repoName))
+                                              slackNotificationsConnector.sendMessage(msg).map(acc :+ _)
+                                          .map(acc ++ _)
+      yield logger.info(s"Completed sending ${responses.length} Slack messages for deprecated repositories")
+    else
       logger.info("Deprecated repositories Slack notifications disabled")
       Future.unit
-    }
-  }
 
   private def runNotificationsIfInWindow(now: Instant)(f: => Future[Unit]): Future[Unit] =
-    if (isInWorkingHours(now)) {
-      deprecationWarningsNotificationRepository.getLastWarningsRunTime().flatMap {
-        case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
-          logger.info(s"Not running Slack Notifications. Last run date was $lrd")
-          Future.unit
-        case optLrd =>
-          logger.info(optLrd.fold(s"Running Slack Notifications for the first time")(d => s"Running Slack Notifications. Last run date was $d"))
-          f
-      }
-    } else {
+    if isInWorkingHours(now) then
+      deprecationWarningsNotificationRepository
+        .getLastWarningsRunTime()
+        .flatMap:
+          case Some(lrd) if lrd.isAfter(now.truncatedTo(ChronoUnit.DAYS).minus(lastRunPeriod.toDays, ChronoUnit.DAYS)) =>
+            logger.info(s"Not running Slack Notifications. Last run date was $lrd")
+            Future.unit
+          case optLrd =>
+            logger.info(optLrd.fold(s"Running Slack Notifications for the first time")(d => s"Running Slack Notifications. Last run date was $d"))
+            f
+    else
       logger.info(s"Not running Slack Notifications. Out of hours")
       Future.unit
-    }
-
-}

@@ -18,31 +18,28 @@ package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.json.{Format, JsError, JsResult, JsString, JsSuccess, JsValue}
 
-sealed trait Environment { def asString: String }
+enum Environment(val asString: String):
+  case Development  extends Environment("development" )
+  case Integration  extends Environment("integration" )
+  case QA           extends Environment("qa"          )
+  case Staging      extends Environment("staging"     )
+  case ExternalTest extends Environment("externaltest")
+  case Production   extends Environment("production"  )
 
-object Environment {
-  case object Development  extends Environment { val asString = "development" }
-  case object Integration  extends Environment { val asString = "integration" }
-  case object QA           extends Environment { val asString = "qa"          }
-  case object Staging      extends Environment { val asString = "staging"     }
-  case object ExternalTest extends Environment { val asString = "externaltest"}
-  case object Production   extends Environment { val asString = "production"  }
+object Environment:
 
-  val values: List[Environment] =
-    // this list is sorted
-    List(Development, Integration, QA, Staging, ExternalTest, Production)
-
-  implicit val ordering: Ordering[Environment] = new Ordering[Environment] {
-    def compare(x: Environment, y: Environment): Int =
-      values.indexOf(x).compare(values.indexOf(y))
-  }
+  implicit val ordering: Ordering[Environment] =
+    new Ordering[Environment]:
+      def compare(x: Environment, y: Environment): Int =
+        values.indexOf(x).compare(values.indexOf(y))
 
   def parse(s: String): Option[Environment] =
     values.find(_.asString == s)
 
-  val format: Format[Environment] = new Format[Environment] {
-    override def writes(o: Environment): JsValue = JsString(o.asString)
-    override def reads(json: JsValue): JsResult[Environment] =
-      json.validate[String].flatMap(s => Environment.parse(s).map(e => JsSuccess(e)).getOrElse(JsError("invalid environment")))
-  }
-}
+  val format: Format[Environment] =
+    new Format[Environment]:
+      override def writes(o: Environment): JsValue =
+        JsString(o.asString)
+      override def reads(json: JsValue): JsResult[Environment] =
+        json.validate[String].flatMap: s =>
+          Environment.parse(s).map(JsSuccess(_)).getOrElse(JsError("invalid environment"))

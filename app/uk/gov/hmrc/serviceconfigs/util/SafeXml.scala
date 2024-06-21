@@ -19,16 +19,13 @@ package uk.gov.hmrc.serviceconfigs.util
 import javax.xml.parsers.SAXParserFactory
 import scala.xml.XML
 
-object SafeXml {
+object SafeXml:
 
-  def apply() = {
+  def apply() =
     val saxParserFactory = SAXParserFactory.newInstance()
     saxParserFactory.setFeature("http://xml.org/sax/features/external-general-entities", false)
     saxParserFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
     saxParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
     saxParserFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
     saxParserFactory.setXIncludeAware(false)
-    val parser = saxParserFactory.newSAXParser()
-    XML.withSAXParser(parser)
-  }
-}
+    XML.withSAXParser(saxParserFactory.newSAXParser())

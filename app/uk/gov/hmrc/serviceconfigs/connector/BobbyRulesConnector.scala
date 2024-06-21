@@ -16,9 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import javax.inject.{Inject, Singleton}
-import play.api.Logging
-import play.api.Configuration
+import play.api.{Configuration, Logging}
+import play.api.libs.json.Format
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
@@ -26,6 +25,7 @@ import uk.gov.hmrc.serviceconfigs.model.BobbyRules
 import uk.gov.hmrc.http.HttpReads.Implicits._
 import uk.gov.hmrc.http.StringContextOps
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -33,19 +33,19 @@ class BobbyRulesConnector @Inject()(
   httpClientV2: HttpClientV2,
   githubConfig: GithubConfig,
   config      : Configuration
-)( implicit ec: ExecutionContext
-) extends Logging {
+)(using
+  ec: ExecutionContext
+) extends Logging:
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
-  private val bobbyRulesUrl: String = config.get[String]("bobby.url")
+  private val bobbyRulesUrl: String =
+    config.get[String]("bobby.url")
 
-  def findAllRules(): Future[BobbyRules] = {
-    implicit val brf = BobbyRules.apiFormat
+  def findAllRules(): Future[BobbyRules] =
+    given Format[BobbyRules] = BobbyRules.apiFormat
     httpClientV2
       .get(url"$bobbyRulesUrl")
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
       .withProxy
       .execute[BobbyRules]
-  }
-}

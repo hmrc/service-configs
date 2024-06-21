@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.SingleObservableFuture
 import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
@@ -40,23 +41,22 @@ ec: ExecutionContext
   domainFormat = DeprecationWarningsNotificationsRunTime.format,
   indexes = Seq.empty,
   extraCodecs = Seq.empty
-) {
+):
 
   // we replace all the data for each call to updateLastWarningDate()
   override lazy val requiresTtlIndex = false
 
-
   def setLastRunTime(lastRunTime: Instant): Future[Unit] =
-    collection.findOneAndReplace(
-      filter = Filters.empty(),
-      replacement = DeprecationWarningsNotificationsRunTime(lastRunTime),
-      options = FindOneAndReplaceOptions().upsert(true)
-   )
-     .toFutureOption()
-     .map(_ => ())
-      .recover {
-        case lastError => throw new RuntimeException(s"failed to update last Rundate ${lastError.getMessage()}", lastError)
-      }
+    collection
+      .findOneAndReplace(
+        filter      = Filters.empty(),
+        replacement = DeprecationWarningsNotificationsRunTime(lastRunTime),
+        options     = FindOneAndReplaceOptions().upsert(true)
+      )
+      .toFutureOption()
+      .map(_ => ())
+      .recover:
+        case lastError => throw RuntimeException(s"failed to update last Rundate ${lastError.getMessage()}", lastError)
 
   def getLastWarningsRunTime(): Future[Option[Instant]] =
     collection
@@ -64,19 +64,10 @@ ec: ExecutionContext
       .map(_.lastRunTime)
       .headOption()
 
-
-}
-
-object SlackNotificationsRepository {
+object SlackNotificationsRepository:
   case class DeprecationWarningsNotificationsRunTime(lastRunTime: Instant) extends AnyVal
 
-  object DeprecationWarningsNotificationsRunTime {
-    val format: OFormat[DeprecationWarningsNotificationsRunTime] = {
+  object DeprecationWarningsNotificationsRunTime:
+    val format: OFormat[DeprecationWarningsNotificationsRunTime] =
       import MongoJavatimeFormats.Implicits.jatInstantFormat
       Format.at[Instant](__ \ "lastRunTime").inmap[DeprecationWarningsNotificationsRunTime](DeprecationWarningsNotificationsRunTime.apply, _.lastRunTime)
-    }
-  }
-}
-
-
-

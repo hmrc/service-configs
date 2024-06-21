@@ -22,13 +22,13 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.zip.ZipInputStream
 
-class ServiceToRepoNameServiceSpec extends AnyWordSpec with Matchers with OptionValues {
+class ServiceToRepoNameServiceSpec extends AnyWordSpec with Matchers with OptionValues:
   import ServiceToRepoNameService._
 
-  "extractServiceToRepoNames" should {
-    "return mapping of repo names and slug name when they are different" in {
+  "extractServiceToRepoNames" should:
+    "return mapping of repo names and slug name when they are different" in:
 
-      val zip = new ZipInputStream(this.getClass.getResource("/job-builders.zip").openStream())
+      val zip = ZipInputStream(this.getClass.getResource("/job-builders.zip").openStream())
 
       extractServiceToRepoNames(zip) shouldBe
         List(
@@ -37,55 +37,40 @@ class ServiceToRepoNameServiceSpec extends AnyWordSpec with Matchers with Option
           ("service-six", "service-six-slug"),
           ("service-eight", "service-eight-slug")
         )
-    }
-  }
 
-  "MicroserviceMatch" should {
-    "extract the repo name from MvnMicroserviceJobBuilder constructor" in {
+  "MicroserviceMatch" should:
+    "extract the repo name from MvnMicroserviceJobBuilder constructor" in:
       Seq(
         "new MvnMicroserviceJobBuilder(FOLDER, 'service-one', JavaType.OPENJDK_JRE8)",
         "new MvnMicroserviceJobBuilder(FOLDER, \"service-one\", JavaType.OPENJDK_JRE8)",
         "new MvnMicroserviceJobBuilder(FOLDER, 'service-one')"
-      ).foreach {
+      ).foreach:
         case MicroserviceMatch("service-one") =>
         case line => fail(s"Failed to extract service name from: $line")
-      }
-    }
 
-    "return None when no match is found" in {
+    "return None when no match is found" in:
       MicroserviceMatch.findFirstMatchIn("new MvnMicroserviceJobBuilder(FOLDER)") shouldBe None
-    }
-  }
 
-  "AemMatch" should {
-    "extract the repo name from MvnAemJobBuilder constructor" in {
+  "AemMatch" should:
+    "extract the repo name from MvnAemJobBuilder constructor" in:
       Seq(
         "new MvnAemJobBuilder(TEAM,'service-one','service-one-slug')",
         "new MvnAemJobBuilder(TEAM, \"service-one\",'service-one-slug')"
-      ).foreach {
+      ).foreach:
         case AemMatch("service-one") =>
         case line => fail(s"Failed to extract service name from: $line")
-      }
-    }
 
-    "return None when no match is found" in {
+    "return None when no match is found" in:
       AemMatch.findFirstMatchIn("new MvnAemJobBuilder(TEAM)") shouldBe None
-    }
-  }
 
-  "UploadSlugMatch" should {
-    "extract the artefact name from andUploadSlug" in {
+  "UploadSlugMatch" should:
+    "extract the artefact name from andUploadSlug" in:
       Seq(
         ".andUploadSlug('artifact.tgz','service-one','service-one-upload-slug')",
         ".andUploadSlug('artifact.tgz','service-one',\"service-one-upload-slug\")"
-      ).foreach {
+      ).foreach:
         case UploadSlugMatch("service-one-upload-slug") =>
         case line => fail(s"Failed to extract artefact name from: $line")
-      }
-    }
 
-    "return None when no match is found" in {
+    "return None when no match is found" in:
       UploadSlugMatch.findFirstMatchIn(".andUploadSlug('artifact.tgz')") shouldBe None
-    }
-  }
-}

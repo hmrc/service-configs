@@ -25,12 +25,10 @@ case class AlertEnvironmentHandler(
   location   : String
 )
 
-object AlertEnvironmentHandler {
-  val format: Format[AlertEnvironmentHandler] = {
-    implicit val snf = ServiceName.format
+object AlertEnvironmentHandler:
+  val format: Format[AlertEnvironmentHandler] =
+    given Format[ServiceName] = ServiceName.format
     ( (__ \ "serviceName").format[ServiceName]
     ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
-    )(AlertEnvironmentHandler.apply, unlift(AlertEnvironmentHandler.unapply))
-  }
-}
+    )(AlertEnvironmentHandler.apply, pt => Tuple.fromProductTyped(pt))

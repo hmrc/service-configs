@@ -29,25 +29,22 @@ import scala.concurrent.ExecutionContext
 class AlertConfigController @Inject()(
   alertConfigService: AlertConfigService,
   cc                : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(cc){
+) extends BackendController(cc):
 
-  private implicit val aehf: Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
+  private given Format[AlertEnvironmentHandler] = AlertEnvironmentHandler.format
 
   def getAlertConfigs(): Action[AnyContent] =
-    Action.async {
-      for {
+    Action.async:
+      for
         configs <- alertConfigService.findConfigs()
         result  =  Ok(Json.toJson(configs))
-      } yield result
-    }
+      yield result
 
   def getAlertConfigForService(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      for {
+    Action.async:
+      for
         config <- alertConfigService.findConfigByServiceName(serviceName)
         result =  config.fold(NotFound(""))(c => Ok(Json.toJson(c)))
-      } yield result
-    }
-}
+      yield result

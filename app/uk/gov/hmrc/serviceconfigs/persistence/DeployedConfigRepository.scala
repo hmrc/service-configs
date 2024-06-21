@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -30,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeployedConfigRepository @Inject()(
   val mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeployedConfigRepository.DeployedConfig](
   mongoComponent = mongoComponent,
@@ -41,8 +42,7 @@ class DeployedConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("configId"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -79,9 +79,8 @@ class DeployedConfigRepository @Inject()(
       )
       .toFuture()
       .map(_ => ())
-}
 
-object DeployedConfigRepository {
+object DeployedConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -98,18 +97,13 @@ object DeployedConfigRepository {
     lastUpdated    : Instant
   )
 
-  val mongoFormats: Format[DeployedConfig] = {
-    implicit val instantFormat = MongoJavatimeFormats.instantFormat
-    implicit val ef  = Environment.format
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName"    ).format[ServiceName]
-    ~ (__ \ "environment"    ).format[Environment]
+  val mongoFormats: Format[DeployedConfig] =
+    ( (__ \ "serviceName"    ).format[ServiceName](ServiceName.format)
+    ~ (__ \ "environment"    ).format[Environment](Environment.format)
     ~ (__ \ "deploymentId"   ).format[String]
     ~ (__ \ "configId"       ).formatWithDefault[String]("")
     ~ (__ \ "appConfigBase"  ).formatNullable[String]
     ~ (__ \ "appConfigCommon").formatNullable[String]
     ~ (__ \ "appConfigEnv"   ).formatNullable[String]
-    ~ (__ \ "lastUpdated"    ).format[Instant]
-    )(DeployedConfig.apply, unlift(DeployedConfig.unapply))
-  }
-}
+    ~ (__ \ "lastUpdated"    ).format[Instant](MongoJavatimeFormats.instantFormat)
+    )(DeployedConfig.apply, pt => Tuple.fromProductTyped(pt))

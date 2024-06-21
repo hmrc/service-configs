@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{times, spy, verify, when}
 import org.scalatest.EitherValues
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, ServiceName}
@@ -38,7 +40,7 @@ class NginxServiceSpec
      with MockitoSugar
      with ScalaFutures
      with IntegrationPatience
-     with EitherValues {
+     with EitherValues:
 
   private val nginxConfig   = mock[NginxConfig]
   private val shutterConfig = NginxShutterConfig("killswitch", "serviceswitch")
@@ -83,33 +85,29 @@ class NginxServiceSpec
       |  proxy_pass http://testservice;
       |}""".stripMargin
 
-  "NginxService.urlToService" should {
-    "extract the service name from url" in {
+  "NginxService.urlToService" should:
+    "extract the service name from url" in:
       val url = "https://test-service.public.local"
       NginxService.urlToService(url) shouldBe ServiceName("test-service")
-    }
 
-    "return the input unmodified if its not a url" in {
+    "return the input unmodified if its not a url" in:
       val url = "test-service"
       NginxService.urlToService(url) shouldBe ServiceName("test-service")
-    }
 
-    "handle hostnames without dots" in {
+    "handle hostnames without dots" in:
       val url = "https://test-service/test124?query=false"
       NginxService.urlToService(url) shouldBe ServiceName("test-service")
-    }
-  }
 
-  "NginxService.update" should {
-    "parse configs and save result" in {
+  "NginxService.update" should:
+    "parse configs and save result" in:
       val repo = mock[FrontendRouteRepository]
 
-      val parser          = new NginxConfigParser(nginxConfig)
-      val yamlParser      = spy(new YamlConfigParser(nginxConfig))
+      val parser          = NginxConfigParser(nginxConfig)
+      val yamlParser      = spy(YamlConfigParser(nginxConfig))
       val nginxConnector  = mock[NginxConfigConnector]
       val cacConnector    = mock[ConfigAsCodeConnector]
 
-      val service = new NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
+      val service = NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
 
       when(nginxConnector.getNginxRoutesFile("some-file", Environment.Production))
         .thenReturn(Future.successful(
@@ -118,7 +116,7 @@ class NginxServiceSpec
 
       when(cacConnector.streamFrontendRoutes())
         .thenReturn(Future.successful(
-          new ZipInputStream(this.getClass.getResource("/empty-mdtp-frontend-routes.zip").openStream())
+          ZipInputStream(this.getClass.getResource("/empty-mdtp-frontend-routes.zip").openStream())
         ))
 
       when(repo.replaceEnv(any, any))
@@ -131,17 +129,16 @@ class NginxServiceSpec
       verify(nginxConnector, times(envs.length)).getNginxRoutesFile(any, any)
       verify(cacConnector, times(1)).streamFrontendRoutes()
       verify(yamlParser, times(0)).parseConfig(any)
-    }
 
-    "parse configs from nginx and yaml and save the result" in {
+    "parse configs from nginx and yaml and save the result" in:
       val repo = mock[FrontendRouteRepository]
 
-      val parser         = new NginxConfigParser(nginxConfig)
-      val yamlParser     = spy(new YamlConfigParser(nginxConfig))
+      val parser         = NginxConfigParser(nginxConfig)
+      val yamlParser     = spy(YamlConfigParser(nginxConfig))
       val nginxConnector = mock[NginxConfigConnector]
       val cacConnector   = mock[ConfigAsCodeConnector]
 
-      val service = new NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
+      val service = NginxService(repo, parser, yamlParser, nginxConnector, cacConnector, nginxConfig, githubConfig)
 
       when(nginxConnector.getNginxRoutesFile("some-file", Environment.Production))
         .thenReturn(Future.successful(
@@ -150,7 +147,7 @@ class NginxServiceSpec
 
       when(cacConnector.streamFrontendRoutes())
         .thenReturn(Future.successful(
-          new ZipInputStream(this.getClass.getResource("/mdtp-frontend-routes.zip").openStream())
+          ZipInputStream(this.getClass.getResource("/mdtp-frontend-routes.zip").openStream())
         ))
 
       when(repo.replaceEnv(any, any))
@@ -162,15 +159,13 @@ class NginxServiceSpec
       verify(nginxConnector, times(1)).getNginxRoutesFile(any, any)
       verify(cacConnector, times(1)).streamFrontendRoutes()
       verify(yamlParser, times(3)).parseConfig(any) // there's 3 yaml files in mdtp-frontend-routes.zip
-    }
-  }
 
-  "NginxService.parseConfig" should {
-    "turn an nginx config file into an indexed list of mongofrontendroutes" in {
+  "NginxService.parseConfig" should:
+    "turn an nginx config file into an indexed list of mongofrontendroutes" in:
       when(nginxConfig.shutterConfig)
         .thenReturn(NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/"))
 
-      val parser = new NginxConfigParser(nginxConfig)
+      val parser     = NginxConfigParser(nginxConfig)
       val configFile = NginxConfigFile(environment = Environment.Development, routesFileUrl, testConfig, branch = "HEAD")
       val result     = NginxService.parseConfig(parser, configFile).value
 
@@ -195,11 +190,9 @@ class NginxServiceSpec
       result(1).markerComments       shouldBe Set("NOT_SHUTTERABLE", "ABC")
       result(1).shutterKillswitch    shouldBe None
       result(1).shutterServiceSwitch shouldBe None
-    }
 
-    "ignore general comments" in {
-      val parser = new NginxConfigParser(nginxConfig)
-
+    "ignore general comments" in:
+      val parser = NginxConfigParser(nginxConfig)
       val config = """location /lol {
                         |  #this is a comment
                         |  # here is another comment...
@@ -220,6 +213,3 @@ class NginxServiceSpec
       result.head.markerComments       shouldBe Set.empty
       result.head.shutterKillswitch    shouldBe None
       result.head.shutterServiceSwitch shouldBe None
-    }
-  }
-}

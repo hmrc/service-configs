@@ -20,19 +20,16 @@ import java.time.DayOfWeek._
 import java.time.temporal.ChronoField
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
 
-object DateAndTimeOps {
+object DateAndTimeOps:
 
   private val workingDays = List(MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY)
 
-  implicit class LocalDateOps(private val localDate: LocalDate) {
-    def toInstant: Instant = localDate.atStartOfDay().toInstant(ZoneOffset.UTC)
-  }
+  implicit class LocalDateOps(private val localDate: LocalDate):
+    def toInstant: Instant =
+      localDate.atStartOfDay().toInstant(ZoneOffset.UTC)
 
-  def isInWorkingHours(instant: Instant): Boolean = {
+  def isInWorkingHours(instant: Instant): Boolean =
     val localDateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC)
-    val hour = localDateTime.toLocalTime.get(ChronoField.HOUR_OF_DAY)
-    val dayOfWeek = localDateTime.toLocalDate.getDayOfWeek
+    val hour          = localDateTime.toLocalTime.get(ChronoField.HOUR_OF_DAY)
+    val dayOfWeek     = localDateTime.toLocalDate.getDayOfWeek
     workingDays.contains(dayOfWeek) && hour >= 9 && hour <= 17
-  }
-
-}

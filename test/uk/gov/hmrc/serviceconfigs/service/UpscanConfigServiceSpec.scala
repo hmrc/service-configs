@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.{any}
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName, UpscanConfig}
 import uk.gov.hmrc.serviceconfigs.persistence.UpscanConfigRepository
@@ -34,59 +36,43 @@ class UpscanConfigServiceSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "UpscanConfigService.update" should {
-    "return the expecter services per environment" in new UpscanCofigServiceFixture {
+  "UpscanConfigService.update" should:
+    "return the expecter services per environment" in new UpscanCofigServiceFixture:
       val expectedUpscanConfigs = Seq(
-        UpscanConfig(ServiceName("service1"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L10", Environment.QA),
-        UpscanConfig(ServiceName("service2"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L12", Environment.QA),
-        UpscanConfig(ServiceName("service3"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L14", Environment.QA),
+        UpscanConfig(ServiceName("service1"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L10"        , Environment.QA),
+        UpscanConfig(ServiceName("service2"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L12"        , Environment.QA),
+        UpscanConfig(ServiceName("service3"), "https://github.com/hmrc/upscan-app-config/blob/main/qa/verify.yaml#L14"        , Environment.QA),
         UpscanConfig(ServiceName("service1"), "https://github.com/hmrc/upscan-app-config/blob/main/production/verify.yaml#L10", Environment.Production),
         UpscanConfig(ServiceName("service2"), "https://github.com/hmrc/upscan-app-config/blob/main/production/verify.yaml#L12", Environment.Production),
       )
 
+      val repoNames = Seq("service1", "service2", "service3")
+
+      when(mockTeamsAndRepositoriesConnector.getRepos(repoType = Some("Service")))
+        .thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(RepoName(rn), Seq.empty, None))))
+
+      when(mockTeamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service")))
+        .thenReturn(Future.successful(Nil))
+
+      when(mockConfigAsCodeConnector.streamUpscanAppConfig())
+        .thenReturn(Future.successful(ZipInputStream(FileInputStream("./test/resources/upscan-app-config.zip"))))
+
+      when(mockUpscanConfigRepository.putAll(any[Seq[UpscanConfig]]))
+        .thenReturn(Future.unit)
+
       service.update().futureValue
 
       verify(mockUpscanConfigRepository, times(1)).putAll(expectedUpscanConfigs)
-    }
-  }
 
-  private abstract class UpscanCofigServiceFixture(
-    repoNames: Seq[String] = Seq("service1", "service2", "service3")
-  ) {
+  private abstract class UpscanCofigServiceFixture:
     val mockUpscanConfigRepository        = mock[UpscanConfigRepository]
     val mockConfigAsCodeConnector         = mock[ConfigAsCodeConnector]
     val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
 
-    when(mockTeamsAndRepositoriesConnector.getRepos(
-      archived    = None,
-      repoType    = Some("Service"),
-      teamName    = None,
-      serviceType = None,
-      tags        = Nil,
-    )).thenReturn(Future.successful(repoNames.map(rn => TeamsAndRepositoriesConnector.Repo(RepoName(rn), Seq.empty, None))))
-
-    when(mockTeamsAndRepositoriesConnector.getDeletedRepos(
-      repoType    = Some("Service"),
-    )).thenReturn(Future.successful(Nil))
-
-    when(mockConfigAsCodeConnector.streamUpscanAppConfig())
-      .thenReturn(
-        Future.successful(
-          new ZipInputStream(
-            new FileInputStream("./test/resources/upscan-app-config.zip")
-          )
-      )
-    )
-
-    when(mockUpscanConfigRepository.putAll(any[Seq[UpscanConfig]]))
-      .thenReturn(Future.unit)
-
-    val service = new UpscanConfigService(
+    val service = UpscanConfigService(
       mockUpscanConfigRepository,
       mockConfigAsCodeConnector,
       mockTeamsAndRepositoriesConnector,
     )
-  }
-}

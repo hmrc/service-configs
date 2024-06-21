@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Json, OFormat, __}
+import play.api.libs.json.{Json, Format, __}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 
 case class FrontendRoute(
@@ -38,11 +38,9 @@ case class ShutterSwitch(
   rewriteRule: Option[String] = None
 )
 
-object ShutterSwitch {
+object ShutterSwitch:
   def fromMongo(m: MongoShutterSwitch): ShutterSwitch =
     ShutterSwitch(m.switchFile, m.statusCode, m.errorPage, m.rewriteRule)
-}
-
 
 case class FrontendRoutes(
   service     : ServiceName,
@@ -51,11 +49,7 @@ case class FrontendRoutes(
   routes      : Seq[FrontendRoute]
 )
 
-object FrontendRoute {
-
-  implicit val formatShutterSwitch: OFormat[ShutterSwitch] = Json.format[ShutterSwitch]
-  implicit val formats: OFormat[FrontendRoute] = Json.format[FrontendRoute]
-
+object FrontendRoute:
   def fromMongo(mfr: MongoFrontendRoute): FrontendRoute =
     FrontendRoute(
       frontendPath         = mfr.frontendPath,
@@ -66,19 +60,17 @@ object FrontendRoute {
       markerComments       = mfr.markerComments,
       isRegex              = mfr.isRegex
     )
-}
 
-object FrontendRoutes {
+object FrontendRoutes:
 
-  implicit val formats: OFormat[FrontendRoutes] = {
-    implicit val ef  = Environment.format
-    implicit val snf = ServiceName.format
-    ( (__ \ "service"    ).format[ServiceName]
-    ~ (__ \ "environment").format[Environment]
+  val format: Format[FrontendRoutes] =
+    given Format[ShutterSwitch] = Json.format[ShutterSwitch]
+    given Format[FrontendRoute] = Json.format[FrontendRoute]
+    ( (__ \ "service"    ).format[ServiceName](ServiceName.format)
+    ~ (__ \ "environment").format[Environment](Environment.format)
     ~ (__ \ "routesFile" ).format[String]
     ~ (__ \ "routes"     ).format[Seq[FrontendRoute]]
-    )(FrontendRoutes.apply, unlift(FrontendRoutes.unapply))
-  }
+    )(FrontendRoutes.apply, pt => Tuple.fromProductTyped(pt))
 
   def fromMongo(mfr: MongoFrontendRoute): FrontendRoutes =
     FrontendRoutes(
@@ -89,8 +81,10 @@ object FrontendRoutes {
     )
 
   def fromMongo(mfrs: Seq[MongoFrontendRoute]): Seq[FrontendRoutes] =
-    mfrs.groupBy(frs => (frs.service, frs.environment, frs.routesFile))
-      .map {
+    mfrs
+      .groupBy: frs =>
+        (frs.service, frs.environment, frs.routesFile)
+      .map:
         case ((s, e, rf), v) =>
           ( (s, e, rf),
             v.map(FrontendRoute.fromMongo)
@@ -101,14 +95,13 @@ object FrontendRoutes {
                   routesFile  = rf,
                   routes      = Seq.empty[FrontendRoute]
                 )
-              )((frs, fr) =>
+              ): (frs, fr) =>
                 FrontendRoutes(
                   service     = frs.service,
                   environment = frs.environment,
                   routesFile  = frs.routesFile,
                   routes      = Seq(fr) ++ frs.routes
                 )
-              )
           )
-      }.values.toSeq
-}
+      .values
+      .toSeq

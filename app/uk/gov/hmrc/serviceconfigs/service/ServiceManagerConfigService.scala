@@ -32,25 +32,25 @@ class ServiceManagerConfigService @Inject()(
   serviceManagerConfigRepository: ServiceManagerConfigRepository
 , configConnector               : ConfigConnector
 , teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext
-) extends Logging {
+)(using ec: ExecutionContext
+) extends Logging:
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def update(): Future[Unit] =
-    for {
+    for
       _        <- Future.successful(logger.info(s"Updating Service Manager Config ..."))
       smConfig <- configConnector.serviceManagerConfig().map(_.getOrElse("").linesIterator.zipWithIndex.toList)
-      repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-                 , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
-                 ).mapN(_ ++ _)
-      items     = repos.flatMap(repo =>
+      repos    <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+                  ).mapN(_ ++ _)
+      items    =  repos.flatMap: repo =>
                     smConfig
-                      .find { case (line, _) => line.contains(s"\"${repo.repoName.asString.toUpperCase.replaceAll("-", "_")}\"") }
-                      .map  { case (_, idx ) => ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.repoName.asString), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}") }
-                  )
-      _         = logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
+                      .find:
+                        case (line, _) => line.contains(s"\"${repo.repoName.asString.toUpperCase.replaceAll("-", "_")}\"")
+                      .map:
+                        case (_, idx ) => ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.repoName.asString), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}")
+      _        =  logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
       count    <- serviceManagerConfigRepository.putAll(items)
-      _         = logger.info(s"Inserted $count Service Manager Config into mongo")
-    } yield ()
-  }
+      _        =  logger.info(s"Inserted $count Service Manager Config into mongo")
+    yield ()

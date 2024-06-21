@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+
+import org.mongodb.scala.SingleObservableFuture
 import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.BeforeAndAfterAll
@@ -45,10 +47,12 @@ class ConfigServiceSpec
      with BeforeAndAfterAll
      with GuiceOneAppPerSuite
      with WireMockSupport
-     with MongoSupport {
+     with MongoSupport:
   import ConfigService._
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
+  private given Format[SlugInfo] = MongoSlugInfoFormats.slugInfoFormat
+
 
   override def fakeApplication(): Application =
     new GuiceApplicationBuilder()
@@ -70,9 +74,9 @@ class ConfigServiceSpec
   override def beforeEach(): Unit =
     dropDatabase()
 
-  "ConfigService.configByEnvironment" should {
-    List(true, false).foreach { latest =>
-      s"show config changes per key for each environment for latest $latest" in {
+  "ConfigService.configByEnvironment" should:
+    List(true, false).foreach: latest =>
+      s"show config changes per key for each environment for latest $latest" in:
         val serviceName = ServiceName("test-service")
         setup(serviceName, latest)
 
@@ -142,10 +146,8 @@ class ConfigServiceSpec
           ${other("externaltest")},
           ${other("production")}
         }""")
-      }
-    }
 
-    "preserve loggers from app-config-env" in {
+    "preserve loggers from app-config-env" in:
       val serviceName = ServiceName("test-service")
       val now      = Instant.now()
       val slugInfo = SlugInfo(
@@ -167,9 +169,8 @@ class ConfigServiceSpec
         """.stripMargin
       withAppConfigEnvForHEAD("qa", serviceName, appConfigQa)
 
-      implicit val sif = MongoSlugInfoFormats.slugInfoFormat
       slugInfoCollection
-        .insertOne {
+        .insertOne:
           val json =
             Json.toJson(slugInfo).as[JsObject] ++
             Json.obj(
@@ -177,14 +178,12 @@ class ConfigServiceSpec
             , "qa"           -> JsBoolean(true)
             )
           Document(json.toString)
-        }.toFuture()
-          .futureValue
+        .toFuture()
+        .futureValue
 
       val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = true)
 
       import ConfigController._
-
-
       (Json.toJson(configByEnvironment.futureValue) \ "qa").as[JsValue] shouldBe Json.parse(s"""[
         { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
         { "source": "referenceConf", "entries": {} },
@@ -200,11 +199,9 @@ class ConfigServiceSpec
         { "source": "appConfigCommonFixed", "entries": {} },
         { "source": "base64", "entries": {}}
       ]""")
-    }
-  }
 
-  "ConfigService.resultingConfig" should {
-    "flatten ConfigByEnvironment" in {
+  "ConfigService.resultingConfig" should:
+    "flatten ConfigByEnvironment" in:
       val serviceName = ServiceName("test-service")
       val latest = false
       setup(serviceName, latest)
@@ -230,8 +227,6 @@ class ConfigServiceSpec
       , "list"     -> ConfigSourceValue("applicationConf"     , Some("https://github.com/hmrc/test-service/blob/main/conf/application.conf"), ConfigValue("[1,2]", ConfigValueType.List))
       , "d"        -> ConfigSourceValue("base64"              , None                                                                        , ConfigValue("2"))
       )
-    }
-  }
 
   def withAppConfigEnvForHEAD(env: String, serviceName: ServiceName, content: String): Unit =
     latestConfigCollection
@@ -242,7 +237,7 @@ class ConfigServiceSpec
       ))
       .toFuture().futureValue
 
-  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String, lastUpdated: Instant): Unit = {
+  def withAppConfigEnvForDeployment(env: String, serviceName: ServiceName, content: String, lastUpdated: Instant): Unit =
     deployedConfigCollection
       .insertOne(Document(
         "serviceName"       -> serviceName.asString,
@@ -255,9 +250,8 @@ class ConfigServiceSpec
         "lastUpdated"       -> BsonDocument("$date" -> BsonDocument("$numberLong" -> lastUpdated.toEpochMilli.toString))
       ))
       .toFuture().futureValue
-  }
 
-  def setup(serviceName: ServiceName, latest: Boolean): Unit = {
+  def setup(serviceName: ServiceName, latest: Boolean): Unit =
     val now      = Instant.now()
     val slugInfo = SlugInfo(
       uri               = "some/uri"
@@ -283,17 +277,16 @@ class ConfigServiceSpec
       |hmrc_config.d: 1
       |hmrc_config.d.base64: Mg==
       """.stripMargin
-    if (latest) {
+
+    if latest then
       withAppConfigEnvForHEAD("development", serviceName, appConfigDev)
       withAppConfigEnvForHEAD("qa"         , serviceName, appConfigQa)
-    } else {
+    else
       withAppConfigEnvForDeployment("development", serviceName, appConfigDev, now.minus(2, ChronoUnit.DAYS))
       withAppConfigEnvForDeployment("qa"         , serviceName, appConfigQa , now.minus(2, ChronoUnit.DAYS))
-    }
 
-    implicit val sif = MongoSlugInfoFormats.slugInfoFormat
     slugInfoCollection
-      .insertOne {
+      .insertOne:
         val json =
           Json.toJson(slugInfo).as[JsObject] ++
           Json.obj(
@@ -302,7 +295,5 @@ class ConfigServiceSpec
           , "qa"           -> JsBoolean(true)
           )
         Document(json.toString)
-      }.toFuture()
-        .futureValue
-  }
-}
+      .toFuture()
+      .futureValue

@@ -29,6 +29,7 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigScheduler @Inject()(
+)(using
   schedulerConfigs          : SchedulerConfigs,
   mongoLockRepository       : MongoLockRepository,
   alertConfigService        : AlertConfigService,
@@ -40,21 +41,19 @@ class ConfigScheduler @Inject()(
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
-) extends SchedulerUtils {
+) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
     schedulerConfig = schedulerConfigs.configScheduler,
     lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval)
-  ) {
+  ):
     logger.info("Updating config")
     runAllAndFailWithFirstError(
-      for {
-        _ <- accumulateErrors("snapshot Deployments" , resourceUsageService.populate(Instant.now()))
-        _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+      for
+        _ <- accumulateErrors("snapshot Deployments"       , resourceUsageService.populate(Instant.now()))
+        _ <- accumulateErrors("update Alert Handlers"      , alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
-        - <- accumulateErrors("update Upscan Config", upscanConfigService.update())
-      } yield logger.info("Finished updating config")
+        - <- accumulateErrors("update Upscan Config"       , upscanConfigService.update())
+      yield logger.info("Finished updating config")
     )
-  }
-}

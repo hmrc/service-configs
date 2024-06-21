@@ -16,9 +16,8 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.model.Indexes.hashed
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.ObservableFuture
+import org.mongodb.scala.model.{IndexModel, IndexOptions, Filters, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, ServiceName}
@@ -29,18 +28,17 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AlertEnvironmentHandlerRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[AlertEnvironmentHandler](
   mongoComponent = mongoComponent,
   collectionName = "alertEnvironmentHandlers",
   domainFormat   = AlertEnvironmentHandler.format,
   indexes        = Seq(
-                     IndexModel(hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
+                     IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -49,12 +47,12 @@ class AlertEnvironmentHandlerRepository @Inject()(
       collection    = collection,
       newVals       = alertEnvironmentHandlers,
       compareById   = (a, b) => a.serviceName == b.serviceName,
-      filterById    = entry => equal("serviceName", entry.serviceName)
+      filterById    = entry => Filters.equal("serviceName", entry.serviceName)
     )
 
   def findByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
     collection
-      .find(equal("serviceName", serviceName))
+      .find(Filters.equal("serviceName", serviceName))
       .headOption()
 
   def findAll(): Future[Seq[AlertEnvironmentHandler]] =
@@ -62,4 +60,3 @@ class AlertEnvironmentHandlerRepository @Inject()(
       .find()
       .toFuture()
       .map(_.toList)
-}

@@ -30,49 +30,41 @@ import java.time.temporal.ChronoUnit
 class DateAndTimeOpsSpec
   extends AnyWordSpec
     with Matchers
-    with ScalaCheckPropertyChecks {
+    with ScalaCheckPropertyChecks:
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = PosInt(100))
 
-  "A LocalDate" should {
-    "be converted to an Instant at the start of the day" in {
+  "A LocalDate" should:
+    "be converted to an Instant at the start of the day" in:
       val instant   = Instant.now()
       val localDate = LocalDate.now()
 
       instant.truncatedTo(ChronoUnit.DAYS) shouldBe localDate.toInstant
-    }
-  }
 
-  "DateAndTimeOps.isWorkingHours" should {
-    "return true when in Working hours 9 - 17 Monday to Friday" in {
+  "DateAndTimeOps.isWorkingHours" should:
+    "return true when in Working hours 9 - 17 Monday to Friday" in:
 
       val yearDays = for (yearDay <- Gen.choose(1, 365)) yield yearDay
       val years = for (year <- Gen.choose(2023, 2030)) yield year
       val hours = for (hour <- Gen.choose(0, 23)) yield hour
       val minutes = for (minute <- Gen.choose(0, 59)) yield minute
 
+      forAll(yearDays, years, hours, minutes):
+        (yearDay: Int, year: Int, hour: Int, minute: Int) =>
+          whenever((LocalDate.of(year, 1, 1).isLeapYear && yearDay < 366) || !LocalDate.of(year, 1, 1).isLeapYear):
+            val date = LocalDate.ofYearDay(year, yearDay)
+            val time = LocalTime.of(hour, minute, 0)
 
-      forAll(yearDays, years, hours, minutes) { (yearDay: Int, year: Int, hour: Int, minute: Int) =>
+            val dateTime = LocalDateTime.of(date, time)
+            val instant = dateTime.atZone(ZoneOffset.UTC).toInstant
 
-        whenever((LocalDate.of(year, 1, 1).isLeapYear && yearDay < 366) || !LocalDate.of(year, 1, 1).isLeapYear) {
-          val date = LocalDate.ofYearDay(year, yearDay)
-          val time = LocalTime.of(hour, minute, 0)
-
-          val dateTime = LocalDateTime.of(date, time)
-          val instant = dateTime.atZone(ZoneOffset.UTC).toInstant
-
-          if (date.getDayOfWeek != DayOfWeek.SATURDAY
-            && date.getDayOfWeek != DayOfWeek.SUNDAY
-            && time.getHour <= 17
-            && time.getHour >= 9
-          ) {
-            isInWorkingHours(instant) shouldBe true
-          } else {
-            isInWorkingHours(instant) shouldBe false
-          }
-        }
-      }
-    }
-  }
-}
+            if
+              date.getDayOfWeek != DayOfWeek.SATURDAY &&
+              date.getDayOfWeek != DayOfWeek.SUNDAY   &&
+              time.getHour      <= 17                 &&
+              time.getHour      >= 9
+            then
+              isInWorkingHours(instant) shouldBe true
+            else
+              isInWorkingHours(instant) shouldBe false

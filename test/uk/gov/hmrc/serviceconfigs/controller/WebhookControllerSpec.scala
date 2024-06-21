@@ -17,14 +17,14 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.MockitoSugar
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.service._
-import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.mvc.Result
 import play.api.test.FakeRequest
@@ -38,19 +38,16 @@ class WebhookControllerSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  private val mockitoTimeoutMs = 1000
-
-  "processGithubWebhook" should {
-    "accept unknown repository" in new Setup {
+  "processGithubWebhook" should:
+    "accept unknown repository" in new Setup:
       val response = postWebhook(repository = "123", branch = "yyy")
 
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
-    }
 
-    "update app-config-base" in new Setup {
+    "update app-config-base" in new Setup:
       when(mockAppConfigService.updateAppConfigBase()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "app-config-base", branch = "main")
@@ -58,10 +55,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigBase()
-    }
+      verify(mockAppConfigService, /*timeout(mockitoTimeoutMs).*/ times(1)).updateAppConfigBase()
 
-    "update app-config-env" in new Setup {
+    "update app-config-env" in new Setup:
       when(mockAppConfigService.updateAppConfigEnv(Environment.Production)).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "app-config-production", branch = "main")
@@ -69,10 +65,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigEnv(Environment.Production)
-    }
+      verify(mockAppConfigService, /*timeout(mockitoTimeoutMs).*/times(1)).updateAppConfigEnv(Environment.Production)
 
-    "update app-config-common" in new Setup {
+    "update app-config-common" in new Setup:
       when(mockAppConfigService.updateAppConfigCommon()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "app-config-common", branch = "main")
@@ -80,10 +75,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockAppConfigService, timeout(mockitoTimeoutMs).times(1)).updateAppConfigCommon()
-    }
+      verify(mockAppConfigService, /*timeout(mockitoTimeoutMs).*/times(1)).updateAppConfigCommon()
 
-    "update bobby-config" in new Setup {
+    "update bobby-config" in new Setup:
       when(mockBobbyRulesService.update()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "bobby-config", branch = "main")
@@ -91,10 +85,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockBobbyRulesService, timeout(mockitoTimeoutMs).times(1)).update()
-    }
+      verify(mockBobbyRulesService, /*timeout(mockitoTimeoutMs).*/times(1)).update()
 
-    "update build-jobs" in new Setup {
+    "update build-jobs" in new Setup:
       when(mockBuildJobService.updateBuildJobs()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "build-jobs", branch = "main")
@@ -102,10 +95,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockBuildJobService, timeout(mockitoTimeoutMs).times(1)).updateBuildJobs()
-    }
+      verify(mockBuildJobService, /*timeout(mockitoTimeoutMs).*/times(1)).updateBuildJobs()
 
-    "update grafana-dashboards" in new Setup {
+    "update grafana-dashboards" in new Setup:
       when(mockDashboardService.updateGrafanaDashboards()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "grafana-dashboards", branch = "main")
@@ -113,10 +105,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDashboardService, timeout(mockitoTimeoutMs).times(1)).updateGrafanaDashboards()
-    }
+      verify(mockDashboardService, /*timeout(mockitoTimeoutMs).*/times(1)).updateGrafanaDashboards()
 
-    "update kibana-dashboards" in new Setup {
+    "update kibana-dashboards" in new Setup:
       when(mockDashboardService.updateKibanaDashboards()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "kibana-dashboards", branch = "main")
@@ -124,10 +115,9 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockDashboardService, timeout(mockitoTimeoutMs).times(1)).updateKibanaDashboards()
-    }
+      verify(mockDashboardService, /*timeout(mockitoTimeoutMs).*/times(1)).updateKibanaDashboards()
 
-    "update admin-frontend-proxy" in new Setup {
+    "update admin-frontend-proxy" in new Setup:
       when(mockRoutesConfigService.updateAdminFrontendRoutes()).thenReturn(Future.unit)
 
       val response = postWebhook(repository = "admin-frontend-proxy", branch = "main")
@@ -135,17 +125,13 @@ class WebhookControllerSpec
       status(response) shouldBe 202
       contentAsJson(response) shouldBe Json.parse(s"""{"details":"Push accepted"}""")
 
-      verify(mockRoutesConfigService, timeout(mockitoTimeoutMs).times(1)).updateAdminFrontendRoutes()
-    }
-  }
+      verify(mockRoutesConfigService, /*timeout(mockitoTimeoutMs).*/times(1)).updateAdminFrontendRoutes()
 
-  trait Setup {
+  trait Setup:
 
-    implicit val as: ActorSystem = ActorSystem()
+    given ActorSystem = ActorSystem()
 
-    val mockConfiguration               = mock[Configuration              ]
     val mockNginxConfig                 = mock[NginxConfig                ]
-    val mockAlertConfigService          = mock[AlertConfigService         ]
     val mockAppConfigService            = mock[AppConfigService           ]
     val mockBobbyRulesService           = mock[BobbyRulesService          ]
     val mockInternalAuthConfigService   = mock[InternalAuthConfigService  ]
@@ -157,10 +143,8 @@ class WebhookControllerSpec
     val mockServiceManagerConfigService = mock[ServiceManagerConfigService]
     val mockUpscanConfigService         = mock[UpscanConfigService        ]
 
-    val controller = new WebhookController(
-      config                      = mockConfiguration,
+    val controller = WebhookController(
       nginxConfig                 = mockNginxConfig,
-      alertConfigService          = mockAlertConfigService,
       appConfigService            = mockAppConfigService,
       bobbyRulesService           = mockBobbyRulesService,
       internalAuthConfigService   = mockInternalAuthConfigService,
@@ -187,6 +171,3 @@ class WebhookControllerSpec
               "ref": "refs/heads/$branch"
             }""")
           )
-
-  }
-}

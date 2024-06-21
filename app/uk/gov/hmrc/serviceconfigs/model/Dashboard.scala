@@ -24,11 +24,8 @@ case class Dashboard(
   location   : String
 )
 
-object  Dashboard {
-  val format: Format[Dashboard] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "service" ).format[ServiceName]
+object  Dashboard:
+  val format: Format[Dashboard] =
+    ( (__ \ "service" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "location").format[String]
-    )(Dashboard.apply, unlift(Dashboard.unapply))
-  }
-}
+    )(Dashboard.apply, pt => Tuple.fromProductTyped(pt))

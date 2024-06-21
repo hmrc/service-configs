@@ -19,10 +19,10 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class FrontendRouteRepositorySpec extends AnyWordSpec with Matchers {
+class FrontendRouteRepositorySpec extends AnyWordSpec with Matchers:
 
-  "FrontendRouteRepository.pathsToRegex" should {
-    "create regex from paths" in {
+  "FrontendRouteRepository.pathsToRegex" should:
+    "create regex from paths" in:
       FrontendRouteRepository.pathsToRegex(Seq(""))                   shouldBe "^(\\^)?(\\/)?(\\/|[^-A-Za-z0-9]|$)"
 
       val regexp = FrontendRouteRepository.pathsToRegex(Seq("account"))
@@ -33,19 +33,12 @@ class FrontendRouteRepositorySpec extends AnyWordSpec with Matchers {
       regexp.r.findFirstIn("^/account(/.*)?$").isDefined shouldBe true
       regexp.r.findFirstIn("/account/some/path").isDefined shouldBe true
 
-    }
-
-    "escape '-'" in {
+    "escape '-'" in:
       FrontendRouteRepository.pathsToRegex(Seq("account-a", "welcome-b")) shouldBe "^(\\^)?(\\/)?account(-|\\\\-)a\\/welcome(-|\\\\-)b(\\/|[^-A-Za-z0-9]|$)"
-    }
-  }
 
-  "FrontendRouteRepository.queries" should {
-    "create queries from path" in {
+  "FrontendRouteRepository.queries" should:
+    "create queries from path" in:
       FrontendRouteRepository.queries("a/b/c").toList shouldBe Seq(
         FrontendRouteRepository.toQuery(Seq("a", "b", "c")),
         FrontendRouteRepository.toQuery(Seq("a", "b")),
         FrontendRouteRepository.toQuery(Seq("a")))
-    }
-  }
-}

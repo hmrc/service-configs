@@ -16,27 +16,25 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mockito.MockitoSugar.mock
 import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environment, ServiceName}
-import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class DeploymentConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[DeploymentConfig] {
+     with DefaultPlayMongoRepositorySupport[DeploymentConfig]:
 
-  override lazy val repository = new DeploymentConfigRepository(mongoComponent)
+  override val repository: DeploymentConfigRepository =
+    DeploymentConfigRepository(mongoComponent)
 
-  "DeploymentConfigRepository" should {
+  "DeploymentConfigRepository" should:
     val applied = true
-    "replaceEnv correctly" in {
+    "replaceEnv correctly" in:
       val developmentDeploymentConfigs = Seq(
         mkDeploymentConfig(ServiceName("service1"), Environment.Development, applied),
         mkDeploymentConfig(ServiceName("service2"), Environment.Development, applied)
@@ -61,9 +59,8 @@ class DeploymentConfigRepositorySpec
 
       repository.find(applied, Seq(Environment.Development)).futureValue shouldBe developmentDeploymentConfigs2
       repository.find(applied, Seq(Environment.Production )).futureValue shouldBe productionDeploymentConfigs
-    }
 
-    "find one by matching service name and environment" in {
+    "find one by matching service name and environment" in:
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
@@ -89,9 +86,8 @@ class DeploymentConfigRepositorySpec
       repository.find(applied , Seq(Environment.Development), Seq(serviceName1)).futureValue shouldBe developmentDeploymentConfigs         .filter(_.serviceName == serviceName1)
       repository.find(applied , Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigs          .filter(_.serviceName == serviceName1)
       repository.find(!applied, Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigsNotApplied.filter(_.serviceName == serviceName1)
-    }
 
-    "find by matching service names" in {
+    "find by matching service names" in:
       val serviceName1 = ServiceName("serviceName1")
       val serviceName2 = ServiceName("serviceName2")
       val serviceName3 = ServiceName("serviceName3")
@@ -109,30 +105,44 @@ class DeploymentConfigRepositorySpec
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
 
       repository.find(applied, serviceNames = Seq(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
-    }
 
-    "delete applied configs correctly" in {
-      val expectedConfig = Seq(
-        DeploymentConfigRepositorySpec.deploymentConfigA2,
-        DeploymentConfigRepositorySpec.deploymentConfigA3,
-      )
+    "delete applied configs correctly" in:
+      val deploymentConfigA1: DeploymentConfig =
+        DeploymentConfig(serviceName = ServiceName("A1"),
+          environment    = Environment.Production,
+          applied        = true,
+          slots          = 1,
+          instances      = 1,
+          zone           = "-",
+          deploymentType = "-",
+          envVars        = Map.empty,
+          jvm            = Map.empty,
+          artefactName   = None
+        )
 
-      (
-        for{
-          _                          <- repository.add(DeploymentConfigRepositorySpec.deploymentConfigA1)
-          _                          <- repository.add(DeploymentConfigRepositorySpec.deploymentConfigA2)
-          _                          <- repository.add(DeploymentConfigRepositorySpec.deploymentConfigA3)
-          _                          <- repository.delete(DeploymentConfigRepositorySpec.deploymentConfigA1)
-          updatedConfig              <- repository.find(
-                                          applied = true,
-                                          environments = Seq(Environment.Production),
-                                          serviceNames = Seq(ServiceName("A1"), ServiceName("A2"), ServiceName("A3"))
-                                        )
-          _                          =  updatedConfig should contain theSameElementsAs(expectedConfig)
-        } yield ()
+      val deploymentConfigA2: DeploymentConfig =
+        deploymentConfigA1.copy(serviceName = ServiceName("A2"))
+
+      val deploymentConfigA3: DeploymentConfig =
+        deploymentConfigA1.copy(serviceName = ServiceName("A3"))
+
+      (for
+        _             <- repository.add(deploymentConfigA1)
+        _             <- repository.add(deploymentConfigA2)
+        _             <- repository.add(deploymentConfigA3)
+        _             <- repository.delete(deploymentConfigA1)
+        updatedConfig <- repository.find(
+                           applied      = true,
+                           environments = Seq(Environment.Production),
+                           serviceNames = Seq(ServiceName("A1"), ServiceName("A2"), ServiceName("A3"))
+                         )
+        _             =  updatedConfig should contain theSameElementsAs:
+                           Seq(
+                             deploymentConfigA2,
+                             deploymentConfigA3,
+                           )
+       yield ()
       ).futureValue
-    }
-  }
 
   def mkDeploymentConfig(
     serviceName : ServiceName,
@@ -163,42 +173,3 @@ class DeploymentConfigRepositorySpec
       "slots"        -> deploymentConfig.slots.toString,
       "instances"    -> deploymentConfig.instances.toString
     )
-
-  object DeploymentConfigRepositorySpec {
-    val deploymentConfigA1: DeploymentConfig =
-      DeploymentConfig(serviceName = ServiceName("A1"),
-        environment = Environment.Production,
-        applied = true,
-        slots = 1,
-        instances = 1,
-        zone = "-",
-        deploymentType = "-",
-        envVars = Map.empty,
-        jvm = Map.empty,
-        artefactName = None)
-
-    val deploymentConfigA2: DeploymentConfig =
-      DeploymentConfig(serviceName = ServiceName("A2"),
-        environment = Environment.Production,
-        applied = true,
-        slots = 1,
-        instances = 1,
-        zone = "-",
-        deploymentType = "-",
-        envVars = Map.empty,
-        jvm = Map.empty,
-        artefactName = None)
-
-    val deploymentConfigA3: DeploymentConfig =
-      DeploymentConfig(serviceName = ServiceName("A3"),
-        environment = Environment.Production,
-        applied = true,
-        slots = 1,
-        instances = 1,
-        zone = "-",
-        deploymentType = "-",
-        envVars = Map.empty,
-        jvm = Map.empty,
-        artefactName = None)
-  }
-}

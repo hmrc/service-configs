@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
@@ -33,10 +33,10 @@ class OutagePageServiceSpec
      with Matchers
      with ScalaFutures
      with IntegrationPatience
-     with MockitoSugar {
+     with MockitoSugar:
 
-  "OutagePageService.extractOutagePages" should {
-    "extract all the outage-pages from the gihub zipball" in new OutagePageServiceFixture {
+  "OutagePageService.extractOutagePages" should:
+    "extract all the outage-pages from the gihub zipball" in new OutagePageServiceFixture:
       val expectedOutagePages = List(
         OutagePage(
           ServiceName("example-service"),
@@ -45,22 +45,17 @@ class OutagePageServiceSpec
       )
 
       val outagePages = service.extractOutagePages(zipStream)
-
       outagePages should contain theSameElementsAs expectedOutagePages
-    }
-  }
 
-  private class OutagePageServiceFixture(zipball: String = "/outage-pages.zip") {
+  private class OutagePageServiceFixture(zipball: String = "/outage-pages.zip"):
     val configAsCodeConnector = mock[ConfigAsCodeConnector]
     val lastHashRepository    = mock[LastHashRepository]
     val outagePageRepository  = mock[OutagePageRepository]
 
-    val zipStream = new ZipInputStream(getClass.getResource(zipball).openStream())
+    val zipStream = ZipInputStream(getClass.getResource(zipball).openStream())
 
-    val service = new OutagePageService(
+    val service = OutagePageService(
         configAsCodeConnector,
         lastHashRepository,
         outagePageRepository,
     )
-  }
-}

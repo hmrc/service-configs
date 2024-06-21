@@ -31,20 +31,18 @@ class ResourceUsageService @Inject()(
 , resourceUsageRepository   : ResourceUsageRepository
 )(implicit
   ec : ExecutionContext
-) {
+):
   def populate(date: Instant): Future[Unit] =
-    Environment.values.foldLeftM[Future, Unit](())((_, environment) =>
-      for {
-        deploymentConfigs             <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
-        latestSnapshots               <- resourceUsageRepository.latestSnapshotsInEnvironment(environment)
-        planOfWork                    =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
-        _                             <- resourceUsageRepository.executePlanOfWork(planOfWork, environment)
-        latestConfigs                 <- latestConfigRepository.findAll("app-config-" + environment)
-        undeployedAndDeletedSnapshots =  latestSnapshots.filter(snapshot =>
-                                           deploymentConfigs.find(_.serviceName == snapshot.serviceName).exists(_.instances == 0) && // check for no aws usage in applied config
-                                           !latestConfigs.exists(_.fileName == snapshot.serviceName.asString + ".yaml")              // check for deleted github config
-                                         )
-        _                             =  resourceUsageRepository.setLatestFlag(latest = false, undeployedAndDeletedSnapshots)
-      } yield ()
-    )
-}
+    Environment.values.toList.foldLeftM[Future, Unit](()):
+      (_, environment) =>
+        for
+          deploymentConfigs             <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
+          latestSnapshots               <- resourceUsageRepository.latestSnapshotsInEnvironment(environment)
+          planOfWork                    =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
+          _                             <- resourceUsageRepository.executePlanOfWork(planOfWork, environment)
+          latestConfigs                 <- latestConfigRepository.findAll("app-config-" + environment)
+          undeployedAndDeletedSnapshots =  latestSnapshots.filter: snapshot =>
+                                             deploymentConfigs.find(_.serviceName == snapshot.serviceName).exists(_.instances == 0) && // check for no aws usage in applied config
+                                             !latestConfigs.exists(_.fileName.asString == snapshot.serviceName.asString + ".yaml")              // check for deleted github config
+          _                             <- resourceUsageRepository.setLatestFlag(latest = false, undeployedAndDeletedSnapshots)
+        yield ()

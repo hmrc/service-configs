@@ -27,24 +27,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class DeprecationWarningsNotificationRepositorySpec
   extends AnyWordSpec
-  with Matchers
-  with DefaultPlayMongoRepositorySupport[DeprecationWarningsNotificationsRunTime] {
+     with Matchers
+     with DefaultPlayMongoRepositorySupport[DeprecationWarningsNotificationsRunTime]:
 
-  override protected val repository: DeprecationWarningsNotificationRepository = new DeprecationWarningsNotificationRepository(mongoComponent)
+  override protected val repository: DeprecationWarningsNotificationRepository =
+    DeprecationWarningsNotificationRepository(mongoComponent)
 
-
-  "DeprecationWarningsNotificationRepository" should {
-    "return None for the last run time when the notifications have never been run" in {
+  "DeprecationWarningsNotificationRepository" should:
+    "return None for the last run time when the notifications have never been run" in:
       repository.getLastWarningsRunTime().futureValue shouldBe None
-    }
-    "insert the current time when updating the last run time" in {
+
+    "insert the current time when updating the last run time" in:
       val runTime = Instant.now().truncatedTo(ChronoUnit.MILLIS)
       val result =
-        for {
+        for
           _ <- repository.setLastRunTime(runTime)
           r <- repository.getLastWarningsRunTime()
-      } yield r
+        yield r
       result.futureValue shouldBe Some(runTime)
-    }
-  }
-}

@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -28,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class InternalAuthConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[InternalAuthConfig](
   mongoComponent = mongoComponent,
@@ -41,8 +42,7 @@ class InternalAuthConfigRepository @Inject()(
                      )
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -66,4 +66,3 @@ class InternalAuthConfigRepository @Inject()(
                           equal("grantType", entry.grantType.asString)
                         )
     )
-}

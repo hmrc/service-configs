@@ -17,11 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
-import org.apache.pekko.actor.ActorSystem
+
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
-import org.mongodb.scala.model._
-import org.mongodb.scala.{ClientSession, ClientSessionOptions, ReadConcern, ReadPreference, TransactionOptions, WriteConcern}
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts, UpdateOneModel}
+import org.mongodb.scala.{ClientSession, ClientSessionOptions, ObservableFuture, ReadConcern, ReadPreference, SingleObservableFuture, TransactionOptions, WriteConcern}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -35,11 +35,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ResourceUsageRepository @Inject()(
-  deploymentConfigRepository : DeploymentConfigRepository,
-  latestConfigRepository     : LatestConfigRepository,
-  override val mongoComponent: MongoComponent,
-  as                         : ActorSystem
-)(implicit
+  override val mongoComponent: MongoComponent
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[ResourceUsage](
   mongoComponent = mongoComponent,
@@ -53,10 +50,10 @@ class ResourceUsageRepository @Inject()(
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ) with Transactions
-  with Logging {
+  with Logging:
   import ResourceUsageRepository._
 
-  private implicit val tc: TransactionConfiguration =
+  private given TransactionConfiguration =
     TransactionConfiguration(
       clientSessionOptions = Some(
                                ClientSessionOptions.builder()
@@ -71,7 +68,6 @@ class ResourceUsageRepository @Inject()(
                                  .build()
                              )
     )
-
 
   def find(serviceName: ServiceName): Future[Seq[ResourceUsage]] =
     collection
@@ -137,31 +133,31 @@ class ResourceUsageRepository @Inject()(
       .toFuture()
       .map(_ =>())
 
-  def setLatestFlag(latest: Boolean, snapshots: Seq[ResourceUsage]): Future[Unit] = {
-    val bulkUpdates = snapshots.map { snapshot =>
-      UpdateOneModel(
-        Filters.and(
-          Filters.equal("serviceName", snapshot.serviceName),
-          Filters.equal("environment", snapshot.environment),
-          Filters.equal("date", snapshot.date)
-        ),
-        set("latest", latest)
-      )
-    }
-
-    if (bulkUpdates.isEmpty) {
+  def setLatestFlag(latest: Boolean, snapshots: Seq[ResourceUsage]): Future[Unit] =
+    if snapshots.isEmpty then
       Future.unit
-    } else {
-      collection.bulkWrite(bulkUpdates).toFuture().map(_ => ())
-    }
-  }
+    else
+      collection
+        .bulkWrite(
+          snapshots.map: snapshot =>
+            UpdateOneModel(
+              and(
+                equal("serviceName", snapshot.serviceName),
+                equal("environment", snapshot.environment),
+                equal("date"       , snapshot.date)
+              ),
+              set("latest", latest)
+            )
+        )
+        .toFuture()
+        .map(_ => ())
 
-  def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] = {
+  def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] =
     logger.debug(s"Processing `ResourceUsage`s for ${environment.asString}")
 
     def insertSnapshot(snapshot: ResourceUsage) =
-      withSessionAndTransaction { session =>
-        for {
+      withSessionAndTransaction: session =>
+        for
           res <- collection.updateMany(
                   session,
                   filter = and(
@@ -173,46 +169,39 @@ class ResourceUsageRepository @Inject()(
                 )
                 .toFuture()
           _ <- collection.insertOne(session, snapshot).toFuture()
-        } yield ()
-      }
+        yield ()
 
-    def reintroduceServiceSnapshot(snapshot: ResourceUsage) = {
+    def reintroduceServiceSnapshot(snapshot: ResourceUsage) =
       logger.debug(s"Creating a snapshot for reintroduced service: $snapshot")
-      withSessionAndTransaction { session =>
-        for {
+      withSessionAndTransaction: session =>
+        for
           _ <- removeLatestFlagForServiceInEnvironment(
                  snapshot.serviceName,
                  snapshot.environment,
                  session
                )
           _ <- collection.insertOne(session, snapshot).toFuture()
-        } yield ()
-      }
-    }
+        yield ()
 
-    for {
+    for
       _ <- planOfWork.snapshots.foldLeftM(()) { case (_, snapshot) => insertSnapshot(snapshot) }
            // reintroductions are treated separately to ensure latest flag is removed from previously deleted entries -
            // not covered by above bulk flag removal
       _ <- planOfWork.snapshotServiceReintroductions.foldLeftM(())((_, ssr) => reintroduceServiceSnapshot(ssr))
-    } yield ()
-  }
-}
+    yield ()
 
-object ResourceUsageRepository {
-
+object ResourceUsageRepository:
   final case class PlanOfWork(
     snapshots                     : List[ResourceUsage],
     snapshotServiceReintroductions: List[ResourceUsage]
   )
 
-  object PlanOfWork {
-
+  object PlanOfWork:
     def fromLatestSnapshotsAndCurrentDeploymentConfigs(
       latestSnapshots         : List[ResourceUsage],
       currentDeploymentConfigs: List[DeploymentConfig],
       date                    : Instant
-    ): PlanOfWork = {
+    ): PlanOfWork =
       val latestSnapshotsByNameAndEnv =
         latestSnapshots
           .map(s => (s.serviceName, s.environment) -> s)
@@ -220,7 +209,7 @@ object ResourceUsageRepository {
 
       val planOfWork =
         currentDeploymentConfigs
-          .foldLeft(PlanOfWork(List.empty[ResourceUsage], List.empty[ResourceUsage])) {
+          .foldLeft(PlanOfWork(List.empty[ResourceUsage], List.empty[ResourceUsage])):
             case (acc, deploymentConfig) =>
               val deploymentConfigSnapshot =
                 ResourceUsage(
@@ -232,19 +221,17 @@ object ResourceUsageRepository {
                   latest      = true,
                   deleted     = false
                 )
-              latestSnapshotsByNameAndEnv.get((deploymentConfig.serviceName, deploymentConfig.environment)) match {
-                case Some(currentLatest) if currentLatest.deleted =>
-                  acc.copy(snapshotServiceReintroductions = deploymentConfigSnapshot +: acc.snapshotServiceReintroductions)
-                case Some(currentLatest) if currentLatest.slots     == deploymentConfig.slots &&
-                                            currentLatest.instances == deploymentConfig.instances =>
-                  // no change, ignore
-                  acc
-                case _ =>
-                  acc.copy(snapshots = deploymentConfigSnapshot +: acc.snapshots)
-              }
-          }
+              latestSnapshotsByNameAndEnv
+                .get((deploymentConfig.serviceName, deploymentConfig.environment)) match
+                  case Some(currentLatest) if currentLatest.deleted =>
+                    acc.copy(snapshotServiceReintroductions = deploymentConfigSnapshot +: acc.snapshotServiceReintroductions)
+                  case Some(currentLatest) if currentLatest.slots     == deploymentConfig.slots &&
+                                              currentLatest.instances == deploymentConfig.instances =>
+                    acc // no change, ignore
+                  case _ =>
+                    acc.copy(snapshots = deploymentConfigSnapshot +: acc.snapshots)
 
-      val snapshotSynthesisedDeletions = {
+      val snapshotSynthesisedDeletions =
         val nameAndEnvForCurrentDeploymentConfigs =
           currentDeploymentConfigs.map(c => (c.serviceName, c.environment))
 
@@ -252,10 +239,8 @@ object ResourceUsageRepository {
           .values
           .filterNot(_.deleted)
           .map(synthesiseDeletedDeploymentConfigSnapshot(_, date))
-      }
 
       planOfWork.copy(snapshots = planOfWork.snapshots ++ snapshotSynthesisedDeletions)
-    }
 
     private def synthesiseDeletedDeploymentConfigSnapshot(
       snapshot: ResourceUsage,
@@ -268,5 +253,3 @@ object ResourceUsageRepository {
         latest    = true,
         deleted   = true
       )
-  }
-}

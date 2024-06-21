@@ -17,10 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.MockitoSugar
+import org.mockito.Mockito.when
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -35,10 +36,10 @@ class OutagePageControllerSpec
      with Matchers
      with MockitoSugar
      with ScalaFutures
-     with IntegrationPatience {
+     with IntegrationPatience:
 
-  "searchByServiceName" should {
-    "return list of environments" in new Setup {
+  "searchByServiceName" should:
+    "return list of environments" in new Setup:
       val serviceName = ServiceName("service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(
@@ -54,8 +55,8 @@ class OutagePageControllerSpec
       contentAsJson(response) shouldBe Json.parse(
         s"""["qa", "production"]"""
       )
-    }
-    "return not found" in new Setup{
+
+    "return not found" in new Setup:
       val serviceName = ServiceName("not-found-service-name")
       when(mockOutagePageService.findByServiceName(serviceName))
         .thenReturn(Future.successful(None))
@@ -66,17 +67,13 @@ class OutagePageControllerSpec
       )
 
       status(response) shouldBe 404
-    }
-  }
 
-  trait Setup {
-    implicit val as: ActorSystem = ActorSystem()
+  trait Setup:
+    given ActorSystem = ActorSystem()
 
     val mockOutagePageService = mock[OutagePageService]
 
-    val controller = new OutagePageController(
+    val controller = OutagePageController(
       outagePageService = mockOutagePageService,
       cc                = stubControllerComponents()
     )
-  }
-}

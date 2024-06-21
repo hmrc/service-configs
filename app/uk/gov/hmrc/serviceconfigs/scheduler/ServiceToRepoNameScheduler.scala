@@ -32,20 +32,18 @@ class ServiceToRepoNameScheduler @Inject()(
   mongoLockRepository     : MongoLockRepository,
   timestampSupport        : TimestampSupport,
   serviceToRepoNameService: ServiceToRepoNameService
-)(implicit
+)(using
   actorSystem             : ActorSystem,
   applicationLifecycle    : ApplicationLifecycle,
   ec                      : ExecutionContext
-) extends SchedulerUtils {
+) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
     label           = "ServiceToRepoNameScheduler",
     schedulerConfig = schedulerConfigs.serviceToRepoNameScheduler,
     lock            = ScheduledLockService(mongoLockRepository, "service-to-repo-name-scheduler", timestampSupport, schedulerConfigs.serviceToRepoNameScheduler.interval)
-  ) {
+  ):
     logger.info("Updating service to repo name mappings")
-    for {
+    for
       _ <- serviceToRepoNameService.update()
-    } yield logger.info("Finished updating service to repo name mappings")
-  }
-}
+    yield logger.info("Finished updating service to repo name mappings")

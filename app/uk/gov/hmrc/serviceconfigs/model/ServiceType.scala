@@ -16,15 +16,10 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-sealed trait ServiceType { def asString: String }
+enum ServiceType(val asString: String):
+  case Frontend extends ServiceType("frontend")
+  case Backend  extends ServiceType("backend" )
 
-object ServiceType {
-  case object Frontend extends ServiceType { val asString = "frontend" }
-  case object Backend  extends ServiceType { val asString = "backend" }
-
-  val values: List[ServiceType] =
-    List(Frontend, Backend)
-
+object ServiceType:
   def parse(s: String): Option[ServiceType] =
     values.find(_.asString == s)
-}

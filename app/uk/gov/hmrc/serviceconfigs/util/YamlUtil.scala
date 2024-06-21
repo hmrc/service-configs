@@ -20,10 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import play.api.libs.json.{Json, Reads}
 
-object YamlUtil {
-  def fromYaml[A : Reads](yaml: String): A = {
-    val yamlReader = new ObjectMapper(new YAMLFactory())
-    val jsonWriter = new ObjectMapper()
+object YamlUtil:
+  def fromYaml[A : Reads](yaml: String): A =
+    val yamlReader = ObjectMapper(YAMLFactory())
+    val jsonWriter = ObjectMapper()
     Json.parse(jsonWriter.writeValueAsString(yamlReader.readValue(yaml, classOf[Object]))).as[A]
-  }
-}

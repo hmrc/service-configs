@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.ObservableFuture
 import com.mongodb.client.model.ReplaceOptions
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.Indexes._
@@ -31,7 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class LastHashRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[LastHash](
   mongoComponent = mongoComponent,
   collectionName = "lastHashString",
@@ -39,14 +40,13 @@ class LastHashRepository @Inject()(
   indexes        = Seq(
                      IndexModel(ascending("key"), IndexOptions().unique(true))
                    )
-) {
-
+):
   def update(key: String, hash: String): Future[Unit] =
     collection
       .replaceOne(
         filter      = equal("key", key),
         replacement = LastHash(key, hash),
-        options     = new ReplaceOptions().upsert(true)
+        options     = ReplaceOptions().upsert(true)
       )
       .toFuture()
       .map(_ => ())
@@ -57,4 +57,3 @@ class LastHashRepository @Inject()(
       .toFuture()
       .map(_.headOption)
       .map(_.map(_.hash))
-}

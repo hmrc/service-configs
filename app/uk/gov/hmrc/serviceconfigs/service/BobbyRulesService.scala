@@ -28,18 +28,17 @@ import scala.concurrent.{ExecutionContext, Future}
 class BobbyRulesService @Inject()(
   bobbyRulesRepository: BobbyRulesRepository,
   bobbyRulesConnector : BobbyRulesConnector,
-)(implicit
+)(using
   ec : ExecutionContext
-) {
+):
   private val logger = Logger(this.getClass)
 
   def update(): Future[Unit] =
-    for {
+    for
       _      <- Future.successful(logger.info("Starting"))
       config <- bobbyRulesConnector.findAllRules()
       _      <- bobbyRulesRepository.putAll(config)
-    } yield ()
+    yield ()
 
   def findAllRules(): Future[BobbyRules] =
     bobbyRulesRepository.findAll()
-}

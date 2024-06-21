@@ -18,8 +18,8 @@ package uk.gov.hmrc.serviceconfigs.controller
 
 import cats.implicits._
 import cats.data.EitherT
-import play.api.{Configuration, Logging}
-import play.api.mvc.ControllerComponents
+import play.api.Logging
+import play.api.mvc.{Action, ControllerComponents}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
@@ -30,9 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class WebhookController @Inject()(
-  config                     : Configuration,
   nginxConfig                : NginxConfig,
-  alertConfigService         : AlertConfigService,
   appConfigService           : AppConfigService,
   bobbyRulesService          : BobbyRulesService,
   internalAuthConfigService  : InternalAuthConfigService,
@@ -44,46 +42,45 @@ class WebhookController @Inject()(
   serviceManagerConfigService: ServiceManagerConfigService,
   upscanConfigService        : UpscanConfigService,
   cc                         : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends BackendController(cc)
-     with Logging {
+     with Logging:
 
   // https://docs.github.com/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#push
   case class Push(repoName: String, branchRef: String)
 
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
-  private implicit val readsPush: Reads[Push] =
+  private given Reads[Push] =
     ( (__ \ "repository" \ "name").read[String]
     ~ (__ \ "ref"                ).read[String].map(_.stripPrefix("refs/heads/"))
     )(Push.apply _)
 
-  val processGithubWebhook =
-    Action(parse.json[Push]){ implicit request =>
-      (request.body match {
-        case Push("alert-config"           , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
-        case Push("app-config-base"        , "main") => EitherT.right[Unit](appConfigService.updateAppConfigBase())
-        case Push("app-config-common"      , "main") => EitherT.right[Unit](appConfigService.updateAppConfigCommon())
-        case Push(s"app-config-$x"         , "main") => EitherT.right[Unit](Environment.parse(x).traverse(appConfigService.updateAppConfigEnv))
-        case Push("bobby-config"           , "main") => EitherT.right[Unit](bobbyRulesService.update())
-        case Push("build-jobs"             , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
-        case Push("internal-auth-config"   , "main") => EitherT.right[Unit](internalAuthConfigService.updateInternalAuth())
-        case Push("grafana-dashboards"     , "main") => EitherT.right[Unit](dashboardService.updateGrafanaDashboards())
-        case Push("kibana-dashboards"      , "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
-        case Push(nginxConfig.configRepo   , "main") => EitherT.right[Unit](nginxService.update(Environment.values))
-        case Push("admin-frontend-proxy"   , "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
-        case Push("outage-pages"           , "main") => EitherT.right[Unit](outagePageService.update())
-        case Push("service-manager-configs", "main") => EitherT.right[Unit](serviceManagerConfigService.update())
-        case Push("upscan-app-config"      , "main") => EitherT.right[Unit](upscanConfigService.update())
-        case _                                       => EitherT.left[Unit](Future.unit)
-      }).fold(
-        _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
-      , _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")
-      )
-      Accepted(details("Push accepted"))
-    }
+  val processGithubWebhook: Action[Push] =
+    Action(parse.json[Push]):
+      implicit request =>
+        (request.body match
+          case Push("alert-config"           , "main") => EitherT.left[Unit](Future.unit) // this is pulled from Artifactory
+          case Push("app-config-base"        , "main") => EitherT.right[Unit](appConfigService.updateAppConfigBase())
+          case Push("app-config-common"      , "main") => EitherT.right[Unit](appConfigService.updateAppConfigCommon())
+          case Push(s"app-config-$x"         , "main") => EitherT.right[Unit](Environment.parse(x).traverse(appConfigService.updateAppConfigEnv))
+          case Push("bobby-config"           , "main") => EitherT.right[Unit](bobbyRulesService.update())
+          case Push("build-jobs"             , "main") => EitherT.right[Unit](buildJobService.updateBuildJobs())
+          case Push("internal-auth-config"   , "main") => EitherT.right[Unit](internalAuthConfigService.updateInternalAuth())
+          case Push("grafana-dashboards"     , "main") => EitherT.right[Unit](dashboardService.updateGrafanaDashboards())
+          case Push("kibana-dashboards"      , "main") => EitherT.right[Unit](dashboardService.updateKibanaDashboards())
+          case Push(nginxConfig.configRepo   , "main") => EitherT.right[Unit](nginxService.update(Environment.values.toList))
+          case Push("admin-frontend-proxy"   , "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
+          case Push("outage-pages"           , "main") => EitherT.right[Unit](outagePageService.update())
+          case Push("service-manager-configs", "main") => EitherT.right[Unit](serviceManagerConfigService.update())
+          case Push("upscan-app-config"      , "main") => EitherT.right[Unit](upscanConfigService.update())
+          case _                                       => EitherT.left[Unit](Future.unit)
+        ).fold(
+          _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
+        , _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")
+        )
+        Accepted(details("Push accepted"))
 
   private def details(msg: String) =
     Json.obj("details" -> msg)
-}

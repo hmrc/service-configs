@@ -22,17 +22,15 @@ import play.api.Configuration
 
 class NginxConfigSpec
   extends AnyWordSpec
-     with Matchers {
+     with Matchers:
 
-  "nginx config" should {
-    "fail-fast if config is missing" in {
-      val error = intercept[RuntimeException] {
+  "nginx config" should:
+    "fail-fast if config is missing" in:
+      val error = intercept[RuntimeException]:
         new NginxConfig(Configuration())
-      }
       error.getMessage.contains("not specified") shouldBe true
-    }
 
-    "load the config" in {
+    "load the config" in:
       val nginxConfig =
         new NginxConfig(
           Configuration(
@@ -47,6 +45,3 @@ class NginxConfigSpec
       nginxConfig.frontendConfigFileNames                      shouldBe List("file1", "file2")
       nginxConfig.shutterConfig.shutterKillswitchPath          shouldBe "killswitch"
       nginxConfig.shutterConfig.shutterServiceSwitchPathPrefix shouldBe "serviceswitch"
-    }
-  }
-}

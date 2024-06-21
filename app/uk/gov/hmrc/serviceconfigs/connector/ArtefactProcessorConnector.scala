@@ -16,38 +16,37 @@
 
 package uk.gov.hmrc.serviceconfigs.connector
 
-import java.net.URL
-
-import com.google.inject.{Inject, Singleton}
+import play.api.libs.json.Format
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, DependencyConfig, SlugInfo, Version}
 
+import java.net.URL
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ArtefactProcessorConnector @Inject()(
   httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig,
-)(implicit ec: ExecutionContext
-) {
+)(using
+  ec: ExecutionContext
+):
   import HttpReads.Implicits._
 
   private val artefactProcessorUrl: URL =
     url"${servicesConfig.baseUrl("artefact-processor")}"
 
-  def getDependencyConfigs(slugName: String, version: Version)(implicit hc: HeaderCarrier): Future[Option[Seq[DependencyConfig]]] = {
-    implicit val maf = ApiSlugInfoFormats.dependencyConfigFormat
+  def getDependencyConfigs(slugName: String, version: Version)(using hc: HeaderCarrier): Future[Option[Seq[DependencyConfig]]] =
+    given Format[DependencyConfig] = ApiSlugInfoFormats.dependencyConfigFormat
     httpClientV2
       .get(url"$artefactProcessorUrl/slugInfoConfigs/$slugName/${version.toString}")
       .execute[Option[Seq[DependencyConfig]]]
-  }
 
-  def getSlugInfo(slugName: String, version: Version)(implicit hc: HeaderCarrier): Future[Option[SlugInfo]] = {
-    implicit val maf = ApiSlugInfoFormats.slugInfoFormat
+  def getSlugInfo(slugName: String, version: Version)(using hc: HeaderCarrier): Future[Option[SlugInfo]] =
+    given Format[SlugInfo] = ApiSlugInfoFormats.slugInfoFormat
     httpClientV2
       .get(url"$artefactProcessorUrl/result/slug/$slugName/${version.toString}")
       .execute[Option[SlugInfo]]
-  }
-}
+

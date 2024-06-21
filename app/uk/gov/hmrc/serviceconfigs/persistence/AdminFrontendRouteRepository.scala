@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -30,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AdminFrontendRouteRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[AdminFrontendRoute](
   mongoComponent = mongoComponent,
   collectionName = "adminFrontendRoutes",
@@ -40,8 +41,7 @@ class AdminFrontendRouteRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -67,4 +67,3 @@ class AdminFrontendRouteRepository @Inject()(
       .distinct[String]("service")
       .toFuture()
       .map(_.map(ServiceName.apply))
-}

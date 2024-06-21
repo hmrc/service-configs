@@ -17,6 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import com.mongodb.client.model.ReplaceOptions
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.bson.BsonDocument
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
@@ -28,15 +29,14 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class BobbyRulesRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[BobbyRules](
   mongoComponent = mongoComponent,
   collectionName = "bobbyRules",
   domainFormat   = BobbyRules.mongoFormat,
   indexes        = Seq.empty
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -45,7 +45,7 @@ class BobbyRulesRepository @Inject()(
       .replaceOne(
         filter      = BsonDocument(),
         replacement = config,
-        options     = new ReplaceOptions().upsert(true)
+        options     = ReplaceOptions().upsert(true)
       )
       .toFuture()
       .map(_ => ())
@@ -54,4 +54,3 @@ class BobbyRulesRepository @Inject()(
     collection
       .find()
       .head()
-}

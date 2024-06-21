@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.connector
 
 import play.api.Logging
-import play.api.cache.AsyncCacheApi
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -30,7 +29,7 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 
-object TeamsAndRepositoriesConnector {
+object TeamsAndRepositoriesConnector:
 
   case class Repo(repoName: RepoName, teamNames: Seq[String], endOfLifeDate: Option[Instant], isDeprecated: Boolean = false)
 
@@ -43,21 +42,21 @@ object TeamsAndRepositoriesConnector {
       ~ (__ \ "endOfLifeDate").readNullable[Instant]
       ~ (__ \ "isDeprecated").readWithDefault[Boolean](false)
       )(Repo.apply _)
-}
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
   serviceConfigs: ServicesConfig,
-  httpClientV2  : HttpClientV2,
-  cache         : AsyncCacheApi
-)(implicit ec: ExecutionContext) extends Logging {
+  httpClientV2  : HttpClientV2
+)(using
+  ec: ExecutionContext
+) extends Logging:
   import uk.gov.hmrc.http.HttpReads.Implicits._
 
   private val teamsAndServicesUrl =
     serviceConfigs.baseUrl("teams-and-repositories")
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
-  implicit private val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
+  private given HeaderCarrier                             = HeaderCarrier()
+  private given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
 
   def getRepos(
     archived   : Option[Boolean]      = None
@@ -76,5 +75,3 @@ class TeamsAndRepositoriesConnector @Inject()(
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
-
-}

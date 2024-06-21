@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import com.mongodb.client.model.Indexes
 import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -28,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DeploymentConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[DeploymentConfig](
   mongoComponent = mongoComponent,
@@ -39,8 +40,7 @@ class DeploymentConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("applied", "environment"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
-){
-
+):
   // we replace all the data for each call to replaceEnv
   override lazy val requiresTtlIndex = false
 
@@ -108,4 +108,3 @@ class DeploymentConfigRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
-}

@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.model
 import java.time.Instant
 import scala.math.Ordered.orderingToOrdered
 
-case class DeploymentDateRange(from: Instant, to: Instant){
+case class DeploymentDateRange(from: Instant, to: Instant):
   def contains(i: Instant): Boolean =
     i >= from && i <= to
-}

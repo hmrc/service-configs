@@ -25,45 +25,42 @@ import java.util.zip.ZipInputStream
 import scala.io.Source
 import scala.util.matching.Regex
 
-object ZipUtil {
+object ZipUtil:
 
-  def findRepos(zip: ZipInputStream, reposNames: Seq[RepoName], regex: Regex, blob: String): Seq[(RepoName, String)] = {
+  def findRepos(zip: ZipInputStream, reposNames: Seq[RepoName], regex: Regex, blob: String): Seq[(RepoName, String)] =
     import scala.collection.mutable.ListBuffer
     val repoBuffer: ListBuffer[RepoName] = reposNames.to(ListBuffer)
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Seq.empty[(RepoName, String)]){ (acc, entry) =>
-        val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        path match {
-          case regex(_) => acc ++ CharStreams
-                                    .toString(new InputStreamReader(zip, Charsets.UTF_8))
-                                    .linesIterator
-                                    .zipWithIndex
-                                    .flatMap { case (line, idx) =>
-                                      repoBuffer
-                                        .find(name => line.contains(s"\"${name.asString}\"") || line.contains(s"\'${name.asString}\'"))
-                                        .map { r =>
-                                          repoBuffer -= r
-                                          (r, s"$blob/HEAD/$path#L${idx + 1}")
-                                        }
-                                    }
-                                    .toSeq
-          case _        => acc
-        }
-      }.sortBy(_._1.asString)
-    }
+      .foldLeft(Seq.empty[(RepoName, String)]):
+        (acc, entry) =>
+          val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          path match
+            case regex(_) => acc ++
+                             CharStreams
+                                .toString(InputStreamReader(zip, Charsets.UTF_8))
+                                .linesIterator
+                                .zipWithIndex
+                                .flatMap:
+                                  case (line, idx) =>
+                                    repoBuffer
+                                      .find:
+                                        name => line.contains(s"\"${name.asString}\"") || line.contains(s"\'${name.asString}\'")
+                                      .map: r =>
+                                        repoBuffer -= r
+                                        (r, s"$blob/HEAD/$path#L${idx + 1}")
+                                .toSeq
+            case _        => acc
+      .sortBy(_._1.asString)
 
-  class NonClosableInputStream(zip: ZipInputStream) extends FilterInputStream(zip) {
+  class NonClosableInputStream(zip: ZipInputStream) extends FilterInputStream(zip):
     override def close(): Unit =
       zip.closeEntry()
-  }
 
   def extractFromFiles[A](zip: ZipInputStream)(processFile: (String, Iterator[String]) => Iterator[A]): Iterator[A] =
     Iterator.continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .flatMap { entry =>
+      .flatMap: entry =>
         val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
         processFile(path, Source.fromInputStream(zip).getLines())
-      }
-}

@@ -26,14 +26,14 @@ import java.util.Properties
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
-trait ConfigParser extends Logging {
+trait ConfigParser extends Logging:
 
   def parseConfString(
     confString       : String,
     includeCandidates: Map[String, String] = Map.empty,
     logMissing       : Boolean             = true
-  ): Config = {
-    val includer = new ConfigIncluder with ConfigIncluderClasspath {
+  ): Config =
+    val includer = new ConfigIncluder with ConfigIncluderClasspath:
       val exts = List(".conf", ".json", ".properties") // however service-dependencies only includes .conf files (should we extract the others too since they could be used?)
       override def withFallback(fallback: ConfigIncluder): ConfigIncluder = this
       override def include(
@@ -46,77 +46,74 @@ trait ConfigParser extends Logging {
         context: ConfigIncludeContext,
         what   : String
       ): ConfigObject =
-        includeCandidates.find { case (k, v) =>
-          if (exts.exists(ext => what.endsWith(ext)))
-            k == what
-          else
-            exts.exists(ext => k == s"$what$ext")
-        } match {
+        includeCandidates.find:
+          case (k, v) =>
+            if exts.exists(ext => what.endsWith(ext)) then
+              k == what
+            else
+              exts.exists(ext => k == s"$what$ext")
+        match
           case Some((_, v)) => ConfigFactory.parseString(v, context.parseOptions).root
-          case None         => if (logMissing)
-                                 logger.warn(s"Could not find $what to include in ${includeCandidates.keys}")
+          case None         => if logMissing then logger.warn(s"Could not find $what to include in ${includeCandidates.keys}")
                                ConfigFactory.empty.root
-        }
-    }
 
     val parseOptions: ConfigParseOptions =
-      ConfigParseOptions.defaults
+      ConfigParseOptions
+        .defaults
         .setSyntax(ConfigSyntax.CONF)
         .setIncluder(includer)
 
     ConfigFactory.parseString(confString, parseOptions)
-  }
 
   // We return as Properties rather than Map[String, String] since
   // they are treated differently when converting to Config - i.e.
   // Map will fail when merging Object and Value - where as Properties will not, since it has a defined ordering.
   // Also note, that for Properties, the object takes precendence, where as for String (also with defined ordering), the second entry will.
   // Since Yaml is provided as Properties to the service, we treat in the same way here.
-  def parseYamlStringAsProperties(yamlString: String): Properties = {
-    val props = new Properties
+  def parseYamlStringAsProperties(yamlString: String): Properties =
+    val props = Properties()
     Try(
-      new Yaml()
+      Yaml()
         .load(yamlString)
         .asInstanceOf[java.util.LinkedHashMap[String, Object]]
     ).map(flattenYamlToDotNotation)
       .getOrElse(Seq.empty)
-      .foreach { case (k, v) => props.setProperty(k, v) }
+      .foreach:
+        case (k, v) => props.setProperty(k, v)
     props
-  }
 
   def parseXmlLoggerConfigStringAsMap(xmlString: String): Option[Map[String, ConfigValue]] =
-    Try {
+    Try:
       val xml = SafeXml().loadString(xmlString)
       val root =
-        (for {
+        (for
            node  <- (xml  \ "root"  ).headOption
            level <- (node \ "@level").headOption
-         } yield Map("logger.root" -> ConfigValue(level.text))
+         yield Map("logger.root" -> ConfigValue(level.text))
         ).getOrElse(Map.empty)
       val logger =
-          (xml \ "logger")
-            .flatMap(x =>
-              for {
-                k          <- (x \ "@name" ).headOption
-                v          <- (x \ "@level").headOption
-                loggerName =  if (k.text.contains(".")) s"\"${k.text}\"" else k.text
-              } yield s"logger.$loggerName" -> ConfigValue(v.text)
-            )
-            .toMap
+        (xml \ "logger")
+          .flatMap: x =>
+            for
+              k          <- (x \ "@name" ).headOption
+              v          <- (x \ "@level").headOption
+              loggerName =  if (k.text.contains(".")) s"\"${k.text}\"" else k.text
+            yield s"logger.$loggerName" -> ConfigValue(v.text)
+          .toMap
       root ++ logger
-    }.toOption
+    .toOption
 
   /** The config is resolved (substitutions applied) and
     * the config is returned as a flat Map
     */
   def flattenConfigToDotNotation(config: Config): Map[String, ConfigValue] =
     entrySetWithNull(
-      config
-        .resolve(
-          ConfigResolveOptions.defaults
-            .setAllowUnresolved(true)
-            .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
-          )
+      config.resolve(
+        ConfigResolveOptions
+          .defaults
+          .setAllowUnresolved(true)
+          .setUseSystemEnvironment(false) //environment substitutions cannot be resolved
+        )
     )
     .toMap
 
@@ -134,51 +131,45 @@ trait ConfigParser extends Logging {
   def entrySetWithNull(config: Config): Set[(String, ConfigValue)] =
     (implicitly[cats.Monad[Seq]].tailRecM[Acc, (String, ConfigValue)](
       Acc(acc = Seq.empty[(String, ConfigValue)], configObject = config.root(), path = "")
-    ) { case Acc(acc, configObject, path) =>
-      configObject.entrySet().asScala.toSeq.flatMap { e =>
-        val key =
-          path +
-          (if (path.nonEmpty) "." else "") +
-          (if (e.getKey.exists(hasFunkyChars)) s"\"${e.getKey}\"" else e.getKey)
+    ):
+      case Acc(acc, configObject, path) =>
+        configObject.entrySet().asScala.toSeq.flatMap: e =>
+          val key =
+            path +
+            (if (path.nonEmpty) "." else "") +
+            (if (e.getKey.exists(hasFunkyChars)) s"\"${e.getKey}\"" else e.getKey)
 
-        e.getValue match {
-          case o: ConfigObject => Seq(Left(Acc(acc = acc, o, key)))
-          case other           => (acc ++ Seq(key ->
-                                    // `Try` to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
-                                    (if (Try(config.getIsNull(key)).getOrElse(false))
-                                      ConfigValue.Null
-                                    else {
-                                      ConfigValue.apply(e.getValue)
-                                    }
-                                    )
-                                  )).map(Right.apply)
-      }
-    }
-  }).toSet
+          e.getValue match
+            case o: ConfigObject => Seq(Left(Acc(acc = acc, o, key)))
+            case other           => (acc ++ Seq(key ->
+                                      // `Try` to avoid `substitution not resolved: ConfigConcatenation(${play.server.dir}"/RUNNING_PID"`
+                                      (
+                                        if Try(config.getIsNull(key)).getOrElse(false) then ConfigValue.Null
+                                        else                                                ConfigValue.apply(e.getValue)
+                                      )
+                                    )).map(Right.apply)
+    ).toSet
 
   private def flattenYamlToDotNotation(
     input: java.util.LinkedHashMap[String, Object]
-  ): Seq[(String, String)] = {
+  ): Seq[(String, String)] =
     def go(
       input        : Seq[(String, Object)],
       currentPrefix: String
     ): Seq[(String, String)] =
-      input.flatMap {
+      input.flatMap:
         case (k: String, v: java.util.LinkedHashMap[String, Object]) =>
           go(v.asScala.toSeq, buildPrefix(currentPrefix, k))
         case (k: String, v: Object) =>
           Seq(buildPrefix(currentPrefix, k) -> v.toString)
-      }
     go(input.asScala.toSeq, "")
-  }
 
   private def buildPrefix(currentPrefix: String, key: String) =
-    (currentPrefix, key) match {
+    (currentPrefix, key) match
       case ("", "0.0.0") =>
         "" // filter out the (unused) config version numbering
       case ("", k) => k
       case (cp, k) => s"$cp.$k"
-    }
 
   def toIncludeCandidates(
     dependencyConfigs: Seq[DependencyConfig]
@@ -192,8 +183,9 @@ trait ConfigParser extends Logging {
     * respecting any include directives.
     */
   def reduceConfigs(dependencyConfigs: Seq[DependencyConfig]): Config =
-    dependencyConfigs.tails
-      .map {
+    dependencyConfigs
+      .tails
+      .map:
         case dc :: rest =>
           def configFor(filename: String) =
             dc.configs
@@ -203,16 +195,17 @@ trait ConfigParser extends Logging {
           configFor("play/reference-overrides.conf")
             .withFallback(configFor("reference.conf"))
         case _ => ConfigFactory.empty
-      }
       .reduceLeft(_ withFallback _)
 
-  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, ConfigValue]) = {
-    val newProps = new Properties
+  def extractAsConfig(properties: Properties, prefix: String): (Config, Map[String, ConfigValue]) =
+    val newProps = Properties()
 
     properties
       .entrySet
       .asScala
-      .foreach { e => if (e.getKey.toString.startsWith(prefix)) newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString) }
+      .foreach: e =>
+        if e.getKey.toString.startsWith(prefix) then
+          newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString)
 
     val config = ConfigFactory.parseProperties(newProps)
 
@@ -223,9 +216,9 @@ trait ConfigParser extends Logging {
         ConfigFactory.parseMap(
           newProps.entrySet.asScala
             .map(e => (e.getKey.toString, e.getValue.toString))
-            .collect {
+            .collect:
               case (k, v) if k.startsWith("logger.") => (s"logger.\"${k.stripPrefix("logger.")}\"", v)
-            }.toMap.asJava
+            .toMap.asJava
         )
       )
 
@@ -234,13 +227,12 @@ trait ConfigParser extends Logging {
                        .mapValues(ConfigValue.apply)
                        .toMap
     (configWithPreservedLogger, suppressed)
-  }
 
   /** Config is processed relative to the previous one.
     * The accumulative config (unresolved) is returned along with a Map contining the effective changes -
     * i.e. new entries from latestConf, or entries that have been changed because of latestConf (e.g. latestConf provided different substitutions)
     */
-  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, ConfigValue]) = {
+  def delta(latestConf: Config, previousConf: Config): (Config, Map[String, ConfigValue]) =
     val previousConfMap = ConfigParser.flattenConfigToDotNotation(previousConf)
 
     val conf = latestConf.withFallback(previousConf)
@@ -250,32 +242,27 @@ trait ConfigParser extends Logging {
           .setAllowUnresolved(true)
           .setUseSystemEnvironment(false)
       )
-    val confAsMap = ConfigParser.flattenConfigToDotNotation(conf).view
-    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, ConfigValue]){ case (acc, (k, v)) =>
+    val confAsMap  = ConfigParser.flattenConfigToDotNotation(conf).view
+    val confAsMap2 = confAsMap.foldLeft(Map.empty[String, ConfigValue]):
+      case (acc, (k, v)) =>
         // some entries cannot be resolved. e.g. `play.server.pidfile.path -> ${play.server.dir}"/RUNNING_PID"`
         // keep it for now...
-        if (previousConfMap.get(k).fold(true)(_.asString != v.asString) ||
-          scala.util.Try(latestConfResolved.hasPath(k)).getOrElse(true)
-        )
+        if previousConfMap.get(k).fold(true)(_.asString != v.asString) || Try(latestConfResolved.hasPath(k)).getOrElse(true) then
           acc ++ Seq(k -> v) // and not explicitly included in previousConf
         else
           acc
-      }
     (conf, confAsMap2)
-  }
 
   /** Returns keys (and values) in previousConfig that have been removed by the application of the latestConfig.
     * This is often the sign of an error.
     */
-  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, ConfigValue] = {
+  def suppressed(latestConf: Config, optPreviousConf: Option[Config]): Map[String, ConfigValue] =
     val previousConf = optPreviousConf.getOrElse(ConfigFactory.empty)
     val combined     = flattenConfigToDotNotation(latestConf.withFallback(previousConf))
     flattenConfigToDotNotation(previousConf)
       .view
       .filterKeys(!combined.contains(_))
       .toMap
-  }
-}
 
 object ConfigParser extends ConfigParser
 
@@ -284,7 +271,7 @@ case class ConfigValue(
   valueType: ConfigValueType
 )
 
-object ConfigValue {
+object ConfigValue:
   val Null: ConfigValue =
     ConfigValue(asString = "<<NULL>>", ConfigValueType.Null)
 
@@ -298,17 +285,16 @@ object ConfigValue {
     // TODO should we also store value.origin (filename, lineNumber etc.)
     ConfigValue(
       asString  = suppressEncryption(removeQuotes(value.render(ConfigRenderOptions.concise))),
-      valueType = Try {
-                    value.valueType match {
+      valueType = Try(
+                    value.valueType match
                       case TSConfigValueType.LIST   => ConfigValueType.List
                       case TSConfigValueType.OBJECT => ConfigValueType.Object
                       case _                        => ConfigValueType.SimpleValue
-                    }
-                  }.getOrElse(ConfigValueType.Unmerged)
+                  ).getOrElse(ConfigValueType.Unmerged)
     )
 
   private def removeQuotes(input: String): String =
-    if (input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"'))
+    if input.charAt(0).equals('"') && input.charAt(input.length - 1).equals('"') then
       input.substring(1, input.length - 1)
     else
       input
@@ -316,17 +302,13 @@ object ConfigValue {
   private val encryptionRegex = "ENC\\[[^]]*]".r
   def suppressEncryption(input: String): String =
     encryptionRegex.replaceAllIn(input, "ENC[...]")
-}
 
 // We don't use TSConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties
 // and we want to add Unmerged, when we can't tell (e.g. placeholders need resolving)
-sealed trait ConfigValueType
-
-object ConfigValueType {
-  case object Null        extends ConfigValueType
-  case object Unmerged    extends ConfigValueType
-  case object SimpleValue extends ConfigValueType
-  case object List        extends ConfigValueType
-  case object Object      extends ConfigValueType
-  case object Suppressed  extends ConfigValueType
-}
+enum ConfigValueType:
+  case Null
+  case Unmerged
+  case SimpleValue
+  case List
+  case Object
+  case Suppressed

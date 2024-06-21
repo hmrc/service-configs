@@ -30,23 +30,22 @@ class DashboardController @Inject()(
   kibanaDashboardRepository: KibanaDashboardRepository,
   grafanaDashboardRepository: GrafanaDashboardRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
-  implicit val dashboardFormat: Format[Dashboard] = Dashboard.format
+  private given Format[Dashboard] = Dashboard.format
 
   def grafana(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       grafanaDashboardRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))
 
   def kibana(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       kibanaDashboardRepository
         .findByService(serviceName)
-        .map(_.fold(NotFound: Result)(x => Ok(Json.toJson(x))))
-    }
-}
+        .map:
+          _.fold(NotFound: Result)(x => Ok(Json.toJson(x)))

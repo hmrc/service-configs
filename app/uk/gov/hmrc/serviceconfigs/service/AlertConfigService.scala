@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.data.EitherT
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.{ArtifactoryConnector, ConfigAsCodeConnector}
-import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.model.{AlertEnvironmentHandler, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AlertEnvironmentHandlerRepository, LastHashRepository}
 import uk.gov.hmrc.serviceconfigs.util.ZipUtil
@@ -34,16 +33,16 @@ class AlertConfigService @Inject()(
   lastHashRepository               : LastHashRepository,
   artifactoryConnector             : ArtifactoryConnector,
   configAsCodeConnector            : ConfigAsCodeConnector
-)(implicit
+)(using
   ec : ExecutionContext
-) {
+):
   import AlertConfigService._
 
   private val logger = Logger(this.getClass)
   private val hashKey = "alert-config"
 
   def update(): Future[Unit] =
-    (for {
+    (for
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](artifactoryConnector.getLatestHash().map(_.getOrElse("")))
       previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey).map(_.getOrElse("")))
@@ -61,7 +60,7 @@ class AlertConfigService @Inject()(
       alertHandlers =  toAlertEnvironmentHandler(sensuConfig, locations)
       _             <- EitherT.right[Unit](alertEnvironmentHandlerRepository.putAll(alertHandlers))
       _             <- EitherT.right[Unit](lastHashRepository.update(hashKey, hash))
-     } yield ()
+     yield ()
     ).merge
 
   def findConfigs(): Future[Seq[AlertEnvironmentHandler]] =
@@ -69,9 +68,8 @@ class AlertConfigService @Inject()(
 
   def findConfigByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
     alertEnvironmentHandlerRepository.findByServiceName(serviceName)
-}
 
-object AlertConfigService {
+object AlertConfigService:
   import play.api.libs.json.{Json, Reads, __}
   import play.api.libs.functional.syntax._
 
@@ -80,14 +78,14 @@ object AlertConfigService {
     handlers: Seq[String]
   )
 
-  private implicit val alertsConfigReads: Reads[AlertConfig] =
+  private given Reads[AlertConfig] =
     ( (__ \ "app"     ).read[String]
     ~ (__ \ "handlers").read[Seq[String]]
     )(AlertConfig.apply _)
 
   case class Handler(command: String)
 
-  private implicit val readsHandler: Reads[Handler] =
+  private given Reads[Handler] =
     Reads.at[String]((__ \ "command")).map(Handler.apply)
 
   case class SensuConfig(
@@ -99,34 +97,32 @@ object AlertConfigService {
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(SensuConfig()){ (config, entry) =>
-        entry.getName match {
-          case p if p.startsWith("target/output/configs/") && p.endsWith(".json") =>
-            val json = Json.parse(new ZipUtil.NonClosableInputStream(zip))
-            config.copy(alertConfigs = config.alertConfigs :+ json.as[AlertConfig])
-          case p if p.startsWith("target/output/handlers/aws_production") && p.endsWith(".json") =>
-            config.copy(productionHandler = (Json.parse(new ZipUtil.NonClosableInputStream(zip)) \ "handlers").as[Map[String, Handler]])
-          case _ => config
-        }
-    }
+      .foldLeft(SensuConfig()):
+        (config, entry) =>
+          entry.getName match
+            case p if p.startsWith("target/output/configs/") && p.endsWith(".json") =>
+              val json = Json.parse(ZipUtil.NonClosableInputStream(zip))
+              config.copy(alertConfigs = config.alertConfigs :+ json.as[AlertConfig])
+            case p if p.startsWith("target/output/handlers/aws_production") && p.endsWith(".json") =>
+              config.copy(productionHandler = (Json.parse(ZipUtil.NonClosableInputStream(zip)) \ "handlers").as[Map[String, Handler]])
+            case _ => config
 
   def toRepoNames(sensuConfig: SensuConfig): Seq[RepoName] =
-    for {
+    for
       alertConfig <- sensuConfig.alertConfigs
       serviceName <- alertConfig.app.split('.').headOption.map(RepoName(_))
-    } yield serviceName
-
+    yield serviceName
 
   def toAlertEnvironmentHandler(sensuConfig: SensuConfig, locations: Seq[(RepoName, String)]): Seq[AlertEnvironmentHandler] =
-    for {
+    for
       alertConfig  <- sensuConfig.alertConfigs
       serviceName  <- alertConfig.app.split('.').headOption.map(ServiceName.apply)
       isProduction =  alertConfig.handlers.exists(h => hasProductionHandler(sensuConfig.productionHandler, h))
-      location     <- locations.collectFirst { case (name, location) if name.asString == serviceName.asString => location }
-    } yield AlertEnvironmentHandler(serviceName = serviceName, production = isProduction, location = location)
+      location     <- locations.collectFirst:
+                        case (name, location) if name.asString == serviceName.asString => location
+    yield AlertEnvironmentHandler(serviceName = serviceName, production = isProduction, location = location)
 
   private def hasProductionHandler(productionHandlers: Map[String, Handler], handler: String): Boolean =
     productionHandlers
       .get(handler)
       .exists(!_.command.contains("noop.rb"))
-}

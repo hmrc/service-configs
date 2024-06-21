@@ -32,11 +32,11 @@ class BuildJobService @Inject()(
   buildJobRepository           : BuildJobRepository
 , configAsCodeConnector        : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector
-)(implicit ec: ExecutionContext
-) extends Logging {
+)(using ec: ExecutionContext
+) extends Logging:
 
   def updateBuildJobs(): Future[Unit] =
-    for {
+    for
       _       <- Future.successful(logger.info(s"Updating Build Jobs..."))
       repos   <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
                  , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
@@ -46,10 +46,10 @@ class BuildJobService @Inject()(
       blob     = "https://github.com/hmrc/build-jobs/blob"
       items    = ZipUtil
                    .findRepos(zip, repos.map(_.repoName), regex, blob)
-                   .map { case (name, location) => BuildJob(serviceName = ServiceName(name.asString), location = location) }
+                   .map:
+                     case (name, location) => BuildJob(serviceName = ServiceName(name.asString), location = location)
       _        = zip.close()
       _        = logger.info(s"Inserting ${items.size} Build Jobs into mongo")
       count   <- buildJobRepository.putAll(items)
       _        = logger.info(s"Inserted $count Build Jobs into mongo")
-    } yield ()
-  }
+    yield ()

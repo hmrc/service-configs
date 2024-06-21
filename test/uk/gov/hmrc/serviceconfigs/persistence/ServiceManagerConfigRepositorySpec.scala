@@ -27,12 +27,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ServiceManagerConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[ServiceManagerConfig] {
+     with DefaultPlayMongoRepositorySupport[ServiceManagerConfig]:
 
-  override lazy val repository = new ServiceManagerConfigRepository(mongoComponent)
+  override val repository: ServiceManagerConfigRepository =
+    ServiceManagerConfigRepository(mongoComponent)
 
-  "ServiceManagerConfigRepository" should {
-    "put and retrieve" in {
+  "ServiceManagerConfigRepository" should:
+    "put and retrieve" in:
       val config1 = ServiceManagerConfig(serviceName = ServiceName("testName1"), location = "1")
       val config2 = ServiceManagerConfig(serviceName = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(config1, config2)).futureValue
@@ -43,6 +44,3 @@ class ServiceManagerConfigRepositorySpec
       repository.putAll(Seq(config1.copy(location = "2"))).futureValue
       repository.findByService(config1.serviceName).futureValue shouldBe Some(config1.copy(location = "2"))
       repository.findByService(config2.serviceName).futureValue shouldBe None
-    }
-  }
-}

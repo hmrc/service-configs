@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.ArgumentMatchers.{any}
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, LastHashRepository, LatestConfigRepository}
@@ -31,19 +33,19 @@ class AppConfigServiceSpec
   extends AnyWordSpec
      with Matchers
      with ScalaFutures
-     with MockitoSugar {
+     with MockitoSugar:
 
   private val mockLatestConfigRepo           = mock[LatestConfigRepository]
   private val mockLastHashRepo               = mock[LastHashRepository]
   private val mockDeploymentConfigRepository = mock[DeploymentConfigRepository]
   private val mockConfigConnector            = mock[ConfigAsCodeConnector]
 
-  "appConfigCommonYaml" should {
-    "catch and convert serviceType with api- prefix" in {
+  "appConfigCommonYaml" should:
+    "catch and convert serviceType with api- prefix" in:
       when(mockLatestConfigRepo.find(any[String], any[String]))
         .thenReturn(Future.successful(Some("config")))
 
-      val service = new AppConfigService(
+      val service = AppConfigService(
         mockLatestConfigRepo,
         mockLastHashRepo,
         mockDeploymentConfigRepository,
@@ -53,6 +55,3 @@ class AppConfigServiceSpec
       service.appConfigCommonYaml(Environment.QA, "api-microservice").futureValue
 
       verify(mockLatestConfigRepo, times(1)).find("app-config-common", "qa-microservice-common.yaml")
-    }
-  }
-}

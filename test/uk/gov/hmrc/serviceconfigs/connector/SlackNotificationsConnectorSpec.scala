@@ -34,11 +34,10 @@ class SlackNotificationsConnectorSpec
   with ScalaFutures
   with IntegrationPatience
   with WireMockSupport
-  with HttpClientV2Support {
+  with HttpClientV2Support:
 
-    "Connector" should {
-      "use internal auth" in {
-        val hc = HeaderCarrier(authorization = None)
+    "Connector" should:
+      "use internal auth" in:
         val expectedResponse = SlackNotificationResponse(errors = Nil)
 
         stubFor(
@@ -63,10 +62,10 @@ class SlackNotificationsConnectorSpec
             "internal-auth.token"                            -> "token"
           )
 
-        val connector = new SlackNotificationsConnector(
+        val connector = SlackNotificationsConnector(
           httpClientV2,
           configuration,
-          new ServicesConfig(configuration)
+          ServicesConfig(configuration)
         )
 
         val slackMessage =
@@ -78,7 +77,8 @@ class SlackNotificationsConnectorSpec
             blocks        = Seq.empty[JsObject]
           )
 
-        val response = connector.sendMessage(slackMessage)(hc).futureValue
+
+        val response = connector.sendMessage(slackMessage)(using HeaderCarrier(authorization = None)).futureValue
 
         response shouldBe expectedResponse
 
@@ -98,7 +98,3 @@ class SlackNotificationsConnectorSpec
             ))
             .withHeader("Authorization", equalTo("token"))
         )
-      }
-    }
-
-}

@@ -41,7 +41,7 @@ final case class ResourceUsage(
   deleted    : Boolean
 )
 
-object ResourceUsage {
+object ResourceUsage:
   val mongoFormat: Format[ResourceUsage] =
     ( (__ \ "date"        ).format[Instant](MongoJavatimeFormats.instantFormat)
     ~ (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
@@ -50,7 +50,7 @@ object ResourceUsage {
     ~ (__ \ "instances"   ).format[Int]
     ~ (__ \ "latest"      ).format[Boolean]
     ~ (__ \ "deleted"     ).format[Boolean]
-    )(ResourceUsage.apply, unlift(ResourceUsage.unapply))
+    )(ResourceUsage.apply, pt => Tuple.fromProductTyped(pt))
 
   val apiFormat: Format[ResourceUsage] =
     ( (__ \ "date"        ).format[Instant]
@@ -60,5 +60,4 @@ object ResourceUsage {
     ~ (__ \ "instances"   ).format[Int]
     ~ ignoreOnWrite[Boolean](__ \ "latest" )
     ~ ignoreOnWrite[Boolean](__ \ "deleted")
-    )(ResourceUsage.apply, unlift(ResourceUsage.unapply))
-}
+    )(ResourceUsage.apply, pt => Tuple.fromProductTyped(pt))

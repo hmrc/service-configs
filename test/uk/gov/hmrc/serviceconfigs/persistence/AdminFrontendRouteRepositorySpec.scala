@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class AdminFrontendRouteRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[AdminFrontendRoute] {
+     with DefaultPlayMongoRepositorySupport[AdminFrontendRoute]:
 
-  override protected val repository = new AdminFrontendRouteRepository(mongoComponent)
+  override protected val repository: AdminFrontendRouteRepository =
+    AdminFrontendRouteRepository(mongoComponent)
 
-  "AdminFrontendRouteRepository" should {
-    "putAll correctly" in {
+  "AdminFrontendRouteRepository" should:
+    "putAll correctly" in:
       val adminFrontendRoute1 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route1", allow = Map.empty, location = "location1")
       val adminFrontendRoute2 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route2", allow = Map.empty, location = "location2")
       val adminFrontendRoute3 = AdminFrontendRoute(ServiceName("testNameTwo"), route = "route3", allow = Map.empty, location = "location3")
@@ -41,22 +42,17 @@ class AdminFrontendRouteRepositorySpec
       val adminFrontendRoute4 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route3", allow = Map.empty, location = "location2")
       repository.putAll(Seq(adminFrontendRoute2, adminFrontendRoute4)).futureValue
       findAll().futureValue shouldBe Seq(adminFrontendRoute2, adminFrontendRoute4)
-    }
 
-    "find one by matching service name" in {
+    "find one by matching service name" in:
       val adminFrontendRoute1 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route1", allow = Map.empty, location = "location1")
       val adminFrontendRoute2 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route2", allow = Map.empty, location = "location2")
       val adminFrontendRoute3 = AdminFrontendRoute(ServiceName("testNameTwo"), route = "route3", allow = Map.empty, location = "location3")
       repository.putAll(Seq(adminFrontendRoute1, adminFrontendRoute2, adminFrontendRoute3)).futureValue
       repository.findByService(ServiceName("testNameOne")).futureValue shouldBe Seq(adminFrontendRoute1 , adminFrontendRoute2)
-    }
 
-    "return all service names" in {
+    "return all service names" in:
       val adminFrontendRoute1 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route1", allow = Map.empty, location = "location1")
       val adminFrontendRoute2 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route2", allow = Map.empty, location = "location2")
       val adminFrontendRoute3 = AdminFrontendRoute(ServiceName("testNameTwo"), route = "route3", allow = Map.empty, location = "location3")
       repository.putAll(Seq(adminFrontendRoute1, adminFrontendRoute2, adminFrontendRoute3)).futureValue
       repository.findAllAdminFrontendServices().futureValue shouldBe Seq(ServiceName("testNameOne") , ServiceName("testNameTwo"))
-    }
-  }
-}

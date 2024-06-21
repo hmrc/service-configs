@@ -27,18 +27,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class AppliedConfigRepositoryNoIndexCheckSpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig] {
+     with DefaultPlayMongoRepositorySupport[AppliedConfigRepository.AppliedConfig]:
   import AppliedConfigRepository._
 
   val configSearchLimit = 5
   private val config = play.api.Configuration("config-search.max-limit" -> configSearchLimit)
-  override protected val repository = new AppliedConfigRepository(config, mongoComponent)
+  override protected val repository: AppliedConfigRepository =
+    AppliedConfigRepository(config, mongoComponent)
 
   // Disble index check for value search since it requires a group by
   override protected def checkIndexedQueries = false
 
-  "AppliedConfigRepositoryNoIndexCheckSpec with no index check" should {
-    "search config value equal to" in {
+  "AppliedConfigRepositoryNoIndexCheckSpec with no index check" should:
+    "search config value equal to" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -69,9 +70,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search config value equal ignore case" in {
+    "search config value equal ignore case" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -103,9 +103,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search config value not equal to" in {
+    "search config value not equal to" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -150,9 +149,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search config value not equal to ignore case" in {
+    "search config value not equal to ignore case" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -183,9 +181,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search config value contains" in {
+    "search config value contains" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -223,9 +220,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search config value contains ignore case" in {
+    "search config value contains ignore case" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -263,10 +259,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-
-    "search config value does not contain" in {
+    "search config value does not contain" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -289,9 +283,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environments    = Seq.empty
       , serviceNames    = None
       ).futureValue shouldBe Nil
-    }
 
-    "search config value does not contain ignore case" in {
+    "search config value does not contain ignore case" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -314,9 +307,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environments    = Seq.empty
       , serviceNames    = None
       ).futureValue shouldBe Nil
-    }
 
-    "search config value is empty" in {
+    "search config value is empty" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -364,9 +356,8 @@ class AppliedConfigRepositoryNoIndexCheckSpec
           false
         )
       )
-    }
 
-    "search limited" in {
+    "search limited" in:
       val serviceName1 = ServiceName("serviceName1")
       repository.put(
         serviceName1,
@@ -382,6 +373,3 @@ class AppliedConfigRepositoryNoIndexCheckSpec
       , environments     = Seq.empty
       , serviceNames    = None
       ).futureValue.size should be (configSearchLimit + 1)
-    }
-  }
-}

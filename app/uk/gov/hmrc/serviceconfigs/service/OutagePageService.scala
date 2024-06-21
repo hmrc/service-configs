@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import com.google.inject.{Inject, Singleton}
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.persistence.{LastHashRepository, OutagePageRepository}
 
 import cats.data.EitherT
 import java.util.zip.ZipInputStream
+import javax.inject.{Inject, Singleton}
 import play.api.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -31,43 +31,41 @@ class OutagePageService @Inject()(
   configAsCodeConnector: ConfigAsCodeConnector,
   lastHashRepository   : LastHashRepository,
   outagePageRepository : OutagePageRepository,
-)(implicit ec: ExecutionContext) extends Logging {
+)(using ec: ExecutionContext) extends Logging:
+
   def findByServiceName(serviceName: ServiceName): Future[Option[Seq[Environment]]] =
     outagePageRepository.findByServiceName(serviceName)
 
   def update(): Future[Unit] =
-    (for {
-        _            <- EitherT.pure[Future, Unit](logger.info(s"Updating Outage Pages"))
-        repoName     =  RepoName("outage-pages")
-        currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
-        previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
-        oHash        =  Option.when(Some(currentHash) != previousHash)(currentHash)
-        hash         <- EitherT.fromOption[Future](oHash, logger.info("No updates on outage-pages repository"))
-        is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
-        outagePages  =  try { extractOutagePages(is) } finally { is.close() }
-        _            <- EitherT.right[Unit](outagePageRepository.putAll(outagePages))
-        _            <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
-      } yield ()
+    (for
+      _            <- EitherT.pure[Future, Unit](logger.info(s"Updating Outage Pages"))
+      repoName     =  RepoName("outage-pages")
+      currentHash  <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
+      previousHash <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
+      oHash        =  Option.when(Some(currentHash) != previousHash)(currentHash)
+      hash         <- EitherT.fromOption[Future](oHash, logger.info("No updates on outage-pages repository"))
+      is           <- EitherT.right[Unit](configAsCodeConnector.streamGithub(repoName))
+      outagePages  =  try { extractOutagePages(is) } finally { is.close() }
+      _            <- EitherT.right[Unit](outagePageRepository.putAll(outagePages))
+      _            <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
+     yield ()
     ).merge
 
   private[service] def extractOutagePages(codeZip: ZipInputStream): Seq[OutagePage] =
     Iterator
       .continually(codeZip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[ServiceName, List[Environment]]){ (acc, entry) =>
-        extractOutagePage(entry.getName)
-          .fold(acc){ case (serviceName, env) =>
-            acc.updatedWith(serviceName)(currentEnvs =>
-              Option(currentEnvs.fold(List(env))(_ :+ env))
-            )
-          }
-      }.map { case (serviceName, envs) => OutagePage(serviceName, envs)}
+      .foldLeft(Map.empty[ServiceName, List[Environment]]):
+        (acc, entry) =>
+          extractOutagePage(entry.getName).fold(acc):
+            (serviceName, env) => acc.updatedWith(serviceName):
+                                    currentEnvs => Option(currentEnvs.fold(List(env))(_ :+ env))
+      .map:
+        (serviceName, envs) => OutagePage(serviceName, envs)
       .toSeq
 
   private def extractOutagePage(path: String): Option[(ServiceName, Environment)] =
-    path.split("/") match {
+    path.split("/") match
       case Array(_, env, serviceName, OutagePage.outagePageName) =>
         Environment.parse(env).map(ServiceName(serviceName) -> _)
       case _ => None
-    }
-}

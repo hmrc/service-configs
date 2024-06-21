@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class LatestConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig] {
+     with DefaultPlayMongoRepositorySupport[LatestConfigRepository.LatestConfig]:
 
-  override protected val repository = new LatestConfigRepository(mongoComponent)
+  override protected val repository: LatestConfigRepository =
+    LatestConfigRepository(mongoComponent)
 
-  "LatestConfigRepository.put" should {
-    "put correctly" in {
+  "LatestConfigRepository.put" should:
+    "put correctly" in:
       val repoName1 = "app-config-base"
       repository.put(repoName1)(Map(FileName("file1") -> Content("content1"), FileName("file2") -> Content("content2"))).futureValue
       val repoName2 = "app-config-production"
@@ -48,21 +49,16 @@ class LatestConfigRepositorySpec
       repository.find(repoName1, "file2").futureValue shouldBe None
       repository.find(repoName2, "file3").futureValue shouldBe Some("content3")
       repository.find(repoName2, "file4").futureValue shouldBe Some("content4")
-    }
-  }
 
-  "LatestConfigRepository.findall" should {
-    "find correctly" in {
+  "LatestConfigRepository.findall" should:
+    "find correctly" in:
       val repoName1 = "app-config-base"
       repository.put(repoName1)(Map(FileName("file1") -> Content("content1"), FileName("file2") -> Content("content2"))).futureValue
       val repoName2 = "app-config-production"
       repository.put(repoName2)(Map(FileName("file3") -> Content("content3"), FileName("file4") -> Content("content4"))).futureValue
 
-      repository.findAll("app-config-production").futureValue shouldBe
+      repository.findAll(repoName2).futureValue shouldBe
         Seq(
-          LatestConfigRepository.LatestConfig(repoName = "app-config-production", FileName("file3"), Content("content3")),
-          LatestConfigRepository.LatestConfig(repoName = "app-config-production", FileName("file4"), Content("content4"))
+          LatestConfigRepository.LatestConfig(repoName = repoName2, FileName("file3"), Content("content3")),
+          LatestConfigRepository.LatestConfig(repoName = repoName2, FileName("file4"), Content("content4"))
         )
-    }
-  }
-}

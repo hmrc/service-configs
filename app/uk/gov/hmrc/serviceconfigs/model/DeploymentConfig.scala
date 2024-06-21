@@ -37,9 +37,9 @@ case class DeploymentConfig(
   applied       : Boolean
 )
 
-object DeploymentConfig {
-  private implicit val snf: Format[ServiceName] = ServiceName.format
-  private implicit val anf: Format[ArtefactName] = ArtefactName.format
+object DeploymentConfig:
+  private given Format[ServiceName] = ServiceName.format
+  private given Format[ArtefactName] = ArtefactName.format
 
   val mongoFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]
@@ -52,7 +52,7 @@ object DeploymentConfig {
     ~ (__ \ "envVars"     ).format[Map[String, String]]
     ~ (__ \ "jvm"         ).format[Map[String, String]]
     ~ (__ \ "applied"     ).format[Boolean]
-    )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
+    )(DeploymentConfig.apply, pt => Tuple.fromProductTyped(pt))
 
   val apiFormat: Format[DeploymentConfig] =
     ( (__ \ "name"        ).format[ServiceName]
@@ -65,5 +65,4 @@ object DeploymentConfig {
     ~ (__ \ "envVars"     ).format[Map[String, String]]
     ~ (__ \ "jvm"         ).format[Map[String, String]]
     ~ ignoreOnWrite[Boolean](__ \ "applied")
-    )(DeploymentConfig.apply, unlift(DeploymentConfig.unapply))
-}
+    )(DeploymentConfig.apply, pt => Tuple.fromProductTyped(pt))

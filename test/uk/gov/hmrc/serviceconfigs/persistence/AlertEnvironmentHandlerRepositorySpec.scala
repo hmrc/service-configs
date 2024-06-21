@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class AlertEnvironmentHandlerRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler] {
+     with DefaultPlayMongoRepositorySupport[AlertEnvironmentHandler]:
 
-  override protected val repository = new AlertEnvironmentHandlerRepository(mongoComponent)
+  override protected val repository: AlertEnvironmentHandlerRepository =
+    AlertEnvironmentHandlerRepository(mongoComponent)
 
-  "AlertEnvironmentHandlerRepository" should {
-    "putAll correctly" in {
+  "AlertEnvironmentHandlerRepository" should:
+    "putAll correctly" in:
       val alertEnvironmentHandler1 = AlertEnvironmentHandler(ServiceName("testNameOne"), production = true, location = "")
       repository.putAll(Seq(alertEnvironmentHandler1)).futureValue
       repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler1)
@@ -39,15 +40,11 @@ class AlertEnvironmentHandlerRepositorySpec
       val alertEnvironmentHandler2 = AlertEnvironmentHandler(ServiceName("testNameTwo"), production = false, location = "2")
       repository.putAll(Seq(alertEnvironmentHandler2)).futureValue
       repository.findAll().futureValue shouldBe Seq(alertEnvironmentHandler2)
-    }
 
-    "find one by matching service name" in {
+    "find one by matching service name" in:
       val alertEnvironmentHandlers = Seq(
         AlertEnvironmentHandler(ServiceName("testNameOne"), production = true, location = ""),
         AlertEnvironmentHandler(ServiceName("testNameTwo"), production = true, location = "")
       )
       repository.putAll(alertEnvironmentHandlers).futureValue
       repository.findByServiceName(ServiceName("testNameOne")).futureValue shouldBe alertEnvironmentHandlers.find(_.serviceName == ServiceName("testNameOne"))
-    }
-  }
-}

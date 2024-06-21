@@ -16,13 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.apache.pekko.actor.ActorSystem
-import org.mockito.scalatest.MockitoSugar
-import org.mongodb.scala.ClientSession
+import org.mongodb.scala.{ClientSession, SingleObservableFuture}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ResourceUsage, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ResourceUsage, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository.PlanOfWork
 import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepositorySpec._
 
@@ -33,55 +31,43 @@ import scala.concurrent.Future
 class ResourceUsageRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[ResourceUsage]
-     with MockitoSugar {
+     with DefaultPlayMongoRepositorySupport[ResourceUsage]:
 
-  private val mockedDeploymentConfigRepository: DeploymentConfigRepository =
-    mock[DeploymentConfigRepository]
+  override val repository: ResourceUsageRepository =
+    ResourceUsageRepository(mongoComponent)
 
-  private val mockedLatestConfigRepository: LatestConfigRepository =
-    mock[LatestConfigRepository]
-
-  private val as = ActorSystem()
-
-  override lazy val repository =
-    new ResourceUsageRepository(mockedDeploymentConfigRepository, mockedLatestConfigRepository ,mongoComponent, as)
-
-  "ResourceUsageRepository" should {
-    "Persist and retrieve `ResourceUsage`s" in {
-      (for {
+  "ResourceUsageRepository" should:
+    "Persist and retrieve `ResourceUsage`s" in:
+      (for
          before <- repository.find(ServiceName("A"))
          _      <- repository.add(resourceUsageA1)
          after  <- repository.find(ServiceName("A"))
          _       = before shouldBe empty
          _       = after shouldBe List(resourceUsageA1)
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Retrieve snapshots by service name" in {
-      (for {
+    "Retrieve snapshots by service name" in:
+      (for
          _         <- repository.add(resourceUsageA1)
          _         <- repository.add(resourceUsageB1)
          snapshots <- repository.find(ServiceName("A"))
          _          = snapshots shouldBe List(resourceUsageA1)
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Retrieve snapshots sorted by date, ascending" in {
-      (for {
+    "Retrieve snapshots sorted by date, ascending" in:
+      (for
          _         <- repository.add(resourceUsageB2)
          _         <- repository.add(resourceUsageB1)
          _         <- repository.add(resourceUsageB3)
          snapshots <- repository.find(ServiceName("B"))
            _       = snapshots shouldBe List(resourceUsageB1, resourceUsageB2, resourceUsageB3)
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Delete all documents in the collection" in  {
-      (for {
+    "Delete all documents in the collection" in:
+      (for
          _       <- repository.add(resourceUsageA1)
          _       <- repository.add(resourceUsageB1)
          _       <- repository.add(resourceUsageB2)
@@ -95,24 +81,22 @@ class ResourceUsageRepositorySpec
          after    = afterA ++ afterB
          _        = before.size shouldBe 4
          _        = after shouldBe empty
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Retrieve only the latest snapshots in an environment" in {
-      (for {
+    "Retrieve only the latest snapshots in an environment" in:
+      (for
          _         <- repository.add(resourceUsageA1)
          _         <- repository.add(resourceUsageA2)
          _         <- repository.add(resourceUsageC1)
          _         <- repository.add(resourceUsageC2)
          snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
            _        = snapshots shouldBe List( resourceUsageA2, resourceUsageC2 )
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Remove the `latest` flag for all non-deleted snapshots in an environment" in {
-      (for {
+    "Remove the `latest` flag for all non-deleted snapshots in an environment" in:
+      (for
          _         <- repository.add(resourceUsageA1)
          _         <- repository.add(resourceUsageA2)
          _         <- repository.add(resourceUsageC1)
@@ -120,22 +104,20 @@ class ResourceUsageRepositorySpec
          _         <- withClientSession(repository.removeLatestFlagForNonDeletedSnapshotsInEnvironment(Environment.Production, _))
          snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
          _          = snapshots shouldBe List(resourceUsageC2)
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Remove the `latest` flag for all snapshots of a service in an environment" in {
-      (for {
+    "Remove the `latest` flag for all snapshots of a service in an environment" in:
+      (for
          _         <- repository.add(resourceUsageC1)
          _         <- repository.add(resourceUsageC2)
          _         <- withClientSession(repository.removeLatestFlagForServiceInEnvironment(ServiceName("C"), Environment.Production, _))
          snapshots <- repository.latestSnapshotsInEnvironment(Environment.Production)
          _          = snapshots shouldBe empty
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Execute a `PlanOfWork`" in {
+    "Execute a `PlanOfWork`" in:
       val planOfWork =
         PlanOfWork(
           snapshots = List(resourceUsageA3, resourceUsageE2),
@@ -152,7 +134,7 @@ class ResourceUsageRepositorySpec
           resourceUsageE2
         )
 
-      (for {
+      (for
          _               <- repository.add(resourceUsageA2)
          _               <- repository.add(resourceUsageD1)
          _               <- repository.add(resourceUsageE1)
@@ -162,46 +144,41 @@ class ResourceUsageRepositorySpec
          snapshotsE      <- repository.find(ServiceName("E"))
          actualSnapshots = snapshotsA ++ snapshotsD ++ snapshotsE
          _               = actualSnapshots should contain theSameElementsAs(expectedSnapshots)
-       } yield ()
+       yield ()
       ).futureValue
-    }
 
-    "Set the 'latest' flag for all provided snapshots to correct value" in {
-      (
-        for {
-          _                             <- repository.add(resourceUsageF1) //should remain unchanged not in seq to to modify
-          _                             <- repository.add(resourceUsageF2)
-          _                             <- repository.add(resourceUsageF3)
-          _                             <- repository.setLatestFlag(
-                                             latest = false, Seq(
-                                               resourceUsageF2, //should modify latest = false
-                                               resourceUsageF3  //should remain unchanged, already false
-                                           ))
-          snapshotF1                    <- repository.find(ServiceName("F1"))
-          snapshotF2                    <- repository.find(ServiceName("F2"))
-          snapshotF3                    <- repository.find(ServiceName("F3"))
-          actualSnapshots               =  snapshotF1 ++ snapshotF2 ++ snapshotF3
-          expectedSnapshots             =  Seq(
-                                             resourceUsageF1,
-                                             resourceUsageF2.copy(latest = false),
-                                             resourceUsageF3,
-                                           )
-          _                             =  actualSnapshots should contain theSameElementsAs(expectedSnapshots)
-        } yield ()
+    "Set the 'latest' flag for all provided snapshots to correct value" in:
+      (for
+          _                 <- repository.add(resourceUsageF1) //should remain unchanged not in seq to to modify
+          _                 <- repository.add(resourceUsageF2)
+          _                 <- repository.add(resourceUsageF3)
+          _                 <- repository.setLatestFlag(
+                                 latest = false, Seq(
+                                   resourceUsageF2, //should modify latest = false
+                                   resourceUsageF3  //should remain unchanged, already false
+                               ))
+          snapshotF1        <- repository.find(ServiceName("F1"))
+          snapshotF2        <- repository.find(ServiceName("F2"))
+          snapshotF3        <- repository.find(ServiceName("F3"))
+          actualSnapshots   =  snapshotF1 ++ snapshotF2 ++ snapshotF3
+          expectedSnapshots =  Seq(
+                                 resourceUsageF1,
+                                 resourceUsageF2.copy(latest = false),
+                                 resourceUsageF3,
+                               )
+          _                 =  actualSnapshots should contain theSameElementsAs(expectedSnapshots)
+       yield ()
       ).futureValue
-    }
-  }
 
   private def withClientSession[A](f: ClientSession => Future[A]): Future[A] =
-    for {
+    for
       session <- mongoComponent.client.startSession().toFuture()
       f2      =  f(session)
       _       =  f2.onComplete(_ => session.close())
       res     <- f2
-    } yield res
-}
+    yield res
 
-object ResourceUsageRepositorySpec {
+object ResourceUsageRepositorySpec:
 
   val resourceUsageA1: ResourceUsage =
     ResourceUsage(
@@ -367,4 +344,3 @@ object ResourceUsageRepositorySpec {
       latest      = false,
       deleted     = false
     )
-}

@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -30,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class LatestConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit
+)(using
   ec: ExecutionContext
 ) extends PlayMongoRepository[LatestConfigRepository.LatestConfig](
   mongoComponent = mongoComponent,
@@ -40,10 +41,9 @@ class LatestConfigRepository @Inject()(
                      IndexModel(Indexes.ascending("repoName", "fileName"))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+
-                   Codecs.playFormatCodec(FileName.format) :+
+                   Codecs.playFormatCodec(FileName.format)        :+
                    Codecs.playFormatCodec(Content.format)
-) {
-
+):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
@@ -66,13 +66,14 @@ class LatestConfigRepository @Inject()(
   def put(repoName: String)(config: Map[FileName, Content]): Future[Unit] =
     MongoUtils.replace[LatestConfigRepository.LatestConfig](
       collection    = collection,
-      newVals       = config.toSeq.map { case (fileName, content) =>
-                        LatestConfigRepository.LatestConfig(
-                          repoName = repoName,
-                          fileName = fileName,
-                          content  = content
-                        )
-                      },
+      newVals       = config.toSeq.map:
+                        case (fileName, content) =>
+                          LatestConfigRepository.LatestConfig(
+                            repoName = repoName,
+                            fileName = fileName,
+                            content  = content
+                          )
+                      ,
       oldValsFilter = equal("repoName", repoName),
       compareById   = (a, b) =>
                         a.repoName == b.repoName &&
@@ -83,9 +84,8 @@ class LatestConfigRepository @Inject()(
                           equal("fileName", entry.fileName)
                         )
     )
-}
 
-object LatestConfigRepository {
+object LatestConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json.{Format, __}
 
@@ -97,12 +97,8 @@ object LatestConfigRepository {
     content : Content
   )
 
-  val mongoFormats: Format[LatestConfig] = {
-    implicit val fnf = FileName.format
-    implicit val cnf = Content.format
+  val mongoFormats: Format[LatestConfig] =
     ( (__ \ "repoName").format[String]
-    ~ (__ \ "fileName").format[FileName]
-    ~ (__ \ "content" ).format[Content]
-    )(LatestConfig.apply, unlift(LatestConfig.unapply))
-  }
-}
+    ~ (__ \ "fileName").format[FileName](FileName.format)
+    ~ (__ \ "content" ).format[Content](Content.format)
+    )(LatestConfig.apply, pt => Tuple.fromProductTyped(pt))

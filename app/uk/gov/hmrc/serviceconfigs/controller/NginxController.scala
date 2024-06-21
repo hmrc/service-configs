@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.json.{Json, Format}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FrontendRoutes, ServiceName}
@@ -29,42 +29,37 @@ import scala.concurrent.ExecutionContext
 class NginxController @Inject()(
   db: FrontendRouteRepository,
   mcc: MessagesControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(mcc) {
+) extends BackendController(mcc):
 
-  implicit val formats: OFormat[FrontendRoutes] = FrontendRoutes.formats
+  private given Format[FrontendRoutes] = FrontendRoutes.format
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findByService(serviceName)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def searchByEnvironment(environment: Environment): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findByEnvironment(environment)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.searchByFrontendPath(frontendPath)
         .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
 
   def allFrontendServices(): Action[AnyContent] =
-    Action.async {
+    Action.async:
       db.findAllFrontendServices()
         .map(_.map(_.asString))
         .map(_.filterNot(_.contains("$")))
         .map(Json.toJson(_))
         .map(Ok(_))
-    }
-}

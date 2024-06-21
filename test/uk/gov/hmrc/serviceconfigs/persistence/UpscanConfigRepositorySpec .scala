@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class UpscanConfigRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[UpscanConfig] {
+     with DefaultPlayMongoRepositorySupport[UpscanConfig]:
 
-  override lazy val repository = new UpscanConfigRepository(mongoComponent)
+  override val repository: UpscanConfigRepository =
+    UpscanConfigRepository(mongoComponent)
 
-  "UpscanConfigRepository" should {
-    "put and retrieve" in {
+  "UpscanConfigRepository" should:
+    "put and retrieve" in:
       val upscanConfig1 = UpscanConfig(serviceName = ServiceName("testName1"), location = "1", environment = Environment.Production)
       val upscanConfig2 = UpscanConfig(serviceName = ServiceName("testName2"), location = "2", environment = Environment.Production)
       repository.putAll(Seq(upscanConfig1, upscanConfig2)).futureValue
@@ -42,6 +43,3 @@ class UpscanConfigRepositorySpec
       repository.putAll(Seq(upscanConfig1.copy(location = "2"))).futureValue
       repository.findByService(upscanConfig1.serviceName).futureValue shouldBe Seq(upscanConfig1.copy(location = "2"))
       repository.findByService(upscanConfig2.serviceName).futureValue shouldBe empty
-    }
-  }
-}

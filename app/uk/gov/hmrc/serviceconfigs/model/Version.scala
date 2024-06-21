@@ -23,8 +23,7 @@ case class Version(
   minor   : Int,
   patch   : Int,
   original: String
-) extends Ordered[Version] {
-
+) extends Ordered[Version]:
   override def compare(other: Version): Int =
     if (major == other.major)
       if (minor == other.minor)
@@ -41,20 +40,17 @@ case class Version(
 
   def normalise: Version =
     Version(major, minor, patch, original = s"$major.$minor.$patch")
-}
 
-object Version {
+object Version:
   val format: Format[Version] =
-    new Format[Version] {
+    new Format[Version]:
       override def reads(json: JsValue) =
-        json match {
+        json match
           case JsString(s) => Version.parse(s).map(v => JsSuccess(v)).getOrElse(JsError("Could not parse version"))
           case _           => JsError("Not a string")
-        }
 
       override def writes(v: Version) =
         JsString(v.original)
-    }
 
   val mongoVersionRepositoryFormat :OFormat[Version] =
     (__ \ "version" ).format[Version](format)
@@ -65,15 +61,12 @@ object Version {
   def apply(major: Int, minor: Int, patch: Int): Version =
     Version(major, minor, patch, s"$major.$minor.$patch")
 
-  def parse(s: String): Option[Version] = {
+  def parse(s: String): Option[Version] =
     val regex3 = """(\d+)\.(\d+)\.(\d+)(.*)""".r
     val regex2 = """(\d+)\.(\d+)(.*)""".r
     val regex1 = """(\d+)(.*)""".r
-    s match {
+    s match
       case regex3(maj, min, patch, _) => Some(Version(Integer.parseInt(maj), Integer.parseInt(min), Integer.parseInt(patch), s))
       case regex2(maj, min,  _)       => Some(Version(Integer.parseInt(maj), Integer.parseInt(min), 0                      , s))
       case regex1(patch,  _)          => Some(Version(0                    , 0                    , Integer.parseInt(patch), s))
       case _                          => None
-    }
-  }
-}

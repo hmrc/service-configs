@@ -26,12 +26,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class GrafanaDashboardRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[Dashboard] {
+     with DefaultPlayMongoRepositorySupport[Dashboard]:
 
-  override lazy val repository = new GrafanaDashboardRepository(mongoComponent)
+  override val repository: GrafanaDashboardRepository =
+    GrafanaDashboardRepository(mongoComponent)
 
-  "GrafanaDashboardRepository" should {
-    "put and retrieve" in {
+  "GrafanaDashboardRepository" should:
+    "put and retrieve" in:
       val dashboard1 = Dashboard(serviceName = ServiceName("testName1"), location = "1")
       val dashboard2 = Dashboard(serviceName = ServiceName("testName2"), location = "2")
       repository.putAll(Seq(dashboard1, dashboard2)).futureValue
@@ -42,6 +43,3 @@ class GrafanaDashboardRepositorySpec
       repository.putAll(Seq(dashboard1.copy(location = "2"))).futureValue
       repository.findByService(dashboard1.serviceName).futureValue shouldBe Some(dashboard1.copy(location = "2"))
       repository.findByService(dashboard2.serviceName).futureValue shouldBe None
-    }
-  }
-}

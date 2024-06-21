@@ -16,10 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import org.mockito.scalatest.MockitoSugar
+import org.mockito.Mockito.when
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.JsResultException
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
 import uk.gov.hmrc.serviceconfigs.model.{YamlRoutesFile, ServiceName}
@@ -28,13 +29,13 @@ class YamlConfigParserSpec
   extends AnyWordSpec
     with Matchers
     with MockitoSugar
-    with OptionValues {
+    with OptionValues:
 
   val nginxConfig = mock[NginxConfig]
   val shutterConfig = NginxShutterConfig("/etc/nginx/switches/mdtp/offswitch", "/etc/nginx/switches/mdtp/")
   when(nginxConfig.shutterConfig).thenReturn(shutterConfig)
 
-  val parser = new YamlConfigParser(nginxConfig)
+  val parser = YamlConfigParser(nginxConfig)
 
   def fileWithContent(content: String): YamlRoutesFile =
     YamlRoutesFile(
@@ -44,8 +45,8 @@ class YamlConfigParserSpec
       "HEAD"
     )
 
-  "parseConfig" should {
-    "produce one output environment using defaults for shuttering and zone" in {
+  "parseConfig" should:
+    "produce one output environment using defaults for shuttering and zone" in:
       val content =
         """
           |my-service-frontend:
@@ -57,10 +58,8 @@ class YamlConfigParserSpec
           |""".stripMargin
 
       val result = parser.parseConfig(fileWithContent(content))
-
       result.size shouldBe 2
-
-      result.map { r =>
+      result.map: r =>
         r.service              shouldBe ServiceName("my-service-frontend")
         r.frontendPath         shouldBe "/my-service"
         r.backendPath          shouldBe "https://my-service-frontend.public.mdtp" // zone defaults to public
@@ -72,10 +71,8 @@ class YamlConfigParserSpec
         r.shutterServiceSwitch
           .value.errorPage     shouldBe Some("/shuttered$LANG/my-service-frontend") // enabled by default
         r.isRegex              shouldBe false
-      }
-    }
 
-    "detect and handle locations with regex" in {
+    "detect and handle locations with regex" in:
       val content =
         """
           |my-service-frontend:
@@ -85,15 +82,12 @@ class YamlConfigParserSpec
           |""".stripMargin
 
       val result = parser.parseConfig(fileWithContent(content))
-
       result.size shouldBe 1
-
       result.head.service      shouldBe ServiceName("my-service-frontend")
       result.head.frontendPath shouldBe "^/(my-service|hello-world)"
       result.head.isRegex      shouldBe true
-    }
 
-    "handle a service that doesn't support shuttering (incl non-default zone)" in {
+    "handle a service that doesn't support shuttering (incl non-default zone)" in:
       val content =
         """
           |my-service-frontend:
@@ -106,18 +100,15 @@ class YamlConfigParserSpec
           |""".stripMargin
 
       val result = parser.parseConfig(fileWithContent(content))
-
       result.size shouldBe 1
-
       result.head.service              shouldBe ServiceName("my-service-frontend")
       result.head.frontendPath         shouldBe "/my-service"
       result.head.backendPath          shouldBe "https://my-service-frontend.public-monolith.mdtp"
       result.head.shutterKillswitch    shouldBe None
       result.head.shutterServiceSwitch shouldBe None
       result.head.isRegex              shouldBe false
-    }
 
-    "handle a service with multiple locations in an environment" in {
+    "handle a service with multiple locations in an environment" in:
       val content =
         """
           |my-service-frontend:
@@ -128,13 +119,10 @@ class YamlConfigParserSpec
           |""".stripMargin
 
       val result = parser.parseConfig(fileWithContent(content))
-
       result.size shouldBe 2
-
       result.map(_.frontendPath) should contain theSameElementsAs Seq("/my-service", "/hello-world")
-    }
 
-    "throw an exception given bad yaml" in {
+    "throw an exception given bad yaml" in:
       val content =
         """
           |foo
@@ -144,7 +132,3 @@ class YamlConfigParserSpec
           |""".stripMargin
 
       a[JsResultException] should be thrownBy parser.parseConfig(fileWithContent(content))
-    }
-  }
-
-}

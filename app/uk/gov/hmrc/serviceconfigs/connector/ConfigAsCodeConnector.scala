@@ -20,7 +20,7 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Source, StreamConverters}
 import org.apache.pekko.util.ByteString
 import play.api.Logging
-import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.client.{HttpClientV2, readEitherSource}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
@@ -35,13 +35,13 @@ import scala.concurrent.{ExecutionContext, Future}
 class ConfigAsCodeConnector @Inject()(
   githubConfig: GithubConfig,
   httpClientV2: HttpClientV2
-)(implicit
+)(using
   ec : ExecutionContext,
   mat: Materializer
-) extends Logging {
+) extends Logging:
   import HttpReads.Implicits._
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   def streamInternalAuth(): Future[ZipInputStream] =
     streamGithub(RepoName("internal-auth-config"))
@@ -64,7 +64,7 @@ class ConfigAsCodeConnector @Inject()(
   def streamUpscanAppConfig(): Future[ZipInputStream] =
     streamGithub(RepoName("upscan-app-config"))
 
-  def getLatestCommitId(repo: RepoName): Future[CommitId] = {
+  def getLatestCommitId(repo: RepoName): Future[CommitId] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD"
     httpClientV2
       .get(url)
@@ -75,15 +75,13 @@ class ConfigAsCodeConnector @Inject()(
       )
       .withProxy
       .execute[Either[UpstreamErrorResponse, HttpResponse]]
-      .map {
+      .map:
         case Right(rsp)  => CommitId(rsp.body)
         case Left(error) =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
-      }
-    }
 
-  def streamGithub(repo: RepoName): Future[ZipInputStream] = {
+  def streamGithub(repo: RepoName): Future[ZipInputStream] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/HEAD"
     httpClientV2
       .get(url)
@@ -91,13 +89,10 @@ class ConfigAsCodeConnector @Inject()(
       .withProxy
       .transform(_.withRequestTimeout(120.seconds))
       .stream[Either[UpstreamErrorResponse, Source[ByteString, _]]]
-      .map {
+      .map:
         case Right(source) =>
           logger.info(s"Successfully streaming $url")
-          new ZipInputStream(source.runWith(StreamConverters.asInputStream()))
+          ZipInputStream(source.runWith(StreamConverters.asInputStream()))
         case Left(error)   =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
-      }
-  }
-}

@@ -24,12 +24,13 @@ case class GrantGroup(
   grant   : GrantType
 )
 
-object GrantGroup {
+object GrantGroup:
   val grantGroupReads: Reads[Option[GrantGroup]] =
-    (__ \ "grantees" \ "service").read[Seq[String]].map(v => Some(GrantGroup(v, GrantType.Grantee)))
+    (__ \ "grantees" \ "service")
+      .read[Seq[String]]
+      .map(v => Some(GrantGroup(v, GrantType.Grantee)))
       .or((__ \ "resourceType").read[String].map(v => Some(GrantGroup(List(v), GrantType.Grantor))))
       .or(Reads.pure(None))
-}
 
 case class InternalAuthConfig(
   serviceName: ServiceName,
@@ -37,62 +38,45 @@ case class InternalAuthConfig(
   grantType  : GrantType
 )
 
-object InternalAuthConfig {
-  val format: Format[InternalAuthConfig] = {
-    implicit val snf = ServiceName.format
-    ( (__ \ "serviceName").format[ServiceName]
-    ~ (__ \ "environment").format[InternalAuthEnvironment]
-    ~ (__ \ "grantType"  ).format[GrantType]
-    )(InternalAuthConfig.apply, unlift(InternalAuthConfig.unapply))
-  }
-}
+object InternalAuthConfig:
+  val format: Format[InternalAuthConfig] =
+    ( (__ \ "serviceName").format[ServiceName](ServiceName.format)
+    ~ (__ \ "environment").format[InternalAuthEnvironment](InternalAuthEnvironment.format)
+    ~ (__ \ "grantType"  ).format[GrantType](GrantType.format)
+    )(InternalAuthConfig.apply, pt => Tuple.fromProductTyped(pt))
 
-sealed trait GrantType{ def asString: String }
+enum GrantType(val asString: String):
+  case Grantee extends GrantType("grantee")
+  case Grantor extends GrantType("grantor")
 
-object GrantType {
-  case object Grantee extends GrantType {
-    val asString = "grantee"
-  }
+object GrantType:
+  val format: Format[GrantType] =
+    new Format[GrantType]:
+      override def writes(grantType: GrantType): JsValue =
+        JsString(grantType.asString)
 
-  case object Grantor extends GrantType {
-    val asString = "grantor"
-  }
+      override def reads(json: JsValue): JsResult[GrantType] =
+        json
+          .validate[String]
+          .flatMap:
+            case "grantee" => JsSuccess(Grantee)
+            case "grantor" => JsSuccess(Grantor)
+            case _         => JsError("Invalid Grant Type")
 
-  implicit val format: Format[GrantType] = new Format[GrantType] {
-    override def writes(grantType: GrantType): JsValue =
-      JsString(grantType.asString)
+enum InternalAuthEnvironment(val asString: String):
+  case Prod extends InternalAuthEnvironment("production")
+  case Qa   extends InternalAuthEnvironment("qa")
 
-    override def reads(json: JsValue): JsResult[GrantType] =
-      json.validate[String].flatMap {
-        case "grantee" => JsSuccess(Grantee)
-        case "grantor" => JsSuccess(Grantor)
-        case _         => JsError("Invalid Grant Type")
-      }
-  }
-}
+object InternalAuthEnvironment:
+  val format: Format[InternalAuthEnvironment] =
+    new Format[InternalAuthEnvironment]:
+      override def writes(o: InternalAuthEnvironment): JsValue =
+        JsString(o.asString)
 
-sealed trait InternalAuthEnvironment {
-  def asString: String
-}
-
-object InternalAuthEnvironment {
-  case object Prod extends InternalAuthEnvironment {
-    val asString = "production"
-  }
-
-  case object Qa extends InternalAuthEnvironment {
-    val asString = "qa"
-  }
-
-  implicit val format: Format[InternalAuthEnvironment] = new Format[InternalAuthEnvironment] {
-    override def writes(o: InternalAuthEnvironment): JsValue =
-      JsString(o.asString)
-
-    override def reads(json: JsValue): JsResult[InternalAuthEnvironment] =
-      json.validate[String].flatMap {
-        case "production" => JsSuccess(Prod)
-        case "qa"         => JsSuccess(Qa)
-        case _            => JsError("Invalid Internal Auth Environment")
-      }
-  }
-}
+      override def reads(json: JsValue): JsResult[InternalAuthEnvironment] =
+        json
+          .validate[String]
+          .flatMap:
+            case "production" => JsSuccess(Prod)
+            case "qa"         => JsSuccess(Qa)
+            case _            => JsError("Invalid Internal Auth Environment")

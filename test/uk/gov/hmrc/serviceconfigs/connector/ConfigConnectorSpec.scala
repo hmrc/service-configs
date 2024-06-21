@@ -34,22 +34,22 @@ class ConfigConnectorSpec
      with ScalaFutures
      with IntegrationPatience
      with WireMockSupport
-     with HttpClientV2Support {
+     with HttpClientV2Support:
 
-  private implicit val hc: HeaderCarrier = HeaderCarrier()
+  private given HeaderCarrier = HeaderCarrier()
 
   private val token = "token"
 
-  private val githubConfig = new GithubConfig(Configuration(
+  private val githubConfig = GithubConfig(Configuration(
     "github.open.api.apiurl" -> wireMockUrl,
     "github.open.api.rawurl" -> wireMockUrl,
     "github.open.api.token"  -> token
   ))
 
-  private val connector = new ConfigConnector(httpClientV2, githubConfig)
+  private val connector = ConfigConnector(httpClientV2, githubConfig)
 
-  "ConfigConnector" should {
-    "retrieve appConfigEnvYaml" in {
+  "ConfigConnector" should:
+    "retrieve appConfigEnvYaml" in:
       stubFor(
         get(urlEqualTo("/hmrc/app-config-production/1234/service.yaml"))
           .willReturn(aResponse().withBody("content"))
@@ -63,9 +63,8 @@ class ConfigConnectorSpec
         getRequestedFor(urlPathEqualTo("/hmrc/app-config-production/1234/service.yaml"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
-    }
 
-    "retrieve appConfigBaseConf" in {
+    "retrieve appConfigBaseConf" in:
       stubFor(
         get(urlEqualTo("/hmrc/app-config-base/1234/service.conf"))
           .willReturn(aResponse().withBody("content"))
@@ -79,9 +78,8 @@ class ConfigConnectorSpec
         getRequestedFor(urlPathEqualTo("/hmrc/app-config-base/1234/service.conf"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
-    }
 
-    "retrieve appConfigCommonYaml" in {
+    "retrieve appConfigCommonYaml" in:
       stubFor(
         get(urlEqualTo("/hmrc/app-config-common/1234/production-frontend-common.yaml"))
           .willReturn(aResponse().withBody("content"))
@@ -95,9 +93,8 @@ class ConfigConnectorSpec
         getRequestedFor(urlPathEqualTo("/hmrc/app-config-common/1234/production-frontend-common.yaml"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
-    }
 
-    "retrieve appConfigCommonYaml without 'api-'' in name" in {
+    "retrieve appConfigCommonYaml without 'api-'' in name" in:
       stubFor(
         get(urlEqualTo("/hmrc/app-config-common/1234/production-microservice-common.yaml"))
           .willReturn(aResponse().withBody("content"))
@@ -106,9 +103,8 @@ class ConfigConnectorSpec
       connector.appConfigCommonYaml(FileName("production-api-microservice-common.yaml"), CommitId("1234")).futureValue shouldBe Some(
         "content"
       )
-    }
 
-    "retrieve applicationConf" in {
+    "retrieve applicationConf" in:
       stubFor(
         get(urlEqualTo("/hmrc/service/1234/conf/application.conf"))
           .willReturn(aResponse().withBody("content"))
@@ -122,6 +118,3 @@ class ConfigConnectorSpec
         getRequestedFor(urlPathEqualTo("/hmrc/service/1234/conf/application.conf"))
           .withHeader("Authorization", equalTo(s"token $token"))
       )
-    }
-  }
-}

@@ -27,16 +27,15 @@ import uk.gov.hmrc.serviceconfigs.connector.RoutesConfigConnector
 class RoutesConfigService @Inject()(
   adminFrontendRouteRepo: AdminFrontendRouteRepository
 , routesConfigConnector:  RoutesConfigConnector
-)(implicit
+)(using
   ec: ExecutionContext
-) extends Logging {
+) extends Logging:
 
   def updateAdminFrontendRoutes(): Future[Unit] =
-    for {
+    for
       _      <- Future.successful(logger.info(s"Updating Admin Frontend Routes..."))
       routes <- routesConfigConnector.allAdminFrontendRoutes()
       _       = logger.info(s"Inserting ${routes.size} admin frontend routes into mongo")
       count  <- adminFrontendRouteRepo.putAll(routes)
       _       = logger.info(s"Inserted $count admin frontend routes into mongo")
-    } yield ()
-}
+    yield ()

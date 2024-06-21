@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ServiceManagerConfigRepository @Inject()(
   mongoComponent: MongoComponent
-)(implicit ec: ExecutionContext
+)(using ec: ExecutionContext
 ) extends PlayMongoRepository[ServiceManagerConfigRepository.ServiceManagerConfig](
   mongoComponent = mongoComponent,
   collectionName = "serviceManagerConfig",
@@ -39,7 +39,7 @@ class ServiceManagerConfigRepository @Inject()(
                      IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
                    ),
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
-) {
+):
   import ServiceManagerConfigRepository._
 
   // we replace all the data for each call to putAll
@@ -57,9 +57,8 @@ class ServiceManagerConfigRepository @Inject()(
       compareById   = (a, b) => a.serviceName == b.serviceName,
       filterById    = entry => equal("service", entry.serviceName)
     )
-}
 
-object ServiceManagerConfigRepository {
+object ServiceManagerConfigRepository:
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
@@ -68,12 +67,8 @@ object ServiceManagerConfigRepository {
     location   : String
   )
 
-  object ServiceManagerConfig {
-    val format: Format[ServiceManagerConfig] = {
-      implicit val snf = ServiceName.format
-      ( (__ \ "service" ).format[ServiceName]
+  object ServiceManagerConfig:
+    val format: Format[ServiceManagerConfig] =
+      ( (__ \ "service" ).format[ServiceName](ServiceName.format)
       ~ (__ \ "location").format[String]
-      )(ServiceManagerConfig.apply, unlift(ServiceManagerConfig.unapply))
-    }
-  }
-}
+      )(ServiceManagerConfig.apply, pt => Tuple.fromProductTyped(pt))

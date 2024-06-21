@@ -29,17 +29,14 @@ import scala.concurrent.ExecutionContext
 class OutagePageController @Inject()(
   outagePageService: OutagePageService,
   cc               : ControllerComponents
-)(implicit
+)(using
   ec: ExecutionContext
-) extends BackendController(cc){
-
-  private implicit val ef: Format[Environment] = Environment.format
+) extends BackendController(cc):
 
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
-    Action.async {
-      for {
+    given Format[Environment] = Environment.format
+    Action.async:
+      for
         optEnvironments <- outagePageService.findByServiceName(serviceName)
         result          =  optEnvironments.fold(NotFound(""))(e => Ok(Json.toJson(e)))
-      } yield result
-    }
-}
+      yield result

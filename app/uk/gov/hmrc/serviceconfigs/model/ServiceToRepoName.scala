@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.{Format, __}
 
 case class ServiceToRepoName(
@@ -25,10 +25,9 @@ case class ServiceToRepoName(
   repoName    : RepoName
 )
 
-object ServiceToRepoName {
+object ServiceToRepoName:
   val mongoFormat: Format[ServiceToRepoName] =
     ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "artefactName").format[ArtefactName](ArtefactName.format)
     ~ (__ \ "repoName"    ).format[RepoName](RepoName.format)
-    ) (ServiceToRepoName.apply, unlift(ServiceToRepoName.unapply))
-}
+    ) (ServiceToRepoName.apply, pt => Tuple.fromProductTyped(pt))

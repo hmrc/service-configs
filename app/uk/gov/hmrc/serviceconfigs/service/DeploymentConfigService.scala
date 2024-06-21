@@ -21,18 +21,19 @@ import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, DeploymentConfig, Environ
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 
-object DeploymentConfigService extends Logging {
+object DeploymentConfigService extends Logging:
   import play.api.libs.functional.syntax._
   import play.api.libs.json._
 
   private def readMap(path: JsPath): Reads[Map[String, String]] =
-    path.readWithDefault[Map[String, JsValue]](Map.empty)
-      .map(_.view.mapValues {
+    path
+      .readWithDefault[Map[String, JsValue]](Map.empty)
+      .map(_.view.mapValues:
         case JsString(v)  => ConfigValue.suppressEncryption(v)
         case JsBoolean(b) => b.toString
         case JsNumber(n)  => n.toString
         case other        => other.toString // not expected
-      }.toMap)
+      .toMap)
 
   private def yamlDeploymentConfigReads(
     serviceName: ServiceName,
@@ -57,13 +58,14 @@ object DeploymentConfigService extends Logging {
     applied    : Boolean,
     fileContent: String
   ): Option[DeploymentConfig] =
-    scala.util.Try {
+    scala.util.Try(
       YamlUtil
         .fromYaml[Map[String, JsValue]](fileContent)
         .get("0.0.0")
         .map(_.as[DeploymentConfig](yamlDeploymentConfigReads(serviceName, environment, applied)))
-    }.fold(
-      err => { logger.error(s"Could not process the deployment config for ${serviceName.asString}, ${environment.asString}: ${err.getMessage}" , err); None }
+    ).fold(
+      err =>
+        logger.error(s"Could not process the deployment config for ${serviceName.asString}, ${environment.asString}: ${err.getMessage}" , err)
+        None
     , res => res
     )
-}
