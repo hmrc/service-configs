@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.{Indexes, IndexModel}
+import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
+import org.mongodb.scala.model.{IndexModel, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.serviceconfigs.model.Environment
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FileName, Content}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -39,7 +40,9 @@ class LatestConfigRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("repoName", "fileName"))
                    ),
-  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format)
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+
+                   Codecs.playFormatCodec(FileName.format)        :+
+                   Codecs.playFormatCodec(Content.format)
 ):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
@@ -53,9 +56,14 @@ class LatestConfigRepository @Inject()(
         )
       )
       .headOption()
-      .map(_.map(_.content))
+      .map(_.map(_.content.asString))
 
-  def put(repoName: String)(config: Map[String, String]): Future[Unit] =
+  def findAll(repoName: String): Future[Seq[LatestConfigRepository.LatestConfig]] =
+    collection
+      .find(equal("repoName", repoName))
+      .toFuture()
+
+  def put(repoName: String)(config: Map[FileName, Content]): Future[Unit] =
     MongoUtils.replace[LatestConfigRepository.LatestConfig](
       collection    = collection,
       newVals       = config.toSeq.map:
@@ -85,12 +93,12 @@ object LatestConfigRepository:
 
   case class LatestConfig(
     repoName: String,
-    fileName: String,
-    content : String
+    fileName: FileName,
+    content : Content
   )
 
   val mongoFormats: Format[LatestConfig] =
     ( (__ \ "repoName").format[String]
-    ~ (__ \ "fileName").format[String]
-    ~ (__ \ "content" ).format[String]
+    ~ (__ \ "fileName").format[FileName](FileName.format)
+    ~ (__ \ "content" ).format[Content](Content.format)
     )(LatestConfig.apply, pt => Tuple.fromProductTyped(pt))

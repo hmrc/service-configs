@@ -17,10 +17,11 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
-import org.mongodb.scala.{ClientSession, ClientSessionOptions, ObservableFuture, ReadConcern, ReadPreference, SingleObservableFuture, TransactionOptions, WriteConcern}
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts}
+
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.Updates.set
+import org.mongodb.scala.model.{FindOneAndReplaceOptions, Indexes, IndexModel, IndexOptions, Sorts, UpdateOneModel}
+import org.mongodb.scala.{ClientSession, ClientSessionOptions, ObservableFuture, ReadConcern, ReadPreference, SingleObservableFuture, TransactionOptions, WriteConcern}
 import play.api.Logging
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -34,7 +35,6 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ResourceUsageRepository @Inject()(
-  deploymentConfigRepository : DeploymentConfigRepository,
   override val mongoComponent: MongoComponent
 )(using
   ec: ExecutionContext
@@ -75,7 +75,7 @@ class ResourceUsageRepository @Inject()(
       .sort(Sorts.ascending("date"))
       .toFuture()
 
-  private[persistence] def latestSnapshotsInEnvironment(environment: Environment): Future[Seq[ResourceUsage]] =
+  def latestSnapshotsInEnvironment(environment: Environment): Future[Seq[ResourceUsage]] =
     collection
       .find(
         and(
@@ -133,17 +133,26 @@ class ResourceUsageRepository @Inject()(
       .toFuture()
       .map(_ =>())
 
-  def populate(date: Instant): Future[Unit] =
-    Environment.values.toList.foldLeftM[Future, Unit](()):
-      (_, environment) =>
-        for
-          deploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(environment))
-          latestSnapshots   <- latestSnapshotsInEnvironment(environment)
-          planOfWork        =  PlanOfWork.fromLatestSnapshotsAndCurrentDeploymentConfigs(latestSnapshots.toList, deploymentConfigs.toList, date)
-          _                 <- executePlanOfWork(planOfWork, environment)
-        yield ()
+  def setLatestFlag(latest: Boolean, snapshots: Seq[ResourceUsage]): Future[Unit] =
+    if snapshots.isEmpty then
+      Future.unit
+    else
+      collection
+        .bulkWrite(
+          snapshots.map: snapshot =>
+            UpdateOneModel(
+              and(
+                equal("serviceName", snapshot.serviceName),
+                equal("environment", snapshot.environment),
+                equal("date"       , snapshot.date)
+              ),
+              set("latest", latest)
+            )
+        )
+        .toFuture()
+        .map(_ => ())
 
-  private[persistence] def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] =
+  def executePlanOfWork(planOfWork: PlanOfWork, environment: Environment): Future[Unit] =
     logger.debug(s"Processing `ResourceUsage`s for ${environment.asString}")
 
     def insertSnapshot(snapshot: ResourceUsage) =

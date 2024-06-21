@@ -21,8 +21,7 @@ import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
-import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository
-import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, UpscanConfigService}
+import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, ResourceUsageService, UpscanConfigService}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -30,14 +29,15 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConfigScheduler @Inject()(
-  schedulerConfigs         : SchedulerConfigs,
-  mongoLockRepository      : MongoLockRepository,
-  alertConfigService       : AlertConfigService,
-  internalAuthConfigService: InternalAuthConfigService,
-  upscanConfigService      : UpscanConfigService,
-  resourceUsageRepository  : ResourceUsageRepository,
-  timestampSupport         : TimestampSupport
 )(using
+  schedulerConfigs          : SchedulerConfigs,
+  mongoLockRepository       : MongoLockRepository,
+  alertConfigService        : AlertConfigService,
+  internalAuthConfigService : InternalAuthConfigService,
+  upscanConfigService       : UpscanConfigService,
+  resourceUsageService      : ResourceUsageService,
+  timestampSupport          : TimestampSupport
+)(implicit
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
@@ -51,9 +51,9 @@ class ConfigScheduler @Inject()(
     logger.info("Updating config")
     runAllAndFailWithFirstError(
       for
-        _ <- accumulateErrors("snapshot Deployments" , resourceUsageRepository.populate(Instant.now()))
-        _ <- accumulateErrors("update Alert Handlers", alertConfigService.update())
+        _ <- accumulateErrors("snapshot Deployments"       , resourceUsageService.populate(Instant.now()))
+        _ <- accumulateErrors("update Alert Handlers"      , alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
-        - <- accumulateErrors("update Upscan Config", upscanConfigService.update())
+        - <- accumulateErrors("update Upscan Config"       , upscanConfigService.update())
       yield logger.info("Finished updating config")
     )

@@ -96,3 +96,15 @@ class DeploymentConfigRepository @Inject()(
       )
       .toFutureOption()
       .map(_ => ())
+
+  def delete(deploymentConfig: DeploymentConfig): Future[Unit] =
+    collection
+      .findOneAndDelete(
+        filter = Filters.and(
+                   Filters.equal("name"       , deploymentConfig.serviceName),
+                   Filters.equal("environment", deploymentConfig.environment),
+                   Filters.equal("applied"    , deploymentConfig.applied)
+                 )
+      )
+      .toFutureOption()
+      .map(_ => ())

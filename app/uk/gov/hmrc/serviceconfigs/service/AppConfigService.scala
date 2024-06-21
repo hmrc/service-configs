@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FileName, Content, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, LastHashRepository, LatestConfigRepository}
 
 import java.util.zip.ZipInputStream
@@ -36,7 +36,7 @@ class AppConfigService @Inject()(
   configAsCodeConnector     : ConfigAsCodeConnector
 )(using
   ec : ExecutionContext
-) {
+):
   private val logger = Logger(this.getClass)
 
   def updateAppConfigBase(): Future[Unit] =
@@ -49,22 +49,31 @@ class AppConfigService @Inject()(
     Environment.values.toList.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")){ data =>
-      for {
-        _ <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
-        _ <- data.toSeq.foldLeftM(()){ case (_, (filename, content)) =>
-               DeploymentConfigService.toDeploymentConfig(
-                 serviceName = ServiceName(filename.stripSuffix(".yaml")),
-                 environment = env,
-                 applied     = false,
-                 fileContent = content
-               ).fold(Future.unit)(deploymentConfigRepository.add)
-             }
-      } yield ()
-    }
+    updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")):
+      (data: Map[FileName, Content]) =>
+        for
+         _   <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
+         cnf =  data.toSeq.flatMap:
+                  case (filename, content) =>
+                    DeploymentConfigService.toDeploymentConfig(
+                      serviceName = ServiceName(filename.asString.stripSuffix(".yaml")),
+                      environment = env,
+                      applied     = false,
+                      fileContent = content.asString
+                    )
+         _   <- deploymentConfigRepository.replaceEnv(applied = false, environment = env, configs = cnf)
+         _   <- updateAppliedDeploymentConfig(env, data.keySet.toSeq)
+        yield ()
 
-  private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[String, String] => Future[Unit]): Future[Unit] =
-    (for {
+  def updateAppliedDeploymentConfig(env: Environment, latestFiles: Seq[FileName]): Future[Unit] =
+    for
+      undeployedDeploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(env)).map(_.filter(_.instances == 0))      // ensure no aws usage
+      undeployedAndDeletedConfigs =  undeployedDeploymentConfigs.filter(dConfig => !latestFiles.contains(s"${dConfig.serviceName.asString}.yaml")) // check for deleted github config
+      _                           <- undeployedAndDeletedConfigs.traverse(config => deploymentConfigRepository.delete(config))
+    yield ()
+
+  private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[FileName, Content] => Future[Unit]): Future[Unit] =
+    (for
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
       previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(repoName.asString))
@@ -74,44 +83,40 @@ class AppConfigService @Inject()(
       config        =  try { extractConfig(is, filter) } finally { is.close() }
       _             <- EitherT.right[Unit](store(config))
       _             <- EitherT.right[Unit](lastHashRepository.update(repoName.asString, hash))
-     } yield ()
+     yield ()
     ).merge
 
-  private def extractConfig(zip: ZipInputStream, filter: String => Boolean): Map[String, String] =
+  private def extractConfig(zip: ZipInputStream, filter: String => Boolean): Map[FileName, Content] =
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[String, String]){ (acc, entry) =>
-        val fileName = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        if (filter(fileName)) {
-          val content = Source.fromInputStream(zip).mkString
-          acc + (fileName -> content)
-        } else acc
-      }
+      .foldLeft(Map.empty[FileName, Content]):
+        (acc, entry) =>
+          val fileName = FileName(entry.getName.drop(entry.getName.indexOf('/') + 1))
+          if filter(fileName.asString) then
+            acc + (fileName -> Content(Source.fromInputStream(zip).mkString))
+          else acc
 
   def appConfigBaseConf(serviceName: ServiceName): Future[Option[String]] =
     latestConfigRepository.find(
-      repoName    = "app-config-base",
-      fileName    = s"${serviceName.asString}.conf"
+      repoName = "app-config-base",
+      fileName = s"${serviceName.asString}.conf"
     )
 
   def appConfigEnvYaml(environment: Environment, serviceName: ServiceName): Future[Option[String]] =
     latestConfigRepository.find(
-      repoName    = s"app-config-${environment.asString}",
-      fileName    = s"${serviceName.asString}.yaml"
+      repoName = s"app-config-${environment.asString}",
+      fileName = s"${serviceName.asString}.yaml"
     )
 
-  def appConfigCommonYaml(environment: Environment, serviceType: String): Future[Option[String]] = {
+  def appConfigCommonYaml(environment: Environment, serviceType: String): Future[Option[String]] =
     // `$env-api-frontend-common.yaml` and `$env-api-microservice-common.yaml` are not actually yaml files, they are links to relevant underlying yaml file.
-    val st = serviceType match {
+    val st = serviceType match
       case "api-frontend"     => "frontend"
       case "api-microservice" => "microservice"
       case other              => other
-    }
 
     latestConfigRepository.find(
       repoName = "app-config-common",
       fileName = s"${environment.asString}-$st-common.yaml"
     )
-  }
-}

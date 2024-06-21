@@ -23,6 +23,7 @@ case class ArtefactName (asString: String) extends AnyVal
 case class CommitId     (asString: String) extends AnyVal
 case class RepoName     (asString: String) extends AnyVal
 case class FileName     (asString: String) extends AnyVal
+case class Content      (asString: String) extends AnyVal
 case class ServiceName  (asString: String) extends AnyVal
 case class Tag          (asString: String) extends AnyVal
 case class TeamName     (asString: String) extends AnyVal
@@ -34,6 +35,14 @@ object ArtefactName:
 object RepoName:
   val format =
     implicitly[Format[String]].inmap(RepoName.apply, _.asString)
+
+object FileName:
+  val format =
+    implicitly[Format[String]].inmap(FileName.apply, _.asString)
+
+object Content:
+  val format =
+    implicitly[Format[String]].inmap(Content.apply, _.asString)
 
 object ServiceName:
   val format =

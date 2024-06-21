@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.mongodb.scala.{ClientSession, SingleObservableFuture}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ResourceUsage, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.ResourceUsageRepository.PlanOfWork
@@ -32,14 +31,10 @@ import scala.concurrent.Future
 class ResourceUsageRepositorySpec
   extends AnyWordSpec
      with Matchers
-     with DefaultPlayMongoRepositorySupport[ResourceUsage]
-     with MockitoSugar:
-
-  private val mockedDeploymentConfigRepository: DeploymentConfigRepository =
-    mock[DeploymentConfigRepository]
+     with DefaultPlayMongoRepositorySupport[ResourceUsage]:
 
   override val repository: ResourceUsageRepository =
-    ResourceUsageRepository(mockedDeploymentConfigRepository, mongoComponent)
+    ResourceUsageRepository(mongoComponent)
 
   "ResourceUsageRepository" should:
     "Persist and retrieve `ResourceUsage`s" in:
@@ -149,6 +144,29 @@ class ResourceUsageRepositorySpec
          snapshotsE      <- repository.find(ServiceName("E"))
          actualSnapshots = snapshotsA ++ snapshotsD ++ snapshotsE
          _               = actualSnapshots should contain theSameElementsAs(expectedSnapshots)
+       yield ()
+      ).futureValue
+
+    "Set the 'latest' flag for all provided snapshots to correct value" in:
+      (for
+          _                 <- repository.add(resourceUsageF1) //should remain unchanged not in seq to to modify
+          _                 <- repository.add(resourceUsageF2)
+          _                 <- repository.add(resourceUsageF3)
+          _                 <- repository.setLatestFlag(
+                                 latest = false, Seq(
+                                   resourceUsageF2, //should modify latest = false
+                                   resourceUsageF3  //should remain unchanged, already false
+                               ))
+          snapshotF1        <- repository.find(ServiceName("F1"))
+          snapshotF2        <- repository.find(ServiceName("F2"))
+          snapshotF3        <- repository.find(ServiceName("F3"))
+          actualSnapshots   =  snapshotF1 ++ snapshotF2 ++ snapshotF3
+          expectedSnapshots =  Seq(
+                                 resourceUsageF1,
+                                 resourceUsageF2.copy(latest = false),
+                                 resourceUsageF3,
+                               )
+          _                 =  actualSnapshots should contain theSameElementsAs(expectedSnapshots)
        yield ()
       ).futureValue
 
@@ -292,4 +310,37 @@ object ResourceUsageRepositorySpec:
       instances   = 1,
       latest      = true,
       deleted     = true
+    )
+
+  val resourceUsageF1: ResourceUsage =
+    ResourceUsage(
+      date        = Instant.parse("2021-01-02T00:00:00.000Z"),
+      serviceName = ServiceName("F1"),
+      environment = Environment.Production,
+      slots       = 1,
+      instances   = 1,
+      latest      = true,
+      deleted     = false
+    )
+
+  val resourceUsageF2: ResourceUsage =
+    ResourceUsage(
+      date        = Instant.parse("2021-01-02T00:00:00.000Z"),
+      serviceName = ServiceName("F2"),
+      environment = Environment.Production,
+      slots       = 1,
+      instances   = 1,
+      latest      = true,
+      deleted     = false
+    )
+
+  val resourceUsageF3: ResourceUsage =
+    ResourceUsage(
+      date        = Instant.parse("2021-01-02T00:00:00.000Z"),
+      serviceName = ServiceName("F3"),
+      environment = Environment.Production,
+      slots       = 1,
+      instances   = 1,
+      latest      = false,
+      deleted     = false
     )
