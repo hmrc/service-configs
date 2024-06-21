@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+import uk.gov.hmrc.serviceconfigs.model.{FileName, Content}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -32,16 +33,16 @@ class LatestConfigRepositorySpec
   "LatestConfigRepository.put" should {
     "put correctly" in {
       val repoName1 = "app-config-base"
-      repository.put(repoName1)(Map("file1" -> "content1", "file2" -> "content2")).futureValue
+      repository.put(repoName1)(Map(FileName("file1") -> Content("content1"), FileName("file2") -> Content("content2"))).futureValue
       val repoName2 = "app-config-production"
-      repository.put(repoName2)(Map("file3" -> "content3", "file4" -> "content4")).futureValue
+      repository.put(repoName2)(Map(FileName("file3") -> Content("content3"), FileName("file4") -> Content("content4"))).futureValue
 
       repository.find(repoName1, "file1").futureValue shouldBe Some("content1")
       repository.find(repoName1, "file2").futureValue shouldBe Some("content2")
       repository.find(repoName2, "file3").futureValue shouldBe Some("content3")
       repository.find(repoName2, "file4").futureValue shouldBe Some("content4")
 
-      repository.put(repoName1)(Map("file1" -> "content3")).futureValue
+      repository.put(repoName1)(Map(FileName("file1") -> Content("content3"))).futureValue
       //put will replace all content for that repoName, but not affect other repoNames
       repository.find(repoName1, "file1").futureValue shouldBe Some("content3")
       repository.find(repoName1, "file2").futureValue shouldBe None
@@ -53,14 +54,14 @@ class LatestConfigRepositorySpec
   "LatestConfigRepository.findall" should {
     "find correctly" in {
       val repoName1 = "app-config-base"
-      repository.put(repoName1)(Map("file1" -> "content1", "file2" -> "content2")).futureValue
+      repository.put(repoName1)(Map(FileName("file1") -> Content("content1"), FileName("file2") -> Content("content2"))).futureValue
       val repoName2 = "app-config-production"
-      repository.put(repoName2)(Map("file3" -> "content3", "file4" -> "content4")).futureValue
+      repository.put(repoName2)(Map(FileName("file3") -> Content("content3"), FileName("file4") -> Content("content4"))).futureValue
 
       repository.findAll("app-config-production").futureValue shouldBe
         Seq(
-          LatestConfigRepository.LatestConfig(repoName = "app-config-production", fileName = "file3", content = "content3"),
-          LatestConfigRepository.LatestConfig(repoName = "app-config-production", fileName = "file4", content = "content4")
+          LatestConfigRepository.LatestConfig(repoName = "app-config-production", FileName("file3"), Content("content3")),
+          LatestConfigRepository.LatestConfig(repoName = "app-config-production", FileName("file4"), Content("content4"))
         )
     }
   }

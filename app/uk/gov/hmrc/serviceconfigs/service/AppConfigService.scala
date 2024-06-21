@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.implicits._
 import play.api.Logger
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
-import uk.gov.hmrc.serviceconfigs.model.{Environment, RepoName, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FileName, Content, RepoName, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{DeploymentConfigRepository, LastHashRepository, LatestConfigRepository}
 
 import java.util.zip.ZipInputStream
@@ -49,30 +49,30 @@ class AppConfigService @Inject()(
     Environment.values.foldLeftM(())((_, env) => updateAppConfigEnv(env))
 
   def updateAppConfigEnv(env: Environment): Future[Unit] =
-     updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")) { data => //data = Map[String,String] (serviceFileName.yaml -> content)
+     updateLatest(RepoName(s"app-config-${env.asString}"), _.endsWith(".yaml")) { data: Map[FileName, Content] =>
        for {
          _ <- latestConfigRepository.put(s"app-config-${env.asString}")(data)
          _ <- deploymentConfigRepository.replaceEnv(applied = false, environment = env, configs = data.toSeq.flatMap {
                 case (filename, content) =>
                   DeploymentConfigService.toDeploymentConfig(
-                    serviceName = ServiceName(filename.stripSuffix(".yaml")),
+                    serviceName = ServiceName(filename.asString.stripSuffix(".yaml")),
                     environment = env,
                     applied     = false,
-                    fileContent = content
+                    fileContent = content.asString
                   ).toSeq
               })
          _ <- updateAppliedDeploymentConfig(env, data.keySet.toSeq)
        } yield ()
      }
 
-  def updateAppliedDeploymentConfig(env: Environment, latestConfigs: Seq[String]): Future[Unit] =
+  def updateAppliedDeploymentConfig(env: Environment, latestFiles: Seq[FileName]): Future[Unit] =
     for {
-      undeployedDeploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(env)).map(_.filter(_.instances == 0)) // ensure no aws usage
-      undeployedAndDeletedConfigs =  undeployedDeploymentConfigs.filter(dConfig => !latestConfigs.exists(_ == s"${dConfig.serviceName.asString}.yaml")) // check for deleted github config
+      undeployedDeploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(env)).map(_.filter(_.instances == 0))      // ensure no aws usage
+      undeployedAndDeletedConfigs =  undeployedDeploymentConfigs.filter(dConfig => !latestFiles.contains(s"${dConfig.serviceName.asString}.yaml")) // check for deleted github config
       _                           <- undeployedAndDeletedConfigs.traverse(config => deploymentConfigRepository.delete(config))
     } yield ()
 
-  private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[String, String] => Future[Unit]): Future[Unit] =
+  private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[FileName, Content] => Future[Unit]): Future[Unit] =
     (for {
       _             <- EitherT.pure[Future, Unit](logger.info("Starting"))
       currentHash   <- EitherT.right[Unit](configAsCodeConnector.getLatestCommitId(repoName).map(_.asString))
@@ -86,14 +86,14 @@ class AppConfigService @Inject()(
      } yield ()
     ).merge
 
-  private def extractConfig(zip: ZipInputStream, filter: String => Boolean): Map[String, String] =
+  private def extractConfig(zip: ZipInputStream, filter: String => Boolean): Map[FileName, Content] =
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
-      .foldLeft(Map.empty[String, String]){ (acc, entry) =>
-        val fileName = entry.getName.drop(entry.getName.indexOf('/') + 1)
-        if (filter(fileName)) {
-          val content = Source.fromInputStream(zip).mkString
+      .foldLeft(Map.empty[FileName, Content]){ (acc, entry) =>
+        val fileName = FileName(entry.getName.drop(entry.getName.indexOf('/') + 1))
+        if (filter(fileName.asString)) {
+          val content = Content(Source.fromInputStream(zip).mkString)
           acc + (fileName -> content)
         } else acc
       }
