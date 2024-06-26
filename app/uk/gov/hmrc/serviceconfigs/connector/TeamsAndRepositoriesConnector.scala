@@ -43,6 +43,14 @@ object TeamsAndRepositoriesConnector {
       ~ (__ \ "endOfLifeDate").readNullable[Instant]
       ~ (__ \ "isDeprecated").readWithDefault[Boolean](false)
       )(Repo.apply _)
+
+  val readsDeletedRepo: Reads[Repo] =
+    ( (__ \ "name"     ).read[String].map(RepoName.apply)
+    ~ (__ \ "teamNames").readWithDefault[Seq[String]](Nil)
+    ~ Reads.pure(None  )
+    ~ Reads.pure(true  )
+    )(Repo.apply _     )
+
 }
 
 @Singleton
@@ -57,7 +65,6 @@ class TeamsAndRepositoriesConnector @Inject()(
     serviceConfigs.baseUrl("teams-and-repositories")
 
   implicit private val hc: HeaderCarrier = HeaderCarrier()
-  implicit private val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
 
   def getRepos(
     archived   : Option[Boolean]      = None
@@ -65,16 +72,20 @@ class TeamsAndRepositoriesConnector @Inject()(
   , teamName   : Option[TeamName]     = None
   , serviceType: Option[ServiceType]  = None
   , tags       : Seq[Tag]             = Nil
-  ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
+  ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] = {
+    implicit val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
+  }
 
   def getDeletedRepos(
     repoType   : Option[String]       = None
-  ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
+  ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] = {
+    implicit val rd: Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsDeletedRepo
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
+  }
 
 }
