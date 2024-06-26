@@ -37,11 +37,18 @@ object TeamsAndRepositoriesConnector:
   import play.api.libs.json._
 
   val readsRepo: Reads[Repo] =
-    ((__ \ "name").read[String].map(RepoName.apply)
-      ~ (__ \ "teamNames").read[Seq[String]]
-      ~ (__ \ "endOfLifeDate").readNullable[Instant]
-      ~ (__ \ "isDeprecated").readWithDefault[Boolean](false)
-      )(Repo.apply _)
+    ( (__ \ "name"         ).read[String].map(RepoName.apply)
+    ~ (__ \ "teamNames"    ).read[Seq[String]]
+    ~ (__ \ "endOfLifeDate").readNullable[Instant]
+    ~ (__ \ "isDeprecated" ).readWithDefault[Boolean](false)
+    )(Repo.apply _)
+
+  val readsDeletedRepo: Reads[Repo] =
+    ( (__ \ "name"     ).read[String].map(RepoName.apply)
+    ~ (__ \ "teamNames").readWithDefault[Seq[String]](Nil)
+    ~ Reads.pure(None  )
+    ~ Reads.pure(true  )
+    )(Repo.apply _     )
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
@@ -55,8 +62,7 @@ class TeamsAndRepositoriesConnector @Inject()(
   private val teamsAndServicesUrl =
     serviceConfigs.baseUrl("teams-and-repositories")
 
-  private given HeaderCarrier                             = HeaderCarrier()
-  private given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
+  private given HeaderCarrier = HeaderCarrier()
 
   def getRepos(
     archived   : Option[Boolean]      = None
@@ -65,6 +71,7 @@ class TeamsAndRepositoriesConnector @Inject()(
   , serviceType: Option[ServiceType]  = None
   , tags       : Seq[Tag]             = Nil
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
+    given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
@@ -72,6 +79,7 @@ class TeamsAndRepositoriesConnector @Inject()(
   def getDeletedRepos(
     repoType   : Option[String]       = None
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
+    given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsDeletedRepo
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
