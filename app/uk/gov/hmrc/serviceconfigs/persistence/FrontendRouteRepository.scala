@@ -22,7 +22,7 @@ import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
+import org.mongodb.scala.model.{FindOneAndReplaceOptions,Indexes, IndexModel, IndexOptions}
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -41,9 +41,11 @@ class FrontendRouteRepository @Inject()(
   collectionName = "frontendRoutes",
   domainFormat   = MongoFrontendRoute.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("frontendPath"), IndexOptions().background(true).name("frontendPathIdx")),
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(Indexes.ascending("frontendPath")),
+                     IndexModel(Indexes.ascending("service")),
+                     IndexModel(Indexes.ascending("environment", "frontendPath", "service"), IndexOptions().unique(true))
                    ),
+  replaceIndexes = true,
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ):
   // we replace all the data for each call to replaceEnv

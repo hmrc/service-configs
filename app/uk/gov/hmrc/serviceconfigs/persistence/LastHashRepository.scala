@@ -20,7 +20,7 @@ import org.mongodb.scala.ObservableFuture
 import com.mongodb.client.model.ReplaceOptions
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.Indexes._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.{Indexes, IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.serviceconfigs.model.LastHash
@@ -38,8 +38,11 @@ class LastHashRepository @Inject()(
   collectionName = "lastHashString",
   domainFormat   = LastHash.formats,
   indexes        = Seq(
-                     IndexModel(ascending("key"), IndexOptions().unique(true))
-                   )
+                     IndexModel(
+                       ascending("key"),
+                       IndexOptions().unique(true))
+                   ),
+  replaceIndexes = true,
 ):
   def update(key: String, hash: String): Future[Unit] =
     collection

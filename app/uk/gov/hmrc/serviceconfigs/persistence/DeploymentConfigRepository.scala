@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import com.mongodb.client.model.Indexes
-import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel}
+import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName}
@@ -36,9 +36,12 @@ class DeploymentConfigRepository @Inject()(
   collectionName = "deploymentConfig",
   domainFormat   = DeploymentConfig.mongoFormat,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("applied", "name", "environment")),
-                     IndexModel(Indexes.ascending("applied", "environment"))
+                     IndexModel(
+                       Indexes.ascending("applied", "environment", "name"),
+                       IndexOptions().unique(true)
+                     ),
                    ),
+  replaceIndexes = true,
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ):
   // we replace all the data for each call to replaceEnv

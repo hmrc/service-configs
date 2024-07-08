@@ -20,10 +20,10 @@ import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.ObservableFuture
-import org.mongodb.scala.model.{IndexModel, IndexOptions, Filters}
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
-import uk.gov.hmrc.serviceconfigs.model.{UpscanConfig, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName, UpscanConfig}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,9 +37,11 @@ class UpscanConfigRepository @Inject()(
   collectionName = "upscanConfig",
   domainFormat   = UpscanConfig.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(Indexes.ascending("service", "environment"),
+                     IndexOptions().unique(true))
                    ),
-  extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
+  replaceIndexes = true,
+  extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ):
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
@@ -53,6 +55,11 @@ class UpscanConfigRepository @Inject()(
     MongoUtils.replace[UpscanConfig](
       collection    = collection,
       newVals       = upscanConfigs,
-      compareById   = (a, b) => a.serviceName == b.serviceName,
-      filterById    = entry => Filters.equal("service", entry.serviceName)
+      compareById   = (a, b) =>
+                        a.serviceName == b.serviceName &&
+                        a.environment == b.environment,
+      filterById    = entry => Filters.and(
+                                 Filters.equal("service", entry.serviceName),
+                                 Filters.equal("environment", entry.environment)
+                               )
     )

@@ -36,8 +36,12 @@ class BuildJobRepository @Inject()(
   collectionName = "buildJobs",
   domainFormat   = BuildJob.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(
+                       Indexes.ascending("service"),
+                       IndexOptions().name("serviceIdx").unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ):
   // we replace all the data for each call to putAll
