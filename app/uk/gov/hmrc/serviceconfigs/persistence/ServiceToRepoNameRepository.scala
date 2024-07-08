@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.model.Filters.{and, empty, equal}
-import org.mongodb.scala.model.{IndexModel, Indexes}
+import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, RepoName, ServiceName, ServiceToRepoName}
@@ -36,8 +36,12 @@ class ServiceToRepoNameRepository @Inject()(
   domainFormat   = ServiceToRepoName.mongoFormat,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName")),
-                     IndexModel(Indexes.ascending("artefactName"))
+                     IndexModel(
+                       Indexes.ascending("artefactName", "serviceName"),
+                       IndexOptions().unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(
                      Codecs.playFormatCodec(ArtefactName.format),
                      Codecs.playFormatCodec(ServiceName.format),
@@ -64,12 +68,10 @@ class ServiceToRepoNameRepository @Inject()(
       newVals       = serviceToRepoNames,
       compareById   = (a, b) =>
                         a.serviceName  == b.serviceName &&
-                        a.artefactName == b.artefactName &&
-                        a.repoName     == b.repoName,
+                        a.artefactName == b.artefactName,
       filterById    = entry =>
                         and(
                           equal("serviceName" , entry.serviceName),
-                          equal("artefactName", entry.artefactName),
-                          equal("repoName"    , entry.repoName)
+                          equal("artefactName", entry.artefactName)
                         )
     )

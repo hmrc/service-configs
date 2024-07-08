@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{IndexModel, Indexes}
+import org.mongodb.scala.model.{IndexModel, Indexes, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, FileName, Content}
@@ -38,8 +38,12 @@ class LatestConfigRepository @Inject()(
   collectionName = LatestConfigRepository.collectionName,
   domainFormat   = LatestConfigRepository.mongoFormats,
   indexes        = Seq(
-                     IndexModel(Indexes.ascending("repoName", "fileName"))
+                     IndexModel(
+                       Indexes.ascending("repoName", "fileName"),
+                       IndexOptions().unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+
                    Codecs.playFormatCodec(FileName.format)        :+
                    Codecs.playFormatCodec(Content.format)

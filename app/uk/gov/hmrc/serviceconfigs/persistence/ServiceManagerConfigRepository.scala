@@ -36,8 +36,12 @@ class ServiceManagerConfigRepository @Inject()(
   collectionName = "serviceManagerConfig",
   domainFormat   = ServiceManagerConfigRepository.ServiceManagerConfig.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(
+                       Indexes.ascending("service"),
+                       IndexOptions().unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ):
   import ServiceManagerConfigRepository._

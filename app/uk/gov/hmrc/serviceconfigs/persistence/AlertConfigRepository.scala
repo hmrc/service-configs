@@ -35,8 +35,10 @@ class AlertEnvironmentHandlerRepository @Inject()(
   collectionName = "alertEnvironmentHandlers",
   domainFormat   = AlertEnvironmentHandler.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("serviceName"), IndexOptions().background(true).name("serviceNameIdx"))
+                     IndexModel(Indexes.ascending("serviceName"),
+                     IndexOptions().unique(true))
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ):
   // we replace all the data for each call to putAll

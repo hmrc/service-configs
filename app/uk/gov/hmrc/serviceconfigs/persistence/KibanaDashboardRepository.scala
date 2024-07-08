@@ -37,8 +37,12 @@ class KibanaDashboardRepository @Inject()(
   collectionName = "kibanaDashboards",
   domainFormat   = Dashboard.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(
+                       Indexes.ascending("service"),
+                       IndexOptions().unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ):
   // we replace all the data for each call to putAll

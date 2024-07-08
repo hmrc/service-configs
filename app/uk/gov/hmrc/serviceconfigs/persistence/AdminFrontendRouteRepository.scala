@@ -37,9 +37,12 @@ class AdminFrontendRouteRepository @Inject()(
   collectionName = "adminFrontendRoutes",
   domainFormat   = AdminFrontendRoute.format,
   indexes        = Seq(
-                     IndexModel(Indexes.hashed("route"),   IndexOptions().background(true).name("routeIdx")),
-                     IndexModel(Indexes.hashed("service"), IndexOptions().background(true).name("serviceIdx"))
+                     IndexModel(
+                       Indexes.ascending("service", "route")
+                     , IndexOptions().unique(true)
+                     )
                    ),
+  replaceIndexes = true,
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format))
 ):
   // we replace all the data for each call to putAll
