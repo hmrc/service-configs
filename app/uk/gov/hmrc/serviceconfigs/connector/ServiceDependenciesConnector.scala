@@ -44,7 +44,7 @@ class ServiceDependenciesConnector @Inject() (
   def getAffectedServices(group: String, artefact: String, versionRange: String): Future[Seq[AffectedService]] =
     given Reads[AffectedService] = AffectedService.reads
     httpClientV2
-      .get(url"$serviceUrl/api/serviceDeps?group=$group&artefact=$artefact&versionRange=$versionRange")
+      .get(url"$serviceUrl/api/repoDependencies?group=$group&artefact=$artefact&versionRange=$versionRange&repoType=Service")
       .execute[Seq[AffectedService]]
 
 case class AffectedService(serviceName: ServiceName, teamNames: List[TeamName])
