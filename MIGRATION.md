@@ -1,3 +1,11 @@
+# Migration to 1.65.0
+
+clear the configChanged flag and start populating again
+
+```javascript
+db.getCollection('deploymentEvents').updateMany({}, {"$unset": {"configChanged": ""}})
+```
+
 # Migration to 1.55.0
 
 ```javascript
@@ -147,7 +155,7 @@ function migrateReleaseEvents() {
             if (configId !== "") {
                 newEvent.configId = configId;
             }
-            
+
             bulk.insert(newEvent);
             lastId = event._id;
         });
