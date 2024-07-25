@@ -25,7 +25,6 @@ import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence._
 
-import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -156,7 +155,7 @@ class SlugInfoService @Inject()(
                                     )
       _                     <-
                                 if requiresUpdate then
-                                  updateDeployedConfig(env, serviceName, deployment, deployment.deploymentId, deployment.lastDeployed)
+                                  updateDeployedConfig(env, serviceName, deployment)
                                     .fold(
                                       e => logger.warn(s"Failed to update deployed config for ${serviceName.asString} in $env: $e")
                                     , _ => ()
@@ -197,11 +196,9 @@ class SlugInfoService @Inject()(
     )
 
   private def updateDeployedConfig(
-    env          : Environment,
-    serviceName  : ServiceName,
-    deployment   : ReleasesApiConnector.Deployment,
-    deploymentId : String,
-    dataTimestamp: Instant
+    env        : Environment,
+    serviceName: ServiceName,
+    deployment : ReleasesApiConnector.Deployment
   )(using
     hc: HeaderCarrier
   ): EitherT[Future, String, Unit] =
@@ -237,12 +234,12 @@ class SlugInfoService @Inject()(
       deployedConfig    =  DeployedConfigRepository.DeployedConfig(
                               serviceName     = serviceName,
                               environment     = env,
-                              deploymentId    = deploymentId,
+                              deploymentId    = deployment.deploymentId,
                               configId        = deployment.configId,
                               appConfigBase   = deployedConfigMap.get("app-config-base"),
                               appConfigCommon = deployedConfigMap.get("app-config-common"),
                               appConfigEnv    = deployedConfigMap.get(s"app-config-${env.asString}"),
-                              lastUpdated     = dataTimestamp
+                              lastUpdated     = deployment.lastDeployed
                             )
       _                 <- EitherT.right(deployedConfigRepository.put(deployedConfig))
       deploymentConfig  =  deployedConfig

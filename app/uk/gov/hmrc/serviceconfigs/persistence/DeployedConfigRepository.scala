@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
-import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
+import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -39,7 +39,7 @@ class DeployedConfigRepository @Inject()(
   domainFormat   = DeployedConfigRepository.mongoFormats,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("serviceName", "environment")),
-                     IndexModel(Indexes.hashed("configId"))
+                     IndexModel(Indexes.ascending("deploymentId"), IndexOptions().unique(true))
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ):

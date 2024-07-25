@@ -1,5 +1,25 @@
 # Migration to 1.65.0
 
+
+Ensure all deploymentIds are unique (and align with releases-api)
+
+```javascript
+db.getCollection('deployedConfig').find({"deploymentId": {$regex: /^arn/}}).forEach(function(doc) {
+  const serviceName = doc.serviceName;
+  const environment = doc.environment;
+  const timestamp   = doc.lastUpdated;
+
+  const epochMillis = new Date(timestamp).getTime();
+
+  const newDeploymentId = `gen-${serviceName}-${environment}-${epochMillis}`;
+
+  db.getCollection('deployedConfig').updateOne(
+    { _id: doc._id },
+    { $set: { deploymentId: newDeploymentId } }
+  );
+});
+```
+
 clear the configChanged flag and start populating again
 
 ```javascript
