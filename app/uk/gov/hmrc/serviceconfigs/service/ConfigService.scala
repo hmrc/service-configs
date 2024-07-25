@@ -239,7 +239,9 @@ class ConfigService @Inject()(
       .filter:
         case ConfigEnvironment.Local             => environments.isEmpty
         case ConfigEnvironment.ForEnvironment(e) => environments.contains(e) || environments.isEmpty
-      .map(e => configSourceEntries(e, serviceName, version, latest).map(e -> _))
+      .map: e =>
+        configSourceEntries(e, serviceName, version, latest)
+          .map(e -> _)
       .sequence.map(_.toMap)
 
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =

@@ -70,7 +70,7 @@ class DeploymentHandler @Inject()(
                                        , optEnvironment = Some(environment)
                                        , version        = payload.version
                                        , lastDeployed   = payload.time
-                                       , deploymentId   = Some(payload.deploymentId)
+                                       , deploymentId   = payload.deploymentId
                                        , config         = payload.config
                                        )
                        )

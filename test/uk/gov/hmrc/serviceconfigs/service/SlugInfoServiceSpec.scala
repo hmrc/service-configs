@@ -190,19 +190,19 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation(serviceName1, Seq(
-            Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
+            Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
               DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
             ), lastDeployed = now),
-            Deployment(serviceName1, Some(Environment.Production), Version("1.0.1"), deploymentId = Some("deploymentId2"), config = Seq(
+            Deployment(serviceName1, Some(Environment.Production), Version("1.0.1"), deploymentId = "deploymentId2", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                 , commitId = CommitId("4")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("production-microservice-common"), commitId = CommitId("5")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service1.yaml")                 , commitId = CommitId("6"))
             ), lastDeployed = now)
           )),
           ServiceDeploymentInformation(serviceName2, Seq(
-            Deployment(serviceName2, Some(Environment.QA), Version("1.0.2"), deploymentId = Some("deploymentId3"), config = Seq(
+            Deployment(serviceName2, Some(Environment.QA), Version("1.0.2"), deploymentId = "deploymentId3", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service2.conf")                 , commitId = CommitId("7")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")        , commitId = CommitId("8")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service2.yaml")                 , commitId = CommitId("9"))
@@ -449,7 +449,7 @@ class SlugInfoServiceSpec
           )
         ))
 
-      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
+      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
@@ -501,7 +501,7 @@ class SlugInfoServiceSpec
           )
         ))
 
-      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
+      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
@@ -598,7 +598,7 @@ class SlugInfoServiceSpec
     when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
       .thenReturn(Future.unit)
 
-    val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = Some("deploymentId1"), config = Seq(
+    val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
       DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
       DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
       DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))

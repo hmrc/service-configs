@@ -69,7 +69,7 @@ object ReleasesApiConnector:
   , optEnvironment: Option[Environment]
   , version       : Version
   , lastDeployed  : Instant
-  , deploymentId  : Option[String]
+  , deploymentId  : String
   , config        : Seq[DeploymentConfigFile]
   ):
     lazy val configId =
@@ -91,7 +91,7 @@ object ReleasesApiConnector:
       ~ (__ \ "environment"  ).read[Option[Environment]]
       ~ (__ \ "versionNumber").read[Version]
       ~ (__ \ "lastDeployed" ).read[Instant]
-      ~ (__ \ "deploymentId" ).readNullable[String]
+      ~ (__ \ "deploymentId" ).read[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]
       )(Deployment.apply _)
 
