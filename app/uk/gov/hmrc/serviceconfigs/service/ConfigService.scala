@@ -167,72 +167,98 @@ class ConfigService @Inject()(
         )
       case SlugInfoFlag.ForEnvironment(env) =>
         for
-          optSlugInfo                 <- version match {
-                                           case Some(v) => slugInfoRepository.getSlugInfos(serviceName, version).map(_.headOption)
-                                           case None    => slugInfoRepository.getSlugInfo(serviceName, environment.slugInfoFlag)
-                                         }
-          loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
-
-          dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
-          referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
-
-          (applicationConf, bootstrapConf)
-                                      <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-
           (optAppConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll)
-                                      <-
-                                         if latest then
-                                           for
-                                             optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName)
-                                             appConfigEnvEntriesAll      =  ConfigParser
-                                                                              .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
-                                             serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-                                             optAppConfigBase            <- appConfigService.appConfigBaseConf(serviceName)
-                                             optRaw                      <- serviceType.fold(Future.successful(None: Option[String])):
-                                                                              st => appConfigService.appConfigCommonYaml(env, st)
-                                           yield
-                                             ( optAppConfigBase
-                                             , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
-                                             , appConfigEnvEntriesAll: java.util.Properties
+                                    <-
+                                       if latest then
+                                         for
+                                           optAppConfigEnvRaw          <- appConfigService.appConfigEnvYaml(env, serviceName)
+                                           appConfigEnvEntriesAll      =  ConfigParser
+                                                                            .parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
+                                           serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+                                           optAppConfigBase            <- appConfigService.appConfigBaseConf(serviceName)
+                                           optRaw                      <- serviceType.fold(Future.successful(Option.empty[String])): st =>
+                                                                            appConfigService.appConfigCommonYaml(env, st)
+                                         yield
+                                           ( optAppConfigBase
+                                           , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
+                                           , appConfigEnvEntriesAll: java.util.Properties
+                                           )
+                                       else
+                                         deployedConfigRepository
+                                           .find(serviceName, env)
+                                           .map(_.fold((Option.empty[String], java.util.Properties(), java.util.Properties()))(c =>
+                                             ( c.appConfigBase
+                                             , ConfigParser.parseYamlStringAsProperties(c.appConfigCommon.getOrElse(""))
+                                             , ConfigParser.parseYamlStringAsProperties(c.appConfigEnv.getOrElse(""))
                                              )
-                                         else
-                                           deployedConfigRepository
-                                             .find(serviceName, env)
-                                             .map(_.fold((Option.empty[String], java.util.Properties(), java.util.Properties()))(c =>
-                                               ( c.appConfigBase
-                                               , ConfigParser.parseYamlStringAsProperties(c.appConfigCommon.getOrElse(""))
-                                               , ConfigParser.parseYamlStringAsProperties(c.appConfigEnv.getOrElse(""))
-                                               )
-                                             ))
-          serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-          (appConfigEnvironment, appConfigEnvironmentSuppressed)
-                                      =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+                                           ))
+          serviceType               =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+          cses                      <- toConfigSourceEntries(
+                                         env,
+                                         serviceName,
+                                         version,
+                                         serviceType,
+                                         appConfigEnvEntriesAll,
+                                         optAppConfigBase,
+                                         optAppConfigCommonRaw
+                                       )
+        yield cses
 
-          appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
-                                         // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
-                                         optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
-          baseConf                    =  ConfigParser.parseConfString(appConfigBase.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
 
-          (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
-                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
-          (appConfigCommonFixed, appConfigCommonFixedSuppressed)
-                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
-        yield
-          ConfigSourceEntries(
-            "loggerConf",
-            sourceUrl = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application-json-logger.xml"),
-            loggerConfMap
-          ) +:
-          toConfigSourceEntries(
-            ConfigSourceConfig.referenceConf(                               referenceConf              , Map.empty)                             ::
-            bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList                                   :::
-            ConfigSourceConfig.applicationConf(serviceName                )(applicationConf            , Map.empty)                             ::
-            ConfigSourceConfig.baseConfig(serviceName                     )(baseConf                   , Map.empty)                             ::
-            ConfigSourceConfig.appConfigCommonOverridable(env, serviceType)(appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
-            ConfigSourceConfig.appConfigEnvironment(env, serviceName      )(appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
-            ConfigSourceConfig.appConfigCommonFixed(env, serviceType      )(appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
-            Nil
-          )
+  def toConfigSourceEntries(
+    env                   : Environment,
+    serviceName           : ServiceName,
+    version               : Option[Version],
+    serviceType           : Option[String],
+    appConfigEnvEntriesAll: java.util.Properties,
+    optAppConfigBase      : Option[String],
+    optAppConfigCommonRaw : java.util.Properties
+  )(using HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
+    for
+      optSlugInfo                 <- version match {
+                                        case Some(v) => slugInfoRepository.getSlugInfos(serviceName, version).map(_.headOption)
+                                        case None    => slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.ForEnvironment(env))
+                                      }
+      loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
+
+      dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
+      referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
+
+      (applicationConf, bootstrapConf)
+                                  <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
+
+      (appConfigEnvironment, appConfigEnvironmentSuppressed) =
+        ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
+
+      appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
+                                     // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
+                                     optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
+
+      baseConf =
+        ConfigParser.parseConfString(appConfigBase.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
+
+      (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) =
+        ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
+
+      (appConfigCommonFixed, appConfigCommonFixedSuppressed) =
+        ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
+
+    yield
+      ConfigSourceEntries(
+        "loggerConf",
+        sourceUrl = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application-json-logger.xml"),
+        loggerConfMap
+      ) +:
+      toConfigSourceEntries(
+        ConfigSourceConfig.referenceConf(                               referenceConf              , Map.empty)                             ::
+        bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList                                   :::
+        ConfigSourceConfig.applicationConf(serviceName                )(applicationConf            , Map.empty)                             ::
+        ConfigSourceConfig.baseConfig(serviceName                     )(baseConf                   , Map.empty)                             ::
+        ConfigSourceConfig.appConfigCommonOverridable(env, serviceType)(appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
+        ConfigSourceConfig.appConfigEnvironment(env, serviceName      )(appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
+        ConfigSourceConfig.appConfigCommonFixed(env, serviceType      )(appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
+        Nil
+      )
 
   def configByEnvironment(serviceName: ServiceName, environments: Seq[Environment], version: Option[Version], latest: Boolean)(using hc: HeaderCarrier): Future[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] =
     ConfigEnvironment
@@ -274,8 +300,8 @@ class ConfigService @Inject()(
         else
           acc + (key -> (fromValue, toValue))
 
-  /** This a non-cached version of `configSourceEntries` + `resultingConfig`
-    *
+  /** This a non-cached version of `configSourceEntries`
+    * meaning it goes to Github
     */
   def configSourceEntriesByDeployment(
     deploymentEvent : DeploymentEventRepository.DeploymentEvent
@@ -286,76 +312,44 @@ class ConfigService @Inject()(
     val version     = deploymentEvent.version
     val env         = deploymentEvent.environment
 
-    deploymentEvent.configId match
-      case None => Future.successful(Seq.empty) // TODO ideally skip all together
-      case Some(configId) =>
-        for
-          optSlugInfo                 <- slugInfoRepository.getSlugInfos(serviceName, Some(version)).map(_.headOption)
-          loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
-
-          dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
-          referenceConf               =  ConfigParser.reduceConfigs(dependencyConfigs)
-
-          (applicationConf, bootstrapConf)
-                                      <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-
-          // TODO return these, and print out the github diff urls
-
-          (baseCommitId, commonCommitId, envCommitId) = {
-            val configs = configId.stripPrefix(serviceName.asString + "_" + version.original + "_").split("_").grouped(2).map(_.toSeq).toSeq
-            //platform-status-frontend_0.79.0_app-config-staging_9120828_app-config-common_567d1c0_app-config-base_4c30734
-            ( configs.collectFirst { case Seq("app-config-base"            , v) => CommitId(v) }
-            , configs.collectFirst { case Seq("app-config-common"          , v) => CommitId(v) }
-            , configs.collectFirst { case Seq(s"app-config-${env.asString}", v) => CommitId(v) }
-            )
-          }
-          // or get the full commitIds from releasesApi
-          //(baseCommitId, commonCommitId, envCommitId) <-
-          //                               releasesApiConnector.
-
-    //return acc + "_" + c.repoName + "_" + c.commitId.substring(0, 7);
-
-          _ = println(s"baseCommitId=$baseCommitId")
-          _ = println(s"commonCommitId=$commonCommitId")
-          _ = println(s"envCommitId=$envCommitId")
-
-          optAppConfigBase            <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten) //: Future[Option[String]] =
-          appConfigEnvRaw      <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten) //: Future[Option[String]] =
-          appConfigEnvEntriesAll = ConfigParser.parseYamlStringAsProperties(appConfigEnvRaw.getOrElse(""))
-          serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-          optAppConfigCommonRaw1       <-  serviceType.fold(Future.successful(None: Option[String])):
-                                             st => commonCommitId.traverse(configConnector.appConfigCommonYaml(FileName(s"${env.asString}-$st-common.yaml"), _)).map(_.flatten)
-          optAppConfigCommonRaw       = ConfigParser.parseYamlStringAsProperties(optAppConfigCommonRaw1.getOrElse(""))
-
-
-          (appConfigEnvironment, appConfigEnvironmentSuppressed)
-                                      =  ConfigParser.extractAsConfig(appConfigEnvEntriesAll, "hmrc_config.")
-
-          appConfigBase               =  // if optAppConfigBase is defined, then this was the version used at deployment time
-                                          // otherwise it's the one in the slug (or non-existant e.g. Java slugs)
-                                          optAppConfigBase.orElse(optSlugInfo.map(_.slugConfig))
-          baseConf                    =  ConfigParser.parseConfString(appConfigBase.getOrElse(""), logMissing = false) // ignoring includes, since we know this is applicationConf
-
-          (appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed)
-                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.overridable.")
-          (appConfigCommonFixed, appConfigCommonFixedSuppressed)
-                                      =  ConfigParser.extractAsConfig(optAppConfigCommonRaw, "hmrc_config.fixed.")
-        yield
-          ConfigSourceEntries(
-            "loggerConf",
-            sourceUrl = Some(s"https://github.com/hmrc/${serviceName.asString}/blob/main/conf/application-json-logger.xml"),
-            loggerConfMap
-          ) +:
-          toConfigSourceEntries(
-            ConfigSourceConfig.referenceConf(                               referenceConf              , Map.empty)                             ::
-            bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList                                   :::
-            ConfigSourceConfig.applicationConf(serviceName                )(applicationConf            , Map.empty)                             ::
-            ConfigSourceConfig.baseConfig(serviceName                     )(baseConf                   , Map.empty)                             ::
-            ConfigSourceConfig.appConfigCommonOverridable(env, serviceType)(appConfigCommonOverrideable, appConfigCommonOverrideableSuppressed) ::
-            ConfigSourceConfig.appConfigEnvironment(env, serviceName      )(appConfigEnvironment       , appConfigEnvironmentSuppressed)        ::
-            ConfigSourceConfig.appConfigCommonFixed(env, serviceType      )(appConfigCommonFixed       , appConfigCommonFixedSuppressed)        ::
-            Nil
+    // TODO return None if we don't have the commitIds, rather than partial config
+    // TODO return these commitIds as github diff urls
+    val (baseCommitId, commonCommitId, envCommitId) =
+      // We could get the full commitIds from releasesApi
+      // but the short hashes stored in the configId suffice
+      deploymentEvent.configId match
+        case Some(configId) =>
+          val configs = configId.stripPrefix(serviceName.asString + "_" + version.original + "_").split("_").grouped(2).map(_.toSeq).toSeq
+          ( configs.collectFirst { case Seq("app-config-base"            , v) => CommitId(v) }
+          , configs.collectFirst { case Seq("app-config-common"          , v) => CommitId(v) }
+          , configs.collectFirst { case Seq(s"app-config-${env.asString}", v) => CommitId(v) }
           )
+        case _ => (None, None, None)
+
+    println(s"baseCommitId=$baseCommitId")
+    println(s"commonCommitId=$commonCommitId")
+    println(s"envCommitId=$envCommitId")
+    for
+      optAppConfigBase            <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten) //: Future[Option[String]] =
+      appConfigEnvRaw             <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten) //: Future[Option[String]] =
+      appConfigEnvEntriesAll      =  ConfigParser.parseYamlStringAsProperties(appConfigEnvRaw.getOrElse(""))
+      serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+      optAppConfigCommonRaw1      <- serviceType.fold(Future.successful(Option.empty[String])): st =>
+                                        commonCommitId.traverse(configConnector.appConfigCommonYaml(FileName(s"${env.asString}-$st-common.yaml"), _)).map(_.flatten)
+      optAppConfigCommonRaw       = ConfigParser.parseYamlStringAsProperties(optAppConfigCommonRaw1.getOrElse(""))
+
+      cses                      <- toConfigSourceEntries(
+                                      env,
+                                      serviceName,
+                                      Some(version),
+                                      serviceType,
+                                      appConfigEnvEntriesAll,
+                                      optAppConfigBase,
+                                      optAppConfigCommonRaw
+                                    )
+    yield
+      cses
+
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
