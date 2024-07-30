@@ -63,6 +63,13 @@ class ConfigController @Inject()(
         .map:
           events => Ok(Json.toJson(events))
 
+  def configChanges(deploymentId: String, fromDeploymentId: Option[String]): Action[AnyContent] =
+    Action.async:
+      given Format[DeploymentEventRepository.DeploymentEvent] = DeploymentEventRepository.DeploymentEvent.apiFormat
+      configService.getDeploymentEvent(deploymentId, fromDeploymentId)
+        .map:
+          events => Ok(Json.toJson(events))
+
   private val maxSearchLimit = configuration.get[Int]("config-search.max-limit")
   def search(
     key            : Option[String],

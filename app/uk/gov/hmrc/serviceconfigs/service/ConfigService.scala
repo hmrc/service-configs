@@ -245,7 +245,17 @@ class ConfigService @Inject()(
       .sequence.map(_.toMap)
 
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-      deploymentEventRepository.findAllForService(serviceName, dateRange)
+    deploymentEventRepository.findAllForService(serviceName, dateRange)
+
+  def getDeploymentEvent(deploymentId: String, fromDeploymentId: Option[String]): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
+    for
+      to   <- deploymentEventRepository.findDeploymentEvent(deploymentId)
+      from <- to match
+                case Some(to) => fromDeploymentId.fold(deploymentEventRepository.findPreviousDeploymentEvent(to))(deploymentEventRepository.findDeploymentEvent)
+                case None     => Future.successful(None)
+      // TODO confirm fromDeploymentId corresponds to the same service/environment and an earlier timestamp
+    yield Seq(from, to).flatten
+
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
