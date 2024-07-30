@@ -57,16 +57,23 @@ class ConfigController @Inject()(
 
   def deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange): Action[AnyContent] =
     Action.async:
-      given Format[DeploymentEventRepository.DeploymentEvent] = DeploymentEventRepository.DeploymentEvent.apiFormat
+      given Writes[DeploymentEventRepository.DeploymentEvent] = DeploymentEventRepository.DeploymentEvent.apiFormat
       configService
         .getDeploymentEvents(serviceName, range)
         .map:
           events => Ok(Json.toJson(events))
 
   def configChanges(deploymentId: String, fromDeploymentId: Option[String]): Action[AnyContent] =
-    Action.async:
-      given Format[DeploymentEventRepository.DeploymentEvent] = DeploymentEventRepository.DeploymentEvent.apiFormat
-      configService.getDeploymentEvent(deploymentId, fromDeploymentId)
+    Action.async: request =>
+      given RequestHeader = request
+      given Writes[ConfigService.ConfigChanges] =
+        ( (__ \ "fromDeploymentId").write[String]
+        ~ (__ \ "toDeploymentId"  ).write[String]
+        ~ (__ \ "changes"         ).write[Map[String, String]]
+                                   .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](_.view.mapValues { case (v1, v2) => v1.fold("")(_.asString) + " -> " + v2.fold("")(_.asString) }.toMap)
+        )(cc => Tuple.fromProductTyped(cc))
+
+      configService.configChanges(deploymentId, fromDeploymentId)
         .map:
           events => Ok(Json.toJson(events))
 
