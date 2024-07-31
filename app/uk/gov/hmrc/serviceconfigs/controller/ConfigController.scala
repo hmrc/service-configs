@@ -66,11 +66,35 @@ class ConfigController @Inject()(
   def configChanges(deploymentId: String, fromDeploymentId: Option[String]): Action[AnyContent] =
     Action.async: request =>
       given RequestHeader = request
+      given Writes[CommitId] = CommitId.format
+      given Writes[Environment] = Environment.format
+      given Writes[ConfigService.ConfigChanges.BaseConfigChange] =
+        ( (__ \ "from"     ).writeNullable[CommitId]
+        ~ (__ \ "to"       ).writeNullable[CommitId]
+        ~ (__ \ "githubUrl").write[String]
+        )(cc => (cc.from, cc.to, cc.githubUrl))
+      given Writes[ConfigService.ConfigChanges.CommonConfigChange] =
+        ( (__ \ "from"     ).writeNullable[CommitId]
+        ~ (__ \ "to"       ).writeNullable[CommitId]
+        ~ (__ \ "githubUrl").write[String]
+        )(cc => (cc.from, cc.to, cc.githubUrl))
+      given Writes[ConfigService.ConfigChanges.EnvironmentConfigChange] =
+        ( (__ \ "environment").write[Environment]
+        ~ (__ \ "from"       ).writeNullable[CommitId]
+        ~ (__ \ "to"         ).writeNullable[CommitId]
+        ~ (__ \ "githubUrl"  ).write[String]
+        )(cc => (cc.environment, cc.from, cc.to, cc.githubUrl))
       given Writes[ConfigService.ConfigChanges] =
-        ( (__ \ "fromDeploymentId").write[String]
-        ~ (__ \ "toDeploymentId"  ).write[String]
-        ~ (__ \ "changes"         ).write[Map[String, String]]
-                                   .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](_.view.mapValues { case (v1, v2) => v1.fold("")(_.asString) + " -> " + v2.fold("")(_.asString) }.toMap)
+        ( (__ \ "base"   ).write[ConfigService.ConfigChanges.BaseConfigChange]
+        ~ (__ \ "common" ).write[ConfigService.ConfigChanges.CommonConfigChange]
+        ~ (__ \ "env"    ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
+        ~ (__ \ "changes").write[Map[String, JsObject]]
+                          .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](
+                            _.view.mapValues { case (v1, v2) =>
+                              v1.fold(Json.obj())(v => Json.obj("from" -> v.asString))
+                                ++ v2.fold(Json.obj())(v => Json.obj("to" -> v.asString))
+                            }.toMap
+                          )
         )(cc => Tuple.fromProductTyped(cc))
 
       configService.configChanges(deploymentId, fromDeploymentId)

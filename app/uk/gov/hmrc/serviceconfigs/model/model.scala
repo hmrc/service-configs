@@ -32,6 +32,10 @@ object ArtefactName:
   val format =
     implicitly[Format[String]].inmap(ArtefactName.apply, _.asString)
 
+object CommitId:
+  val format =
+    implicitly[Format[String]].inmap(CommitId.apply, _.asString)
+
 object RepoName:
   val format =
     implicitly[Format[String]].inmap(RepoName.apply, _.asString)

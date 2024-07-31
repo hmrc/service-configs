@@ -19,15 +19,14 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.instances.all._
 import cats.syntax.all._
 import com.typesafe.config.Config
-
-import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, DeploymentDateRange, Environment, FileName, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, DeploymentEventRepository, SlugInfoRepository}
 
 import java.util.Base64
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -41,8 +40,7 @@ class ConfigService @Inject()(
   appliedConfigRepository   : AppliedConfigRepository,
   deployedConfigRepository  : DeployedConfigRepository,
   appConfigService          : AppConfigService,
-  teamsAndReposConnector    : TeamsAndRepositoriesConnector,
-  releasesApiConnector      : ReleasesApiConnector
+  teamsAndReposConnector    : TeamsAndRepositoriesConnector
 )(using ec: ExecutionContext):
 
   import ConfigService._
@@ -282,11 +280,23 @@ class ConfigService @Inject()(
       from    =  optFrom.getOrElse(sys.error(s"deploymentId $deploymentId not found")) // TODO
       // TODO confirm fromDeploymentId corresponds to the same service/environment and an earlier timestamp
 
+      _ = if from.serviceName != to.serviceName || from.environment != to.environment
+          then sys.error(s"Can't compare deploymentIds for different service or environment")
+      _ = if from.time.isAfter(to.time)
+          then sys.error(s"Deployment event refered to by fromDeploymentId is later than toDeploymentId")
+
+      (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
+        configCommidIds(from)
+
+      (toBaseCommitId, toCommonCommitId, toEnvCommitId) =
+        configCommidIds(to)
+
       fromConfig <- configSourceEntriesByDeployment(from).map(resultingConfig)
       toConfig   <- configSourceEntriesByDeployment(to).map(resultingConfig)
     yield Some(ConfigChanges(
-      fromDeploymentId = from.deploymentId,
-      toDeploymentId   = to.deploymentId,
+      base             = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
+      common           = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
+      env              = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
       changes          = changes(fromConfig, toConfig)
     ))
 
@@ -315,20 +325,8 @@ class ConfigService @Inject()(
     // TODO return None if we don't have the commitIds, rather than partial config
     // TODO return these commitIds as github diff urls
     val (baseCommitId, commonCommitId, envCommitId) =
-      // We could get the full commitIds from releasesApi
-      // but the short hashes stored in the configId suffice
-      deploymentEvent.configId match
-        case Some(configId) =>
-          val configs = configId.stripPrefix(serviceName.asString + "_" + version.original + "_").split("_").grouped(2).map(_.toSeq).toSeq
-          ( configs.collectFirst { case Seq("app-config-base"            , v) => CommitId(v) }
-          , configs.collectFirst { case Seq("app-config-common"          , v) => CommitId(v) }
-          , configs.collectFirst { case Seq(s"app-config-${env.asString}", v) => CommitId(v) }
-          )
-        case _ => (None, None, None)
+      configCommidIds(deploymentEvent)
 
-    println(s"baseCommitId=$baseCommitId")
-    println(s"commonCommitId=$commonCommitId")
-    println(s"envCommitId=$envCommitId")
     for
       optAppConfigBase            <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten) //: Future[Option[String]] =
       appConfigEnvRaw             <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten) //: Future[Option[String]] =
@@ -350,6 +348,18 @@ class ConfigService @Inject()(
     yield
       cses
 
+
+  def configCommidIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
+    // We could get the full commitIds from releasesApi
+    // but the short hashes stored in the configId suffice
+    deploymentEvent.configId match
+      case Some(configId) =>
+        val configs = configId.stripPrefix(deploymentEvent.serviceName.asString + "_" + deploymentEvent.version.original + "_").split("_").grouped(2).map(_.toSeq).toSeq
+        ( configs.collectFirst { case Seq("app-config-base"            , v) => CommitId(v) }
+        , configs.collectFirst { case Seq("app-config-common"          , v) => CommitId(v) }
+        , configs.collectFirst { case Seq(s"app-config-${deploymentEvent.environment.asString}", v) => CommitId(v) }
+        )
+      case _ => (None, None, None)
 
   def resultingConfig(
     configSourceEntries: Seq[ConfigSourceEntries]
@@ -498,8 +508,16 @@ object ConfigService:
 
 
   case class ConfigChanges(
-    fromDeploymentId: String,
-    toDeploymentId: String,
-    //configs: Map[String,
-    changes  : Map[String, (Option[ConfigValue], Option[ConfigValue])]
+    base            : ConfigChanges.BaseConfigChange,
+    common          : ConfigChanges.CommonConfigChange,
+    env             : ConfigChanges.EnvironmentConfigChange,
+    changes         : Map[String, (Option[ConfigValue], Option[ConfigValue])]
   )
+
+  object ConfigChanges:
+    case class BaseConfigChange(from: Option[CommitId], to: Option[CommitId]):
+      def githubUrl = s"https://github.com/hmrc/app-config-base/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"
+    case class CommonConfigChange(from: Option[CommitId], to: Option[CommitId]):
+      def githubUrl = s"https://github.com/hmrc/app-config-common/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"
+    case class EnvironmentConfigChange(environment: Environment, from: Option[CommitId], to: Option[CommitId]):
+      def githubUrl = s"https://github.com/hmrc/app-config-${environment.asString}/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"

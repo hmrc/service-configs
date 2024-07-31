@@ -103,7 +103,7 @@ class DeploymentEventRepository @Inject()(
         and(
           equal("serviceName", deploymentEvent.serviceName),
           equal("environment", deploymentEvent.environment),
-          lte("lastUpdated", deploymentEvent.lastUpdated) // TODO rename this to timestamp - it's immutable
+          lte("lastUpdated", deploymentEvent.time) // TODO rename this to timestamp - it's immutable
         )
       )
       .sort(Sorts.descending("lastUpdated"))
@@ -123,7 +123,7 @@ object DeploymentEventRepository:
     deploymentId   : String,
     configChanged  : Option[Boolean],
     configId       : Option[String],
-    lastUpdated    : Instant
+    time           : Instant
   )
 
   object DeploymentEvent:
