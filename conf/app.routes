@@ -7,6 +7,7 @@ GET     /warnings                                       uk.gov.hmrc.serviceconfi
 
 GET     /deployment-events/:serviceName                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange)
 GET     /config-changes                                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChanges(deploymentId: String, fromDeploymentId: Option[String])
+GET     /config-changes-next-deployment                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)
 
 GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
 GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment: Environment)

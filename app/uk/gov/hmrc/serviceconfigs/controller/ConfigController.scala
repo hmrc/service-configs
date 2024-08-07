@@ -99,7 +99,23 @@ class ConfigController @Inject()(
 
       configService.configChanges(deploymentId, fromDeploymentId)
         .map:
-          events => Ok(Json.toJson(events))
+          changes => Ok(Json.toJson(changes))
+
+  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version): Action[AnyContent] =
+    Action.async: request =>
+      given RequestHeader = request
+      given Writes[Map[String, (Option[ConfigValue], Option[ConfigValue])]] =
+        summon[Writes[Map[String, JsObject]]]
+          .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](
+            _.view.mapValues { case (v1, v2) =>
+              v1.fold(Json.obj())(v => Json.obj("from" -> v.asString))
+                ++ v2.fold(Json.obj())(v => Json.obj("to" -> v.asString))
+            }.toMap
+          )
+
+      configService.configChangesNextDeployment(serviceName, environment, version)
+        .map:
+          changes => Ok(Json.toJson(changes))
 
   private val maxSearchLimit = configuration.get[Int]("config-search.max-limit")
   def search(

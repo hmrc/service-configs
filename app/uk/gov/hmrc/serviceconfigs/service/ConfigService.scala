@@ -80,7 +80,7 @@ class ConfigService @Inject()(
       applicationConfRaw <- optSlugInfo
                               .traverse:
                                 // if no slug info (e.g. java apps) get from github
-                                case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, CommitId("HEAD"))
+                                case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, CommitId("HEAD")) // TODO provide the version to look up the correct tag. Also comment that it will not find application.conf for non-standard (incl. multi-module) builds.
                                 case x                              => Future.successful(Some(x.applicationConfig))
                               .map(_.flatten.getOrElse(""))
       regex              =  """^include\s+["'](frontend.conf|backend.conf)["']""".r.unanchored
@@ -272,6 +272,32 @@ class ConfigService @Inject()(
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
     deploymentEventRepository.findAllForService(serviceName, dateRange)
 
+  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)(using HeaderCarrier): Future[Map[String, (Option[ConfigValue], Option[ConfigValue])]] =
+    for
+      current      <- configSourceEntries(
+                        environment = ConfigEnvironment.ForEnvironment(environment),
+                        serviceName = serviceName,
+                        version     = None,
+                        latest      = false
+                      ).map(resultingConfig)
+      whenDeployed <- configSourceEntries(
+                       environment = ConfigEnvironment.ForEnvironment(environment),
+                       serviceName = serviceName,
+                       version     = Some(version),
+                       latest      = true
+                     ).map(resultingConfig)
+    yield changes(current, whenDeployed)
+
+  private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, (Option[ConfigValue], Option[ConfigValue])] =
+    (fromConfig.keys ++ toConfig.keys)
+      .foldLeft(Map.empty[String, (Option[ConfigValue], Option[ConfigValue])]): (acc, key) =>
+        val fromValue = fromConfig.get(key).map(_.value)
+        val toValue   = toConfig.get(key).map(_.value)
+        if fromValue == toValue then
+          acc
+        else
+          acc + (key -> (fromValue, toValue))
+
   def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Option[ConfigChanges]] =
     for
       optTo   <- deploymentEventRepository.findDeploymentEvent(deploymentId)
@@ -299,16 +325,6 @@ class ConfigService @Inject()(
       env              = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
       changes          = changes(fromConfig, toConfig)
     ))
-
-  private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, (Option[ConfigValue], Option[ConfigValue])] =
-    (fromConfig.keys ++ toConfig.keys)
-      .foldLeft(Map.empty[String, (Option[ConfigValue], Option[ConfigValue])]): (acc, key) =>
-        val fromValue = fromConfig.get(key).map(_.value)
-        val toValue   = toConfig.get(key).map(_.value)
-        if fromValue == toValue then
-          acc
-        else
-          acc + (key -> (fromValue, toValue))
 
   /** This a non-cached version of `configSourceEntries`
     * meaning it goes to Github
