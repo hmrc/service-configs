@@ -4,8 +4,8 @@ import sbt._
 
 object AppDependencies {
 
-  val hmrcMongoVersion     = "2.1.0"
-  val bootstrapPlayVersion = "9.0.0"
+  val hmrcMongoVersion     = "2.2.0"
+  val bootstrapPlayVersion = "9.2.0"
   val jacksonVersion       = "2.12.7"
 
   val compile: Seq[ModuleID] = Seq(
@@ -13,8 +13,7 @@ object AppDependencies {
     "uk.gov.hmrc.mongo"                %% "hmrc-mongo-play-30"        % hmrcMongoVersion,
     "org.yaml"                         %  "snakeyaml"                 % "1.28",
     "org.typelevel"                    %% "cats-core"                 % "2.12.0",
-    "org.typelevel"                    %% "alleycats-core"            % "2.12.0",
-    "software.amazon.awssdk"           %  "sqs"                       % "2.20.155",
+    "software.amazon.awssdk"           %  "sqs"                       % "2.26.31",
     "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
     ws,
     ehcache

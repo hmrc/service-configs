@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits.toTraverseOps
 import org.mongodb.scala.ObservableFuture
-import org.mongodb.scala.bson.conversions
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions, Sorts}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -47,9 +46,11 @@ class DeploymentEventRepository @Inject()(
                    ),
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
 ):
+  import DeploymentEventRepository._
+
   override lazy val requiresTtlIndex = false
 
-  def put(config: DeploymentEventRepository.DeploymentEvent): Future[Unit] =
+  def put(config: DeploymentEvent): Future[Unit] =
     collection
       .replaceOne(
         filter      = equal("deploymentId", config.deploymentId),
@@ -59,34 +60,55 @@ class DeploymentEventRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-    def fetchEvents(environment: Environment): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
-      val filter: Environment => conversions.Bson = (environment: Environment) => and(
-        equal("serviceName", serviceName),
-        equal("environment", environment),
-        gt("lastUpdated", dateRange.from),
-        lt("lastUpdated", dateRange.to)
-      )
+  def findAllForService(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEvent]] =
+    def fetchEvents(environment: Environment): Future[Seq[DeploymentEvent]] =
+      val filter =
+        and(
+          equal("serviceName", serviceName),
+          equal("environment", environment),
+          gt("lastUpdated", dateRange.from),
+          lt("lastUpdated", dateRange.to)
+        )
 
-      val filterBefore: Environment => conversions.Bson = (environment: Environment) =>  and(
-        equal("serviceName", serviceName),
-        equal("environment", environment),
-        lte("lastUpdated", dateRange.from),
-      )
+      val filterBefore =
+        and(
+          equal("serviceName", serviceName),
+          equal("environment", environment),
+          lte("lastUpdated", dateRange.from),
+        )
 
-      val filterAfter: Environment => conversions.Bson = (environment: Environment) =>  and(
-        equal("serviceName", serviceName),
-        equal("environment", environment),
-        gte("lastUpdated", dateRange.to),
-      )
+      val filterAfter =
+        and(
+          equal("serviceName", serviceName),
+          equal("environment", environment),
+          gte("lastUpdated", dateRange.to),
+        )
 
       for
-        inside <- collection.find(filter(environment)).sort(Sorts.ascending("lastUpdated")).toFuture()
-        before <- collection.find(filterBefore(environment)).sort(Sorts.descending("lastUpdated")).headOption()
-        after <- collection.find(filterAfter(environment)).sort(Sorts.ascending("lastUpdated")).headOption()
+        inside <- collection.find(filter      ).sort(Sorts.ascending("lastUpdated" )).toFuture()
+        before <- collection.find(filterBefore).sort(Sorts.descending("lastUpdated")).headOption()
+        after  <- collection.find(filterAfter ).sort(Sorts.ascending("lastUpdated" )).headOption()
       yield before.toSeq ++ inside ++ after.toSeq
 
     Environment.values.toList.traverse(fetchEvents).map(_.flatten)
+
+  def findDeploymentEvent(deploymentId: String): Future[Option[DeploymentEvent]] =
+    collection
+      .find(equal("deploymentId", deploymentId))
+      .headOption()
+
+  def findPreviousDeploymentEvent(deploymentEvent: DeploymentEvent): Future[Option[DeploymentEvent]] =
+    collection
+      .find(
+        and(
+          equal("serviceName", deploymentEvent.serviceName),
+          equal("environment", deploymentEvent.environment),
+          lte("lastUpdated", deploymentEvent.time) // TODO rename this to timestamp - it's immutable
+        )
+      )
+      .sort(Sorts.descending("lastUpdated"))
+      .skip(1)
+      .headOption()
 
 object DeploymentEventRepository:
   import play.api.libs.functional.syntax._
@@ -101,7 +123,7 @@ object DeploymentEventRepository:
     deploymentId   : String,
     configChanged  : Option[Boolean],
     configId       : Option[String],
-    lastUpdated    : Instant
+    time           : Instant
   )
 
   object DeploymentEvent:

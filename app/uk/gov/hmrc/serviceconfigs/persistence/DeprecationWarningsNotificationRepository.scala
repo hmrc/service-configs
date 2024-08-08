@@ -33,14 +33,13 @@ import scala.concurrent.{ExecutionContext, Future}
 class DeprecationWarningsNotificationRepository @Inject() (
   mongoComponent: MongoComponent
 )(
-implicit
-ec: ExecutionContext
+using ExecutionContext
 ) extends PlayMongoRepository[DeprecationWarningsNotificationsRunTime](
   mongoComponent = mongoComponent,
   collectionName = "deprecationWarningsNotificationRunDate",
-  domainFormat = DeprecationWarningsNotificationsRunTime.format,
-  indexes = Seq.empty,
-  extraCodecs = Seq.empty
+  domainFormat   = DeprecationWarningsNotificationsRunTime.format,
+  indexes        = Seq.empty,
+  extraCodecs    = Seq.empty
 ):
 
   // we replace all the data for each call to updateLastWarningDate()

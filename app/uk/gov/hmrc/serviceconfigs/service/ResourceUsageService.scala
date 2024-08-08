@@ -29,8 +29,8 @@ class ResourceUsageService @Inject()(
   latestConfigRepository    : LatestConfigRepository
 , deploymentConfigRepository: DeploymentConfigRepository
 , resourceUsageRepository   : ResourceUsageRepository
-)(implicit
-  ec : ExecutionContext
+)(using
+  ExecutionContext
 ):
   def populate(date: Instant): Future[Unit] =
     Environment.values.toList.foldLeftM[Future, Unit](()):

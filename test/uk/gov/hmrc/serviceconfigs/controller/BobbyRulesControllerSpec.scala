@@ -131,7 +131,7 @@ class BobbyRulesControllerSpec
       result shouldBe JsSuccess(expected)
 
   trait Setup:
-    implicit val as: ActorSystem = ActorSystem()
+    given ActorSystem = ActorSystem()
 
     val mockBobbyRulesService = mock[BobbyRulesService]
 

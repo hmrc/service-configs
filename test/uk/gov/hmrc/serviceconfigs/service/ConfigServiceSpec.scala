@@ -82,7 +82,7 @@ class ConfigServiceSpec
 
         val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = latest)
 
-        import ConfigController._
+        given Writes[Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]]] = ConfigController.mapWrites
 
         val applicationConf = """
           { "source": "applicationConf",
@@ -183,7 +183,8 @@ class ConfigServiceSpec
 
       val configByEnvironment = configService.configByEnvironment(serviceName, environments = Nil, version = None, latest = true)
 
-      import ConfigController._
+      given Writes[Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]]] = ConfigController.mapWrites
+
       (Json.toJson(configByEnvironment.futureValue) \ "qa").as[JsValue] shouldBe Json.parse(s"""[
         { "source": "loggerConf", "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application-json-logger.xml", "entries": {} },
         { "source": "referenceConf", "entries": {} },
@@ -242,7 +243,7 @@ class ConfigServiceSpec
       .insertOne(Document(
         "serviceName"       -> serviceName.asString,
         "environment"       -> env,
-        "deploymentId"      -> "deploymentId",
+        "deploymentId"      -> s"deploymentId-$env",
         "configId"          -> "configId",
         //"appConfigBase"   -> None,
         //"appConfigCommon" -> None

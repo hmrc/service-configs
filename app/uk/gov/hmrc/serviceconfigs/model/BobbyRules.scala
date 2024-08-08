@@ -27,7 +27,7 @@ case class BobbyRules(
 )
 
 object BobbyRules:
-  private def bobbyRuleFormat(implicit dateFormat: Format[LocalDate]): Format[BobbyRule] =
+  private def bobbyRuleFormat(using Format[LocalDate]): Format[BobbyRule] =
     ( (__ \ "organisation"  ).format[String]
     ~ (__ \ "name"          ).format[String]
     ~ (__ \ "range"         ).format[String]
@@ -41,13 +41,13 @@ object BobbyRules:
     )(BobbyRule.apply, pt => Tuple.fromProductTyped(pt))
 
   val mongoFormat: Format[BobbyRules] =
-    given Format[BobbyRule] = bobbyRuleFormat(uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats.localDateFormat)
+    given Format[BobbyRule] = bobbyRuleFormat(using uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats.localDateFormat)
     ( (__ \ "libraries").format[Seq[BobbyRule]]
     ~ (__ \ "plugins"  ).format[Seq[BobbyRule]]
     )(BobbyRules.apply, pt => Tuple.fromProductTyped(pt))
 
   val apiFormat: Format[BobbyRules] =
-    given Format[BobbyRule] = bobbyRuleFormat(implicitly[Format[LocalDate]])
+    given Format[BobbyRule] = bobbyRuleFormat(using summon[Format[LocalDate]])
     ( (__ \ "libraries").format[Seq[BobbyRule]]
     ~ (__ \ "plugins"  ).format[Seq[BobbyRule]]
     )(BobbyRules.apply, pt => Tuple.fromProductTyped(pt))

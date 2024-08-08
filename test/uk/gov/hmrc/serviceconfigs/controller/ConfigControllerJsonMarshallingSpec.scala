@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.controller
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.libs.json.Json
+import play.api.libs.json.{Json, Writes}
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries}
 
@@ -46,6 +46,8 @@ class ConfigControllerJsonMarshallingSpec extends AnyWordSpec with Matchers:
           )
         )
       )
+
+      given Writes[Map[ConfigEnvironment, Seq[ConfigSourceEntries]]] = ConfigController.mapWrites
 
       Json.toJson(cbe) shouldBe Json.parse("""
         {

@@ -28,7 +28,7 @@ enum Environment(val asString: String):
 
 object Environment:
 
-  implicit val ordering: Ordering[Environment] =
+  given Ordering[Environment] =
     new Ordering[Environment]:
       def compare(x: Environment, y: Environment): Int =
         values.indexOf(x).compare(values.indexOf(y))

@@ -109,7 +109,7 @@ class DeploymentConfigControllerSpec
       verifyNoInteractions(mockTeamsAndRepositoriesConnector)
 
   trait Setup:
-    implicit val as: ActorSystem = ActorSystem()
+    given ActorSystem = ActorSystem()
 
     val mockTeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val mockDeploymentConfigRepository    = mock[DeploymentConfigRepository]
