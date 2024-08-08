@@ -48,12 +48,13 @@ class ConfigController @Inject()(
     version    : Option[Version],
     latest     : Boolean
   ): Action[AnyContent] =
-    Action.async:
-      implicit request =>
-        configService
-          .configByEnvironment(serviceName, environment, version, latest)
-          .map: e =>
-            Ok(Json.toJson(e))
+    Action.async: request =>
+      given RequestHeader = request
+      given Writes[Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]]] = mapWrites
+      configService
+        .configByEnvironment(serviceName, environment, version, latest)
+        .map: e =>
+          Ok(Json.toJson(e))
 
   def deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange): Action[AnyContent] =
     Action.async:
@@ -66,37 +67,7 @@ class ConfigController @Inject()(
   def configChanges(deploymentId: String, fromDeploymentId: Option[String]): Action[AnyContent] =
     Action.async: request =>
       given RequestHeader = request
-      given Writes[CommitId] = CommitId.format
-      given Writes[Environment] = Environment.format
-      given Writes[ConfigService.ConfigChanges.BaseConfigChange] =
-        ( (__ \ "from"     ).writeNullable[CommitId]
-        ~ (__ \ "to"       ).writeNullable[CommitId]
-        ~ (__ \ "githubUrl").write[String]
-        )(cc => (cc.from, cc.to, cc.githubUrl))
-      given Writes[ConfigService.ConfigChanges.CommonConfigChange] =
-        ( (__ \ "from"     ).writeNullable[CommitId]
-        ~ (__ \ "to"       ).writeNullable[CommitId]
-        ~ (__ \ "githubUrl").write[String]
-        )(cc => (cc.from, cc.to, cc.githubUrl))
-      given Writes[ConfigService.ConfigChanges.EnvironmentConfigChange] =
-        ( (__ \ "environment").write[Environment]
-        ~ (__ \ "from"       ).writeNullable[CommitId]
-        ~ (__ \ "to"         ).writeNullable[CommitId]
-        ~ (__ \ "githubUrl"  ).write[String]
-        )(cc => (cc.environment, cc.from, cc.to, cc.githubUrl))
-      given Writes[ConfigService.ConfigChanges] =
-        ( (__ \ "base"   ).write[ConfigService.ConfigChanges.BaseConfigChange]
-        ~ (__ \ "common" ).write[ConfigService.ConfigChanges.CommonConfigChange]
-        ~ (__ \ "env"    ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
-        ~ (__ \ "changes").write[Map[String, JsObject]]
-                          .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](
-                            _.view.mapValues { case (v1, v2) =>
-                              v1.fold(Json.obj())(v => Json.obj("from" -> v.asString))
-                                ++ v2.fold(Json.obj())(v => Json.obj("to" -> v.asString))
-                            }.toMap
-                          )
-        )(cc => Tuple.fromProductTyped(cc))
-
+      given Writes[ConfigService.ConfigChanges] = configChangesWrites
       configService.configChanges(deploymentId, fromDeploymentId)
         .map:
           changes => Ok(Json.toJson(changes))
@@ -104,14 +75,7 @@ class ConfigController @Inject()(
   def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version): Action[AnyContent] =
     Action.async: request =>
       given RequestHeader = request
-      given Writes[Map[String, (Option[ConfigValue], Option[ConfigValue])]] =
-        summon[Writes[Map[String, JsObject]]]
-          .contramap[Map[String, (Option[ConfigValue], Option[ConfigValue])]](
-            _.view.mapValues { case (v1, v2) =>
-              v1.fold(Json.obj())(v => Json.obj("from" -> v.asString))
-                ++ v2.fold(Json.obj())(v => Json.obj("to" -> v.asString))
-            }.toMap
-          )
+      given Writes[ConfigService.ConfigChange] = configChangeWrites
 
       configService.configChangesNextDeployment(serviceName, environment, version)
         .map:
@@ -129,7 +93,7 @@ class ConfigController @Inject()(
     tag            : Seq[Tag],
   ): Action[AnyContent] =
     Action.async:
-      implicit val acf = AppliedConfigRepository.AppliedConfig.format
+      given Writes[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
       configService
         .search(key, keyFilterType, value, valueFilterType, environment, teamName, serviceType, tag)
         .map:
@@ -149,8 +113,9 @@ class ConfigController @Inject()(
     version     : Option[Version],
     latest      : Boolean
   ): Action[AnyContent] =
-    Action.async:
-      implicit request =>
+    Action.async: request =>
+      given RequestHeader = request
+      given Writes[ConfigWarning] = configWarningWrites
         configWarningService
         .warnings(environments, serviceName, version, latest)
         .map: res =>
@@ -161,35 +126,37 @@ class ConfigController @Inject()(
     artefactName: Option[ArtefactName]
   ): Action[AnyContent] =
     Action.async:
+      given Format[RepoName] = RepoName.format
       serviceToRepoNameRepository
         .findRepoName(serviceName, artefactName)
         .map:
           _.fold(NotFound(""))(res => Ok(Json.toJson(res)))
 
 object ConfigController:
-  implicit val csew: Writes[ConfigService.ConfigSourceEntries] =
+  val configSourceEntriesWrites: Writes[ConfigService.ConfigSourceEntries] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "entries"  ).write[Map[KeyName, String]]
                         .contramap[Map[KeyName, ConfigValue]](_.view.mapValues(_.asString).toMap)
     )(pt => Tuple.fromProductTyped(pt))
 
-  implicit val csvw: Writes[ConfigSourceValue] =
+  private val configSourceValueWrites: Writes[ConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
                         .contramap[ConfigValue](_.asString)
     )(pt => Tuple.fromProductTyped(pt))
 
-  implicit val rcsvw: Writes[RenderedConfigSourceValue] =
+  private val renderedConfigSourceValueWrites: Writes[RenderedConfigSourceValue] =
     ( (__ \ "source"   ).write[String]
     ~ (__ \ "sourceUrl").writeNullable[String]
     ~ (__ \ "value"    ).write[String]
     )(pt => Tuple.fromProductTyped(pt))
 
-  private implicit val cww: Writes[ConfigWarning] =
-    implicit val ef  = Environment.format
-    implicit val snf = ServiceName.format
+  val configWarningWrites: Writes[ConfigWarning] =
+    given Writes[Environment] = Environment.format
+    given Writes[ServiceName] = ServiceName.format
+    given Writes[RenderedConfigSourceValue] = renderedConfigSourceValueWrites
     ( (__ \ "environment").write[Environment]
     ~ (__ \ "serviceName").write[ServiceName]
     ~ (__ \ "key"        ).write[KeyName]
@@ -197,8 +164,42 @@ object ConfigController:
     ~ (__ \ "warning"    ).write[String]
     )(pt => Tuple.fromProductTyped(pt))
 
-  implicit val rnf: Format[RepoName] = RepoName.format
-
-  implicit def envMapWrites[A <: ConfigService.ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
-    implicitly[Writes[Map[String, B]]]
+  private def envMapWrites[A <: ConfigService.ConfigEnvironment, B: Writes]: Writes[Map[A, B]] =
+    summon[Writes[Map[String, B]]]
       .contramap(_.map { case (e, a) => (e.name, a) })
+
+  val mapWrites: Writes[Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]]] =
+    given Writes[ConfigService.ConfigSourceEntries] = configSourceEntriesWrites
+    envMapWrites
+
+  val configChangeWrites: Writes[ConfigService.ConfigChange] =
+    given Writes[ConfigSourceValue] = configSourceValueWrites
+    ( (__ \ "from").writeNullable[ConfigSourceValue]
+    ~ (__ \ "to"  ).writeNullable[ConfigSourceValue]
+    )(cc => (cc.from, cc.to))
+
+  val configChangesWrites: Writes[ConfigService.ConfigChanges] =
+    given Writes[CommitId] = CommitId.format
+    given Writes[Environment] = Environment.format
+    given Writes[ConfigService.ConfigChanges.BaseConfigChange] =
+      ( (__ \ "from"     ).writeNullable[CommitId]
+      ~ (__ \ "to"       ).writeNullable[CommitId]
+      ~ (__ \ "githubUrl").write[String]
+      )(cc => (cc.from, cc.to, cc.githubUrl))
+    given Writes[ConfigService.ConfigChanges.CommonConfigChange] =
+      ( (__ \ "from"     ).writeNullable[CommitId]
+      ~ (__ \ "to"       ).writeNullable[CommitId]
+      ~ (__ \ "githubUrl").write[String]
+      )(cc => (cc.from, cc.to, cc.githubUrl))
+    given Writes[ConfigService.ConfigChanges.EnvironmentConfigChange] =
+      ( (__ \ "environment").write[Environment]
+      ~ (__ \ "from"       ).writeNullable[CommitId]
+      ~ (__ \ "to"         ).writeNullable[CommitId]
+      ~ (__ \ "githubUrl"  ).write[String]
+      )(cc => (cc.environment, cc.from, cc.to, cc.githubUrl))
+    given Writes[ConfigService.ConfigChange] = configChangeWrites
+    ( (__ \ "base"   ).write[ConfigService.ConfigChanges.BaseConfigChange]
+    ~ (__ \ "common" ).write[ConfigService.ConfigChanges.CommonConfigChange]
+    ~ (__ \ "env"    ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
+    ~ (__ \ "changes").write[Map[String, ConfigService.ConfigChange]]
+    )(cc => Tuple.fromProductTyped(cc))

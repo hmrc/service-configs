@@ -73,7 +73,7 @@ class ServiceRelationshipService @Inject()(
     if slugInfo.applicationConfig.isEmpty then
       Future.successful(Seq.empty[ServiceRelationship])
     else
-      implicit val hc: HeaderCarrier = HeaderCarrier()
+      given HeaderCarrier = HeaderCarrier()
 
       val appConfig: Future[Seq[ConfigService.ConfigSourceEntries]] =
         configService.appConfig(slugInfo)

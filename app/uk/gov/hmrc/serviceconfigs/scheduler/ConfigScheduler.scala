@@ -37,10 +37,10 @@ class ConfigScheduler @Inject()(
   upscanConfigService       : UpscanConfigService,
   resourceUsageService      : ResourceUsageService,
   timestampSupport          : TimestampSupport
-)(implicit
-  actorSystem         : ActorSystem,
-  applicationLifecycle: ApplicationLifecycle,
-  ec                  : ExecutionContext
+)(using
+   ActorSystem,
+   ApplicationLifecycle,
+   ExecutionContext
 ) extends SchedulerUtils:
 
   scheduleWithTimePeriodLock(
@@ -49,11 +49,10 @@ class ConfigScheduler @Inject()(
     lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval)
   ):
     logger.info("Updating config")
-    runAllAndFailWithFirstError(
+    runAllAndFailWithFirstError:
       for
         _ <- accumulateErrors("snapshot Deployments"       , resourceUsageService.populate(Instant.now()))
         _ <- accumulateErrors("update Alert Handlers"      , alertConfigService.update())
         - <- accumulateErrors("update Internal Auth Config", internalAuthConfigService.updateInternalAuth())
         - <- accumulateErrors("update Upscan Config"       , upscanConfigService.update())
       yield logger.info("Finished updating config")
-    )

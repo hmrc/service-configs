@@ -122,7 +122,7 @@ object DeploymentHandler:
   private val ConfigKey = ".*\\.(\\d+)\\.(\\w+)".r
 
   lazy val mdtpEventReads: Reads[DeploymentEvent] =
-    implicitly[Reads[JsObject]]
+    summon[Reads[JsObject]]
       .flatMap: jsObject =>
         for
           config <- TreeMap(

@@ -87,7 +87,7 @@ class IntegrationTestController @Inject()(
       .traverse(bobbyRulesRepository.putAll)
 
   private def addSlugDependencyConfigs(json: JsValue): Future[Either[JsObject, Unit]] =
-    implicit val dcf = Json.using[Json.WithDefaultValues].reads[DependencyConfig]
+    given Reads[DependencyConfig] = Json.using[Json.WithDefaultValues].reads[DependencyConfig]
     validateJson[Seq[DependencyConfig]](json)
       .traverse(_.traverse_(dependencyConfigRepository.add))
 

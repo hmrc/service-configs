@@ -24,7 +24,7 @@ object DateAndTimeOps:
 
   private val workingDays = List(MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY)
 
-  implicit class LocalDateOps(private val localDate: LocalDate):
+  extension (localDate: LocalDate)
     def toInstant: Instant =
       localDate.atStartOfDay().toInstant(ZoneOffset.UTC)
 

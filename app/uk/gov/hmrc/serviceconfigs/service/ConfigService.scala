@@ -272,7 +272,7 @@ class ConfigService @Inject()(
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
     deploymentEventRepository.findAllForService(serviceName, dateRange)
 
-  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)(using HeaderCarrier): Future[Map[String, (Option[ConfigValue], Option[ConfigValue])]] =
+  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)(using HeaderCarrier): Future[Map[String, ConfigChange]] =
     for
       current      <- configSourceEntries(
                         environment = ConfigEnvironment.ForEnvironment(environment),
@@ -288,15 +288,15 @@ class ConfigService @Inject()(
                      ).map(resultingConfig)
     yield changes(current, whenDeployed)
 
-  private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, (Option[ConfigValue], Option[ConfigValue])] =
+  private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, ConfigChange] =
     (fromConfig.keys ++ toConfig.keys)
-      .foldLeft(Map.empty[String, (Option[ConfigValue], Option[ConfigValue])]): (acc, key) =>
-        val fromValue = fromConfig.get(key).map(_.value)
-        val toValue   = toConfig.get(key).map(_.value)
-        if fromValue == toValue then
+      .foldLeft(Map.empty[String, ConfigChange]): (acc, key) =>
+        val from = fromConfig.get(key)
+        val to   = toConfig.get(key)
+        if from.map(_.value) == to.map(_.value) then
           acc
         else
-          acc + (key -> (fromValue, toValue))
+          acc + (key -> ConfigChange(from, to))
 
   def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Option[ConfigChanges]] =
     for
@@ -523,11 +523,16 @@ object ConfigService:
       Local :: Environment.values.toList.map(ForEnvironment.apply)
 
 
+  case class ConfigChange(
+    from: Option[ConfigSourceValue]
+  , to  : Option[ConfigSourceValue]
+  )
+
   case class ConfigChanges(
     base            : ConfigChanges.BaseConfigChange,
     common          : ConfigChanges.CommonConfigChange,
     env             : ConfigChanges.EnvironmentConfigChange,
-    changes         : Map[String, (Option[ConfigValue], Option[ConfigValue])]
+    changes         : Map[String, ConfigChange]
   )
 
   object ConfigChanges:

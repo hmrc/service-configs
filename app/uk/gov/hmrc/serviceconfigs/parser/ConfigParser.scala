@@ -129,7 +129,7 @@ trait ConfigParser extends Logging:
 
   /** calling config.entrySet will strip out keys with null values */
   def entrySetWithNull(config: Config): Set[(String, ConfigValue)] =
-    (implicitly[cats.Monad[Seq]].tailRecM[Acc, (String, ConfigValue)](
+    (summon[cats.Monad[Seq]].tailRecM[Acc, (String, ConfigValue)](
       Acc(acc = Seq.empty[(String, ConfigValue)], configObject = config.root(), path = "")
     ):
       case Acc(acc, configObject, path) =>

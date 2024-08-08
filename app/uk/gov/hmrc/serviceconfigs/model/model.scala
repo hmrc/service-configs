@@ -30,27 +30,27 @@ case class TeamName     (asString: String) extends AnyVal
 
 object ArtefactName:
   val format =
-    implicitly[Format[String]].inmap(ArtefactName.apply, _.asString)
+    summon[Format[String]].inmap(ArtefactName.apply, _.asString)
 
 object CommitId:
   val format =
-    implicitly[Format[String]].inmap(CommitId.apply, _.asString)
+    summon[Format[String]].inmap(CommitId.apply, _.asString)
 
 object RepoName:
   val format =
-    implicitly[Format[String]].inmap(RepoName.apply, _.asString)
+    summon[Format[String]].inmap(RepoName.apply, _.asString)
 
 object FileName:
   val format =
-    implicitly[Format[String]].inmap(FileName.apply, _.asString)
+    summon[Format[String]].inmap(FileName.apply, _.asString)
 
 object Content:
   val format =
-    implicitly[Format[String]].inmap(Content.apply, _.asString)
+    summon[Format[String]].inmap(Content.apply, _.asString)
 
 object ServiceName:
   val format =
-    implicitly[Format[String]].inmap(ServiceName.apply, _.asString)
+    summon[Format[String]].inmap(ServiceName.apply, _.asString)
 
 object JsonUtil:
   def ignoreOnWrite[A : Reads](path: JsPath) =

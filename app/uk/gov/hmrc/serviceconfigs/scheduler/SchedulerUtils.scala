@@ -58,9 +58,9 @@ trait SchedulerUtils extends Logging:
   , lock           : ScheduledLockService
   )(f: => Future[Unit]
   )(using
-    actorSystem         : ActorSystem,
-    applicationLifecycle: ApplicationLifecycle,
-    ec                  : ExecutionContext
+     ActorSystem,
+     ApplicationLifecycle,
+     ExecutionContext
   ): Unit =
     schedule(label, schedulerConfig):
       lock.withLock(f).map:
@@ -70,7 +70,7 @@ trait SchedulerUtils extends Logging:
   import cats.data._
   import cats.implicits._
 
-  private type WriterT2 [A] = WriterT[Future, List[Throwable], A]
+  type WriterT2 [A] = WriterT[Future, List[Throwable], A]
   type ScheduledItem[A] = ReaderT[WriterT2, Option[Throwable], A]
 
   def runAllAndFailWithFirstError(k: ScheduledItem[Unit])(using ec: ExecutionContext) =

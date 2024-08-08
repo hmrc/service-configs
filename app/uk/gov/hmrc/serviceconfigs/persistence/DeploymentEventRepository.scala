@@ -85,9 +85,9 @@ class DeploymentEventRepository @Inject()(
         )
 
       for
-        inside <- collection.find(filter).sort(Sorts.ascending("lastUpdated")).toFuture()
+        inside <- collection.find(filter      ).sort(Sorts.ascending("lastUpdated" )).toFuture()
         before <- collection.find(filterBefore).sort(Sorts.descending("lastUpdated")).headOption()
-        after  <- collection.find(filterAfter).sort(Sorts.ascending("lastUpdated")).headOption()
+        after  <- collection.find(filterAfter ).sort(Sorts.ascending("lastUpdated" )).headOption()
       yield before.toSeq ++ inside ++ after.toSeq
 
     Environment.values.toList.traverse(fetchEvents).map(_.flatten)
