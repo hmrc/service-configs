@@ -150,15 +150,7 @@ object DeploymentHandler:
     ~ (__ \ "environment"         ).read[Option[Environment]]
     ~ (__ \ "microservice"        ).read[ServiceName](ServiceName.format)
     ~ (__ \ "microservice_version").read[Version](Version.format)
-    ~ (__ \ "stack_id"            ).read[String]
+    ~ (__ \ "deployment_id"       ).read[String]
     ~ Reads.pure(Seq.empty[ReleasesApiConnector.DeploymentConfigFile]) // config - to be added
     ~ (__ \ "event_date_time"     ).read[Instant]
-    ): (eventType, environment, serviceName, version, deploymentId, config, time) =>
-        val uniqueDeploymentId =
-          environment
-            .fold(deploymentId): env =>
-              if deploymentId.startsWith("arn") then
-                s"gen-${serviceName.asString}-${env.asString}-${time.toEpochMilli}"
-              else
-                deploymentId
-        DeploymentEvent(eventType, environment, serviceName, version, uniqueDeploymentId, config, time)
+    )(DeploymentEvent.apply _)
