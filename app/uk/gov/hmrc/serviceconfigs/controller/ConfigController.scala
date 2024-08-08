@@ -70,13 +70,13 @@ class ConfigController @Inject()(
       given Writes[ConfigService.ConfigChanges] = configChangesWrites
       configService.configChanges(deploymentId, fromDeploymentId)
         .map:
-          changes => Ok(Json.toJson(changes))
+          case Left(msg)      => BadRequest(msg)
+          case Right(changes) => Ok(Json.toJson(changes))
 
   def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version): Action[AnyContent] =
     Action.async: request =>
       given RequestHeader = request
       given Writes[ConfigService.ConfigChange] = configChangeWrites
-
       configService.configChangesNextDeployment(serviceName, environment, version)
         .map:
           changes => Ok(Json.toJson(changes))

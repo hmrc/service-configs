@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import cats.data.EitherT
 import cats.instances.all._
 import cats.syntax.all._
 import com.typesafe.config.Config
@@ -80,7 +81,8 @@ class ConfigService @Inject()(
       applicationConfRaw <- optSlugInfo
                               .traverse:
                                 // if no slug info (e.g. java apps) get from github
-                                case x if x.applicationConfig == "" => configConnector.applicationConf(serviceName, CommitId("HEAD")) // TODO provide the version to look up the correct tag. Also comment that it will not find application.conf for non-standard (incl. multi-module) builds.
+                                case x if x.applicationConfig == "" => // Note, this expects application.conf to be in the standard place, which isn't true for non-standard or multi-module builds (which is often the case for java apps)
+                                                                       configConnector.applicationConf(serviceName, CommitId(s"v${x.version}"))
                                 case x                              => Future.successful(Some(x.applicationConfig))
                               .map(_.flatten.getOrElse(""))
       regex              =  """^include\s+["'](frontend.conf|backend.conf)["']""".r.unanchored
@@ -298,33 +300,44 @@ class ConfigService @Inject()(
         else
           acc + (key -> ConfigChange(from, to))
 
-  def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Option[ConfigChanges]] =
-    for
-      optTo   <- deploymentEventRepository.findDeploymentEvent(deploymentId)
-      to      =  optTo.getOrElse(sys.error(s"deploymentId $deploymentId not found")) // TODO
-      optFrom <- fromDeploymentId.fold(deploymentEventRepository.findPreviousDeploymentEvent(to))(deploymentEventRepository.findDeploymentEvent)
-      from    =  optFrom.getOrElse(sys.error(s"deploymentId $deploymentId not found")) // TODO
-      // TODO confirm fromDeploymentId corresponds to the same service/environment and an earlier timestamp
+  def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Either[String, ConfigChanges]] =
+    (for
+       to   <- EitherT.fromOptionF(
+                 deploymentEventRepository.findDeploymentEvent(deploymentId),
+                 s"deploymentId $deploymentId not found"
+               )
+       from <- EitherT.fromOptionF(
+                 fromDeploymentId.fold(deploymentEventRepository.findPreviousDeploymentEvent(to))(deploymentEventRepository.findDeploymentEvent),
+                 s"deploymentId $fromDeploymentId not found"
+               )
 
-      _ = if from.serviceName != to.serviceName || from.environment != to.environment
-          then sys.error(s"Can't compare deploymentIds for different service or environment")
-      _ = if from.time.isAfter(to.time)
-          then sys.error(s"Deployment event refered to by fromDeploymentId is later than toDeploymentId")
+       _   <- EitherT.cond(
+                from.serviceName == to.serviceName && from.environment == to.environment,
+                (),
+                "Can't compare deploymentIds for different service or environment"
+              )
+       _   <- EitherT.cond(
+                to.time.isAfter(from.time),
+                (),
+                "Deployment event refered to by fromDeploymentId is later than toDeploymentId"
+              )
 
-      (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
-        configCommidIds(from)
+       (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
+         configCommidIds(from)
 
-      (toBaseCommitId, toCommonCommitId, toEnvCommitId) =
-        configCommidIds(to)
+       (toBaseCommitId, toCommonCommitId, toEnvCommitId) =
+         configCommidIds(to)
 
-      fromConfig <- configSourceEntriesByDeployment(from).map(resultingConfig)
-      toConfig   <- configSourceEntriesByDeployment(to).map(resultingConfig)
-    yield Some(ConfigChanges(
-      base             = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
-      common           = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
-      env              = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
-      changes          = changes(fromConfig, toConfig)
-    ))
+       fromConfig <- EitherT.liftF(configSourceEntriesByDeployment(from).map(resultingConfig))
+       toConfig   <- EitherT.liftF(configSourceEntriesByDeployment(to).map(resultingConfig))
+     yield
+       ConfigChanges(
+         base    = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
+         common  = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
+         env     = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
+         changes = changes(fromConfig, toConfig)
+       )
+    ).value
 
   /** This a non-cached version of `configSourceEntries`
     * meaning it goes to Github
@@ -338,35 +351,33 @@ class ConfigService @Inject()(
     val version     = deploymentEvent.version
     val env         = deploymentEvent.environment
 
-    // TODO return None if we don't have the commitIds, rather than partial config
-    // TODO return these commitIds as github diff urls
     val (baseCommitId, commonCommitId, envCommitId) =
       configCommidIds(deploymentEvent)
 
     for
-      optAppConfigBase            <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten) //: Future[Option[String]] =
-      appConfigEnvRaw             <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten) //: Future[Option[String]] =
-      appConfigEnvEntriesAll      =  ConfigParser.parseYamlStringAsProperties(appConfigEnvRaw.getOrElse(""))
-      serviceType                 =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
-      optAppConfigCommonRaw1      <- serviceType.fold(Future.successful(Option.empty[String])): st =>
-                                        commonCommitId.traverse(configConnector.appConfigCommonYaml(FileName(s"${env.asString}-$st-common.yaml"), _)).map(_.flatten)
-      optAppConfigCommonRaw       = ConfigParser.parseYamlStringAsProperties(optAppConfigCommonRaw1.getOrElse(""))
+      optAppConfigBase       <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten)
+      appConfigEnvRaw        <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten)
+      appConfigEnvEntriesAll =  ConfigParser.parseYamlStringAsProperties(appConfigEnvRaw.getOrElse(""))
+      serviceType            =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
+      optAppConfigCommonRaw1 <- serviceType.fold(Future.successful(Option.empty[String])): st =>
+                                  commonCommitId.traverse(configConnector.appConfigCommonYaml(FileName(s"${env.asString}-$st-common.yaml"), _)).map(_.flatten)
+      optAppConfigCommonRaw  =  ConfigParser.parseYamlStringAsProperties(optAppConfigCommonRaw1.getOrElse(""))
 
-      cses                      <- toConfigSourceEntries(
-                                      env,
-                                      serviceName,
-                                      Some(version),
-                                      serviceType,
-                                      appConfigEnvEntriesAll,
-                                      optAppConfigBase,
-                                      optAppConfigCommonRaw
-                                    )
+      cses                   <- toConfigSourceEntries(
+                                   env,
+                                   serviceName,
+                                   Some(version),
+                                   serviceType,
+                                   appConfigEnvEntriesAll,
+                                   optAppConfigBase,
+                                   optAppConfigCommonRaw
+                                 )
     yield
       cses
 
 
   def configCommidIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
-    // We could get the full commitIds from releasesApi
+    // We could get the full commitIds from releases-api
     // but the short hashes stored in the configId suffice
     deploymentEvent.configId match
       case Some(configId) =>
