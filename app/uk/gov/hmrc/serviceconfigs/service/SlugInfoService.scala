@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.syntax.all._
 import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence._
@@ -38,7 +38,6 @@ class SlugInfoService @Inject()(
 , deploymentEventRepository : DeploymentEventRepository
 , releasesApiConnector      : ReleasesApiConnector
 , teamsAndReposConnector    : TeamsAndRepositoriesConnector
-, githubRawConnector        : GithubRawConnector
 , configConnector           : ConfigConnector
 , configService             : ConfigService
 )(using
@@ -58,7 +57,8 @@ class SlugInfoService @Inject()(
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
       repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.repoName.asString)))
-      decommissionedServices <- githubRawConnector.decommissionedServices()
+      decommissionedServices <- teamsAndReposConnector.getDecommissionedServices()
+                                  .map(_.map(r => ServiceName(r.repoName.asString)))
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
       inactiveServices       =  latestServices.diff(repos)
@@ -67,31 +67,27 @@ class SlugInfoService @Inject()(
                                   val deploymentsByEnv = Environment
                                                            .values
                                                            .toList
-                                                           .map(env =>
+                                                           .map: env =>
                                                              ( env
                                                              , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
                                                              )
-                                                           )
                                   (serviceName, deploymentsByEnv)
                                 } ++
-                                  // map decomissioned services to No deployment in all environments in order to clean up
+                                  // map decommissioned services to No deployment in all environments in order to clean up
                                   decommissionedServices.map( _ -> Environment.values.toList.map(_ -> None))
       _                      =  logger.info(s"Updating config")
-      count                  <- allServiceDeployments.toList.foldLeftM(Count(0, 0, 0)) { case (acc, (serviceName, deployments)) =>
-                                  deployments.foldLeftM(acc) {
-                                    case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
-                                                                             .map(_ => acc.copy(removed = acc.removed + 1))
-                                    case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
-                                                                             .map(requiresUpdate =>
-                                                                               if (requiresUpdate)
-                                                                                 acc.copy(updated = acc.updated + 1)
-                                                                               else
-                                                                                acc.copy(skipped = acc.skipped + 1)
-                                                                             )
-                                  }
-                                }
+      count                  <- allServiceDeployments.toList.foldLeftM(Count(0, 0, 0)):
+                                  case (acc, (serviceName, deployments)) =>
+                                    deployments.foldLeftM(acc):
+                                      case (acc, (env, None            )) => cleanUpDeployment(env, serviceName)
+                                                                              .map(_ => acc.copy(removed = acc.removed + 1))
+                                      case (acc, (env, Some(deployment))) => updateDeployment(env, serviceName, deployment)
+                                                                              .map: requiresUpdate =>
+                                                                                if   (requiresUpdate)
+                                                                                then acc.copy(updated = acc.updated + 1)
+                                                                                else acc.copy(skipped = acc.skipped + 1)
       _                      =  logger.info(s"Config updated: skipped = ${count.skipped}, removed = ${count.removed}, updated = ${count.updated}")
-      _                      <- // we don't need to clean up HEAD configs for decomissionedServices since this will be removed when the service file is removed from config repo
+      _                      <- // we don't need to clean up HEAD configs for decommissionedServices since this will be removed when the service file is removed from config repo
                                 slugInfoRepository.clearFlags(SlugInfoFlag.Latest, decommissionedServices)
       _                      <- if (inactiveServices.nonEmpty) {
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
@@ -101,22 +97,22 @@ class SlugInfoService @Inject()(
       _                      <- if (missingLatestFlag.nonEmpty) {
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
                                   missingLatestFlag.foldLeftM(())((_, serviceName) =>
-                                    for {
+                                    for
                                       optVersion <- slugInfoRepository.getMaxVersion(serviceName)
-                                      _          <- optVersion match {
+                                      _          <- optVersion match
                                                       case Some(version) => slugInfoRepository.setFlag(SlugInfoFlag.Latest, serviceName, version)
                                                       case None          => logger.warn(s"No max version found for $serviceName"); Future.unit
-                                                    }
-                                    } yield ()
+                                    yield ()
                                   )
                                 } else Future.unit
     yield ()
 
-  private def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
+  def cleanUpDeployment(env: Environment, serviceName: ServiceName): Future[Unit] =
     for
       _ <- slugInfoRepository.clearFlag(SlugInfoFlag.ForEnvironment(env), serviceName)
       _ <- deployedConfigRepository.delete(serviceName, env)
       _ <- appliedConfigRepository.delete(serviceName, env)
+      _ <- deploymentConfigRepository.delete(serviceName, env, applied = true)
     yield ()
 
   def updateDeployment(
