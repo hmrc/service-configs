@@ -32,6 +32,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object TeamsAndRepositoriesConnector:
 
   case class Repo(repoName: RepoName, teamNames: Seq[String], endOfLifeDate: Option[Instant], isDeprecated: Boolean = false)
+  case class DecommissionedRepo(repoName: RepoName)
 
   import play.api.libs.json.Reads._
   import play.api.libs.json._
@@ -49,6 +50,12 @@ object TeamsAndRepositoriesConnector:
     ~ Reads.pure(None  )
     ~ Reads.pure(true  )
     )(Repo.apply _     )
+
+  val readsDecommissionedRepo: Reads[DecommissionedRepo] =
+    (__ \ "repoName")
+      .read[String]
+      .map(RepoName.apply)
+      .map(DecommissionedRepo.apply)
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
@@ -83,3 +90,10 @@ class TeamsAndRepositoriesConnector @Inject()(
     httpClientV2
       .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
+
+  // returns deleted or archived - which are stored in two different mongo collections
+  def getDecommissionedServices(): Future[Seq[TeamsAndRepositoriesConnector.DecommissionedRepo]] =
+    given Reads[TeamsAndRepositoriesConnector.DecommissionedRepo] = TeamsAndRepositoriesConnector.readsDecommissionedRepo
+    httpClientV2
+      .get(url"$teamsAndServicesUrl/api/v2/decommissioned-repositories?repoType=service")
+      .execute[Seq[TeamsAndRepositoriesConnector.DecommissionedRepo]]

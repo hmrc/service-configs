@@ -130,7 +130,7 @@ class DeploymentConfigRepositorySpec
         _             <- repository.add(deploymentConfigA1)
         _             <- repository.add(deploymentConfigA2)
         _             <- repository.add(deploymentConfigA3)
-        _             <- repository.delete(deploymentConfigA1)
+        _             <- repository.delete(deploymentConfigA1.serviceName, deploymentConfigA1.environment, deploymentConfigA1.applied)
         updatedConfig <- repository.find(
                            applied      = true,
                            environments = Seq(Environment.Production),

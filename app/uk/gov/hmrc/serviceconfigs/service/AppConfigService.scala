@@ -67,9 +67,11 @@ class AppConfigService @Inject()(
 
   def updateAppliedDeploymentConfig(env: Environment, latestFiles: Seq[FileName]): Future[Unit] =
     for
-      undeployedDeploymentConfigs <- deploymentConfigRepository.find(applied = true, environments = Seq(env)).map(_.filter(_.instances == 0))      // ensure no aws usage
-      undeployedAndDeletedConfigs =  undeployedDeploymentConfigs.filter(dConfig => !latestFiles.contains(s"${dConfig.serviceName.asString}.yaml")) // check for deleted github config
-      _                           <- undeployedAndDeletedConfigs.traverse(config => deploymentConfigRepository.delete(config))
+      configs <- deploymentConfigRepository.find(applied = true, environments = Seq(env))
+      _       <- configs
+                  .filter(cnf => cnf.instances == 0 && !latestFiles.contains(s"${cnf.serviceName.asString}.yaml")) // un-deployed && deleted
+                  .foldLeftM(()):
+                    (_, config) => deploymentConfigRepository.delete(config.serviceName, env, applied = false)
     yield ()
 
   private def updateLatest(repoName: RepoName, filter: String => Boolean)(store: Map[FileName, Content] => Future[Unit]): Future[Unit] =

@@ -76,9 +76,17 @@ class DeploymentHandler @Inject()(
                        )
                      ).map: requiresUpdate =>
                        if requiresUpdate then
-                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has been processed")
+                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} ${environment.asString} has been processed")
                        else
-                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} $environment has already been processed (redeployment without config changes)")
+                         logger.info(s"Deployment ${payload.serviceName} ${payload.version} ${environment.asString} has already been processed (redeployment without config changes)")
+                   case ("undeployment-complete", Some(environment)) =>
+                     EitherT.liftF[Future, String, Unit](
+                       slugInfoService.cleanUpDeployment(
+                         env         = environment,
+                         serviceName = payload.serviceName
+                       )
+                     ).map: _ =>
+                       logger.info(s"Undeployment ${payload.serviceName} ${payload.version} ${environment.asString} has been processed")
                    case (_, None) =>
                      logger.info(s"Not processing message '${message.messageId()}' with unrecognised environment")
                      EitherT.pure[Future, String](())

@@ -25,7 +25,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
-import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, GithubRawConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence._
@@ -47,7 +47,10 @@ class SlugInfoServiceSpec
 
   "SlugInfoService.updateMetadata" should:
     "clear flags of decommissioned services" in new Setup:
-      val decommissionedServices = List(ServiceName("service1"), ServiceName("service2"))
+      val decommissionedServices = List(
+        TeamsAndRepositoriesConnector.DecommissionedRepo(RepoName("service1"))
+      , TeamsAndRepositoriesConnector.DecommissionedRepo(RepoName("service2"))
+      )
 
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(Seq.empty))
@@ -58,7 +61,7 @@ class SlugInfoServiceSpec
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(Seq.empty))
 
-      when(mockedGithubRawConnector.decommissionedServices())
+      when(mockedTeamsAndReposConnector.getDecommissionedServices())
         .thenReturn(Future.successful(decommissionedServices))
 
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
@@ -71,6 +74,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentConfigRepository.delete(any[ServiceName], any[Environment], any[Boolean]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
@@ -86,7 +92,7 @@ class SlugInfoServiceSpec
         verify(mockedAppliedConfigRepository).delete(ServiceName("service1"), env)
         verify(mockedAppliedConfigRepository).delete(ServiceName("service2"), env)
 
-      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, decommissionedServices)
+      verify(mockedSlugInfoRepository).clearFlags(SlugInfoFlag.Latest, decommissionedServices.map(x => ServiceName(x.repoName.asString)))
 
     "clear latest flag for services that have been deleted/archived" in new Setup:
       val knownServices  = List(ServiceName("service1"), ServiceName("service2"), ServiceName("service3"))
@@ -102,7 +108,7 @@ class SlugInfoServiceSpec
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
-      when(mockedGithubRawConnector.decommissionedServices())
+      when(mockedTeamsAndReposConnector.getDecommissionedServices())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
@@ -118,6 +124,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentConfigRepository.delete(any[ServiceName], any[Environment], any[Boolean]))
         .thenReturn(Future.unit)
 
       service.updateMetadata().futureValue
@@ -146,7 +155,7 @@ class SlugInfoServiceSpec
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
-      when(mockedGithubRawConnector.decommissionedServices())
+      when(mockedTeamsAndReposConnector.getDecommissionedServices())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
@@ -160,6 +169,10 @@ class SlugInfoServiceSpec
 
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
         .thenReturn(Future.unit)
+
+      when(mockedDeploymentConfigRepository.delete(any[ServiceName], any[Environment], any[Boolean]))
+        .thenReturn(Future.unit)
+
 
       when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
         .thenReturn(Future.unit)
@@ -213,7 +226,7 @@ class SlugInfoServiceSpec
       when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
-      when(mockedGithubRawConnector.decommissionedServices())
+      when(mockedTeamsAndReposConnector.getDecommissionedServices())
         .thenReturn(Future.successful(List.empty))
 
       when(mockedSlugInfoRepository.getAllLatestSlugInfos())
@@ -229,6 +242,9 @@ class SlugInfoServiceSpec
         .thenReturn(Future.unit)
 
       when(mockedAppliedConfigRepository.delete(any[ServiceName], any[Environment]))
+        .thenReturn(Future.unit)
+
+      when(mockedDeploymentConfigRepository.delete(any[ServiceName], any[Environment], any[Boolean]))
         .thenReturn(Future.unit)
 
       when(mockedSlugInfoRepository.clearFlags(any[SlugInfoFlag], any[List[ServiceName]]))
@@ -528,7 +544,6 @@ class SlugInfoServiceSpec
     val mockedDeploymentEventRepository = mock[DeploymentEventRepository]
     val mockedReleasesApiConnector       = mock[ReleasesApiConnector]
     val mockedTeamsAndReposConnector     = mock[TeamsAndRepositoriesConnector]
-    val mockedGithubRawConnector         = mock[GithubRawConnector]
     val mockedConfigConnector            = mock[ConfigConnector]
     val mockedConfigService              = mock[ConfigService]
 
@@ -543,7 +558,6 @@ class SlugInfoServiceSpec
       , mockedDeploymentEventRepository
       , mockedReleasesApiConnector
       , mockedTeamsAndReposConnector
-      , mockedGithubRawConnector
       , mockedConfigConnector
       , mockedConfigService
       )
