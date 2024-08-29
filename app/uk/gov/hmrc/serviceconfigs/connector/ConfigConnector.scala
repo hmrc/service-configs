@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.connector
 
 import play.api.Logging
-import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
+import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
@@ -51,6 +51,12 @@ class ConfigConnector @Inject()(
   def serviceManagerConfig()(using hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/services.json")
 
+  def serviceMappings()(using hc: HeaderCarrier): Future[Map[String, String]] =
+    httpClientV2
+      .get(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/service_mappings.json")
+      .setHeader(("Authorization", s"token ${githubConfig.githubToken}"))
+      .execute[Map[String, String]]
+  
   private def doCall(url: URL)(using hc: HeaderCarrier) =
     httpClientV2
       .get(url)
