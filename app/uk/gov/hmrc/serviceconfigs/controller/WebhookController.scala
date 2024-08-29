@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import cats.implicits._
+import cats.implicits.*
 import cats.data.EitherT
 import play.api.Logging
 import play.api.mvc.{Action, ControllerComponents}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.model.Environment
-import uk.gov.hmrc.serviceconfigs.service._
+import uk.gov.hmrc.serviceconfigs.service.*
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class WebhookController @Inject()(
@@ -79,7 +80,8 @@ class WebhookController @Inject()(
         ).fold(
           _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - no change required")
         , _ => logger.info(s"repo: ${request.body.repoName} branch: ${request.body.branchRef} - successfully processed push")
-        )
+        ).recover:
+          case NonFatal(ex) => logger.error(s"Push failed with error: ${ex.getMessage}", ex)
         Accepted(details("Push accepted"))
 
   private def details(msg: String) =
