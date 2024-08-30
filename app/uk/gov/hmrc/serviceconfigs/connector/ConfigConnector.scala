@@ -55,6 +55,7 @@ class ConfigConnector @Inject()(
     httpClientV2
       .get(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/service_mappings.json")
       .setHeader(("Authorization", s"token ${githubConfig.githubToken}"))
+      .withProxy
       .execute[Map[String, String]]
   
   private def doCall(url: URL)(using hc: HeaderCarrier) =
