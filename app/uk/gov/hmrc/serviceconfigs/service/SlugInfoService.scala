@@ -123,18 +123,16 @@ class SlugInfoService @Inject()(
     hc: HeaderCarrier
   ): Future[Boolean] =
     for
-      _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)
-      previousDeployedConfig <- configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)
       previousDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
       (requiresUpdate, calculateConfigChanged)
                              =  previousDeploymentInfo match
                                   case None  =>
-                                    logger.info(s"No deployedConfig exists in repository for $serviceName ${deployment.version} in $env. About to insert.")
+                                    logger.info(s"No deployedConfig exists in repository for ${serviceName.asString} ${deployment.version} in $env. About to insert.")
                                     ( true
                                     , None // first deployment - config change n/a
                                     )
                                   case Some(config) if config.configId == deployment.configId =>
-                                    logger.debug(s"No change in configId, no need to update for $serviceName ${deployment.version} in $env")
+                                    logger.debug(s"No change in configId, no need to update for ${serviceName.asString} ${deployment.version} in $env")
                                     ( false
                                     , Some(false) // config hasn't changed
                                     )
@@ -149,7 +147,7 @@ class SlugInfoService @Inject()(
                                     ( true
                                     , Some(true) // this actually means we need to calculate if the config has changed
                                     )
-      _                     <-
+      _                      <-
                                 if requiresUpdate then
                                   updateDeployedConfig(env, serviceName, deployment)
                                     .fold(
@@ -159,26 +157,28 @@ class SlugInfoService @Inject()(
                                       case NonFatal(ex) => logger.error(s"Failed to update ${serviceName.asString} $env: ${ex.getMessage()}", ex)
                                 else
                                   Future.unit
-      configChanged         <- calculateConfigChanged match
-                                 case Some(true) =>
-                                   // we've updated mongo data now, read again
-                                   configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)
-                                     .map: newDeployedConfig =>
-                                       val changed = normalise(newDeployedConfig, env) != normalise(previousDeployedConfig, env)
-                                       logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? $changed")
-                                       Some(changed)
-                                 case other =>
-                                   Future.successful(other)
-      depEvent              =  DeploymentEventRepository.DeploymentEvent(
-                                 serviceName,
-                                 env,
-                                 deployment.version,
-                                 deployment.deploymentId,
-                                 configChanged,
-                                 Some(deployment.configId),
-                                 deployment.lastDeployed
-                               )
-      _                     <- deploymentEventRepository.put(depEvent)
+      previousDeployedConfig <- configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)      // calls slugInfoRepository
+      _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version) // must set after previousDeployedConfig
+      configChanged          <- calculateConfigChanged match
+                                  case Some(true) =>
+                                    // we've updated mongo data now, read again
+                                    configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)
+                                      .map: newDeployedConfig =>
+                                        val changed = normalise(newDeployedConfig, env) != normalise(previousDeployedConfig, env)
+                                        logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? $changed")
+                                        Some(changed)
+                                  case other =>
+                                    Future.successful(other)
+      depEvent               =  DeploymentEventRepository.DeploymentEvent(
+                                  serviceName,
+                                  env,
+                                  deployment.version,
+                                  deployment.deploymentId,
+                                  configChanged,
+                                  Some(deployment.configId),
+                                  deployment.lastDeployed
+                                )
+      _                      <- deploymentEventRepository.put(depEvent)
     yield requiresUpdate
 
   private def normalise(config: Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]], env: Environment): Map[String, ConfigValue] =
