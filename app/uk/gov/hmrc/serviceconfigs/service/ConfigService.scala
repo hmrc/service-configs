@@ -274,21 +274,34 @@ class ConfigService @Inject()(
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
     deploymentEventRepository.findAllForService(serviceName, dateRange)
 
-  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)(using HeaderCarrier): Future[Map[String, ConfigChange]] =
+  def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)(using HeaderCarrier): Future[ConfigChanges] =
+    val configEnvironment =  ConfigEnvironment.ForEnvironment(environment)
     for
+      fromVersion  <- slugInfoRepository.getSlugInfo(serviceName, configEnvironment.slugInfoFlag).map(_.map(_.version))
       current      <- configSourceEntries(
-                        environment = ConfigEnvironment.ForEnvironment(environment),
+                        environment = configEnvironment,
                         serviceName = serviceName,
                         version     = None,
                         latest      = false
                       ).map(resultingConfig)
       whenDeployed <- configSourceEntries(
-                       environment = ConfigEnvironment.ForEnvironment(environment),
-                       serviceName = serviceName,
-                       version     = Some(version),
-                       latest      = true
-                     ).map(resultingConfig)
-    yield changes(current, whenDeployed)
+                        environment = configEnvironment,
+                        serviceName = serviceName,
+                        version     = Some(version),
+                        latest      = true
+                      ).map(resultingConfig)
+      oDeployment  <- deploymentEventRepository.findCurrentDeploymentEvent(serviceName, environment)
+      (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
+        oDeployment.fold((Option.empty[CommitId], Option.empty[CommitId], Option.empty[CommitId]))(configCommitIds)
+    yield
+      ConfigChanges(
+        base        = ConfigChanges.BaseConfigChange(fromBaseCommitId, Some(CommitId("main"))),
+        common      = ConfigChanges.CommonConfigChange(fromCommonCommitId, Some(CommitId("main"))),
+        env         = ConfigChanges.EnvironmentConfigChange(environment, fromEnvCommitId, Some(CommitId("main"))),
+        changes     = changes(current, whenDeployed),
+        fromVersion = fromVersion,
+        toVersion   = version
+      )
 
   private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, ConfigChange] =
     (fromConfig.keys ++ toConfig.keys)
@@ -319,23 +332,25 @@ class ConfigService @Inject()(
        _   <- EitherT.cond(
                 to.time.isAfter(from.time),
                 (),
-                "Deployment event refered to by fromDeploymentId is later than toDeploymentId"
+                "Deployment event referred to by fromDeploymentId is later than toDeploymentId"
               )
 
        (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
-         configCommidIds(from)
+         configCommitIds(from)
 
        (toBaseCommitId, toCommonCommitId, toEnvCommitId) =
-         configCommidIds(to)
+         configCommitIds(to)
 
        fromConfig <- EitherT.liftF(configSourceEntriesByDeployment(from).map(resultingConfig))
        toConfig   <- EitherT.liftF(configSourceEntriesByDeployment(to).map(resultingConfig))
      yield
        ConfigChanges(
-         base    = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
-         common  = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
-         env     = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
-         changes = changes(fromConfig, toConfig)
+         base        = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
+         common      = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
+         env         = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
+         changes     = changes(fromConfig, toConfig),
+         fromVersion = Some(from.version),
+         toVersion   = to.version
        )
     ).value
 
@@ -352,7 +367,7 @@ class ConfigService @Inject()(
     val env         = deploymentEvent.environment
 
     val (baseCommitId, commonCommitId, envCommitId) =
-      configCommidIds(deploymentEvent)
+      configCommitIds(deploymentEvent)
 
     for
       optAppConfigBase       <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten)
@@ -376,7 +391,7 @@ class ConfigService @Inject()(
       cses
 
 
-  def configCommidIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
+  def configCommitIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
     // We could get the full commitIds from releases-api
     // but the short hashes stored in the configId suffice
     deploymentEvent.configId match
@@ -540,10 +555,12 @@ object ConfigService:
   )
 
   case class ConfigChanges(
-    base            : ConfigChanges.BaseConfigChange,
-    common          : ConfigChanges.CommonConfigChange,
-    env             : ConfigChanges.EnvironmentConfigChange,
-    changes         : Map[String, ConfigChange]
+    base       : ConfigChanges.BaseConfigChange,
+    common     : ConfigChanges.CommonConfigChange,
+    env        : ConfigChanges.EnvironmentConfigChange,
+    changes    : Map[String, ConfigChange],
+    fromVersion: Option[Version],
+    toVersion  : Version
   )
 
   object ConfigChanges:

@@ -53,8 +53,8 @@ class ConfigController @Inject()(
       given Writes[Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]]] = mapWrites
       configService
         .configByEnvironment(serviceName, environment, version, latest)
-        .map: e =>
-          Ok(Json.toJson(e))
+        .map:
+          events => Ok(Json.toJson(events))
 
   def deploymentEvents(serviceName: ServiceName, range: DeploymentDateRange): Action[AnyContent] =
     Action.async:
@@ -68,7 +68,8 @@ class ConfigController @Inject()(
     Action.async: request =>
       given RequestHeader = request
       given Writes[ConfigService.ConfigChanges] = configChangesWrites
-      configService.configChanges(deploymentId, fromDeploymentId)
+      configService
+        .configChanges(deploymentId, fromDeploymentId)
         .map:
           case Left(msg)      => BadRequest(msg)
           case Right(changes) => Ok(Json.toJson(changes))
@@ -76,8 +77,9 @@ class ConfigController @Inject()(
   def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version): Action[AnyContent] =
     Action.async: request =>
       given RequestHeader = request
-      given Writes[ConfigService.ConfigChange] = configChangeWrites
-      configService.configChangesNextDeployment(serviceName, environment, version)
+      given Writes[ConfigService.ConfigChanges] = configChangesWrites
+      configService
+        .configChangesNextDeployment(serviceName, environment, version)
         .map:
           changes => Ok(Json.toJson(changes))
 
@@ -172,15 +174,16 @@ object ConfigController:
     given Writes[ConfigService.ConfigSourceEntries] = configSourceEntriesWrites
     envMapWrites
 
-  val configChangeWrites: Writes[ConfigService.ConfigChange] =
+  private val configChangeWrites: Writes[ConfigService.ConfigChange] =
     given Writes[ConfigSourceValue] = configSourceValueWrites
     ( (__ \ "from").writeNullable[ConfigSourceValue]
     ~ (__ \ "to"  ).writeNullable[ConfigSourceValue]
     )(cc => (cc.from, cc.to))
 
   val configChangesWrites: Writes[ConfigService.ConfigChanges] =
-    given Writes[CommitId] = CommitId.format
+    given Writes[CommitId]    = CommitId.format
     given Writes[Environment] = Environment.format
+    given Writes[Version]     = Version.format
     given Writes[ConfigService.ConfigChanges.BaseConfigChange] =
       ( (__ \ "from"     ).writeNullable[CommitId]
       ~ (__ \ "to"       ).writeNullable[CommitId]
@@ -198,8 +201,10 @@ object ConfigController:
       ~ (__ \ "githubUrl"  ).write[String]
       )(cc => (cc.environment, cc.from, cc.to, cc.githubUrl))
     given Writes[ConfigService.ConfigChange] = configChangeWrites
-    ( (__ \ "base"   ).write[ConfigService.ConfigChanges.BaseConfigChange]
-    ~ (__ \ "common" ).write[ConfigService.ConfigChanges.CommonConfigChange]
-    ~ (__ \ "env"    ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
-    ~ (__ \ "changes").write[Map[String, ConfigService.ConfigChange]]
+    ( (__ \ "base"       ).write[ConfigService.ConfigChanges.BaseConfigChange]
+    ~ (__ \ "common"     ).write[ConfigService.ConfigChanges.CommonConfigChange]
+    ~ (__ \ "env"        ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
+    ~ (__ \ "changes"    ).write[Map[String, ConfigService.ConfigChange]]
+    ~ (__ \ "fromVersion").writeNullable[Version]
+    ~ (__ \ "toVersion"  ).write[Version]
     )(cc => Tuple.fromProductTyped(cc))

@@ -97,6 +97,18 @@ class DeploymentEventRepository @Inject()(
       .find(equal("deploymentId", deploymentId))
       .headOption()
 
+  def findCurrentDeploymentEvent(serviceName: ServiceName, environment: Environment): Future[Option[DeploymentEvent]] =
+    collection
+      .find(
+        and(
+          equal("serviceName", serviceName),
+          equal("environment", environment),
+        )
+      )
+      .sort(Sorts.descending("lastUpdated"))
+      .headOption()
+
+
   def findPreviousDeploymentEvent(deploymentEvent: DeploymentEvent): Future[Option[DeploymentEvent]] =
     collection
       .find(
