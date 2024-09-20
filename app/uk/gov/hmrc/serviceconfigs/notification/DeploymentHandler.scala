@@ -67,7 +67,7 @@ class DeploymentHandler @Inject()(
                          serviceName = payload.serviceName,
                          deployment  = ReleasesApiConnector.Deployment(
                                          serviceName    = payload.serviceName
-                                       , optEnvironment = Some(environment)
+                                       , environment    = environment
                                        , version        = payload.version
                                        , lastDeployed   = payload.time
                                        , deploymentId   = payload.deploymentId

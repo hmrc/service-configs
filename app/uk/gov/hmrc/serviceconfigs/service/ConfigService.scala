@@ -22,7 +22,7 @@ import cats.syntax.all._
 import com.typesafe.config.Config
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, DeploymentDateRange, Environment, FileName, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, DeploymentConfig, DeploymentDateRange, Environment, FileName, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, DeploymentEventRepository, SlugInfoRepository}
 
@@ -146,7 +146,7 @@ class ConfigService @Inject()(
     latest      : Boolean // true - latest (as would be deployed), false - as currently deployed
   )(using
     hc: HeaderCarrier
-  ): Future[Seq[ConfigSourceEntries]] =
+  ): Future[(Seq[ConfigSourceEntries], Option[DeploymentConfig])] =
     environment.slugInfoFlag match
       case SlugInfoFlag.Latest =>
         for
@@ -159,15 +159,16 @@ class ConfigService @Inject()(
 
           (applicationConf, bootstrapConf)
                                     <- lookupApplicationConf(serviceName, dependencyConfigs, optSlugInfo)
-        yield toConfigSourceEntries(
-          ConfigSourceConfig.referenceConf(referenceConf, Map.empty) ::
-          bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList :::
-          ConfigSourceConfig.applicationConf(serviceName)(applicationConf, Map.empty) ::
-          Nil
-        )
+          cses                      =  toConfigSourceEntries(
+                                         ConfigSourceConfig.referenceConf(referenceConf, Map.empty) ::
+                                         bootstrapConf.map { case (k, v) => ConfigSourceConfig(k, sourceUrl = None, v, Map.empty) }.toList :::
+                                         ConfigSourceConfig.applicationConf(serviceName)(applicationConf, Map.empty) ::
+                                         Nil
+                                       )
+        yield ((cses, None))
       case SlugInfoFlag.ForEnvironment(env) =>
         for
-          (optAppConfigBase, optAppConfigCommonRaw, appConfigEnvEntriesAll)
+          (optAppConfigBase, optAppConfigCommonProps, optAppConfigEnvRaw, appConfigEnvEntriesAll)
                                     <-
                                        if latest then
                                          for
@@ -181,14 +182,16 @@ class ConfigService @Inject()(
                                          yield
                                            ( optAppConfigBase
                                            , ConfigParser.parseYamlStringAsProperties(optRaw.getOrElse(""))
+                                           , optAppConfigEnvRaw
                                            , appConfigEnvEntriesAll: java.util.Properties
                                            )
                                        else
                                          deployedConfigRepository
                                            .find(serviceName, env)
-                                           .map(_.fold((Option.empty[String], java.util.Properties(), java.util.Properties()))(c =>
+                                           .map(_.fold((Option.empty[String], java.util.Properties(), Option.empty[String], java.util.Properties()))(c =>
                                              ( c.appConfigBase
                                              , ConfigParser.parseYamlStringAsProperties(c.appConfigCommon.getOrElse(""))
+                                             , c.appConfigEnv
                                              , ConfigParser.parseYamlStringAsProperties(c.appConfigEnv.getOrElse(""))
                                              )
                                            ))
@@ -200,12 +203,17 @@ class ConfigService @Inject()(
                                          serviceType,
                                          appConfigEnvEntriesAll,
                                          optAppConfigBase,
-                                         optAppConfigCommonRaw
+                                         optAppConfigCommonProps
                                        )
-        yield cses
+          deploymentConfig          =  DeploymentConfigService.toDeploymentConfig(
+                                         serviceName = serviceName,
+                                         environment = env,
+                                         applied     = true,
+                                         fileContent = optAppConfigEnvRaw.getOrElse("")
+                                       )
+        yield ((cses, deploymentConfig))
 
-
-  def toConfigSourceEntries(
+  private def toConfigSourceEntries(
     env                   : Environment,
     serviceName           : ServiceName,
     version               : Option[Version],
@@ -268,7 +276,7 @@ class ConfigService @Inject()(
         case ConfigEnvironment.ForEnvironment(e) => environments.contains(e) || environments.isEmpty
       .map: e =>
         configSourceEntries(e, serviceName, version, latest)
-          .map(e -> _)
+          .map(e -> _._1)
       .sequence.map(_.toMap)
 
   def getDeploymentEvents(serviceName: ServiceName, dateRange: DeploymentDateRange): Future[Seq[DeploymentEventRepository.DeploymentEvent]] =
@@ -283,56 +291,46 @@ class ConfigService @Inject()(
                         serviceName = serviceName,
                         version     = None,
                         latest      = false
-                      ).map(resultingConfig)
+                      )
       whenDeployed <- configSourceEntries(
                         environment = configEnvironment,
                         serviceName = serviceName,
                         version     = Some(version),
                         latest      = true
-                      ).map(resultingConfig)
+                      )
       oDeployment  <- deploymentEventRepository.findCurrentDeploymentEvent(serviceName, environment)
       (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
         oDeployment.fold((Option.empty[CommitId], Option.empty[CommitId], Option.empty[CommitId]))(configCommitIds)
     yield
       ConfigChanges(
-        base        = ConfigChanges.BaseConfigChange(fromBaseCommitId, Some(CommitId("main"))),
-        common      = ConfigChanges.CommonConfigChange(fromCommonCommitId, Some(CommitId("main"))),
-        env         = ConfigChanges.EnvironmentConfigChange(environment, fromEnvCommitId, Some(CommitId("main"))),
-        changes     = changes(current, whenDeployed),
-        fromVersion = fromVersion,
-        toVersion   = version
+        app               = ConfigChanges.App(fromVersion, version),
+        base              = ConfigChanges.BaseConfigChange(fromBaseCommitId, Some(CommitId("main"))),
+        common            = ConfigChanges.CommonConfigChange(fromCommonCommitId, Some(CommitId("main"))),
+        env               = ConfigChanges.EnvironmentConfigChange(environment, fromEnvCommitId, Some(CommitId("main"))),
+        configChanges     = changes(resultingConfig(current._1), resultingConfig(whenDeployed._1)),
+        deploymentChanges = changes(resultingConfig(current._2), resultingConfig(whenDeployed._2)),
       )
 
-  private def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, ConfigChange] =
-    (fromConfig.keys ++ toConfig.keys)
-      .foldLeft(Map.empty[String, ConfigChange]): (acc, key) =>
-        val from = fromConfig.get(key)
-        val to   = toConfig.get(key)
-        if from.map(_.value) == to.map(_.value) then
-          acc
-        else
-          acc + (key -> ConfigChange(from, to))
-
-  def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Either[String, ConfigChanges]] =
+  def configChanges(deploymentId: String, fromDeploymentId: Option[String])(using HeaderCarrier): Future[Either[ConfigChangesError, ConfigChanges]] =
     (for
        to   <- EitherT.fromOptionF(
                  deploymentEventRepository.findDeploymentEvent(deploymentId),
-                 s"deploymentId $deploymentId not found"
+                 ConfigChangesError.NotFound(s"deploymentId $deploymentId not found")
                )
        from <- EitherT.fromOptionF(
                  fromDeploymentId.fold(deploymentEventRepository.findPreviousDeploymentEvent(to))(deploymentEventRepository.findDeploymentEvent),
-                 s"deploymentId $fromDeploymentId not found"
+                 ConfigChangesError.NotFound(s"deploymentId $fromDeploymentId not found")
                )
 
        _   <- EitherT.cond(
                 from.serviceName == to.serviceName && from.environment == to.environment,
                 (),
-                "Can't compare deploymentIds for different service or environment"
+                ConfigChangesError.BadRequest("Can't compare deploymentIds for different service or environment")
               )
        _   <- EitherT.cond(
                 to.time.isAfter(from.time),
                 (),
-                "Deployment event referred to by fromDeploymentId is later than toDeploymentId"
+                ConfigChangesError.BadRequest("Deployment event referred to by fromDeploymentId is later than toDeploymentId")
               )
 
        (fromBaseCommitId, fromCommonCommitId, fromEnvCommitId) =
@@ -341,27 +339,27 @@ class ConfigService @Inject()(
        (toBaseCommitId, toCommonCommitId, toEnvCommitId) =
          configCommitIds(to)
 
-       fromConfig <- EitherT.liftF(configSourceEntriesByDeployment(from).map(resultingConfig))
-       toConfig   <- EitherT.liftF(configSourceEntriesByDeployment(to).map(resultingConfig))
+       fromTuple <- EitherT.liftF(configSourceEntriesByDeployment(from))
+       toTuple   <- EitherT.liftF(configSourceEntriesByDeployment(to))
      yield
        ConfigChanges(
-         base        = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
-         common      = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
-         env         = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
-         changes     = changes(fromConfig, toConfig),
-         fromVersion = Some(from.version),
-         toVersion   = to.version
+         app               = ConfigChanges.App(Some(from.version), to.version),
+         base              = ConfigChanges.BaseConfigChange(fromBaseCommitId, toBaseCommitId),
+         common            = ConfigChanges.CommonConfigChange(fromCommonCommitId, toCommonCommitId),
+         env               = ConfigChanges.EnvironmentConfigChange(from.environment, fromEnvCommitId, toEnvCommitId),
+         configChanges     = changes(resultingConfig(fromTuple._1), resultingConfig(toTuple._1)),
+         deploymentChanges = changes(resultingConfig(fromTuple._2), resultingConfig(toTuple._2))
        )
     ).value
 
   /** This a non-cached version of `configSourceEntries`
     * meaning it goes to Github
     */
-  def configSourceEntriesByDeployment(
+  private def configSourceEntriesByDeployment(
     deploymentEvent : DeploymentEventRepository.DeploymentEvent
   )(using
     hc: HeaderCarrier
-  ): Future[Seq[ConfigSourceEntries]] =
+  ): Future[(Seq[ConfigSourceEntries], Option[DeploymentConfig])] =
     val serviceName = deploymentEvent.serviceName
     val version     = deploymentEvent.version
     val env         = deploymentEvent.environment
@@ -387,11 +385,17 @@ class ConfigService @Inject()(
                                    optAppConfigBase,
                                    optAppConfigCommonRaw
                                  )
+       deploymentConfig      =  DeploymentConfigService.toDeploymentConfig(
+                                  serviceName = serviceName,
+                                  environment = env,
+                                  applied     = true,
+                                  fileContent = appConfigEnvRaw.getOrElse("")
+                                )
     yield
-      cses
+      (cses, deploymentConfig)
 
 
-  def configCommitIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
+  private def configCommitIds(deploymentEvent: DeploymentEventRepository.DeploymentEvent): (Option[CommitId], Option[CommitId], Option[CommitId]) =
     // We could get the full commitIds from releases-api
     // but the short hashes stored in the configId suffice
     deploymentEvent.configId match
@@ -413,6 +417,21 @@ class ConfigService @Inject()(
         case (k, vs) => k -> vs.lastOption.map(_._2)
       .collect:
         case (k, Some(v)) => k -> v
+
+  def resultingConfig(
+    deploymentConfig: Option[DeploymentConfig]
+  ): Map[String, ConfigSourceValue] =
+    deploymentConfig match
+      case None     => Map.empty
+      case Some(dc) => ( Map(
+                           "instances" -> dc.instances.toString,
+                           "slots"     -> dc.slots.toString
+                         ) ++ dc.jvm.map(    (key, value) => (s"jvm.$key"        , value))
+                           ++ dc.envVars.map((key, value) => (s"environment.$key", value))
+                       ).view.mapValues:x =>
+                          val url = s"https://github.com/hmrc/app-config-${dc.environment.asString}/blob/main/${dc.serviceName.asString}.yaml"
+                          ConfigSourceValue(source = s"app-config-${dc.environment.asString}", sourceUrl = Some(url), ConfigValue(x))
+                        .toMap
 
   def search(
     key            : Option[String],
@@ -458,7 +477,18 @@ class ConfigService @Inject()(
       ))
 
 object ConfigService:
-  type KeyName         = String
+
+  def changes(fromConfig: Map[String, ConfigSourceValue], toConfig: Map[String, ConfigSourceValue]): Map[String, ConfigChange] =
+    (fromConfig.keys ++ toConfig.keys)
+      .foldLeft(Map.empty[String, ConfigChange]): (acc, key) =>
+        val from = fromConfig.get(key)
+        val to   = toConfig.get(key)
+        if from.map(_.value) == to.map(_.value) then
+          acc
+        else
+          acc + (key -> ConfigChange(from, to))
+
+  type KeyName = String
 
   case class ConfigSourceConfig(
     name         : String,
@@ -555,18 +585,23 @@ object ConfigService:
   )
 
   case class ConfigChanges(
-    base       : ConfigChanges.BaseConfigChange,
-    common     : ConfigChanges.CommonConfigChange,
-    env        : ConfigChanges.EnvironmentConfigChange,
-    changes    : Map[String, ConfigChange],
-    fromVersion: Option[Version],
-    toVersion  : Version
+    app              : ConfigChanges.App,
+    base             : ConfigChanges.BaseConfigChange,
+    common           : ConfigChanges.CommonConfigChange,
+    env              : ConfigChanges.EnvironmentConfigChange,
+    configChanges    : Map[String, ConfigChange],
+    deploymentChanges: Map[String, ConfigChange]
   )
 
   object ConfigChanges:
+    case class App(from: Option[Version], to: Version)
     case class BaseConfigChange(from: Option[CommitId], to: Option[CommitId]):
       def githubUrl = s"https://github.com/hmrc/app-config-base/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"
     case class CommonConfigChange(from: Option[CommitId], to: Option[CommitId]):
       def githubUrl = s"https://github.com/hmrc/app-config-common/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"
     case class EnvironmentConfigChange(environment: Environment, from: Option[CommitId], to: Option[CommitId]):
       def githubUrl = s"https://github.com/hmrc/app-config-${environment.asString}/compare/${from.fold("")(_.asString)}...${to.fold("")(_.asString)}"
+
+  enum ConfigChangesError(val msg: String):
+    case BadRequest(override val msg: String) extends ConfigChangesError(msg)
+    case NotFound  (override val msg: String) extends ConfigChangesError(msg)

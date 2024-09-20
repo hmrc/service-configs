@@ -29,7 +29,7 @@ import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnect
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence._
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceEntries, RenderedConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries, RenderedConfigSourceValue}
 
 import java.time.temporal.ChronoUnit
 import java.time.Instant
@@ -197,25 +197,25 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.getUniqueSlugNames())
         .thenReturn(Future.successful(knownServices))
 
-      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
-        .thenReturn(Future.successful(Map.empty))
+      when(mockedConfigService.configSourceEntries(any[ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
+        .thenReturn(Future.successful((Map.empty, Option.empty[DeploymentConfig])))
 
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(Seq(
           ServiceDeploymentInformation(serviceName1, Seq(
-            Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+            Deployment(serviceName1, Environment.QA, Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
               DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
             ), lastDeployed = now),
-            Deployment(serviceName1, Some(Environment.Production), Version("1.0.1"), deploymentId = "deploymentId2", config = Seq(
+            Deployment(serviceName1, Environment.Production, Version("1.0.1"), deploymentId = "deploymentId2", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                 , commitId = CommitId("4")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("production-microservice-common"), commitId = CommitId("5")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service1.yaml")                 , commitId = CommitId("6"))
             ), lastDeployed = now)
           )),
           ServiceDeploymentInformation(serviceName2, Seq(
-            Deployment(serviceName2, Some(Environment.QA), Version("1.0.2"), deploymentId = "deploymentId3", config = Seq(
+            Deployment(serviceName2, Environment.QA, Version("1.0.2"), deploymentId = "deploymentId3", config = Seq(
               DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service2.conf")                 , commitId = CommitId("7")),
               DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")        , commitId = CommitId("8")),
               DeploymentConfigFile(repoName = RepoName("app-config-production"), fileName = FileName("service2.yaml")                 , commitId = CommitId("9"))
@@ -319,13 +319,20 @@ class SlugInfoServiceSpec
 
       when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
         .thenAnswer(answer =>
-          Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v")))))
+          Future.successful(
+            ( Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v"))))
+            , Option.empty[DeploymentConfig]
+            )
+          )
         )
 
       when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
         .thenAnswer(answer =>
           answer.getArgument[Seq[ConfigSourceEntries]](0).headOption.toSeq.flatMap(cse => cse.entries.map { case (key, value) => key -> ConfigService.ConfigSourceValue(cse.source, cse.sourceUrl, value) }).toMap
         )
+
+      when(mockedConfigService.resultingConfig(any[Option[DeploymentConfig]]))
+        .thenReturn(Map.empty[String, ConfigValue])
 
       when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
         .thenReturn(Future.unit)
@@ -381,8 +388,6 @@ class SlugInfoServiceSpec
     """updateDeployedConfig when :
     |  1. The current deployedConfig configID differs from the latest Deployment ConfigID
     |  2. The current deployedConfig lastUpdated timestamp is prior to the latest Deployment timestamp.""" in new SetupUpdateDeployment:
-      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
-        .thenReturn(Future.successful(Map.empty))
 
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
@@ -414,9 +419,6 @@ class SlugInfoServiceSpec
       ))
 
     "updateDeployedConfig when no deployedConfig exists for the given serviceName/environment" in new SetupUpdateDeployment:
-      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
-        .thenReturn(Future.successful(Map.empty))
-
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           None
@@ -440,8 +442,8 @@ class SlugInfoServiceSpec
     |  2. The config Ids differ""" in new Setup:
       val serviceName1 = ServiceName("service1")
 
-      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
-        .thenReturn(Future.successful(Map.empty))
+      when(mockedConfigService.configSourceEntries(any[ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
+        .thenReturn(Future.successful((Map.empty, Option.empty[DeploymentConfig])))
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
@@ -465,7 +467,7 @@ class SlugInfoServiceSpec
           )
         ))
 
-      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+      val newDeployment = Deployment(serviceName1, Environment.QA, Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
@@ -489,8 +491,8 @@ class SlugInfoServiceSpec
     |  2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp""".stripMargin in new Setup:
       val serviceName1 = ServiceName("service1")
 
-      when(mockedConfigService.configByEnvironment(any[ServiceName], any[Seq[Environment]], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
-        .thenReturn(Future.successful(Map.empty))
+      when(mockedConfigService.configSourceEntries(any[ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
+        .thenReturn(Future.successful((Map.empty, Option.empty[DeploymentConfig])))
 
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
@@ -517,7 +519,7 @@ class SlugInfoServiceSpec
           )
         ))
 
-      val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+      val newDeployment = Deployment(serviceName1, Environment.QA, Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
@@ -599,7 +601,11 @@ class SlugInfoServiceSpec
 
     when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
       .thenAnswer(answer =>
-        Future.successful(Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v")))))
+        Future.successful(
+          ( Seq(ConfigSourceEntries("s", Some("u"), Map(s"${answer.getArgument[ConfigService.ConfigEnvironment](0).name}.${answer.getArgument[String](1)}" -> ConfigValue("v"))))
+          , Option.empty[DeploymentConfig]
+          )
+        )
       )
 
     when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
@@ -609,10 +615,13 @@ class SlugInfoServiceSpec
         ).toMap
       )
 
+    when(mockedConfigService.resultingConfig(any[Option[DeploymentConfig]]))
+      .thenReturn(Map.empty[String, ConfigValue])
+
     when(mockedAppliedConfigRepository.put(any[ServiceName], any[Environment], any[Map[String, RenderedConfigSourceValue]]))
       .thenReturn(Future.unit)
 
-    val newDeployment = Deployment(serviceName1, Some(Environment.QA), Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+    val newDeployment = Deployment(serviceName1, Environment.QA, Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
       DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
       DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
       DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))

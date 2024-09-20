@@ -50,7 +50,7 @@ class ConfigWarningService @Inject()(
           )
 
         for
-          configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, version, latest)
+          configSourceEntries <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(environment), serviceName, version, latest).map(_._1)
           resultingConfig     =  configService.resultingConfig(configSourceEntries)
           nov                 =  configNotOverriding(configSourceEntries)
           ctc                 =  configTypeChange(configSourceEntries)
