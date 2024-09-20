@@ -22,12 +22,12 @@ import play.api.Logger
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model._
-import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence._
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigEnvironment
 
 @Singleton
 class SlugInfoService @Inject()(
@@ -69,7 +69,7 @@ class SlugInfoService @Inject()(
                                                            .toList
                                                            .map: env =>
                                                              ( env
-                                                             , deployments.flatMap(_.find(_.optEnvironment.contains(env)))
+                                                             , deployments.flatMap(_.find(_.environment == env))
                                                              )
                                   (serviceName, deploymentsByEnv)
                                 } ++
@@ -124,6 +124,8 @@ class SlugInfoService @Inject()(
   ): Future[Boolean] =
     for
       previousDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
+      previousDeployedConfig <- configService.configSourceEntries(ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)      // calls slugInfoRepository
+      _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)                              // must set after previousDeployedConfig
       (requiresUpdate, calculateConfigChanged)
                              =  previousDeploymentInfo match
                                   case None  =>
@@ -157,39 +159,31 @@ class SlugInfoService @Inject()(
                                       case NonFatal(ex) => logger.error(s"Failed to update ${serviceName.asString} $env: ${ex.getMessage()}", ex)
                                 else
                                   Future.unit
-      previousDeployedConfig <- configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)      // calls slugInfoRepository
-      _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version) // must set after previousDeployedConfig
-      configChanged          <- calculateConfigChanged match
+      changes                <- calculateConfigChanged match
                                   case Some(true) =>
                                     // we've updated mongo data now, read again
-                                    configService.configByEnvironment(serviceName, Seq(env), version = None, latest = false)
+                                    configService.configSourceEntries(ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)
                                       .map: newDeployedConfig =>
-                                        val changed = normalise(newDeployedConfig, env) != normalise(previousDeployedConfig, env)
-                                        logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? $changed")
-                                        Some(changed)
-                                  case other =>
-                                    Future.successful(other)
+                                        val configChanged           = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._1), configService.resultingConfig(newDeployedConfig._1)).nonEmpty
+                                        val deploymentConfigChanged = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._2), configService.resultingConfig(newDeployedConfig._2)).nonEmpty
+                                        logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? configChanged: $configChanged deploymentConfigChanged: $deploymentConfigChanged")
+                                        Some((configChanged, deploymentConfigChanged))
+                                  case Some(false) =>
+                                    Future.successful(Some((false, false)))
+                                  case None =>
+                                    Future.successful(Option.empty[(Boolean, Boolean)])
       depEvent               =  DeploymentEventRepository.DeploymentEvent(
-                                  serviceName,
-                                  env,
-                                  deployment.version,
-                                  deployment.deploymentId,
-                                  configChanged,
-                                  Some(deployment.configId),
-                                  deployment.lastDeployed
+                                  serviceName             = serviceName
+                                , environment             = env
+                                , version                 = deployment.version
+                                , deploymentId            = deployment.deploymentId
+                                , configChanged           = changes.map(_._1)
+                                , deploymentConfigChanged = changes.map(_._2)
+                                , configId                = Some(deployment.configId)
+                                , time                    = deployment.lastDeployed
                                 )
       _                      <- deploymentEventRepository.put(depEvent)
     yield requiresUpdate
-
-  private def normalise(config: Map[ConfigService.ConfigEnvironment, Seq[ConfigService.ConfigSourceEntries]], env: Environment): Map[String, ConfigValue] =
-    scala.collection.immutable.ListMap(
-      configService
-        .resultingConfig:
-          config.getOrElse(ConfigService.ConfigEnvironment.ForEnvironment(env), Seq.empty)
-        .toSeq
-        .map { case (k, csv) => (k, csv.value) }
-        .sortBy(_._1)*
-    )
 
   private def updateDeployedConfig(
     env        : Environment,
@@ -250,7 +244,7 @@ class SlugInfoService @Inject()(
       // we let the scheduler populate the DeploymenConfigSnapshot from this
       _                 <- EitherT.right(deploymentConfig.fold(Future.unit)(deploymentConfigRepository.add))
       // now we have stored the deployed configs, we can calculate the resulting configs
-      cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false))
+      cses              <- EitherT.right(configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)).map(_._1)
       resultingConfigs  =  configService.resultingConfig(cses)
       results           =  resultingConfigs.view.mapValues(_.toRenderedConfigSourceValue).toMap
       _                 <-

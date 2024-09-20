@@ -24,7 +24,7 @@ import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model._
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository, ServiceToRepoNameRepository}
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigSourceValue, KeyName, RenderedConfigSourceValue}
+import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigChangesError, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 
 import javax.inject.{Inject, Singleton}
@@ -71,7 +71,8 @@ class ConfigController @Inject()(
       configService
         .configChanges(deploymentId, fromDeploymentId)
         .map:
-          case Left(msg)      => BadRequest(msg)
+          case Left(ConfigChangesError.BadRequest(msg)) => BadRequest(msg)
+          case Left(ConfigChangesError.NotFound(msg))   => NotFound(msg)
           case Right(changes) => Ok(Json.toJson(changes))
 
   def configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version): Action[AnyContent] =
@@ -184,6 +185,10 @@ object ConfigController:
     given Writes[CommitId]    = CommitId.format
     given Writes[Environment] = Environment.format
     given Writes[Version]     = Version.format
+    given Writes[ConfigService.ConfigChanges.App] =
+      ( (__ \ "from").writeNullable[Version]
+      ~ (__ \ "to"  ).write[Version]
+      )(cc => (cc.from, cc.to))
     given Writes[ConfigService.ConfigChanges.BaseConfigChange] =
       ( (__ \ "from"     ).writeNullable[CommitId]
       ~ (__ \ "to"       ).writeNullable[CommitId]
@@ -201,10 +206,10 @@ object ConfigController:
       ~ (__ \ "githubUrl"  ).write[String]
       )(cc => (cc.environment, cc.from, cc.to, cc.githubUrl))
     given Writes[ConfigService.ConfigChange] = configChangeWrites
-    ( (__ \ "base"       ).write[ConfigService.ConfigChanges.BaseConfigChange]
-    ~ (__ \ "common"     ).write[ConfigService.ConfigChanges.CommonConfigChange]
-    ~ (__ \ "env"        ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
-    ~ (__ \ "changes"    ).write[Map[String, ConfigService.ConfigChange]]
-    ~ (__ \ "fromVersion").writeNullable[Version]
-    ~ (__ \ "toVersion"  ).write[Version]
+    ( (__ \ "app"              ).write[ConfigService.ConfigChanges.App]
+    ~ (__ \ "base"             ).write[ConfigService.ConfigChanges.BaseConfigChange]
+    ~ (__ \ "common"           ).write[ConfigService.ConfigChanges.CommonConfigChange]
+    ~ (__ \ "env"              ).write[ConfigService.ConfigChanges.EnvironmentConfigChange]
+    ~ (__ \ "configChanges"    ).write[Map[String, ConfigService.ConfigChange]]
+    ~ (__ \ "deploymentChanges").write[Map[String, ConfigService.ConfigChange]]
     )(cc => Tuple.fromProductTyped(cc))

@@ -129,32 +129,35 @@ object DeploymentEventRepository:
   val collectionName = "deploymentEvents"
 
   case class DeploymentEvent(
-    serviceName    : ServiceName,
-    environment    : Environment,
-    version        : Version,
-    deploymentId   : String,
-    configChanged  : Option[Boolean],
-    configId       : Option[String],
-    time           : Instant
+    serviceName            : ServiceName,
+    environment            : Environment,
+    version                : Version,
+    deploymentId           : String,
+    configChanged          : Option[Boolean],
+    deploymentConfigChanged: Option[Boolean],
+    configId               : Option[String],
+    time                   : Instant
   )
 
   object DeploymentEvent:
     val apiFormat: Format[DeploymentEvent] =
-      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
-      ~ (__ \ "environment"  ).format[Environment](Environment.format)
-      ~ (__ \ "version"      ).format[Version](Version.format)
-      ~ (__ \ "deploymentId" ).format[String]
-      ~ (__ \ "configChanged").formatNullable[Boolean]
-      ~ (__ \ "configId"     ).formatNullable[String]
-      ~ (__ \ "lastUpdated"  ).format[Instant]
+      ( (__ \ "serviceName"            ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"            ).format[Environment](Environment.format)
+      ~ (__ \ "version"                ).format[Version](Version.format)
+      ~ (__ \ "deploymentId"           ).format[String]
+      ~ (__ \ "configChanged"          ).formatNullable[Boolean]
+      ~ (__ \ "deploymentConfigChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"               ).formatNullable[String]
+      ~ (__ \ "lastUpdated"            ).format[Instant]
       )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))
 
     val mongoFormat: Format[DeploymentEvent] =
-      ( (__ \ "serviceName"  ).format[ServiceName](ServiceName.format)
-      ~ (__ \ "environment"  ).format[Environment](Environment.format)
-      ~ (__ \ "version"      ).format[Version](Version.format)
-      ~ (__ \ "deploymentId" ).format[String]
-      ~ (__ \ "configChanged").formatNullable[Boolean]
-      ~ (__ \ "configId"     ).formatNullable[String]
-      ~ (__ \ "lastUpdated"  ).format[Instant](MongoJavatimeFormats.instantFormat)
+      ( (__ \ "serviceName"            ).format[ServiceName](ServiceName.format)
+      ~ (__ \ "environment"            ).format[Environment](Environment.format)
+      ~ (__ \ "version"                ).format[Version](Version.format)
+      ~ (__ \ "deploymentId"           ).format[String]
+      ~ (__ \ "configChanged"          ).formatNullable[Boolean]
+      ~ (__ \ "deploymentConfigChanged").formatNullable[Boolean]
+      ~ (__ \ "configId"               ).formatNullable[String]
+      ~ (__ \ "lastUpdated"            ).format[Instant](MongoJavatimeFormats.instantFormat)
       )(DeploymentEvent.apply, pt => Tuple.fromProductTyped(pt))

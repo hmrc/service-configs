@@ -48,9 +48,6 @@ class ReleasesApiConnector @Inject()(
       .execute[Seq[ServiceDeploymentInformation]]
 
 object ReleasesApiConnector:
-  val environmentReads: Reads[Option[Environment]] =
-      JsPath.read[String].map(Environment.parse)
-
   case class DeploymentConfigFile(
     repoName: RepoName,
     fileName: FileName,
@@ -66,7 +63,7 @@ object ReleasesApiConnector:
 
   case class Deployment(
     serviceName   : ServiceName
-  , optEnvironment: Option[Environment]
+  , environment: Environment
   , version       : Version
   , lastDeployed  : Instant
   , deploymentId  : String
@@ -84,12 +81,10 @@ object ReleasesApiConnector:
 
   object ServiceDeploymentInformation:
     private def deploymentReads(serviceName: ServiceName): Reads[Deployment] =
-      given Reads[Option[Environment]]  = environmentReads
-      given Format[Version]             = Version.format
       given Reads[DeploymentConfigFile] = DeploymentConfigFile.reads
       ( Reads.pure(serviceName)
-      ~ (__ \ "environment"  ).read[Option[Environment]]
-      ~ (__ \ "versionNumber").read[Version]
+      ~ (__ \ "environment"  ).read[Environment](Environment.format)
+      ~ (__ \ "versionNumber").read[Version](Version.format)
       ~ (__ \ "lastDeployed" ).read[Instant]
       ~ (__ \ "deploymentId" ).read[String]
       ~ (__ \ "config"       ).read[Seq[DeploymentConfigFile]]

@@ -37,13 +37,14 @@ class DeploymentEventRepositorySpec
   val yesterday = now.minusSeconds(24 * 60 * 60)
 
   val event: DeploymentEvent = DeploymentEventRepository.DeploymentEvent(
-    ServiceName("testService"),
-    Environment.Development,
-    Version("0.1.0"),
-    "testDeploymentId",
-    configChanged = Some(true),
-    Some("testConfigId"),
-    now
+    serviceName             = ServiceName("testService"),
+    environment             = Environment.Development,
+    version                 = Version("0.1.0"),
+    deploymentId            = "testDeploymentId",
+    configChanged           = Some(true),
+    deploymentConfigChanged = Some(true),
+    configId                = Some("testConfigId"),
+    time                    = now
   )
 
   "DeploymentEventRepository" should:
