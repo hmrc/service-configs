@@ -48,10 +48,10 @@ class ConfigService @Inject()(
 
   private def lookupLoggerConfig(optSlugInfo: Option[SlugInfo]): Map[String, ConfigValue] =
     optSlugInfo match
-      // LoggerModule was added for this version
+      // LoggerModule was added for v5.18.0 but now v8.6.0 includes it and services are encouraged to remove and rely on that instead.
       case Some(slugInfo) if slugInfo.dependencies.exists(d =>
                             d.group == "uk.gov.hmrc"
-                            && List("bootstrap-frontend-play-28", "bootstrap-backend-play-28").contains(d.artifact)
+                            && "bootstrap-common-play-\\d\\d".r.matches(d.artifact)
                             && Version.parse(d.version).exists(_ >= Version("5.18.0"))
                           ) =>
         ConfigParser
