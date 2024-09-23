@@ -48,6 +48,7 @@ class Module extends play.api.inject.Module:
     , bind[SlugMetadataUpdateScheduler              ].toSelf.eagerly()
     , bind[ServiceRelationshipScheduler             ].toSelf.eagerly()
     , bind[ServiceToRepoNameScheduler               ].toSelf.eagerly()
+    , bind[UpdateDeploymentConfigChangeScheduler    ].toSelf.eagerly()
     , bind[FrontendRouteParser                      ].to[NginxConfigParser].eagerly()
     , bind[Clock                                    ].toInstance(Clock.systemUTC())
     ) ++

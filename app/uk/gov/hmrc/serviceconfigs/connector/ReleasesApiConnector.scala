@@ -47,6 +47,64 @@ class ReleasesApiConnector @Inject()(
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]
 
+
+
+
+
+
+
+
+
+  case class PaginatedDeploymentHistory(
+    history: Seq[Deployment],
+    total  : Long
+  )
+
+  import uk.gov.hmrc.http.HttpReads
+  private val paginatedHistoryReads: HttpReads[PaginatedDeploymentHistory] =
+    given Reads[Deployment] =
+      given Reads[DeploymentConfigFile] = DeploymentConfigFile.reads
+      ( (__ \ "serviceName" ).read[String].map(ServiceName.apply)
+      ~ (__ \ "environment" ).read[Environment](Environment.format)
+      ~ (__ \ "version"     ).read[Version](Version.format)
+      ~ (__ \ "time"        ).read[Instant]
+      ~ (__ \ "deploymentId").read[String]
+      ~ (__ \ "config"      ).read[Seq[DeploymentConfigFile]]
+      )(Deployment.apply)
+
+    for
+      history <- summon[HttpReads[Seq[Deployment]]]
+      resp    <- HttpReads.ask.map(_._3)
+      totals  =  resp.header("X-Total-Count").map(_.toLong).getOrElse(0L)
+    yield PaginatedDeploymentHistory(history, totals)
+
+  def deploymentHistory(
+    environment: Environment,
+    from       : Instant,
+    to         : Instant,
+    service    : ServiceName
+  )(using
+    HeaderCarrier
+  ): Future[PaginatedDeploymentHistory] =
+    implicit val mr: HttpReads[PaginatedDeploymentHistory] = paginatedHistoryReads
+    val params = Seq(
+      "from"    -> from.toString,
+      "to"      -> to.toString,
+      "service" -> s"\"${service.asString}\""
+    )
+    httpClientV2
+      .get(url"$serviceUrl/releases-api/deployments/${environment.asString}?$params")
+      .execute[PaginatedDeploymentHistory]
+
+
+
+
+
+
+
+
+
+
 object ReleasesApiConnector:
   case class DeploymentConfigFile(
     repoName: RepoName,
