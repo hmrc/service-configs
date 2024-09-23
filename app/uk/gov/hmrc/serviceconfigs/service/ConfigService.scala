@@ -205,12 +205,12 @@ class ConfigService @Inject()(
                                          optAppConfigBase,
                                          optAppConfigCommonProps
                                        )
-          deploymentConfig          =  DeploymentConfigService.toDeploymentConfig(
+          deploymentConfig          =  optAppConfigEnvRaw.flatMap(content => DeploymentConfigService.toDeploymentConfig(
                                          serviceName = serviceName,
                                          environment = env,
                                          applied     = true,
-                                         fileContent = optAppConfigEnvRaw.getOrElse("")
-                                       )
+                                         fileContent = content
+                                       ))
         yield ((cses, deploymentConfig))
 
   private def toConfigSourceEntries(
@@ -369,28 +369,27 @@ class ConfigService @Inject()(
 
     for
       optAppConfigBase       <- baseCommitId.traverse(configConnector.appConfigBaseConf(serviceName, _)).map(_.flatten)
-      appConfigEnvRaw        <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten)
-      appConfigEnvEntriesAll =  ConfigParser.parseYamlStringAsProperties(appConfigEnvRaw.getOrElse(""))
+      optAppConfigEnvRaw     <- envCommitId.traverse(configConnector.appConfigEnvYaml(env, serviceName, _)).map(_.flatten)
+      appConfigEnvEntriesAll =  ConfigParser.parseYamlStringAsProperties(optAppConfigEnvRaw.getOrElse(""))
       serviceType            =  appConfigEnvEntriesAll.entrySet.asScala.find(_.getKey == "type").map(_.getValue.toString)
       optAppConfigCommonRaw1 <- serviceType.fold(Future.successful(Option.empty[String])): st =>
                                   commonCommitId.traverse(configConnector.appConfigCommonYaml(FileName(s"${env.asString}-$st-common.yaml"), _)).map(_.flatten)
       optAppConfigCommonRaw  =  ConfigParser.parseYamlStringAsProperties(optAppConfigCommonRaw1.getOrElse(""))
-
       cses                   <- toConfigSourceEntries(
-                                   env,
-                                   serviceName,
-                                   Some(version),
-                                   serviceType,
-                                   appConfigEnvEntriesAll,
-                                   optAppConfigBase,
-                                   optAppConfigCommonRaw
-                                 )
-       deploymentConfig      =  DeploymentConfigService.toDeploymentConfig(
+                                  env,
+                                  serviceName,
+                                  Some(version),
+                                  serviceType,
+                                  appConfigEnvEntriesAll,
+                                  optAppConfigBase,
+                                  optAppConfigCommonRaw
+                                )
+      deploymentConfig       =  optAppConfigEnvRaw.flatMap(content => DeploymentConfigService.toDeploymentConfig(
                                   serviceName = serviceName,
                                   environment = env,
                                   applied     = true,
-                                  fileContent = appConfigEnvRaw.getOrElse("")
-                                )
+                                  fileContent = content
+                                ))
     yield
       (cses, deploymentConfig)
 
