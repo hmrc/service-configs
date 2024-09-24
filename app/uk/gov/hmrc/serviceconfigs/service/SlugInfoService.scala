@@ -27,7 +27,6 @@ import uk.gov.hmrc.serviceconfigs.persistence._
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import uk.gov.hmrc.serviceconfigs.service.ConfigService.ConfigEnvironment
 
 @Singleton
 class SlugInfoService @Inject()(
@@ -122,68 +121,71 @@ class SlugInfoService @Inject()(
   )(using
     hc: HeaderCarrier
   ): Future[Boolean] =
-    for
-      previousDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
-      previousDeployedConfig <- configService.configSourceEntries(ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)      // calls slugInfoRepository
-      _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)                              // must set after previousDeployedConfig
-      (requiresUpdate, calculateConfigChanged)
-                             =  previousDeploymentInfo match
-                                  case None  =>
-                                    logger.info(s"No deployedConfig exists in repository for ${serviceName.asString} ${deployment.version} in $env. About to insert.")
-                                    ( true
-                                    , None // first deployment - config change n/a
+    deploymentEventRepository.findDeploymentEvent(deployment.deploymentId).flatMap:
+      case Some(_) => Future.successful(false) // Deployment already exists - added == false
+      case None    =>
+        for
+          previousDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
+          previousDeployedConfig <- configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)      // calls slugInfoRepository
+          _                      <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version)                              // must set after previousDeployedConfig
+          (requiresUpdate, calculateConfigChanged)
+                                 =  previousDeploymentInfo match
+                                      case None  =>
+                                        logger.info(s"No deployedConfig exists in repository for ${serviceName.asString} ${deployment.version} in $env. About to insert.")
+                                        ( true
+                                        , None // first deployment - config change n/a
+                                        )
+                                      case Some(config) if config.configId == deployment.configId =>
+                                        logger.info(s"No change in configId, no need to update for ${serviceName.asString} ${deployment.version} in $env")
+                                        ( false
+                                        , Some(false) // config hasn't changed
+                                        )
+                                      case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
+                                        logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env, " +
+                                          s"as the latest update occurred after the current process began.")
+                                        ( false
+                                        , None // we can't comment on if the config has changed with our current approach
+                                        )
+                                      case _    =>
+                                        logger.info(s"Detected a change in configId, updating deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env")
+                                        ( true
+                                        , Some(true) // this actually means we need to calculate if the config has changed
+                                        )
+          _                      <-
+                                    if requiresUpdate then
+                                      updateDeployedConfig(env, serviceName, deployment)
+                                        .fold(
+                                          e => logger.warn(s"Failed to update deployed config for ${serviceName.asString} in $env: $e")
+                                        , _ => ()
+                                        ).recover:
+                                          case NonFatal(ex) => logger.error(s"Failed to update ${serviceName.asString} $env: ${ex.getMessage()}", ex)
+                                    else
+                                      Future.unit
+          changes                <- calculateConfigChanged match
+                                      case Some(true) =>
+                                        // we've updated mongo data now, read again
+                                        configService.configSourceEntries(ConfigService.ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)
+                                          .map: newDeployedConfig =>
+                                            val configChanged           = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._1), configService.resultingConfig(newDeployedConfig._1)).nonEmpty
+                                            val deploymentConfigChanged = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._2), configService.resultingConfig(newDeployedConfig._2)).nonEmpty
+                                            logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? configChanged: $configChanged deploymentConfigChanged: $deploymentConfigChanged")
+                                            Some((configChanged, deploymentConfigChanged))
+                                      case Some(false) =>
+                                        Future.successful(Some((false, false)))
+                                      case None =>
+                                        Future.successful(Option.empty[(Boolean, Boolean)])
+          depEvent               =  DeploymentEventRepository.DeploymentEvent(
+                                      serviceName             = serviceName
+                                    , environment             = env
+                                    , version                 = deployment.version
+                                    , deploymentId            = deployment.deploymentId
+                                    , configChanged           = changes.map(_._1)
+                                    , deploymentConfigChanged = changes.map(_._2)
+                                    , configId                = Some(deployment.configId)
+                                    , time                    = deployment.lastDeployed
                                     )
-                                  case Some(config) if config.configId == deployment.configId =>
-                                    logger.debug(s"No change in configId, no need to update for ${serviceName.asString} ${deployment.version} in $env")
-                                    ( false
-                                    , Some(false) // config hasn't changed
-                                    )
-                                  case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
-                                    logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env, " +
-                                      s"as the latest update occurred after the current process began.")
-                                    ( false
-                                    , None // we can't comment on if the config has changed with our current approach
-                                    )
-                                  case _    =>
-                                    logger.debug(s"Detected a change in configId, updating deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env")
-                                    ( true
-                                    , Some(true) // this actually means we need to calculate if the config has changed
-                                    )
-      _                      <-
-                                if requiresUpdate then
-                                  updateDeployedConfig(env, serviceName, deployment)
-                                    .fold(
-                                      e => logger.warn(s"Failed to update deployed config for ${serviceName.asString} in $env: $e")
-                                    , _ => ()
-                                    ).recover:
-                                      case NonFatal(ex) => logger.error(s"Failed to update ${serviceName.asString} $env: ${ex.getMessage()}", ex)
-                                else
-                                  Future.unit
-      changes                <- calculateConfigChanged match
-                                  case Some(true) =>
-                                    // we've updated mongo data now, read again
-                                    configService.configSourceEntries(ConfigEnvironment.ForEnvironment(env), serviceName, version = None, latest = false)
-                                      .map: newDeployedConfig =>
-                                        val configChanged           = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._1), configService.resultingConfig(newDeployedConfig._1)).nonEmpty
-                                        val deploymentConfigChanged = ConfigService.changes(configService.resultingConfig(previousDeployedConfig._2), configService.resultingConfig(newDeployedConfig._2)).nonEmpty
-                                        logger.info(s"Detected a change in configId ${serviceName.asString} ${deployment.version} in $env (${previousDeploymentInfo.map(_.configId)} -> ${deployment.configId}) - did config actually change? configChanged: $configChanged deploymentConfigChanged: $deploymentConfigChanged")
-                                        Some((configChanged, deploymentConfigChanged))
-                                  case Some(false) =>
-                                    Future.successful(Some((false, false)))
-                                  case None =>
-                                    Future.successful(Option.empty[(Boolean, Boolean)])
-      depEvent               =  DeploymentEventRepository.DeploymentEvent(
-                                  serviceName             = serviceName
-                                , environment             = env
-                                , version                 = deployment.version
-                                , deploymentId            = deployment.deploymentId
-                                , configChanged           = changes.map(_._1)
-                                , deploymentConfigChanged = changes.map(_._2)
-                                , configId                = Some(deployment.configId)
-                                , time                    = deployment.lastDeployed
-                                )
-      _                      <- deploymentEventRepository.put(depEvent)
-    yield requiresUpdate
+          _                      <- deploymentEventRepository.put(depEvent)
+        yield true
 
   private def updateDeployedConfig(
     env        : Environment,

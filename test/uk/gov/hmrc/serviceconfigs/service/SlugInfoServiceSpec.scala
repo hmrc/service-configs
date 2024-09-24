@@ -257,6 +257,9 @@ class SlugInfoServiceSpec
       //And also have a different configId to the new config.
       //This is required in order to trigger `updateDeployedConfig`
 
+      when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))  // Deployment does not currently exist
+        .thenReturn(Future.successful(Option.empty[DeploymentEventRepository.DeploymentEvent]))
+
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           Option(
@@ -451,6 +454,9 @@ class SlugInfoServiceSpec
       when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
+      when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))  // Deployment does not exist
+        .thenReturn(Future.successful(Option.empty[DeploymentEventRepository.DeploymentEvent]))
+
       when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
         .thenReturn(Future.successful(
           Option(
@@ -497,6 +503,9 @@ class SlugInfoServiceSpec
       when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
         .thenReturn(Future.unit)
 
+      when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))  // Deployment does not exist
+        .thenReturn(Future.successful(Option.empty[DeploymentEventRepository.DeploymentEvent]))
+
       when(mockedDeploymentEventRepository.put(any[DeploymentEventRepository.DeploymentEvent]))
         .thenReturn(Future.unit)
 
@@ -537,6 +546,32 @@ class SlugInfoServiceSpec
         appConfigEnv    = Some("content3"),
         lastUpdated     = now
       ))
+
+
+    "Not update when the deployment has already been added" in new Setup:
+      val serviceName1 = ServiceName("service1")
+
+      when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))  // Deployment already exists
+        .thenReturn(Future.successful(Some(DeploymentEventRepository.DeploymentEvent(
+          serviceName            = serviceName1
+        , environment            = Environment.QA
+        , version                = Version("1.0.0")
+        , deploymentId           = "deploymentId1"
+        , configChanged          = Some(true)
+        , deploymentConfigChanged= Some(true)
+        , configId               = Some("configId1")
+        , time                   = now
+        ))))
+
+      val newDeployment = Deployment(serviceName1, Environment.QA, Version("1.0.0"), deploymentId = "deploymentId1", config = Seq(
+        DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
+        DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
+        DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
+      ), lastDeployed = now)
+
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1)
+        .futureValue should be (false)
+
 
   trait Setup:
     val mockedSlugInfoRepository         = mock[SlugInfoRepository]
@@ -580,6 +615,9 @@ class SlugInfoServiceSpec
 
   trait SetupUpdateDeployment extends Setup:
     val serviceName1 = ServiceName("service1")
+
+    when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))
+      .thenReturn(Future.successful(Option.empty[DeploymentEventRepository.DeploymentEvent]))
 
     when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
       .thenReturn(Future.unit)
