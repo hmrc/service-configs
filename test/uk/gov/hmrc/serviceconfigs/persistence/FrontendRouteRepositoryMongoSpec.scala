@@ -49,7 +49,7 @@ class FrontendRouteRepositoryMongoSpec
 
       repository.update(frontendRoute).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 1
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
@@ -61,7 +61,7 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(newFrontendRoute(serviceName = service1Name)).futureValue
       repository.update(newFrontendRoute(serviceName = service2Name)).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 2
 
       val service1Entries = repository.findByService(service1Name).futureValue
@@ -74,7 +74,7 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(newFrontendRoute(environment = Environment.Production)).futureValue
       repository.update(newFrontendRoute(environment = Environment.QA)).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 2
 
       val productionEntries = repository.findByEnvironment(Environment.Production).futureValue
@@ -93,7 +93,7 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(frontendRoute3).futureValue
       repository.update(frontendRoute4).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 4
 
       val service1Name    = ServiceName("service1")
@@ -115,7 +115,7 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(frontendRoute3).futureValue
       repository.update(frontendRoute4).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 4
 
       val service1Name = ServiceName("service1")
@@ -137,7 +137,7 @@ class FrontendRouteRepositoryMongoSpec
     repository.update(frontendRoute3).futureValue
     repository.update(frontendRoute4).futureValue
 
-    val allEntries = repository.findAllRoutes().futureValue
+    val allEntries = findAll().futureValue
     allEntries should have size 4
 
     val service1Name    = ServiceName("service1")
@@ -160,7 +160,7 @@ class FrontendRouteRepositoryMongoSpec
     repository.update(frontendRoute3).futureValue
     repository.update(frontendRoute4).futureValue
 
-    val allEntries = repository.findAllRoutes().futureValue
+    val allEntries = findAll().futureValue
     allEntries should have size 4
 
     val service1Name    = ServiceName("service1")

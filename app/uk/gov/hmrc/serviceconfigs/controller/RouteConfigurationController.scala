@@ -48,7 +48,7 @@ class RouteConfigurationController @Inject()(
   ): Future[Seq[Route]] =
     for
       mongoFrontendRoutes <- frontendRouteRepository.findRoutes(serviceName, environment, isDevhub)
-      frontendRoutes      =  mongoFrontendRoutes.filterNot(_.service.asString.contains("$")).map: mfr =>
+      frontendRoutes      =  mongoFrontendRoutes.map: mfr =>
                                Route(
                                  path                 = mfr.frontendPath,
                                  ruleConfigurationUrl = Some(mfr.ruleConfigurationUrl),

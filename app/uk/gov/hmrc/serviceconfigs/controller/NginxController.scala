@@ -60,6 +60,5 @@ class NginxController @Inject()(
     Action.async:
       db.findAllFrontendServices()
         .map(_.map(_.asString))
-        .map(_.filterNot(_.contains("$")))
         .map(Json.toJson(_))
         .map(Ok(_))
