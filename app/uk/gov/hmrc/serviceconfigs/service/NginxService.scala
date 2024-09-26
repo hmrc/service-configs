@@ -61,22 +61,25 @@ class NginxService @Inject()(
     yield ()
 
   private def getYamlRoutesFromZip(zip: ZipInputStream): Set[MongoFrontendRoute] =
-    val yamlRegex: Regex = """config/(.*).yaml""".r
+    val configYamlRegex: Regex = """config/(.*).yaml""".r
+    val devhubYamlRegex: Regex = """devhub/(.*).yaml""".r
 
     Iterator
       .continually(zip.getNextEntry)
       .takeWhile(_ != null)
       .foldLeft(Set.empty[MongoFrontendRoute]):
         (acc, entry) =>
-          val path = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          val path         = entry.getName.drop(entry.getName.indexOf('/') + 1)
+          lazy val branch  = "main"
+          lazy val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
+          lazy val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
+          lazy val content = Source.fromInputStream(zip).mkString
+
           path match
-            case yamlRegex(_) =>
-              val branch  = "main"
-              val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
-              val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
-              val content = Source.fromInputStream(zip).mkString
-              acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch))
-            case _ => acc
+            case configYamlRegex(_) => acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch                 ))
+            case devhubYamlRegex(_) => acc ++ yamlParser.parseConfig(YamlRoutesFile(url, blobUrl, content, branch, isDevhub = true))
+            case _                  => acc
+
 
   private def updateNginxRoutesForEnv(environment: Environment, yamlRoutes: Set[MongoFrontendRoute]): Future[List[MongoFrontendRoute]] =
     for

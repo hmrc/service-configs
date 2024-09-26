@@ -49,7 +49,7 @@ class FrontendRouteRepositoryMongoSpec
 
       repository.update(frontendRoute).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 1
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
@@ -61,7 +61,7 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(newFrontendRoute(serviceName = service1Name)).futureValue
       repository.update(newFrontendRoute(serviceName = service2Name)).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 2
 
       val service1Entries = repository.findByService(service1Name).futureValue
@@ -74,13 +74,103 @@ class FrontendRouteRepositoryMongoSpec
       repository.update(newFrontendRoute(environment = Environment.Production)).futureValue
       repository.update(newFrontendRoute(environment = Environment.QA)).futureValue
 
-      val allEntries = repository.findAllRoutes().futureValue
+      val allEntries = findAll().futureValue
       allEntries should have size 2
 
       val productionEntries = repository.findByEnvironment(Environment.Production).futureValue
       productionEntries should have size 1
       val route = productionEntries.head
       route.environment shouldBe Environment.Production
+
+  "FrontendRouteRepository.findRoutes" should:
+    "return all routes for a service" in:
+      val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production              )
+      val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.QA                      )
+      val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath3", environment = Environment.Staging, isDevhub = true)
+      val frontendRoute4 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath4", environment = Environment.Production              )
+      repository.update(frontendRoute1).futureValue
+      repository.update(frontendRoute2).futureValue
+      repository.update(frontendRoute3).futureValue
+      repository.update(frontendRoute4).futureValue
+
+      val allEntries = findAll().futureValue
+      allEntries should have size 4
+
+      val service1Name    = ServiceName("service1")
+      val service1Entries = repository.findRoutes(service1Name, None, None).futureValue
+      service1Entries should have size 3
+
+      val service1Route = service1Entries.head
+      service1Route.service shouldBe service1Name
+
+
+    "return all devhub routes for a service" in :
+      val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production, isDevhub = true)
+      val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.QA                         )
+      val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath3", environment = Environment.Staging                    )
+      val frontendRoute4 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath4", environment = Environment.Production                 )
+
+      repository.update(frontendRoute1).futureValue
+      repository.update(frontendRoute2).futureValue
+      repository.update(frontendRoute3).futureValue
+      repository.update(frontendRoute4).futureValue
+
+      val allEntries = findAll().futureValue
+      allEntries should have size 4
+
+      val service1Name = ServiceName("service1")
+      val service1Entries = repository.findRoutes(service1Name, None, Some(true)).futureValue
+      service1Entries should have size 1
+
+      val service1Route = service1Entries.head
+      service1Route.service  shouldBe service1Name
+      service1Route.isDevhub shouldBe true
+
+  "return all environment routes for a service" in :
+    val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production, isDevhub = true)
+    val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production                 )
+    val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath3", environment = Environment.Staging                    )
+    val frontendRoute4 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath4", environment = Environment.Production                 )
+
+    repository.update(frontendRoute1).futureValue
+    repository.update(frontendRoute2).futureValue
+    repository.update(frontendRoute3).futureValue
+    repository.update(frontendRoute4).futureValue
+
+    val allEntries = findAll().futureValue
+    allEntries should have size 4
+
+    val service1Name    = ServiceName("service1")
+    val service1Entries = repository.findRoutes(service1Name, Some(Environment.Production), None).futureValue
+    service1Entries should have size 2
+
+    val service1Route = service1Entries.head
+    service1Route.service shouldBe service1Name
+    service1Entries.map(_.environment).toSet should contain only Environment.Production
+
+
+  "return all environment and frontend routes for a service" in :
+    val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production, isDevhub = true)
+    val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production                 )
+    val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath3", environment = Environment.Staging                    )
+    val frontendRoute4 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath4", environment = Environment.Production                 )
+
+    repository.update(frontendRoute1).futureValue
+    repository.update(frontendRoute2).futureValue
+    repository.update(frontendRoute3).futureValue
+    repository.update(frontendRoute4).futureValue
+
+    val allEntries = findAll().futureValue
+    allEntries should have size 4
+
+    val service1Name    = ServiceName("service1")
+    val service1Entries = repository.findRoutes(service1Name, Some(Environment.Production), isDevhub = Some(false)).futureValue
+    service1Entries should have size 1
+
+    val service1Route = service1Entries.head
+    service1Route.service     shouldBe service1Name
+    service1Route.isDevhub    shouldBe false
+    service1Route.environment shouldBe Environment.Production
 
   "FrontendRouteRepository.searchByFrontendPath" should:
     "return only routes with the path" in:
@@ -137,7 +227,8 @@ class FrontendRouteRepositoryMongoSpec
     serviceName : ServiceName = ServiceName("service"),
     frontendPath: String      = "frontendPath",
     environment : Environment = Environment.Production,
-    isRegex     : Boolean     = true
+    isRegex     : Boolean     = true,
+    isDevhub    : Boolean     = false,
   ) = MongoFrontendRoute(
     service              = serviceName,
     frontendPath         = frontendPath,
@@ -148,6 +239,7 @@ class FrontendRouteRepositoryMongoSpec
     shutterKillswitch    = None,
     shutterServiceSwitch = None,
     isRegex              = isRegex,
+    isDevhub             = isDevhub,
     updateDate           = Instant.now().truncatedTo(ChronoUnit.MILLIS)
   )
 

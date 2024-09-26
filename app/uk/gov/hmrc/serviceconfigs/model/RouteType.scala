@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,16 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-case class NginxConfigFile(environment: Environment, url: String, content: String, branch: String):
-  def fileName: String = url.split("/").last
+import play.api.libs.json.{JsString, JsValue}
 
-final case class YamlRoutesFile(url: String, blobUrl: String, content: String, branch: String, isDevhub: Boolean = false):
-  def fileName: String = url.split("/").last
+enum RouteType(val asString: String):
+  case AdminFrontend extends RouteType("adminfrontend")
+  case Devhub        extends RouteType("devhub")
+  case Frontend      extends RouteType("frontend")
+
+object RouteType:
+  def parse(s: String): Option[RouteType] =
+    values.find(_.asString == s)
+
+  def writes(o: RouteType): JsValue =
+    JsString(o.asString)

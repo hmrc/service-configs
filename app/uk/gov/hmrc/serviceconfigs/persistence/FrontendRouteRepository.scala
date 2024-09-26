@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import cats.instances.all._
-import cats.syntax.all._
+import cats.instances.all.*
+import cats.syntax.all.*
 import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.{FindOneAndReplaceOptions,Indexes, IndexModel, IndexOptions}
+import org.mongodb.scala.model.Filters.*
+import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes}
 import play.api.Logger
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
@@ -43,7 +43,7 @@ class FrontendRouteRepository @Inject()(
   indexes        = Seq(
                      IndexModel(Indexes.ascending("frontendPath")),
                      IndexModel(Indexes.ascending("service")),
-                     IndexModel(Indexes.ascending("environment", "frontendPath", "service"), IndexOptions().unique(true))
+                     IndexModel(Indexes.ascending("environment", "frontendPath", "service", "isDevhub"), IndexOptions().unique(true))
                    ),
   replaceIndexes = true,
   extraCodecs    = Codecs.playFormatSumCodecs(Environment.format) :+ Codecs.playFormatCodec(ServiceName.format)
@@ -105,9 +105,16 @@ class FrontendRouteRepository @Inject()(
     collection
       .find(equal("environment", environment))
       .toFuture()
-
-  def findAllRoutes(): Future[Seq[MongoFrontendRoute]] =
-    collection.find().toFuture()
+  
+  def findRoutes(serviceName: ServiceName, environment: Option[Environment], isDevhub: Option[Boolean]): Future[Seq[MongoFrontendRoute]] =
+    collection
+      .find(
+        Filters.and(
+          Filters.equal("service", serviceName)
+        , isDevhub.fold(Filters.empty)(dh => Filters.equal("isDevhub", dh))
+        , environment.fold(Filters.empty)(env => Filters.equal("environment", env.asString))
+        )
+      ).toFuture()
 
   def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
     MongoUtils.replace[MongoFrontendRoute](
@@ -116,21 +123,25 @@ class FrontendRouteRepository @Inject()(
       oldValsFilter = equal("environment", environment),
       compareById   = (a, b) =>
                         a.environment  == b.environment &&
-                        a.service      == b.service &&
+                        a.isDevhub     == b.isDevhub    &&
+                        a.service      == b.service     &&
                         a.frontendPath == b.frontendPath,
       filterById    = entry =>
                         and(
                           equal("environment" , environment),
+                          equal("isDevhub"    , entry.isDevhub),
                           equal("service"     , entry.service),
                           equal("frontendPath", entry.frontendPath)
                         )
-    )
+      )
 
   def findAllFrontendServices(): Future[Seq[ServiceName]] =
     collection
       .distinct[String]("service")
       .toFuture()
-      .map(_.map(ServiceName.apply))
+      .map: 
+        _.collect:
+          case s if !s.contains("$") => ServiceName(s) // excludes service name anomalies that contain $
 
 object FrontendRouteRepository:
   def pathsToRegex(paths: Seq[String]): String =

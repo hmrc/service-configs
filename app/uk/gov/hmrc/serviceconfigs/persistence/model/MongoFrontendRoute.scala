@@ -34,7 +34,8 @@ case class MongoFrontendRoute(
   shutterServiceSwitch: Option[MongoShutterSwitch] = None,
   ruleConfigurationUrl: String                     = "",
   isRegex             : Boolean                    = false,
-  updateDate          : Instant                    = Instant.now()
+  isDevhub            : Boolean                    = false,
+  updateDate          : Instant                    = Instant.now(),
 )
 
 case class MongoShutterSwitch(
@@ -63,5 +64,6 @@ object MongoFrontendRoute:
     ~ (__ \ "shutterServiceSwitch").formatNullable[MongoShutterSwitch]
     ~ (__ \ "ruleConfigurationUrl").format[String]
     ~ (__ \ "isRegex"             ).formatWithDefault[Boolean](false)
+    ~ (__ \ "isDevhub"            ).formatWithDefault[Boolean](false)
     ~ (__ \ "updateDate"          ).formatWithDefault[Instant](Instant.now())(MongoJavatimeFormats.instantFormat)
     )(MongoFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))

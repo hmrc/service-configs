@@ -77,6 +77,17 @@ object QueryBinders:
       override def unbind(key: String, value: Version): String =
         strBinder.unbind(key, value.original)
 
+  implicit def routeTypeBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[RouteType] =
+    new QueryStringBindable[RouteType]:
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, RouteType]] =
+        strBinder
+          .bind(key, params)
+          .map:
+            _.flatMap(s => RouteType.parse(s).toRight(s"Invalid RouteType '$s'"))
+
+      override def unbind(key: String, value: RouteType): String =
+        strBinder.unbind(key, value.asString)
+
   implicit def serviceNameBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[ServiceName] =
     strBinder.transform(ServiceName.apply, _.asString)
 
