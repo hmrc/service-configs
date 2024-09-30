@@ -54,13 +54,16 @@ class SlugInfoService @Inject()(
     for
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
       serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
-      repos                  <- teamsAndReposConnector.getRepos(archived = Some(false))
+      activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.repoName.asString)))
       decommissionedServices <- teamsAndReposConnector.getDecommissionedServices()
                                   .map(_.map(r => ServiceName(r.repoName.asString)))
       latestServices         <- slugInfoRepository.getAllLatestSlugInfos()
                                   .map(_.map(_.name))
-      inactiveServices       =  latestServices.diff(repos)
+      inactiveServices       =  latestServices // check if deployed too since repo name may not match service name
+                                  .diff(activeRepos)
+                                  .filterNot: serviceName =>
+                                    serviceDeploymentInfos.exists(x => x.serviceName == serviceName && x.deployments.nonEmpty)
       allServiceDeployments  =  serviceNames.map { serviceName =>
                                   val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
                                   val deploymentsByEnv = Environment
@@ -92,7 +95,7 @@ class SlugInfoService @Inject()(
                                   logger.info(s"Removing latest flag from the following inactive services: ${inactiveServices.mkString(", ")}")
                                   slugInfoRepository.clearFlags(SlugInfoFlag.Latest, inactiveServices.toList)
                                 } else Future.unit
-      missingLatestFlag      =  serviceNames.intersect(repos).diff(decommissionedServices).diff(latestServices)
+      missingLatestFlag      =  serviceNames.intersect(activeRepos).diff(decommissionedServices).diff(latestServices)
       _                      <- if (missingLatestFlag.nonEmpty) {
                                   logger.warn(s"The following services are missing Latest flag - setting latest flag based on latest version: ${missingLatestFlag.mkString(",")}")
                                   missingLatestFlag.foldLeftM(())((_, serviceName) =>
