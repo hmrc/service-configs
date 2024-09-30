@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.service
 import java.time.Instant
 
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{times, verify, when}
+import org.mockito.Mockito
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -37,64 +37,6 @@ class SlugConfigurationServiceSpec
      with MockitoSugar:
 
   "SlugInfoService.addSlugInfo" should:
-    "mark the slug as latest if it is the first slug with that name" in:
-      val boot = Boot.init
-
-      val slug = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
-
-      when(boot.mockedSlugInfoRepository.getMaxVersion(any[ServiceName]))
-        .thenReturn(Future.successful(None))
-      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
-        .thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
-        .thenReturn(Future.unit)
-
-      boot.service.addSlugInfo(slug).futureValue
-      verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slug.name, slug.version)
-
-    "mark the slug as latest if the version is latest" in:
-      val boot = Boot.init
-
-      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
-      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
-
-      when(boot.mockedSlugInfoRepository.getMaxVersion(slugv1.name))
-        .thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
-        .thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
-        .thenReturn(Future.unit)
-
-      boot.service.addSlugInfo(slugv2).futureValue
-      verify(boot.mockedSlugInfoRepository, times(1)).setFlag(SlugInfoFlag.Latest, slugv2.name, Version("2.0.0"))
-
-    "not use the latest flag from sqs/artefact processor" in:
-      val boot = Boot.init
-
-      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
-      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
-
-      when(boot.mockedSlugInfoRepository.getMaxVersion(slugv2.name))
-        .thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
-        .thenReturn(Future.unit)
-
-      boot.service.addSlugInfo(slugv1).futureValue
-      verify(boot.mockedSlugInfoRepository, times(1)).add(slugv1)
-
-    "not mark the slug as latest if there is a later one already in the collection" in:
-      val boot = Boot.init
-
-      val slugv1 = sampleSlugInfo(name = "my-slug", version = "1.0.0", uri = "uri1")
-      val slugv2 = sampleSlugInfo(name = "my-slug", version = "2.0.0", uri = "uri2")
-
-      when(boot.mockedSlugInfoRepository.getMaxVersion(slugv2.name))
-        .thenReturn(Future.successful(Some(slugv2.version)))
-      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
-        .thenReturn(Future.unit)
-
-      boot.service.addSlugInfo(slugv1).futureValue
-
     "add slug with classpath ordered dependencies" in:
       val boot = Boot.init
       val slugName    = "my-slug"
@@ -107,15 +49,15 @@ class SlugConfigurationServiceSpec
         dependencies = List(classPathDependency, nonClassPathDependency)
       )
 
-      when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
-        .thenReturn(Future.unit)
-      when(boot.mockedSlugInfoRepository.getMaxVersion(any[ServiceName]))
-        .thenReturn(Future.successful(None))
-      when(boot.mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+      Mockito
+        .when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
-      verify(boot.mockedSlugInfoRepository).add(slug.copy(dependencies = List(classPathDependency)))
+
+      Mockito
+        .verify(boot.mockedSlugInfoRepository)
+        .add(slug.copy(dependencies = List(classPathDependency)))
 
   def sampleSlugInfo(name: String, version: String, uri: String, latest: Boolean = true): SlugInfo =
     SlugInfo(
@@ -132,14 +74,14 @@ class SlugConfigurationServiceSpec
     )
 
   case class Boot(
-    mockedSlugInfoRepository   : SlugInfoRepository
-  , service                    : SlugConfigurationService
+    mockedSlugInfoRepository: SlugInfoRepository
+  , service                 : SlugConfigurationService
   )
 
   object Boot:
     def init: Boot =
-      val mockedSlugInfoRepository              = mock[SlugInfoRepository]
-      val mockedDependencyConfigRepository      = mock[DependencyConfigRepository]
+      val mockedSlugInfoRepository         = mock[SlugInfoRepository]
+      val mockedDependencyConfigRepository = mock[DependencyConfigRepository]
 
       val service = SlugConfigurationService(
         mockedSlugInfoRepository
