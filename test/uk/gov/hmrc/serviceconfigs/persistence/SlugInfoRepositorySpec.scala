@@ -36,6 +36,19 @@ class SlugInfoRepositorySpec
     SlugInfoRepository(mongoComponent)
 
   "SlugInfoRepository" should:
+    "set the latest flag to the highest version on add" in:
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 1))).futureValue
+       import org.mongodb.scala.ObservableFuture
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 1)))
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 1, 0))).futureValue
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(0, 1, 0)))
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 2))).futureValue
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 2, 0))).futureValue
+      repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
+
     "manage by version" in:
       repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
       repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
