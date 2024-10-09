@@ -28,7 +28,8 @@ case class FrontendRoute(
  shutterKillswitch   : Option[ShutterSwitch] = None,
  shutterServiceSwitch: Option[ShutterSwitch] = None,
  ruleConfigurationUrl: String = "",
- isRegex             : Boolean = false
+ isRegex             : Boolean = false,
+ isDevhub            : Boolean = false
 )
 
 case class ShutterSwitch(
@@ -58,7 +59,8 @@ object FrontendRoute:
       shutterKillswitch    = mfr.shutterKillswitch.map(ShutterSwitch.fromMongo),
       shutterServiceSwitch = mfr.shutterServiceSwitch.map(ShutterSwitch.fromMongo),
       markerComments       = mfr.markerComments,
-      isRegex              = mfr.isRegex
+      isRegex              = mfr.isRegex,
+      isDevhub             = mfr.isDevhub
     )
 
 object FrontendRoutes:
