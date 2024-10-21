@@ -45,12 +45,12 @@ class RouteConfigurationControllerSpec
     "return all routing config for a service when environment and route type are not defined" in new Setup:
       val service1 = ServiceName("service1")
 
-      when(mockAdminFrontendRouteRepository.findByService(service1))
+      when(mockAdminFrontendRouteRepository.findRoutes(Some(service1)))
         .thenReturn(Future.successful(Seq(
           AdminFrontendRoute(service1, "service1-admin-route", Map("production" -> List("mdtp"), "qa" -> List("mdtp")), "github-admin-link")
         )))
 
-      when(mockFrontendRouteRepository.findRoutes(service1, None, None))
+      when(mockFrontendRouteRepository.findRoutes(Some(service1), None, None))
         .thenReturn(Future.successful(Seq(
           MongoFrontendRoute(service1, "service1-frontend-route1", "path", Environment.Production, "", ruleConfigurationUrl = "github-frontend-link"               ),
           MongoFrontendRoute(service1, "service1-frontend-route1", "path", Environment.QA,         "", ruleConfigurationUrl = "github-frontend-link"               ),
@@ -59,7 +59,7 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.routes(service1, None, None),
+          controller.routes(Some(service1), None, None),
           FakeRequest(GET, "/routes/service1")
         )
 
@@ -67,6 +67,7 @@ class RouteConfigurationControllerSpec
 
       contentAsJson(result) shouldBe Json.parse("""[
         {
+          "serviceName": "service1",
           "path": "service1-admin-route",
           "ruleConfigurationUrl": "github-admin-link",
           "isRegex": false,
@@ -74,6 +75,7 @@ class RouteConfigurationControllerSpec
           "environment": "production"
         },
         {
+          "serviceName": "service1",
           "path": "service1-admin-route",
           "ruleConfigurationUrl": "github-admin-link",
           "isRegex": false,
@@ -81,6 +83,7 @@ class RouteConfigurationControllerSpec
           "environment": "qa"
         },
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route1",
           "ruleConfigurationUrl": "github-frontend-link",
           "isRegex": false,
@@ -88,6 +91,7 @@ class RouteConfigurationControllerSpec
           "environment": "production"
         },
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route1",
           "ruleConfigurationUrl": "github-frontend-link",
           "isRegex": false,
@@ -95,6 +99,7 @@ class RouteConfigurationControllerSpec
           "environment": "qa"
         },
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route2",
           "ruleConfigurationUrl": "github-devhub-link",
           "isRegex": false,
@@ -104,10 +109,10 @@ class RouteConfigurationControllerSpec
       ]""")
 
     "return all routing config for a service when environment is defined in parameters" in new Setup:
-      val service1    = ServiceName("service1")
-      val environment = Some(Environment.Production)
+      val service1   = ServiceName("service1")
+      val production = Environment.Production
 
-      when(mockAdminFrontendRouteRepository.findByService(service1))
+      when(mockAdminFrontendRouteRepository.findRoutes(Some(service1)))
         .thenReturn(
           Future.successful(
             Seq(
@@ -116,7 +121,7 @@ class RouteConfigurationControllerSpec
           )
         )
 
-      when(mockFrontendRouteRepository.findRoutes(service1, environment, None))
+      when(mockFrontendRouteRepository.findRoutes(Some(service1), Some(production), None))
         .thenReturn(
           Future.successful(
             Seq(
@@ -128,7 +133,7 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.routes(service1, environment, None),
+          controller.routes(Some(service1), Some(production), None),
           FakeRequest(GET, "/routes/service1?environment=production")
         )
 
@@ -136,6 +141,7 @@ class RouteConfigurationControllerSpec
 
       contentAsJson(result) shouldBe Json.parse("""[
         {
+          "serviceName": "service1",
           "path": "service1-admin-route",
           "ruleConfigurationUrl": "github-admin-link",
           "isRegex": false,
@@ -143,6 +149,7 @@ class RouteConfigurationControllerSpec
           "environment": "production"
         },
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route1",
           "ruleConfigurationUrl": "github-frontend-link",
           "isRegex": false,
@@ -150,6 +157,7 @@ class RouteConfigurationControllerSpec
           "environment": "production"
         },
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route2",
           "ruleConfigurationUrl": "github-devhub-link",
           "isRegex": false,
@@ -159,10 +167,10 @@ class RouteConfigurationControllerSpec
       ]""")
 
     "return all routing config for a service when admin frontend route type is defined in parameters" in new Setup:
-      val service1  = ServiceName("service1")
-      val routeType = Some(RouteType.AdminFrontend)
+      val service1 = ServiceName("service1")
+      val admin    = RouteType.AdminFrontend
 
-      when(mockAdminFrontendRouteRepository.findByService(service1))
+      when(mockAdminFrontendRouteRepository.findRoutes(Some(service1)))
         .thenReturn(
           Future.successful(
             Seq(
@@ -173,7 +181,7 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.routes(service1, None, routeType),
+          controller.routes(Some(service1), None, Some(admin)),
           FakeRequest(GET, "/routes/service1?routeType=adminfrontend")
         )
 
@@ -182,6 +190,7 @@ class RouteConfigurationControllerSpec
       contentAsJson(result) shouldBe Json.parse(
         """[
         {
+          "serviceName": "service1",
           "path": "service1-admin-route",
           "ruleConfigurationUrl": "github-admin-link",
           "isRegex": false,
@@ -189,6 +198,7 @@ class RouteConfigurationControllerSpec
           "environment": "production"
         },
         {
+          "serviceName": "service1",
           "path": "service1-admin-route",
           "ruleConfigurationUrl": "github-admin-link",
           "isRegex": false,
@@ -200,10 +210,10 @@ class RouteConfigurationControllerSpec
 
     "return all routing config for a service when route type frontend is defined in parameters" in new Setup:
       val service1  = ServiceName("service1")
-      val routeType = Some(RouteType.Frontend)
+      val frontend  = RouteType.Frontend
 
       // when isDevhub equals false route type is a Frontend
-      when(mockFrontendRouteRepository.findRoutes(service1, None, isDevhub = Some(false)))
+      when(mockFrontendRouteRepository.findRoutes(Some(service1), None, isDevhub = Some(false)))
         .thenReturn(
           Future.successful(
             Seq(
@@ -214,7 +224,7 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.routes(service1, None, routeType),
+          controller.routes(Some(service1), None, Some(frontend)),
           FakeRequest(GET, "/routes/service1?routeType=frontend")
         )
 
@@ -223,6 +233,7 @@ class RouteConfigurationControllerSpec
       contentAsJson(result) shouldBe Json.parse(
         """[
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route1",
           "ruleConfigurationUrl": "github-frontend-link",
           "isRegex": false,
@@ -234,10 +245,10 @@ class RouteConfigurationControllerSpec
 
     "return all routing config for a service when route type devhub is defined in parameters" in new Setup:
       val service1 = ServiceName("service1")
-      val routeType = Some(RouteType.Devhub)
+      val devhub   = RouteType.Devhub
 
       // when isDevhub equals false route type is a Frontend
-      when(mockFrontendRouteRepository.findRoutes(service1, None, isDevhub = Some(true)))
+      when(mockFrontendRouteRepository.findRoutes(Some(service1), None, isDevhub = Some(true)))
         .thenReturn(
           Future.successful(
             Seq(
@@ -248,7 +259,7 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.routes(service1, None, routeType),
+          controller.routes(Some(service1), None, Some(devhub)),
           FakeRequest(GET, "/routes/service1?routeType=devhub")
         )
 
@@ -257,6 +268,7 @@ class RouteConfigurationControllerSpec
       contentAsJson(result) shouldBe Json.parse(
         """[
         {
+          "serviceName": "service1",
           "path": "service1-frontend-route2",
           "ruleConfigurationUrl": "github-devhub-link",
           "isRegex": false,

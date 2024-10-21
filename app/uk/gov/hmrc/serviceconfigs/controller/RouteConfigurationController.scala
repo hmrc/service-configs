@@ -27,6 +27,7 @@ import uk.gov.hmrc.serviceconfigs.model.{Environment, RouteType, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
 import cats.syntax.all.*
 import cats.instances.future.*
+import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -42,31 +43,25 @@ class RouteConfigurationController @Inject()(
   private given Writes[Route] = Route.writes
 
   private def frontendRoutes(
-    serviceName: ServiceName
+    serviceName: Option[ServiceName]
   , environment: Option[Environment]
   , isDevhub   : Option[Boolean] = None
   ): Future[Seq[Route]] =
     for
       mongoFrontendRoutes <- frontendRouteRepository.findRoutes(serviceName, environment, isDevhub)
-      frontendRoutes      =  mongoFrontendRoutes.map: mfr =>
-                               Route(
-                                 path                 = mfr.frontendPath,
-                                 ruleConfigurationUrl = Some(mfr.ruleConfigurationUrl),
-                                 isRegex              = mfr.isRegex,
-                                 routeType            = if mfr.isDevhub then RouteType.Devhub else RouteType.Frontend,
-                                 environment          = mfr.environment
-                               )
+      frontendRoutes      =  mongoFrontendRoutes.map(Route.fromMongo)
     yield frontendRoutes
 
   private def adminRoutes(
-    serviceName: ServiceName
+    serviceName: Option[ServiceName]
   , environment: Option[Environment]
   ): Future[Seq[Route]] =
     for
-      adminFrontendRoutes <- adminFrontendRouteRepository.findByService(serviceName)
+      adminFrontendRoutes <- adminFrontendRouteRepository.findRoutes(serviceName)
       adminRoutes         =  adminFrontendRoutes.flatMap: raw =>
                                raw.allow.keys.map: env =>
                                  Route(
+                                   serviceName          = raw.serviceName,
                                    path                 = raw.route,
                                    ruleConfigurationUrl = Some(raw.location),
                                    routeType            = RouteType.AdminFrontend,
@@ -74,9 +69,8 @@ class RouteConfigurationController @Inject()(
                                  )
     yield environment.fold(adminRoutes)(env => adminRoutes.filter(_.environment == env))
 
-
   def routes(
-    serviceName: ServiceName
+    serviceName: Option[ServiceName]
   , environment: Option[Environment]
   , routeType  : Option[RouteType]
   ): Action[AnyContent] =
@@ -92,7 +86,8 @@ class RouteConfigurationController @Inject()(
 
 object RouteConfigurationController:
   case class Route(
-    path                : String
+    serviceName         : ServiceName
+  , path                : String
   , ruleConfigurationUrl: Option[String]
   , isRegex             : Boolean = false
   , routeType           : RouteType
@@ -101,11 +96,21 @@ object RouteConfigurationController:
 
   object Route:
     val writes: Writes[Route] =
-      ( (__ \ "path"                ).write[String]
+      ( (__ \ "serviceName"         ).write[ServiceName](ServiceName.format)
+      ~ (__ \ "path"                ).write[String]
       ~ (__ \ "ruleConfigurationUrl").writeNullable[String]
       ~ (__ \ "isRegex"             ).write[Boolean]
       ~ (__ \ "routeType"           ).write[RouteType](RouteType.writes)
       ~ (__ \ "environment"         ).write[Environment](Environment.format)
       )(r => Tuple.fromProductTyped(r))
 
+    def fromMongo(mfr: MongoFrontendRoute): Route =
+      Route(
+        serviceName          = mfr.service,
+        path                 = mfr.frontendPath,
+        ruleConfigurationUrl = Some(mfr.ruleConfigurationUrl),
+        isRegex              = mfr.isRegex,
+        routeType            = if mfr.isDevhub then RouteType.Devhub else RouteType.Frontend,
+        environment          = mfr.environment
+      )
 end RouteConfigurationController

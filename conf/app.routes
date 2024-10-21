@@ -17,7 +17,7 @@ GET     /frontend-services                              uk.gov.hmrc.serviceconfi
 GET     /admin-frontend-route/:serviceName              uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName: ServiceName)
 GET     /admin-frontend-services                        uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
 
-GET     /routes/:serviceName                            uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: ServiceName, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
+GET     /routes                                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: Option[ServiceName] ?= None, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
 
 GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyRulesController.allRules
 GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()

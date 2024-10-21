@@ -97,7 +97,7 @@ class FrontendRouteRepositoryMongoSpec
       allEntries should have size 4
 
       val service1Name    = ServiceName("service1")
-      val service1Entries = repository.findRoutes(service1Name, None, None).futureValue
+      val service1Entries = repository.findRoutes(Some(service1Name), None, None).futureValue
       service1Entries should have size 3
 
       val service1Route = service1Entries.head
@@ -118,8 +118,8 @@ class FrontendRouteRepositoryMongoSpec
       val allEntries = findAll().futureValue
       allEntries should have size 4
 
-      val service1Name = ServiceName("service1")
-      val service1Entries = repository.findRoutes(service1Name, None, Some(true)).futureValue
+      val service1Name    = ServiceName("service1")
+      val service1Entries = repository.findRoutes(Some(service1Name), None, Some(true)).futureValue
       service1Entries should have size 1
 
       val service1Route = service1Entries.head
@@ -141,7 +141,7 @@ class FrontendRouteRepositoryMongoSpec
     allEntries should have size 4
 
     val service1Name    = ServiceName("service1")
-    val service1Entries = repository.findRoutes(service1Name, Some(Environment.Production), None).futureValue
+    val service1Entries = repository.findRoutes(Some(service1Name), Some(Environment.Production), None).futureValue
     service1Entries should have size 2
 
     val service1Route = service1Entries.head
@@ -164,7 +164,7 @@ class FrontendRouteRepositoryMongoSpec
     allEntries should have size 4
 
     val service1Name    = ServiceName("service1")
-    val service1Entries = repository.findRoutes(service1Name, Some(Environment.Production), isDevhub = Some(false)).futureValue
+    val service1Entries = repository.findRoutes(Some(service1Name), Some(Environment.Production), isDevhub = Some(false)).futureValue
     service1Entries should have size 1
 
     val service1Route = service1Entries.head

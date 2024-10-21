@@ -35,6 +35,7 @@ class NginxController @Inject()(
 
   private given Format[FrontendRoutes] = FrontendRoutes.format
 
+  // legacy use /routes
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async:
       db.findByService(serviceName)
@@ -42,6 +43,7 @@ class NginxController @Inject()(
         .map(Json.toJson(_))
         .map(Ok(_))
 
+  // bespoke for shuttering
   def searchByEnvironment(environment: Environment): Action[AnyContent] =
     Action.async:
       db.findByEnvironment(environment)
@@ -56,6 +58,7 @@ class NginxController @Inject()(
         .map(Json.toJson(_))
         .map(Ok(_))
 
+  // legacy use /routes
   def allFrontendServices(): Action[AnyContent] =
     Action.async:
       db.findAllFrontendServices()

@@ -35,12 +35,14 @@ class AdminRoutesConfigController @Inject()(
 
   private given Format[AdminFrontendRoute] = AdminFrontendRoute.format
 
+  // legacy use /routes
   def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
     Action.async:
       db.findByService(serviceName)
         .map(Json.toJson(_))
         .map(Ok(_))
 
+  // legacy use /routes
   def allAdminFrontendServices(): Action[AnyContent] =
     given Format[ServiceName] = ServiceName.format
     Action.async:
