@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import cats.implicits._
+import cats.implicits.*
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
+import uk.gov.hmrc.serviceconfigs.model.Environment.Production
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
@@ -54,7 +55,7 @@ class FrontendRouteRepositoryMongoSpec
       val createdRoute = allEntries.head
       createdRoute shouldBe frontendRoute
 
-  "FrontendRouteRepository.findByService" should:
+  "FrontendRouteRepository.findRoutes" should:
     "return only routes with the service" in:
       val service1Name = ServiceName("service1")
       val service2Name = ServiceName("service2")
@@ -64,12 +65,11 @@ class FrontendRouteRepositoryMongoSpec
       val allEntries = findAll().futureValue
       allEntries should have size 2
 
-      val service1Entries = repository.findByService(service1Name).futureValue
+      val service1Entries = repository.findRoutes(Some(service1Name), Some(Environment.Production), isDevhub = Some(false)).futureValue
       service1Entries should have size 1
       val service1Route = service1Entries.head
       service1Route.service shouldBe service1Name
 
-  "FrontendRouteRepository.findByEnvironment" should:
     "return only routes with the environment" in:
       repository.update(newFrontendRoute(environment = Environment.Production)).futureValue
       repository.update(newFrontendRoute(environment = Environment.QA)).futureValue
@@ -77,12 +77,11 @@ class FrontendRouteRepositoryMongoSpec
       val allEntries = findAll().futureValue
       allEntries should have size 2
 
-      val productionEntries = repository.findByEnvironment(Environment.Production).futureValue
+      val productionEntries = repository.findRoutes(None, Some(Environment.Production), isDevhub = Some(false)).futureValue
       productionEntries should have size 1
       val route = productionEntries.head
       route.environment shouldBe Environment.Production
 
-  "FrontendRouteRepository.findRoutes" should:
     "return all routes for a service" in:
       val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production              )
       val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.QA                      )
@@ -97,12 +96,11 @@ class FrontendRouteRepositoryMongoSpec
       allEntries should have size 4
 
       val service1Name    = ServiceName("service1")
-      val service1Entries = repository.findRoutes(Some(service1Name), None, None).futureValue
+      val service1Entries = repository.findRoutes(Some(service1Name)).futureValue
       service1Entries should have size 3
 
       val service1Route = service1Entries.head
       service1Route.service shouldBe service1Name
-
 
     "return all devhub routes for a service" in :
       val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production, isDevhub = true)
@@ -148,8 +146,7 @@ class FrontendRouteRepositoryMongoSpec
     service1Route.service shouldBe service1Name
     service1Entries.map(_.environment).toSet should contain only Environment.Production
 
-
-  "return all environment and frontend routes for a service" in :
+  "return all environment and frontend route types for a service" in :
     val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production, isDevhub = true)
     val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production                 )
     val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath3", environment = Environment.Staging                    )
@@ -172,27 +169,25 @@ class FrontendRouteRepositoryMongoSpec
     service1Route.isDevhub    shouldBe false
     service1Route.environment shouldBe Environment.Production
 
+  "put and retrieve" in :
+    val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production)
+    val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production)
+    val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath3", environment = Environment.Production)
+    repository.replaceEnv(Environment.Production, Set(frontendRoute1, frontendRoute2, frontendRoute3)).futureValue
+
+    repository.findRoutes(Some(frontendRoute1.service), Some(Environment.Production), isDevhub = Some(false)).futureValue shouldBe Seq(frontendRoute1, frontendRoute2)
+    repository.findRoutes(Some(frontendRoute3.service)).futureValue shouldBe Seq(frontendRoute3)
+
+    repository.replaceEnv(Environment.Production, Set(frontendRoute1.copy(frontendPath = "frontendPath4"))).futureValue
+    repository.findRoutes(Some(frontendRoute1.service)).futureValue shouldBe Seq(frontendRoute1.copy(frontendPath = "frontendPath4"))
+    repository.findRoutes(Some(frontendRoute3.service)).futureValue shouldBe empty
+
   "FrontendRouteRepository.searchByFrontendPath" should:
     "return only routes with the path" in:
       addFrontendRoutes("a", "b").futureValue
 
       val service1Entries = repository.searchByFrontendPath("a").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a")
-
-    "FrontendRouteRepository.findAllFrontendServices" should:
-      "return list of all services" in:
-        repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Production )).futureValue
-        repository.update(newFrontendRoute(serviceName = ServiceName("service1"), environment = Environment.Development)).futureValue
-        repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Production )).futureValue
-        repository.update(newFrontendRoute(serviceName = ServiceName("service2"), environment = Environment.Development)).futureValue
-
-        val allEntries = findAll().futureValue
-
-        allEntries should have size 4
-
-        val services = repository.findAllFrontendServices().futureValue
-        services should have size 2
-        services shouldBe List(ServiceName("service1"), ServiceName("service2"))
 
     "return routes with the subpath" in:
       addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb").futureValue
@@ -209,19 +204,6 @@ class FrontendRouteRepositoryMongoSpec
 
       val service1Entries = repository.searchByFrontendPath("a/2").futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a/1")
-
-    "put and retrieve" in:
-      val frontendRoute1 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath1", environment = Environment.Production)
-      val frontendRoute2 = newFrontendRoute(serviceName = ServiceName("service1"), frontendPath = "frontendPath2", environment = Environment.Production)
-      val frontendRoute3 = newFrontendRoute(serviceName = ServiceName("service2"), frontendPath = "frontendPath3", environment = Environment.Production)
-      repository.replaceEnv(Environment.Production, Set(frontendRoute1, frontendRoute2, frontendRoute3)).futureValue
-
-      repository.findByService(frontendRoute1.service).futureValue shouldBe Seq(frontendRoute1, frontendRoute2)
-      repository.findByService(frontendRoute3.service).futureValue shouldBe Seq(frontendRoute3)
-
-      repository.replaceEnv(Environment.Production, Set(frontendRoute1.copy(frontendPath = "frontendPath4"))).futureValue
-      repository.findByService(frontendRoute1.service).futureValue shouldBe Seq(frontendRoute1.copy(frontendPath = "frontendPath4"))
-      repository.findByService(frontendRoute3.service).futureValue shouldBe empty
 
   def newFrontendRoute(
     serviceName : ServiceName = ServiceName("service"),

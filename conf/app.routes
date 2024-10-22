@@ -9,13 +9,8 @@ GET     /deployment-events/:serviceName                 uk.gov.hmrc.serviceconfi
 GET     /config-changes                                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChanges(deploymentId: String, fromDeploymentId: Option[String])
 GET     /config-changes-next-deployment                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)
 
-GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
-GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment: Environment)
-GET     /frontend-route/:serviceName                    uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName: ServiceName)
-GET     /frontend-services                              uk.gov.hmrc.serviceconfigs.controller.NginxController.allFrontendServices()
-
-GET     /admin-frontend-route/:serviceName              uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName: ServiceName)
-GET     /admin-frontend-services                        uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
+GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.LegacyFrontendRoutesController.searchByFrontendPath(frontendPath: String)
+GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.LegacyFrontendRoutesController.searchByEnvironment(environment: Environment)
 
 GET     /routes                                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: Option[ServiceName] ?= None, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
 

@@ -48,12 +48,7 @@ class AdminFrontendRouteRepository @Inject()(
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def findByService(serviceName: ServiceName): Future[Seq[AdminFrontendRoute]] =
-    collection
-      .find(equal("service", serviceName))
-      .toFuture()
-
-  def findRoutes(serviceName: Option[ServiceName]): Future[Seq[AdminFrontendRoute]] =
+  def findRoutes(serviceName: Option[ServiceName] = None): Future[Seq[AdminFrontendRoute]] =
     collection
       .find(serviceName.fold(Filters.empty)(Filters.equal("service", _)))
       .toFuture()
@@ -69,9 +64,3 @@ class AdminFrontendRouteRepository @Inject()(
                           equal("route", entry.route)
                         )
     )
-
-  def findAllAdminFrontendServices(): Future[Seq[ServiceName]] =
-    collection
-      .distinct[String]("service")
-      .toFuture()
-      .map(_.map(ServiceName.apply))

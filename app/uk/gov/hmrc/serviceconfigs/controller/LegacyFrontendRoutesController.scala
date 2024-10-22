@@ -17,35 +17,36 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Json, Format}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
-import uk.gov.hmrc.serviceconfigs.persistence.AdminFrontendRouteRepository
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FrontendRoutes, ServiceName}
+import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class AdminRoutesConfigController @Inject()(
-  db : AdminFrontendRouteRepository,
+class LegacyFrontendRoutesController @Inject()(
+  db: FrontendRouteRepository,
   mcc: MessagesControllerComponents
 )(using
   ec: ExecutionContext
 ) extends BackendController(mcc):
 
-  private given Format[AdminFrontendRoute] = AdminFrontendRoute.format
+  private given Format[FrontendRoutes] = FrontendRoutes.format
 
-  // legacy use /routes
-  def searchByServiceName(serviceName: ServiceName): Action[AnyContent] =
+  // bespoke for shuttering excludes devhub
+  def searchByEnvironment(environment: Environment): Action[AnyContent] =
     Action.async:
-      db.findByService(serviceName)
+      db.findRoutes(environment = Some(environment), isDevhub = Some(false))
+        .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
 
-  // legacy use /routes
-  def allAdminFrontendServices(): Action[AnyContent] =
-    given Format[ServiceName] = ServiceName.format
+  // bespoke for search by URL
+  def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
     Action.async:
-      db.findAllAdminFrontendServices()
+      db.searchByFrontendPath(frontendPath)
+        .map(FrontendRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
