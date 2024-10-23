@@ -78,7 +78,7 @@ class FrontendRouteRepository @Inject()(
     * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
-  // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
+  // to test: curl "http://localhost:8460/frontend-routes/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
   def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] =
     def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection

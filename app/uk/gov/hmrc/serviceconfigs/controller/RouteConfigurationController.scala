@@ -19,11 +19,11 @@ package uk.gov.hmrc.serviceconfigs.controller
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Json, Writes, __}
+import play.api.libs.json.{Format, Json, Writes, __}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.Route
-import uk.gov.hmrc.serviceconfigs.model.{Environment, RouteType, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, FrontendRoutes, RouteType, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
 import cats.syntax.all.*
 import cats.instances.future.*
@@ -83,6 +83,22 @@ class RouteConfigurationController @Inject()(
                     case None                          => (frontendRoutes(serviceName, environment),
                                                            adminRoutes(serviceName, environment)).mapN(_ ++ _)
       yield Ok(Json.toJson(routes.sortBy(_.path)))
+
+  private given Format[FrontendRoutes] = FrontendRoutes.format
+
+  def shutteringRoutes(environment: Environment): Action[AnyContent] =
+    Action.async:
+      frontendRouteRepository.findRoutes(None, Some(environment), isDevhub = Some(false))
+        .map(FrontendRoutes.fromMongo)
+        .map(Json.toJson(_))
+        .map(Ok(_))
+
+  def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
+    Action.async:
+      frontendRouteRepository.searchByFrontendPath(frontendPath)
+        .map(FrontendRoutes.fromMongo)
+        .map(Json.toJson(_))
+        .map(Ok(_))    
 
 object RouteConfigurationController:
   case class Route(

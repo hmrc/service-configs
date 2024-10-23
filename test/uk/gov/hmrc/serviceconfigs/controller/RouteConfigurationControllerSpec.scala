@@ -28,7 +28,7 @@ import play.api.test.Helpers.*
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.model.Environment.Production
-import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -277,9 +277,133 @@ class RouteConfigurationControllerSpec
         }
       ]"""
       )
-      
-      
-  
+
+  "shuttering-routes/:environment" should:
+    "return frontend routes for shuttering" in new Setup:
+      // when isDevhub equals false route type is a Frontend
+      when(mockFrontendRouteRepository.findRoutes(None, Some(Environment.Production), isDevhub = Some(false)))
+        .thenReturn(
+          Future.successful(
+            Seq(
+              MongoFrontendRoute(
+                service              = ServiceName("service-1"),
+                frontendPath         = "service-1-route",
+                backendPath          = "path",
+                environment          = Environment.Production,
+                routesFile           = "",
+                ruleConfigurationUrl = "github-frontend-link",
+                markerComments       = Set(""),
+                shutterKillswitch    = Some(MongoShutterSwitch("", Some(503), Some(""), Some(""))),
+                shutterServiceSwitch = Some(MongoShutterSwitch("", Some(503), Some(""), Some("")))
+              )
+            )
+          )
+        )
+
+      val result =
+        call(
+          controller.shutteringRoutes(Environment.Production),
+          FakeRequest(GET, "/shuttering-routes/production")
+        )
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse("""
+        [
+          {
+            "service": "service-1",
+            "environment": "production",
+            "routesFile": "",
+            "routes": [
+              {
+                "routesFile": "",
+                "markerComments": [""],
+                "frontendPath": "service-1-route",
+                "shutterKillswitch": {
+                  "switchFile": "",
+                  "statusCode": 503,
+                  "errorPage": "",
+                  "rewriteRule": ""
+                },
+                "shutterServiceSwitch": {
+                  "switchFile": "",
+                  "statusCode": 503,
+                  "errorPage": "",
+                  "rewriteRule": ""
+                },
+                "backendPath": "path",
+                "isDevhub": false,
+                "ruleConfigurationUrl": "github-frontend-link",
+                "isRegex": false
+              }
+            ]
+          }
+        ]"""
+      )
+
+  "frontend-routes/search" should :
+    "return frontend routes that contain frontend path search term" in new Setup:
+      val searchTerm = "/foo"
+      when(mockFrontendRouteRepository.searchByFrontendPath(searchTerm))
+        .thenReturn(
+          Future.successful(
+            Seq(
+              MongoFrontendRoute(
+                service              = ServiceName("service-1"),
+                frontendPath         = searchTerm,
+                backendPath          = "path",
+                environment          = Environment.Production,
+                routesFile           = "",
+                ruleConfigurationUrl = "github-frontend-link",
+                markerComments       = Set(""),
+                shutterKillswitch    = Some(MongoShutterSwitch("", Some(503), Some(""), Some(""))),
+                shutterServiceSwitch = Some(MongoShutterSwitch("", Some(503), Some(""), Some("")))
+              )
+            )
+          )
+        )
+
+      val result =
+        call(
+          controller.searchByFrontendPath(searchTerm),
+          FakeRequest(GET, "/frontend-routes/search?frontendPath=foo")
+        )
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse("""
+        [
+          {
+            "service": "service-1",
+            "environment": "production",
+            "routesFile": "",
+            "routes": [
+              {
+                "routesFile": "",
+                "markerComments": [""],
+                "frontendPath": "/foo",
+                "shutterKillswitch": {
+                  "switchFile": "",
+                  "statusCode": 503,
+                  "errorPage": "",
+                  "rewriteRule": ""
+                },
+                "shutterServiceSwitch": {
+                  "switchFile": "",
+                  "statusCode": 503,
+                  "errorPage": "",
+                  "rewriteRule": ""
+                },
+                "backendPath": "path",
+                "isDevhub": false,
+                "ruleConfigurationUrl": "github-frontend-link",
+                "isRegex": false
+              }
+            ]
+          }
+        ]"""
+      )
+
   trait Setup:
     given ActorSystem = ActorSystem()
 
