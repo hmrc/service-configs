@@ -9,15 +9,9 @@ GET     /deployment-events/:serviceName                 uk.gov.hmrc.serviceconfi
 GET     /config-changes                                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChanges(deploymentId: String, fromDeploymentId: Option[String])
 GET     /config-changes-next-deployment                 uk.gov.hmrc.serviceconfigs.controller.ConfigController.configChangesNextDeployment(serviceName: ServiceName, environment: Environment, version: Version)
 
-GET     /frontend-route/search                          uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByFrontendPath(frontendPath: String)
-GET     /frontend-route-by-env/:environment             uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByEnvironment(environment: Environment)
-GET     /frontend-route/:serviceName                    uk.gov.hmrc.serviceconfigs.controller.NginxController.searchByServiceName(serviceName: ServiceName)
-GET     /frontend-services                              uk.gov.hmrc.serviceconfigs.controller.NginxController.allFrontendServices()
-
-GET     /admin-frontend-route/:serviceName              uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.searchByServiceName(serviceName: ServiceName)
-GET     /admin-frontend-services                        uk.gov.hmrc.serviceconfigs.controller.AdminRoutesConfigController.allAdminFrontendServices()
-
-GET     /routes/:serviceName                            uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: ServiceName, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
+GET     /routes                                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: Option[ServiceName] ?= None, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
+GET     /frontend-routes/search                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.searchByFrontendPath(frontendPath: String, environment: Option[Environment] ?= None)
+GET     /shuttering-routes/:environment                 uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.shutteringRoutes(environment: Environment)
 
 GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyRulesController.allRules
 GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()

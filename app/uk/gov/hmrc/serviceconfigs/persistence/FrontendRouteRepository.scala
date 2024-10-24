@@ -78,11 +78,20 @@ class FrontendRouteRepository @Inject()(
     * @param path a path prefix. a/b/c would match "a/b/c" exactly or "a/b/c/...", but not "a/b/c..."
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
-  // to test: curl "http://localhost:8460/frontend-route/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
-  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] =
+  // to test: curl "http://localhost:8460/frontend-routes/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
+  def searchByFrontendPath(
+    path       : String
+  , environment: Option[Environment]
+  ): Future[Seq[MongoFrontendRoute]] =
     def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find(query)
+        .find(
+          Filters.and(
+            environment.fold(Filters.empty)(env => Filters.equal("environment", env.asString))
+          , Filters.equal("isDevhub", false) // exclude devhub from search
+          , query
+          )
+        )
         .limit(100)
         .toFuture()
         .map: res =>
@@ -95,26 +104,23 @@ class FrontendRouteRepository @Inject()(
       .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty): (prevRes, query) =>
         if   prevRes.isEmpty then search(query)
         else                      Future.successful(prevRes)
-
-  def findByService(serviceName: ServiceName): Future[Seq[MongoFrontendRoute]] =
-    collection
-      .find(equal("service", serviceName))
-      .toFuture()
-
-  def findByEnvironment(environment: Environment): Future[Seq[MongoFrontendRoute]] =
-    collection
-      .find(equal("environment", environment))
-      .toFuture()
+  end searchByFrontendPath
   
-  def findRoutes(serviceName: ServiceName, environment: Option[Environment], isDevhub: Option[Boolean]): Future[Seq[MongoFrontendRoute]] =
+  def findRoutes(
+    serviceName: Option[ServiceName] = None
+  , environment: Option[Environment] = None
+  , isDevhub   : Option[Boolean]     = None
+  ): Future[Seq[MongoFrontendRoute]] =
     collection
       .find(
         Filters.and(
-          Filters.equal("service", serviceName)
+          serviceName.fold(Filters.empty)(sn => Filters.equal("service", sn))
         , isDevhub.fold(Filters.empty)(dh => Filters.equal("isDevhub", dh))
         , environment.fold(Filters.empty)(env => Filters.equal("environment", env.asString))
+        , Filters.not(Filters.regex("service", "\\$")) // excludes service name anomalies that contain $
         )
       ).toFuture()
+     
 
   def replaceEnv(environment: Environment, routes: Set[MongoFrontendRoute]): Future[Unit] =
     MongoUtils.replace[MongoFrontendRoute](
@@ -134,14 +140,6 @@ class FrontendRouteRepository @Inject()(
                           equal("frontendPath", entry.frontendPath)
                         )
       )
-
-  def findAllFrontendServices(): Future[Seq[ServiceName]] =
-    collection
-      .distinct[String]("service")
-      .toFuture()
-      .map: 
-        _.collect:
-          case s if !s.contains("$") => ServiceName(s) // excludes service name anomalies that contain $
 
 object FrontendRouteRepository:
   def pathsToRegex(paths: Seq[String]): String =

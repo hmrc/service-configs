@@ -25,7 +25,7 @@ import play.api.Logging
 import uk.gov.hmrc.serviceconfigs.config.{GithubConfig, NginxConfig}
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, NginxConfigConnector}
 import uk.gov.hmrc.serviceconfigs.model.{Environment, NginxConfigFile, ServiceName, YamlRoutesFile}
-import uk.gov.hmrc.serviceconfigs.parser.{FrontendRouteParser, NginxConfigIndexer, YamlConfigParser}
+import uk.gov.hmrc.serviceconfigs.parser.{NginxRouteParser, NginxConfigIndexer, YamlConfigParser}
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.FrontendRouteRepository
 
@@ -37,13 +37,13 @@ import scala.util.matching.Regex
 
 @Singleton
 class NginxService @Inject()(
-  frontendRouteRepo: FrontendRouteRepository,
-  parser                : FrontendRouteParser,
-  yamlParser            : YamlConfigParser,
-  nginxConnector        : NginxConfigConnector,
-  configAsCodeConnector : ConfigAsCodeConnector,
-  nginxConfig           : NginxConfig,
-  githubConfig          : GithubConfig
+  frontendRouteRepo    : FrontendRouteRepository,
+  parser               : NginxRouteParser,
+  yamlParser           : YamlConfigParser,
+  nginxConnector       : NginxConfigConnector,
+  configAsCodeConnector: ConfigAsCodeConnector,
+  nginxConfig          : NginxConfig,
+  githubConfig         : GithubConfig
 )(using ec: ExecutionContext
 ) extends Logging:
 
@@ -106,7 +106,7 @@ object NginxService extends Logging:
       .getOrElse(ServiceName(url))
 
   def parseConfig(
-    parser    : FrontendRouteParser,
+    parser    : NginxRouteParser,
     configFile: NginxConfigFile
   ): Either[String, List[MongoFrontendRoute]] =
 

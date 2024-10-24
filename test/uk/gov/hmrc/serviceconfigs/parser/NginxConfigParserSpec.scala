@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.config.{NginxConfig, NginxShutterConfig}
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterSwitch}
+import uk.gov.hmrc.serviceconfigs.model.{NginxRouteConfig, ShutterSwitch}
 
 class NginxConfigParserSpec
   extends AnyWordSpec
@@ -50,7 +50,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(configRegex).value
-      cfg.head shouldBe FrontendRoute("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
+      cfg.head shouldBe NginxRouteConfig("^/test-gateway/((((infobip|nexmo)/(text|voice)/)?delivery-details)|(reports/count))", "https://test-gateway.public.local", isRegex = true)
 
     "parse normal routes" in:
       val configNormal =
@@ -69,7 +69,7 @@ class NginxConfigParserSpec
         """.stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(configNormal).value
-      cfg.head shouldBe FrontendRoute("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))),
+      cfg.head shouldBe NginxRouteConfig("/mandate", "https://test-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))),
         shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None )))
 
     "drop routes without a proxy_pass" in:
@@ -97,7 +97,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/assets", "$s3_upstream")
+      cfg.head shouldBe NginxRouteConfig("/assets", "$s3_upstream")
 
     "parse routes with set header params" in:
       val config =
@@ -107,7 +107,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local")
+      cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local")
 
     "parse a shutter killswitch" in:
       val config =
@@ -119,7 +119,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))), shutterServiceSwitch = None)
+      cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local", shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))), shutterServiceSwitch = None)
 
     "parse a shutter killswitch with an error page" in:
       val config =
@@ -132,7 +132,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
+      cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local",
         shutterKillswitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503), errorPage = Some("/shutter/index.html"))), shutterServiceSwitch = None)
 
     "parse a shutter service switch" in:
@@ -146,7 +146,7 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local",
+      cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local",
         shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/test-client-mandate-frontend", Some(503), Some("/shutter/mandate/index.html"), None)),
         shutterKillswitch = None
       )
@@ -159,4 +159,4 @@ class NginxConfigParserSpec
           |}""".stripMargin
 
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
-      cfg.head shouldBe FrontendRoute("/lol", "https://lol-frontend.public.local", markerComments = Set("NOT_SHUTTERABLE"))
+      cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local", markerComments = Set("NOT_SHUTTERABLE"))
