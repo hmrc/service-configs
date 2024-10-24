@@ -186,13 +186,13 @@ class FrontendRouteRepositoryMongoSpec
     "return only routes with the path" in:
       addFrontendRoutes("a", "b").futureValue
 
-      val service1Entries = repository.searchByFrontendPath("a").futureValue
+      val service1Entries = repository.searchByFrontendPath("a", None).futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a")
 
     "return routes with the subpath" in:
       addFrontendRoutes("a/b/c", "a/b/d", "a/b", "a/bb").futureValue
 
-      val service1Entries = repository.searchByFrontendPath("a/b").futureValue
+      val service1Entries = repository.searchByFrontendPath("a/b", None).futureValue
       service1Entries.map(_.frontendPath).toList.sorted shouldBe List(
         "a/b",
         "a/b/c",
@@ -202,7 +202,7 @@ class FrontendRouteRepositoryMongoSpec
     "return routes with the parent path if no match" in:
       addFrontendRoutes("a/1", "b/1").futureValue
 
-      val service1Entries = repository.searchByFrontendPath("a/2").futureValue
+      val service1Entries = repository.searchByFrontendPath("a/2", None).futureValue
       service1Entries.map(_.frontendPath).toList shouldBe List("a/1")
 
   def newFrontendRoute(

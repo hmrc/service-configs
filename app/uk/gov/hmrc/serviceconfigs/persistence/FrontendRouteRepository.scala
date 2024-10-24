@@ -79,10 +79,19 @@ class FrontendRouteRepository @Inject()(
     *             if no match is found, it will check regex paths starting with "a/b/.." and repeat with "a/.." if no match found, recursively.
     */
   // to test: curl "http://localhost:8460/frontend-routes/search?frontendPath=account/account-details/saa" | python -mjson.tool | grep frontendPath | sort
-  def searchByFrontendPath(path: String): Future[Seq[MongoFrontendRoute]] =
+  def searchByFrontendPath(
+    path       : String
+  , environment: Option[Environment]
+  ): Future[Seq[MongoFrontendRoute]] =
     def search(query: Bson): Future[Seq[MongoFrontendRoute]] =
       collection
-        .find(query)
+        .find(
+          Filters.and(
+            environment.fold(Filters.empty)(env => Filters.equal("environment", env.asString))
+          , Filters.equal("isDevhub", false) // exclude devhub from search
+          , query
+          )
+        )
         .limit(100)
         .toFuture()
         .map: res =>
@@ -95,6 +104,7 @@ class FrontendRouteRepository @Inject()(
       .foldLeftM[Future, Seq[MongoFrontendRoute]](Seq.empty): (prevRes, query) =>
         if   prevRes.isEmpty then search(query)
         else                      Future.successful(prevRes)
+  end searchByFrontendPath
   
   def findRoutes(
     serviceName: Option[ServiceName] = None

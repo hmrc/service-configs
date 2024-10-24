@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.parser
 
-import uk.gov.hmrc.serviceconfigs.model.FrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.NginxRouteConfig
 
-trait FrontendRouteParser:
-  def parseConfig(config: String): Either[String, List[FrontendRoute]]
+trait NginxRouteParser:
+  def parseConfig(config: String): Either[String, List[NginxRouteConfig]]

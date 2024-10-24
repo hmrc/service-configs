@@ -230,17 +230,17 @@ class RouteConfigurationControllerSpec
 
       status(result) shouldBe 200
 
-      contentAsJson(result) shouldBe Json.parse(
-        """[
-        {
-          "serviceName": "service1",
-          "path": "service1-frontend-route1",
-          "ruleConfigurationUrl": "github-frontend-link",
-          "isRegex": false,
-          "routeType": "frontend",
-          "environment": "production"
-        }
-      ]"""
+      contentAsJson(result) shouldBe Json.parse("""
+        [
+          {
+            "serviceName": "service1",
+            "path": "service1-frontend-route1",
+            "ruleConfigurationUrl": "github-frontend-link",
+            "isRegex": false,
+            "routeType": "frontend",
+            "environment": "production"
+          }
+        ]"""
       )
 
     "return all routing config for a service when route type devhub is defined in parameters" in new Setup:
@@ -342,22 +342,36 @@ class RouteConfigurationControllerSpec
       )
 
   "frontend-routes/search" should :
-    "return frontend routes that contain frontend path search term" in new Setup:
+    "return frontend routes that contain the frontend path search term" in new Setup:
       val searchTerm = "/foo"
-      when(mockFrontendRouteRepository.searchByFrontendPath(searchTerm))
+      when(mockFrontendRouteRepository.searchByFrontendPath(searchTerm, None))
         .thenReturn(
           Future.successful(
             Seq(
               MongoFrontendRoute(
                 service              = ServiceName("service-1"),
-                frontendPath         = searchTerm,
+                frontendPath         = "/foo",
+                backendPath          = "path",
+                environment          = Environment.Production,
+                routesFile           = "",
+                ruleConfigurationUrl = "github-frontend-link"
+              ),
+              MongoFrontendRoute(
+                service              = ServiceName("service-1"),
+                frontendPath         = "/foo/bar",
                 backendPath          = "path",
                 environment          = Environment.Production,
                 routesFile           = "",
                 ruleConfigurationUrl = "github-frontend-link",
-                markerComments       = Set(""),
-                shutterKillswitch    = Some(MongoShutterSwitch("", Some(503), Some(""), Some(""))),
-                shutterServiceSwitch = Some(MongoShutterSwitch("", Some(503), Some(""), Some("")))
+              ),
+              MongoFrontendRoute(
+                service              = ServiceName("service-1"),
+                frontendPath         = "^/foo/bar\\-.*$",
+                backendPath          = "path",
+                environment          = Environment.Production,
+                routesFile           = "",
+                ruleConfigurationUrl = "github-frontend-link",
+                isRegex              = true
               )
             )
           )
@@ -365,8 +379,8 @@ class RouteConfigurationControllerSpec
 
       val result =
         call(
-          controller.searchByFrontendPath(searchTerm),
-          FakeRequest(GET, "/frontend-routes/search?frontendPath=foo")
+          controller.searchByFrontendPath(searchTerm, None),
+          FakeRequest(GET, s"/frontend-routes/search?frontendPath=$searchTerm")
         )
 
       status(result) shouldBe 200
@@ -374,32 +388,28 @@ class RouteConfigurationControllerSpec
       contentAsJson(result) shouldBe Json.parse("""
         [
           {
-            "service": "service-1",
-            "environment": "production",
-            "routesFile": "",
-            "routes": [
-              {
-                "routesFile": "",
-                "markerComments": [""],
-                "frontendPath": "/foo",
-                "shutterKillswitch": {
-                  "switchFile": "",
-                  "statusCode": 503,
-                  "errorPage": "",
-                  "rewriteRule": ""
-                },
-                "shutterServiceSwitch": {
-                  "switchFile": "",
-                  "statusCode": 503,
-                  "errorPage": "",
-                  "rewriteRule": ""
-                },
-                "backendPath": "path",
-                "isDevhub": false,
-                "ruleConfigurationUrl": "github-frontend-link",
-                "isRegex": false
-              }
-            ]
+            "serviceName": "service-1",
+            "path": "/foo",
+            "ruleConfigurationUrl": "github-frontend-link",
+            "isRegex": false,
+            "routeType": "frontend",
+            "environment": "production"
+          },
+          {
+            "serviceName": "service-1",
+            "path": "/foo/bar",
+            "ruleConfigurationUrl": "github-frontend-link",
+            "isRegex": false,
+            "routeType": "frontend",
+            "environment": "production"
+          },
+          {
+            "serviceName": "service-1",
+            "path": "^/foo/bar\\-.*$",
+            "ruleConfigurationUrl": "github-frontend-link",
+            "isRegex": true,
+            "routeType": "frontend",
+            "environment": "production"
           }
         ]"""
       )

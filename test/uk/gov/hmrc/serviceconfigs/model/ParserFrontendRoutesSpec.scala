@@ -19,6 +19,7 @@ package uk.gov.hmrc.serviceconfigs.model
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
+import uk.gov.hmrc.serviceconfigs.model.ShutteringRoutes
 
 class ParserFrontendRoutesSpec
   extends AnyWordSpec
@@ -33,23 +34,23 @@ class ParserFrontendRoutesSpec
         MongoFrontendRoute(ServiceName("testService"), "/test2", "http://test2.com", Environment.Development, routesFile = "file1"),
         MongoFrontendRoute(ServiceName("testService"), "/test3", "http://test3.com", Environment.Development, routesFile = "file1"))
 
-      val res = FrontendRoutes.fromMongo(mongRoutes)
+      val res = ShutteringRoutes.fromMongo(mongRoutes)
       res.size shouldBe 2
 
       res.exists(_.environment == Environment.Production) shouldBe true
       val prod = res.find(_.environment == Environment.Production).get
-      prod.routes.contains( FrontendRoute("/test1", "http://test.com")) shouldBe true
-      prod.routes.contains( FrontendRoute("/test2", "http://test2.com")) shouldBe true
+      prod.routes.contains( NginxRouteConfig("/test1", "http://test.com")) shouldBe true
+      prod.routes.contains( NginxRouteConfig("/test2", "http://test2.com")) shouldBe true
 
 
       res.exists(_.environment == Environment.Development) shouldBe true
       val dev = res.find(_.environment == Environment.Development).get
-      dev.routes.contains( FrontendRoute("/test1", "http://test.com")) shouldBe true
-      dev.routes.contains( FrontendRoute("/test2", "http://test2.com")) shouldBe true
-      dev.routes.contains(FrontendRoute("/test3", "http://test3.com")) shouldBe true
+      dev.routes.contains( NginxRouteConfig("/test1", "http://test.com")) shouldBe true
+      dev.routes.contains( NginxRouteConfig("/test2", "http://test2.com")) shouldBe true
+      dev.routes.contains(NginxRouteConfig("/test3", "http://test3.com")) shouldBe true
 
   "frontendRoute" should:
     "be creatable from a MongoFrontendRoute" in:
       val mongoRoute = MongoFrontendRoute(ServiceName("testService"), "/test1", "http://test.com", Environment.Production, routesFile = "file1")
-      val route      = FrontendRoute.fromMongo(mongoRoute)
-      route shouldBe FrontendRoute(frontendPath = "/test1", backendPath = "http://test.com")
+      val route      = NginxRouteConfig.fromMongo(mongoRoute)
+      route shouldBe NginxRouteConfig(frontendPath = "/test1", backendPath = "http://test.com")

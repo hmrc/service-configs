@@ -16,14 +16,11 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.functional.syntax.toFunctionalBuilderOps
-
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json, Writes, __}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.Route
-import uk.gov.hmrc.serviceconfigs.model.{Environment, FrontendRoutes, RouteType, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{Environment, Route, RouteType, ServiceName, ShutteringRoutes}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
 import cats.syntax.all.*
 import cats.instances.future.*
@@ -84,49 +81,20 @@ class RouteConfigurationController @Inject()(
                                                            adminRoutes(serviceName, environment)).mapN(_ ++ _)
       yield Ok(Json.toJson(routes.sortBy(_.path)))
 
-  private given Format[FrontendRoutes] = FrontendRoutes.format
-
-  def shutteringRoutes(environment: Environment): Action[AnyContent] =
+  def searchByFrontendPath(
+    frontendPath: String
+  , environment : Option[Environment]
+  ): Action[AnyContent] =
     Action.async:
-      frontendRouteRepository.findRoutes(None, Some(environment), isDevhub = Some(false))
-        .map(FrontendRoutes.fromMongo)
+      frontendRouteRepository.searchByFrontendPath(frontendPath, environment)
+        .map(_.map(Route.fromMongo))
         .map(Json.toJson(_))
         .map(Ok(_))
 
-  def searchByFrontendPath(frontendPath: String): Action[AnyContent] =
+  def shutteringRoutes(environment: Environment): Action[AnyContent] =
+    given Format[ShutteringRoutes] = ShutteringRoutes.format
     Action.async:
-      frontendRouteRepository.searchByFrontendPath(frontendPath)
-        .map(FrontendRoutes.fromMongo)
+      frontendRouteRepository.findRoutes(None, Some(environment), isDevhub = Some(false))
+        .map(ShutteringRoutes.fromMongo)
         .map(Json.toJson(_))
-        .map(Ok(_))    
-
-object RouteConfigurationController:
-  case class Route(
-    serviceName         : ServiceName
-  , path                : String
-  , ruleConfigurationUrl: Option[String]
-  , isRegex             : Boolean = false
-  , routeType           : RouteType
-  , environment         : Environment
-  )
-
-  object Route:
-    val writes: Writes[Route] =
-      ( (__ \ "serviceName"         ).write[ServiceName](ServiceName.format)
-      ~ (__ \ "path"                ).write[String]
-      ~ (__ \ "ruleConfigurationUrl").writeNullable[String]
-      ~ (__ \ "isRegex"             ).write[Boolean]
-      ~ (__ \ "routeType"           ).write[RouteType](RouteType.writes)
-      ~ (__ \ "environment"         ).write[Environment](Environment.format)
-      )(r => Tuple.fromProductTyped(r))
-
-    def fromMongo(mfr: MongoFrontendRoute): Route =
-      Route(
-        serviceName          = mfr.service,
-        path                 = mfr.frontendPath,
-        ruleConfigurationUrl = Some(mfr.ruleConfigurationUrl),
-        isRegex              = mfr.isRegex,
-        routeType            = if mfr.isDevhub then RouteType.Devhub else RouteType.Frontend,
-        environment          = mfr.environment
-      )
-end RouteConfigurationController
+        .map(Ok(_))
