@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.parser
 
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
-import uk.gov.hmrc.serviceconfigs.model.{FrontendRoute, ShutterSwitch}
+import uk.gov.hmrc.serviceconfigs.model.{NginxRouteConfig, ShutterSwitch}
 
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -26,11 +26,11 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 @Singleton
 class NginxConfigParser @Inject()(
   nginxConfig: NginxConfig
-) extends FrontendRouteParser:
+) extends NginxRouteParser:
 
   val shutterConfig = nginxConfig.shutterConfig
 
-  override def parseConfig(config: String): Either[String, List[FrontendRoute]] =
+  override def parseConfig(config: String): Either[String, List[NginxRouteConfig]] =
     NginxTokenParser(NginxLexer(config))
 
   object NginxTokenParser extends Parsers:
@@ -47,7 +47,7 @@ class NginxConfigParser @Inject()(
 
       override def atEnd: Boolean = tokens.isEmpty
 
-    def apply(tokens: Seq[NginxToken]): Either[String, List[FrontendRoute]] =
+    def apply(tokens: Seq[NginxToken]): Either[String, List[NginxRouteConfig]] =
       val reader = NginxTokenReader(tokens)
       configFile(reader) match
         case Success(result, _) => Right(result.flatMap:
@@ -88,7 +88,7 @@ class NginxConfigParser @Inject()(
         .collect { case c: MARKER_COMMENT => c.comment }
         .toSet
 
-    def locToRoute(loc: LOCATION): Option[FrontendRoute] =
+    def locToRoute(loc: LOCATION): Option[NginxRouteConfig] =
       val ifs = loc.body.collect { case ib: IFBLOCK => ib }
 
       val shutterKillswitch = extractKillSwitch(ifs)
@@ -99,7 +99,7 @@ class NginxConfigParser @Inject()(
         .collectFirst:
           case pp: PROXY_PASS => pp.url
         .map: proxy =>
-          FrontendRoute(
+          NginxRouteConfig(
             frontendPath         = loc.path,
             backendPath          = proxy,
             isRegex              = loc.regex,

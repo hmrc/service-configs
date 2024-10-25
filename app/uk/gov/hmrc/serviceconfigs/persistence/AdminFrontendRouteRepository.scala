@@ -20,8 +20,8 @@ import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
 import org.mongodb.scala.ObservableFuture
-import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.{IndexModel, IndexOptions}
+import org.mongodb.scala.model.Filters.*
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
@@ -48,11 +48,11 @@ class AdminFrontendRouteRepository @Inject()(
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def findByService(serviceName: ServiceName): Future[Seq[AdminFrontendRoute]] =
+  def findRoutes(serviceName: Option[ServiceName] = None): Future[Seq[AdminFrontendRoute]] =
     collection
-      .find(equal("service", serviceName))
+      .find(serviceName.fold(Filters.empty)(Filters.equal("service", _)))
       .toFuture()
-
+  
   def putAll(routes: Seq[AdminFrontendRoute]): Future[Unit] =
     MongoUtils.replace[AdminFrontendRoute](
       collection    = collection,
@@ -64,9 +64,3 @@ class AdminFrontendRouteRepository @Inject()(
                           equal("route", entry.route)
                         )
     )
-
-  def findAllAdminFrontendServices(): Future[Seq[ServiceName]] =
-    collection
-      .distinct[String]("service")
-      .toFuture()
-      .map(_.map(ServiceName.apply))

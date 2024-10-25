@@ -48,11 +48,11 @@ class AdminFrontendRouteRepositorySpec
       val adminFrontendRoute2 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route2", allow = Map.empty, location = "location2")
       val adminFrontendRoute3 = AdminFrontendRoute(ServiceName("testNameTwo"), route = "route3", allow = Map.empty, location = "location3")
       repository.putAll(Seq(adminFrontendRoute1, adminFrontendRoute2, adminFrontendRoute3)).futureValue
-      repository.findByService(ServiceName("testNameOne")).futureValue shouldBe Seq(adminFrontendRoute1 , adminFrontendRoute2)
+      repository.findRoutes(Some(ServiceName("testNameOne"))).futureValue shouldBe Seq(adminFrontendRoute1 , adminFrontendRoute2)
 
-    "return all service names" in:
+    "return all admin frontend services" in:
       val adminFrontendRoute1 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route1", allow = Map.empty, location = "location1")
       val adminFrontendRoute2 = AdminFrontendRoute(ServiceName("testNameOne"), route = "route2", allow = Map.empty, location = "location2")
       val adminFrontendRoute3 = AdminFrontendRoute(ServiceName("testNameTwo"), route = "route3", allow = Map.empty, location = "location3")
       repository.putAll(Seq(adminFrontendRoute1, adminFrontendRoute2, adminFrontendRoute3)).futureValue
-      repository.findAllAdminFrontendServices().futureValue shouldBe Seq(ServiceName("testNameOne") , ServiceName("testNameTwo"))
+      repository.findRoutes(None).futureValue shouldBe Seq(adminFrontendRoute1, adminFrontendRoute2, adminFrontendRoute3)
