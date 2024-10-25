@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.model
 
-import play.api.libs.json.{Format, Json, Writes, __}
+import play.api.libs.json.{Json, Writes, __}
 import play.api.libs.functional.syntax._
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 
@@ -64,15 +64,14 @@ case class ShutteringRoutes(
 )
 
 object ShutteringRoutes:
-  given Format[ShutterSwitch]    = Json.format[ShutterSwitch]
-  given Format[NginxRouteConfig] = Json.format[NginxRouteConfig]
-
-  val format: Format[ShutteringRoutes] =
-    ( (__ \ "service"    ).format[ServiceName](ServiceName.format)
-    ~ (__ \ "environment").format[Environment](Environment.format)
-    ~ (__ \ "routesFile" ).format[String]
-    ~ (__ \ "routes"     ).format[Seq[NginxRouteConfig]]
-    )(ShutteringRoutes.apply, pt => Tuple.fromProductTyped(pt))
+  val writes: Writes[ShutteringRoutes] =
+    given Writes[ShutterSwitch]    = Json.writes[ShutterSwitch]
+    given Writes[NginxRouteConfig] = Json.writes[NginxRouteConfig]
+    ( (__ \ "service"    ).write[ServiceName](ServiceName.format)
+    ~ (__ \ "environment").write[Environment](Environment.format)
+    ~ (__ \ "routesFile" ).write[String]
+    ~ (__ \ "routes"     ).write[Seq[NginxRouteConfig]]
+    )(pt => Tuple.fromProductTyped(pt))
 
   def fromMongo(mfrs: Seq[MongoFrontendRoute]): Seq[ShutteringRoutes] =
     mfrs
@@ -118,7 +117,7 @@ object Route:
     ~ (__ \ "routeType"           ).write[RouteType](RouteType.writes)
     ~ (__ \ "environment"         ).write[Environment](Environment.format)
     )(r => Tuple.fromProductTyped(r))
-    
+
   def fromMongo(mfr: MongoFrontendRoute): Route =
     Route(
       serviceName          = mfr.service,

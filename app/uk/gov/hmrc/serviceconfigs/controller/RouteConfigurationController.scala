@@ -92,7 +92,7 @@ class RouteConfigurationController @Inject()(
         .map(Ok(_))
 
   def shutteringRoutes(environment: Environment): Action[AnyContent] =
-    given Format[ShutteringRoutes] = ShutteringRoutes.format
+    given Writes[ShutteringRoutes] = ShutteringRoutes.writes
     Action.async:
       frontendRouteRepository.findRoutes(None, Some(environment), isDevhub = Some(false))
         .map(ShutteringRoutes.fromMongo)
