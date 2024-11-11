@@ -56,14 +56,16 @@ class RouteConfigurationController @Inject()(
     for
       adminFrontendRoutes <- adminFrontendRouteRepository.findRoutes(serviceName)
       adminRoutes         =  adminFrontendRoutes.flatMap: raw =>
-                               raw.allow.keys.map: env =>
-                                 Route(
-                                   serviceName          = raw.serviceName,
-                                   path                 = raw.route,
-                                   ruleConfigurationUrl = Some(raw.location),
-                                   routeType            = RouteType.AdminFrontend,
-                                   environment          = Environment.parse(env).getOrElse(sys.error(s"Invalid Environment: $env"))
-                                 )
+                               raw.allow.keys.flatMap: envStr =>
+                                 // TODO model allow.keys as Environment and avoid storing invalid ones (here "local")
+                                 Environment.parse(envStr).map: env =>
+                                   Route(
+                                     serviceName          = raw.serviceName,
+                                     path                 = raw.route,
+                                     ruleConfigurationUrl = Some(raw.location),
+                                     routeType            = RouteType.AdminFrontend,
+                                     environment          = env
+                                   )
     yield environment.fold(adminRoutes)(env => adminRoutes.filter(_.environment == env))
 
   def routes(
@@ -77,8 +79,9 @@ class RouteConfigurationController @Inject()(
                     case Some(RouteType.Frontend)      => frontendRoutes(serviceName, environment, isDevhub = Some(false))
                     case Some(RouteType.Devhub)        => frontendRoutes(serviceName, environment, isDevhub = Some(true))
                     case Some(RouteType.AdminFrontend) => adminRoutes(serviceName, environment)
-                    case None                          => (frontendRoutes(serviceName, environment),
-                                                           adminRoutes(serviceName, environment)).mapN(_ ++ _)
+                    case None                          => ( frontendRoutes(serviceName, environment)
+                                                          , adminRoutes(serviceName, environment)
+                                                          ).mapN(_ ++ _)
       yield Ok(Json.toJson(routes.sortBy(_.path)))
 
   def searchByFrontendPath(
