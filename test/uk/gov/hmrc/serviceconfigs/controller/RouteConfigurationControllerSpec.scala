@@ -27,7 +27,6 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.*
-import uk.gov.hmrc.serviceconfigs.model.Environment.Production
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
 
@@ -47,7 +46,7 @@ class RouteConfigurationControllerSpec
 
       when(mockAdminFrontendRouteRepository.findRoutes(Some(service1)))
         .thenReturn(Future.successful(Seq(
-          AdminFrontendRoute(service1, "service1-admin-route", Map("production" -> List("mdtp"), "qa" -> List("mdtp")), "github-admin-link")
+          AdminFrontendRoute(service1, "service1-admin-route", Map(Environment.Production -> List("mdtp"), Environment.QA -> List("mdtp")), "github-admin-link")
         )))
 
       when(mockFrontendRouteRepository.findRoutes(Some(service1), None, None))
@@ -116,7 +115,7 @@ class RouteConfigurationControllerSpec
         .thenReturn(
           Future.successful(
             Seq(
-              AdminFrontendRoute(service1, "service1-admin-route", Map("production" -> List("mdtp"), "qa" -> List("mdtp")), "github-admin-link"),
+              AdminFrontendRoute(service1, "service1-admin-route", Map(Environment.Production -> List("mdtp"), Environment.QA -> List("mdtp")), "github-admin-link"),
             )
           )
         )
@@ -174,7 +173,7 @@ class RouteConfigurationControllerSpec
         .thenReturn(
           Future.successful(
             Seq(
-              AdminFrontendRoute(service1, "service1-admin-route", Map("production" -> List("mdtp"), "qa" -> List("mdtp")), "github-admin-link"),
+              AdminFrontendRoute(service1, "service1-admin-route", Map(Environment.Production -> List("mdtp"), Environment.QA -> List("mdtp")), "github-admin-link"),
             )
           )
         )

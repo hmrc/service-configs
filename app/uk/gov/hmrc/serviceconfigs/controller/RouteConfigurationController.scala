@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json, Writes, __}
+import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{Environment, Route, RouteType, ServiceName, ShutteringRoutes}
@@ -62,7 +62,7 @@ class RouteConfigurationController @Inject()(
                                    path                 = raw.route,
                                    ruleConfigurationUrl = Some(raw.location),
                                    routeType            = RouteType.AdminFrontend,
-                                   environment          = Environment.parse(env).getOrElse(sys.error(s"Invalid Environment: $env"))
+                                   environment          = env
                                  )
     yield environment.fold(adminRoutes)(env => adminRoutes.filter(_.environment == env))
 
@@ -77,8 +77,9 @@ class RouteConfigurationController @Inject()(
                     case Some(RouteType.Frontend)      => frontendRoutes(serviceName, environment, isDevhub = Some(false))
                     case Some(RouteType.Devhub)        => frontendRoutes(serviceName, environment, isDevhub = Some(true))
                     case Some(RouteType.AdminFrontend) => adminRoutes(serviceName, environment)
-                    case None                          => (frontendRoutes(serviceName, environment),
-                                                           adminRoutes(serviceName, environment)).mapN(_ ++ _)
+                    case None                          => ( frontendRoutes(serviceName, environment)
+                                                          , adminRoutes(serviceName, environment)
+                                                          ).mapN(_ ++ _)
       yield Ok(Json.toJson(routes.sortBy(_.path)))
 
   def searchByFrontendPath(

@@ -21,7 +21,6 @@ import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.Environment.Production
 import uk.gov.hmrc.serviceconfigs.model.{Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 
