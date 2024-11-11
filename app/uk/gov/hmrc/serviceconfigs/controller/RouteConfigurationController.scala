@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json, Writes, __}
+import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{Environment, Route, RouteType, ServiceName, ShutteringRoutes}
@@ -56,16 +56,14 @@ class RouteConfigurationController @Inject()(
     for
       adminFrontendRoutes <- adminFrontendRouteRepository.findRoutes(serviceName)
       adminRoutes         =  adminFrontendRoutes.flatMap: raw =>
-                               raw.allow.keys.flatMap: envStr =>
-                                 // TODO model allow.keys as Environment and avoid storing invalid ones (here "local")
-                                 Environment.parse(envStr).map: env =>
-                                   Route(
-                                     serviceName          = raw.serviceName,
-                                     path                 = raw.route,
-                                     ruleConfigurationUrl = Some(raw.location),
-                                     routeType            = RouteType.AdminFrontend,
-                                     environment          = env
-                                   )
+                               raw.allow.keys.map: env =>
+                                 Route(
+                                   serviceName          = raw.serviceName,
+                                   path                 = raw.route,
+                                   ruleConfigurationUrl = Some(raw.location),
+                                   routeType            = RouteType.AdminFrontend,
+                                   environment          = env
+                                 )
     yield environment.fold(adminRoutes)(env => adminRoutes.filter(_.environment == env))
 
   def routes(

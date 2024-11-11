@@ -22,15 +22,24 @@ import play.api.libs.json._
 case class AdminFrontendRoute(
   serviceName: ServiceName
 , route      : String
-, allow      : Map[String, List[String]]
+, allow      : Map[Environment, List[String]]
 , location   : String
 )
 
 object AdminFrontendRoute:
   val format: Format[AdminFrontendRoute] =
     given Format[ServiceName] = ServiceName.format
+    given Format[Map[Environment, List[String]]] =
+        Format(
+          Reads
+            .of[Map[String, List[String]]]
+            .map(_.map { case (k, v) => (Environment.parse(k).getOrElse(sys.error(s"Invalid Environment: $k")), v) })
+        , Writes
+            .apply(xs => Json.toJson(xs.map { case (k, v) => k.asString -> v }))
+        )
+
     ( (__ \ "service" ).format[ServiceName]
     ~ (__ \ "route"   ).format[String]
-    ~ (__ \ "allow"   ).format[Map[String, List[String]]]
+    ~ (__ \ "allow"   ).format[Map[Environment, List[String]]]
     ~ (__ \ "location").format[String]
     )(AdminFrontendRoute.apply, pt => Tuple.fromProductTyped(pt))

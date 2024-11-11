@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.model
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
-import uk.gov.hmrc.serviceconfigs.model.ShutteringRoutes
 
 class ParserFrontendRoutesSpec
   extends AnyWordSpec

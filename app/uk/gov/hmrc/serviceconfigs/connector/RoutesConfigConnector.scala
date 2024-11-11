@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.http.StringContextOps
-import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, ServiceName}
+import uk.gov.hmrc.serviceconfigs.model.{AdminFrontendRoute, Environment, ServiceName}
 import uk.gov.hmrc.serviceconfigs.util.YamlUtil.fromYaml
 
 import javax.inject.{Inject, Singleton}
@@ -43,7 +43,14 @@ class RoutesConfigConnector @Inject()(
     given Format[ServiceName] = ServiceName.format
     ( (__ \ "microservice").read[ServiceName]
     ~ Reads.pure(route)
-    ~ (__ \ "allow").read[Map[String, List[String]]]
+    ~ (__ \ "allow").read[Map[String, List[String]]].map[Map[Environment, List[String]]]:
+                      _
+                        .flatMap: (k, v) =>
+                          Environment.parse(k) match
+                            case Some(env) => Some(env -> v)
+                            case None      => if k != "local" then logger.warn(s"Unsupported environment '$k' in admin configuration")
+                                              None
+                        .toMap
     ~ Reads.pure(s"https://github.com/hmrc/admin-frontend-proxy/blob/HEAD/config/routes.yaml#L${lines.indexOf(route + ":") + 1}")
     )(AdminFrontendRoute.apply _)
 

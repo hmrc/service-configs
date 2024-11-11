@@ -30,11 +30,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class SlackNotificationsConnectorSpec
   extends AnyWordSpec
-  with Matchers
-  with ScalaFutures
-  with IntegrationPatience
-  with WireMockSupport
-  with HttpClientV2Support:
+     with Matchers
+     with ScalaFutures
+     with IntegrationPatience
+     with WireMockSupport
+     with HttpClientV2Support:
 
     "Connector" should:
       "use internal auth" in:
