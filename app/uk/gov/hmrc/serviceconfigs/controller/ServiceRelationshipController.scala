@@ -17,8 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import play.api.libs.json.{Json, OWrites}
-import play.api.mvc.MessagesControllerComponents
-import play.api.mvc._
+import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationships}
 import uk.gov.hmrc.serviceconfigs.service.ServiceRelationshipService
@@ -29,7 +28,7 @@ import scala.concurrent.ExecutionContext
 @Singleton
 class ServiceRelationshipController @Inject()(
   serviceRelationshipService: ServiceRelationshipService,
-  mcc: MessagesControllerComponents
+  mcc                       : MessagesControllerComponents
 )(using
   ec: ExecutionContext
 ) extends BackendController(mcc):

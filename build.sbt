@@ -10,7 +10,7 @@ lazy val microservice = Project("service-configs", file("."))
     playDefaultPort     :=  8460,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
     scalacOptions       +=  "-Wconf:src=routes/.*:s",
-    scalacOptions       += "-Wconf:msg=Flag.*repeatedly:s",
+    scalacOptions       +=  "-Wconf:msg=Flag.*repeatedly:s",
     resolvers           +=  Resolver.jcenterRepo,
     RoutesKeys.routesImport ++= Seq(
       "uk.gov.hmrc.serviceconfigs.model.{Environment, FilterType, DeploymentDateRange, ServiceName, ServiceType, Tag, TeamName, Version, ArtefactName, RouteType}",
