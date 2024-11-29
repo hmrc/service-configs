@@ -1,5 +1,4 @@
 import play.core.PlayVersion
-import play.sbt.PlayImport.{ws, ehcache}
 import sbt._
 
 object AppDependencies {
@@ -11,12 +10,10 @@ object AppDependencies {
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"                      %% "bootstrap-backend-play-30" % bootstrapPlayVersion,
     "uk.gov.hmrc.mongo"                %% "hmrc-mongo-play-30"        % hmrcMongoVersion,
-    "org.yaml"                         %  "snakeyaml"                 % "2.2",
+    "org.yaml"                         %  "snakeyaml"                 % "2.3",
     "org.typelevel"                    %% "cats-core"                 % "2.12.0",
-    "software.amazon.awssdk"           %  "sqs"                       % "2.26.31",
-    "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
-    ws,
-    ehcache
+    "software.amazon.awssdk"           %  "sqs"                       % "2.29.15",
+    "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion
   )
 
   val test: Seq[ModuleID] = Seq(
