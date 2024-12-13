@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.notification
 
+import cats.implicits.*
 import org.apache.pekko.{Done, NotUsed}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Source
@@ -68,40 +69,24 @@ abstract class SqsConsumer(
     ).asScala
     .map(_ => ())
 
-  private def dedupe(source: Source[Message, NotUsed]): Source[Message, NotUsed] =
+  private def runQueue(): Future[Done] =
     Source
-      .single(Message.builder.messageId("----------").build) // dummy value since the dedupe will ignore the first entry
-      .concat(source)
-      .sliding(2, 1)
-      .mapConcat {
-        case prev +: current +: _
-          if (prev.messageId == current.messageId) =>
-            logger.warn(s"Read the same $name message ID twice ${prev.messageId} - ignoring duplicate")
-            List.empty
-        case prev +: current +: _ =>
-          List(current)
-      }
-
-  def runQueue(): Future[Done] =
-    dedupe(
-      Source
-        .repeat:
-          ReceiveMessageRequest.builder()
-            .queueUrl(config.queueUrl.toString)
-            .maxNumberOfMessages(config.maxNumberOfMessages)
-            .waitTimeSeconds(config.waitTimeSeconds)
-            .build()
-        .mapAsync(parallelism = 1)(getMessages)
-        .mapConcat(xs => xs)
-    )
-    .mapAsync(parallelism = 1) { message =>
-      processMessage(message)
-        .flatMap:
-          case MessageAction.Delete(message) => deleteMessage(message)
-          case MessageAction.Ignore(_)       => Future.unit
-        .recover:
-          case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
-    }
+      .repeat:
+        ReceiveMessageRequest.builder()
+          .queueUrl(config.queueUrl.toString)
+          .maxNumberOfMessages(config.maxNumberOfMessages)
+          .waitTimeSeconds(config.waitTimeSeconds)
+          .build()
+      .mapAsync(parallelism = 1): request =>
+        getMessages(request)
+          .map:
+            _.foldLeftM[Future, Unit](()): (_, message) =>
+              processMessage(message)
+                .flatMap:
+                  case MessageAction.Delete(msg) => deleteMessage(msg)
+                  case MessageAction.Ignore(_)   => Future.unit
+                .recover:
+                  case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
     .run()
     .andThen: res =>
       logger.warn(s"Queue $name terminated: $res - restarting")
