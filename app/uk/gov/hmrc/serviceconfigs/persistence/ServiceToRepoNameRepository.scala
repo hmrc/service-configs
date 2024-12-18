@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.model.Filters.{and, empty, equal}
-import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes}
+import org.mongodb.scala.ObservableFuture
+import org.mongodb.scala.model.Filters.{and, equal, empty}
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import uk.gov.hmrc.serviceconfigs.model.{ArtefactName, RepoName, ServiceName, ServiceToRepoName}
@@ -51,16 +52,18 @@ class ServiceToRepoNameRepository @Inject()(
   // we replace all the data for each call to putAll
   override lazy val requiresTtlIndex = false
 
-  def findRepoName(serviceName: Option[ServiceName] = None, artefactName: Option[ArtefactName] = None): Future[Option[RepoName]] =
+  def findServiceToRepoNames(
+    serviceName : Option[ServiceName]  = None,
+    artefactName: Option[ArtefactName] = None
+  ): Future[Seq[ServiceToRepoName]] =
     val filters = Seq(
-      serviceName.map(sn => equal("serviceName", sn)),
+      serviceName .map(sn => equal("serviceName", sn)),
       artefactName.map(an => equal("artefactName", an))
     ).flatten
 
     collection
       .find(if (filters.nonEmpty) and(filters: _*) else empty())
-      .map(_.repoName)
-      .headOption()
+      .toFuture
 
   def putAll(serviceToRepoNames: Seq[ServiceToRepoName]): Future[Unit] =
     MongoUtils.replace[ServiceToRepoName](

@@ -31,47 +31,45 @@ class ServiceToRepoNameRepositorySpec
   override val repository: ServiceToRepoNameRepository =
     ServiceToRepoNameRepository(mongoComponent)
 
-  private val serviceA  = ServiceName("serviceNameA")
-  private val artefactA = ArtefactName("artefactNameA")
-  private val repoA     = RepoName("repoNameA")
+  private val mappingA =
+    ServiceToRepoName(
+      serviceName  = ServiceName("serviceNameA")
+    , artefactName = ArtefactName("artefactNameA")
+    , repoName     = RepoName("repoNameA")
+    )
 
-  private val serviceB  = ServiceName("serviceNameB")
-  private val artefactB = ArtefactName("artefactNameB")
-  private val repoB     = RepoName("repoNameB")
-
-  private val seed = Seq(
-    ServiceToRepoName(serviceA, artefactA, repoA)
-  )
+  private val mappingB =
+    ServiceToRepoName(
+      serviceName  = ServiceName("serviceNameB")
+    , artefactName = ArtefactName("artefactNameB")
+    , repoName     = RepoName("repoNameB")
+    )
 
   "ServiceToRepoNameRepository" should:
+    "return all mappings" in:
+      repository.putAll(Seq(mappingA, mappingB)).futureValue
+      repository.findServiceToRepoNames().futureValue shouldBe Seq(mappingA, mappingB)
+
     "return the repo name for a given service name" in:
-      repository.putAll(seed).futureValue
-      repository.findRepoName(serviceName = Some(serviceA)).futureValue shouldBe Some(repoA)
+      repository.putAll(Seq(mappingA)).futureValue
+      repository.findServiceToRepoNames(serviceName = Some(mappingA.serviceName)).futureValue shouldBe Seq(mappingA)
 
     "return None when no service to repo mapping is found" in:
-      repository.putAll(seed).futureValue
-      repository.findRepoName(serviceName = Some(serviceB)).futureValue shouldBe None
+      repository.putAll(Seq(mappingA)).futureValue
+      repository.findServiceToRepoNames(serviceName = Some(mappingB.serviceName)).futureValue shouldBe Seq.empty
 
     "return the repo name for a given artefact name" in:
-      repository.putAll(seed).futureValue
-      repository.findRepoName(artefactName = Some(artefactA)).futureValue shouldBe Some(repoA)
+      repository.putAll(Seq(mappingA)).futureValue
+      repository.findServiceToRepoNames(artefactName = Some(mappingA.artefactName)).futureValue shouldBe Seq(mappingA)
 
     "return None when no artefact to repo mapping is found" in:
-      repository.putAll(seed).futureValue
-      repository.findRepoName(artefactName = Some(artefactB)).futureValue shouldBe None
+      repository.putAll(Seq(mappingA)).futureValue
+      repository.findServiceToRepoNames(artefactName = Some(mappingB.artefactName)).futureValue shouldBe Seq.empty
+
 
     "clear the collection and refresh" in:
-      repository.putAll(seed).futureValue
+      repository.putAll(Seq(mappingA)).futureValue
 
-      val latest: Seq[ServiceToRepoName] =
-        Seq(
-          ServiceToRepoName(serviceA, artefactA, repoA),
-          ServiceToRepoName(serviceB, artefactB, repoB)
-        )
+      repository.putAll(Seq(mappingA, mappingB)).futureValue
 
-      repository.putAll(latest).futureValue
-
-      findAll().futureValue shouldBe List(
-          ServiceToRepoName(serviceA, artefactA, repoA),
-          ServiceToRepoName(serviceB, artefactB, repoB)
-        )
+      findAll().futureValue shouldBe Seq(mappingA, mappingB)

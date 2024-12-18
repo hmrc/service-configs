@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json.{Format, __}
+import play.api.libs.json.{Format, Writes, __}
 
 case class ServiceToRepoName(
   serviceName : ServiceName,
@@ -30,4 +30,10 @@ object ServiceToRepoName:
     ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
     ~ (__ \ "artefactName").format[ArtefactName](ArtefactName.format)
     ~ (__ \ "repoName"    ).format[RepoName](RepoName.format)
-    ) (ServiceToRepoName.apply, pt => Tuple.fromProductTyped(pt))
+    )(ServiceToRepoName.apply, o => Tuple.fromProductTyped(o))
+
+  val apiWrites: Writes[ServiceToRepoName] =
+    ( (__ \ "serviceName" ).write[ServiceName](ServiceName.format)
+    ~ (__ \ "artefactName").write[ArtefactName](ArtefactName.format)
+    ~ (__ \ "repoName"    ).write[RepoName](RepoName.format)
+    )(o => Tuple.fromProductTyped(o))

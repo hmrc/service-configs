@@ -131,9 +131,18 @@ class ConfigController @Inject()(
     Action.async:
       given Format[RepoName] = RepoName.format
       serviceToRepoNameRepository
-        .findRepoName(serviceName, artefactName)
+        .findServiceToRepoNames(serviceName, artefactName)
+        .map(_.headOption.map(_.repoName))
         .map:
           _.fold(NotFound(""))(res => Ok(Json.toJson(res)))
+
+  def serviceRepoNameMappings: Action[AnyContent] =
+    Action.async:
+      given Writes[ServiceToRepoName] = ServiceToRepoName.apiWrites
+      serviceToRepoNameRepository
+        .findServiceToRepoNames()
+        .map: res =>
+          Ok(Json.toJson(res))
 
 object ConfigController:
   val configSourceEntriesWrites: Writes[ConfigService.ConfigSourceEntries] =
