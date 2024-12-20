@@ -217,7 +217,10 @@ trait ConfigParser extends Logging:
           newProps.entrySet.asScala
             .map(e => (e.getKey.toString, e.getValue.toString))
             .collect:
-              case (k, v) if k.startsWith("logger.") => (s"logger.\"${k.stripPrefix("logger.")}\"", v)
+              case (k, v) if k.startsWith("logger.") =>
+                k.stripPrefix("logger.") match
+                  case "resource" | "json.dateformat" => k -> v
+                  case loggerPath                     => s"logger.\"$loggerPath\"" -> v
             .toMap.asJava
         )
       )
