@@ -16,19 +16,22 @@
 
 package uk.gov.hmrc.serviceconfigs.notification
 
-import org.apache.pekko.{Done, NotUsed}
-import org.apache.pekko.actor.ActorSystem
+import cats.implicits.*
+import org.apache.pekko.Done
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
+import org.apache.pekko.stream.{ActorAttributes, Supervision}
 import org.apache.pekko.stream.scaladsl.Source
 import play.api.{Configuration, Logging}
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageRequest, Message, ReceiveMessageRequest}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters._
 import scala.jdk.FutureConverters._
 import scala.util.control.NonFatal
 import java.net.URL
+import java.util.concurrent.atomic.AtomicReference
 
 case class SqsConfig(
   keyPrefix    : String,
@@ -37,6 +40,7 @@ case class SqsConfig(
   lazy val queueUrl           : URL = URL(configuration.get[String](s"$keyPrefix.queueUrl"))
   lazy val maxNumberOfMessages: Int = configuration.get[Int](s"$keyPrefix.maxNumberOfMessages")
   lazy val waitTimeSeconds    : Int = configuration.get[Int](s"$keyPrefix.waitTimeSeconds")
+  lazy val watchdogTimeout    : FiniteDuration = configuration.get[FiniteDuration]("aws.sqs.watchdogTimeout")
 
 abstract class SqsConsumer(
   name       : String
@@ -51,7 +55,24 @@ abstract class SqsConsumer(
     actorSystem.registerOnTermination(client.close())
     client
 
+  private val watchdog = new AtomicReference[Option[Cancellable]](None)
+
+  protected def resetWatchdog(): Unit =
+      watchdog.getAndSet(Some(scheduleWatchdog(config.watchdogTimeout))).foreach(_.cancel())
+
+  private def scheduleWatchdog(timeout: FiniteDuration): Cancellable =
+      actorSystem.scheduler.scheduleOnce(timeout):
+        logger.error(s"Queue $name has hung (getMessages not called for $timeout). Throwing exception.")
+        throw new WatchdogTimeoutException(s"Queue $name is hung")
+  
+  private val decider: Supervision.Decider =
+    case _: WatchdogTimeoutException =>
+      logger.warn(s"Queue $name restarted due to WatchdogTimeoutException.")
+      Supervision.Restart
+    case _ => Supervision.Stop
+
   private def getMessages(req: ReceiveMessageRequest): Future[Seq[Message]] =
+    resetWatchdog()
     logger.info(s"receiving $name messages")
     awsSqsClient.receiveMessage(req).asScala
      .map(_.messages.asScala.toSeq)
@@ -68,40 +89,25 @@ abstract class SqsConsumer(
     ).asScala
     .map(_ => ())
 
-  private def dedupe(source: Source[Message, NotUsed]): Source[Message, NotUsed] =
+  private def runQueue(): Future[Done] =
     Source
-      .single(Message.builder.messageId("----------").build) // dummy value since the dedupe will ignore the first entry
-      .concat(source)
-      .sliding(2, 1)
-      .mapConcat {
-        case prev +: current +: _
-          if (prev.messageId == current.messageId) =>
-            logger.warn(s"Read the same $name message ID twice ${prev.messageId} - ignoring duplicate")
-            List.empty
-        case prev +: current +: _ =>
-          List(current)
-      }
-
-  def runQueue(): Future[Done] =
-    dedupe(
-      Source
-        .repeat:
-          ReceiveMessageRequest.builder()
-            .queueUrl(config.queueUrl.toString)
-            .maxNumberOfMessages(config.maxNumberOfMessages)
-            .waitTimeSeconds(config.waitTimeSeconds)
-            .build()
-        .mapAsync(parallelism = 1)(getMessages)
-        .mapConcat(xs => xs)
-    )
-    .mapAsync(parallelism = 1) { message =>
-      processMessage(message)
-        .flatMap:
-          case MessageAction.Delete(message) => deleteMessage(message)
-          case MessageAction.Ignore(_)       => Future.unit
-        .recover:
-          case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
-    }
+      .repeat:
+        ReceiveMessageRequest.builder()
+          .queueUrl(config.queueUrl.toString)
+          .maxNumberOfMessages(config.maxNumberOfMessages)
+          .waitTimeSeconds(config.waitTimeSeconds)
+          .build()
+      .mapAsync(parallelism = 1): request =>
+        getMessages(request)
+          .map:
+            _.foldLeftM[Future, Unit](()): (_, message) =>
+              processMessage(message)
+                .flatMap:
+                  case MessageAction.Delete(msg) => deleteMessage(msg)
+                  case MessageAction.Ignore(_)   => Future.unit
+                .recover:
+                  case NonFatal(e) => logger.error(s"Failed to process $name messages", e)
+    .withAttributes(ActorAttributes.supervisionStrategy(decider))
     .run()
     .andThen: res =>
       logger.warn(s"Queue $name terminated: $res - restarting")
@@ -114,3 +120,5 @@ abstract class SqsConsumer(
 enum MessageAction:
   case Delete(message: Message)
   case Ignore(message: Message)
+
+case class WatchdogTimeoutException(message: String) extends RuntimeException(message)
