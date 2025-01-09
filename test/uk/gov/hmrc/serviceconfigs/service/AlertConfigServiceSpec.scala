@@ -77,65 +77,62 @@ class AlertConfigServiceSpec
       alertConfigService.update().futureValue
 
   "AlertConfigService.processZip" should:
-    "produce a SensuConfig that contains app name and handler name" in:
+    "produce a AlertConfig that contains app name and handler name" in:
       val zip  = ZipInputStream(FileInputStream("./test/resources/happy-output.zip"))
       val file = processZip(zip)
 
-      file.alertConfigs.exists(_.app == "accessibility-statement-frontend.public.mdtp") shouldBe true
-      file.alertConfigs.exists(_.app == "add-taxes-frontend.public.mdtp") shouldBe true
+      file.serviceConfigs.exists(_.serviceName == ServiceName("accessibility-statement-frontend")) shouldBe true
+      file.serviceConfigs.exists(_.serviceName == ServiceName("add-taxes-frontend")) shouldBe true
 
-      file.productionHandler.get("yta") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team yta -e aws_production"))
-      file.productionHandler.get("platform-ui") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
+      file.productionHandlers.get(PagerDutyKey("yta"))         shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team yta -e aws_production"))
+      file.productionHandlers.get(PagerDutyKey("platform-ui")) shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
 
-    "produce a SensuConfig that contains app name and None, when handler does not exist" in:
+    "produce a AlertConfig that contains app name and None, when handler does not exist" in:
       val zip  = ZipInputStream(FileInputStream("./test/resources/missing-handler-output.zip"))
       val file = processZip(zip)
 
-      file.alertConfigs.exists(_.app == "accessibility-statement-frontend.public.mdtp") shouldBe true
-      file.alertConfigs.exists(_.app == "add-taxes-frontend.public.mdtp") shouldBe true
+      file.serviceConfigs.exists(_.serviceName == ServiceName("accessibility-statement-frontend")) shouldBe true
+      file.serviceConfigs.exists(_.serviceName == ServiceName("add-taxes-frontend")) shouldBe true
 
-      file.productionHandler.get("yta") shouldBe None
-      file.productionHandler.get("platform-ui") shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
+      file.productionHandlers.get(PagerDutyKey("yta"))         shouldBe None
+      file.productionHandlers.get(PagerDutyKey("platform-ui")) shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
 
   "AlertConfigService.toAlertEnvironmentHandler" should:
     val locations = Seq(RepoName("test") -> "line1")
     "produce an AlertEnvironmentHandler for a service that has alert config enabled" in:
-      val sensuConfig = SensuConfig(
-        Seq(AlertConfig("test.public.mdtp",
-        Seq("TEST"))),
-        Map("TEST" -> Handler("test/command"))
+      val alertConfig = AlertConfig(
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
+        Map(PagerDutyKey("TEST") -> Handler("test/command"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = true, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = true, location = "line1"))
 
     "produce an AlertEnvironmentHandler for a service that has Alert Config Disabled" in:
-      val sensuConfig = SensuConfig(
-        Seq(AlertConfig("test.public.mdtp",
-        Seq("TEST"))),
-        Map("TEST" -> Handler("test/noop.rb"))
+      val alertConfig = AlertConfig(
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
+        Map(PagerDutyKey("TEST") -> Handler("test/noop.rb"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
 
     "produce an AlertEnvironmentHandler when a service has No Matching Handler Found in Production" in:
-      val sensuConfig = SensuConfig(
-        Seq(AlertConfig("test.public.mdtp",
-        Seq("TEST")))
+      val alertConfig = AlertConfig(
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
+        Map.empty
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
 
     "produce an AlertEnvironmentHandler for a service that has No Handler Name Defined in Config" in:
-      val sensuConfig = SensuConfig(
-        Seq(AlertConfig("test.public.mdtp",
-        Seq())),
-        Map("TEST" -> Handler("test/command"))
+      val alertConfig = AlertConfig(
+        Seq(ServiceConfig(ServiceName("test"), Nil)),
+        Map(PagerDutyKey("TEST") -> Handler("test/command"))
       )
-      toAlertEnvironmentHandler(sensuConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
 
     "produce an empty list when there is No Existing Alert Config" in:
-      val sensuConfig = SensuConfig(
+      val alertConfig = AlertConfig(
         Seq(),
-        Map("TEST" -> Handler("test/command"))
+        Map(PagerDutyKey("TEST") -> Handler("test/command"))
       )
-      toAlertEnvironmentHandler(sensuConfig, Nil) shouldBe List.empty
+      toAlertEnvironmentHandler(alertConfig, Nil) shouldBe List.empty
 
   trait Setup:
     lazy val mockLastHashRepository                = mock[LastHashRepository]
