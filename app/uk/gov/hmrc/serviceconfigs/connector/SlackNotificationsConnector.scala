@@ -90,11 +90,12 @@ object GithubTeam {
 }
 
 final case class SlackNotificationRequest(
-  channelLookup: GithubTeam,
-  displayName  : String,
-  emoji        : String,
-  text         : String,
-  blocks       : Seq[JsObject]
+  channelLookup  : GithubTeam,
+  displayName    : String,
+  emoji          : String,
+  text           : String,
+  blocks         : Seq[JsObject],
+  callbackChannel: Option[String] = None
 )
 
 object SlackNotificationRequest:
@@ -166,11 +167,12 @@ object SlackNotificationRequest:
     ).as[JsObject]
 
     SlackNotificationRequest(
-      channelLookup = channelLookup,
-      displayName   = "MDTP Catalogue",
-      emoji         = ":tudor-crown:",
-      text          = s"A downstream service has been marked as deprecated",
-      blocks        = Seq(block1, block2)
+      channelLookup   = channelLookup,
+      displayName     = "MDTP Catalogue",
+      emoji           = ":tudor-crown:",
+      text            = s"A downstream service has been marked as deprecated",
+      blocks          = Seq(block1, block2),
+      callbackChannel = Some("team-platops-alerts")
     )
 
   def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest =
@@ -201,9 +203,10 @@ object SlackNotificationRequest:
         ).as[JsObject]
 
     SlackNotificationRequest(
-      channelLookup = channelLookup,
-      displayName   = "BobbyWarnings",
-      emoji         = ":platops-bobby:",
-      text          = "There are upcoming Bobby Rules affecting your service(s)",
-      blocks        = msg :: rules
+      channelLookup   = channelLookup,
+      displayName     = "BobbyWarnings",
+      emoji           = ":platops-bobby:",
+      text            = "There are upcoming Bobby Rules affecting your service(s)",
+      blocks          = msg :: rules,
+      callbackChannel = Some("team-platops-alerts")
     )
