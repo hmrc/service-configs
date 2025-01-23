@@ -74,7 +74,7 @@ class WebhookController @Inject()(
           case Push(nginxConfig.configRepo   , "main") => EitherT.right[Unit](nginxService.update(Environment.values.toList))
           case Push("admin-frontend-proxy"   , "main") => EitherT.right[Unit](routesConfigService.updateAdminFrontendRoutes())
           case Push("outage-pages"           , "main") => EitherT.right[Unit](outagePageService.update())
-          case Push("service-manager-configs", "main") => EitherT.right[Unit](serviceManagerConfigService.update())
+          case Push("service-manager-config" , "main") => EitherT.right[Unit](serviceManagerConfigService.update())
           case Push("upscan-app-config"      , "main") => EitherT.right[Unit](upscanConfigService.update())
           case _                                       => EitherT.left[Unit](Future.unit)
         ).fold(
