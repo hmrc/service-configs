@@ -51,13 +51,6 @@ class ConfigConnector @Inject()(
   def serviceManagerConfig()(using hc: HeaderCarrier): Future[Option[String]] =
     doCall(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/services.json")
 
-  def serviceMappings()(using hc: HeaderCarrier): Future[Map[String, String]] =
-    httpClientV2
-      .get(url"${githubConfig.githubRawUrl}/hmrc/service-manager-config/main/service_mappings.json")
-      .setHeader(("Authorization", s"token ${githubConfig.githubToken}"))
-      .withProxy
-      .execute[Map[String, String]]
-  
   private def doCall(url: URL)(using hc: HeaderCarrier) =
     httpClientV2
       .get(url)

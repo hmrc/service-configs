@@ -3,16 +3,16 @@ import sbt._
 
 object AppDependencies {
 
-  val hmrcMongoVersion     = "2.3.0"
-  val bootstrapPlayVersion = "9.5.0"
+  val hmrcMongoVersion     = "2.5.0"
+  val bootstrapPlayVersion = "9.9.0"
   val jacksonVersion       = "2.14.3"
 
   val compile: Seq[ModuleID] = Seq(
     "uk.gov.hmrc"                      %% "bootstrap-backend-play-30" % bootstrapPlayVersion,
     "uk.gov.hmrc.mongo"                %% "hmrc-mongo-play-30"        % hmrcMongoVersion,
-    "org.yaml"                         %  "snakeyaml"                 % "2.3",
-    "org.typelevel"                    %% "cats-core"                 % "2.12.0",
-    "software.amazon.awssdk"           %  "sqs"                       % "2.29.15",
+    "org.yaml"                         %  "snakeyaml"                 % "2.4",
+    "org.typelevel"                    %% "cats-core"                 % "2.13.0",
+    "software.amazon.awssdk"           %  "sqs"                       % "2.30.23",
     "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion
   )
 
