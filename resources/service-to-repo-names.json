@@ -1,0 +1,87 @@
+[
+  {
+    "serviceName": "sa-filing-2223-helpdesk",
+    "artefactName": "sa-filing-2223-helpdesk",
+    "repoName": "sa-filing-2223"
+  },
+  {
+    "serviceName": "hello-flask-protected-rate",
+    "artefactName": "hello-flask",
+    "repoName": "hello-flask"
+  },
+  {
+    "serviceName": "hello-flask-public-monolith",
+    "artefactName": "hello-flask",
+    "repoName": "hello-flask"
+  },
+  {
+    "serviceName": "paye-filing-exb-helpdesk",
+    "artefactName": "paye-filing-exb-helpdesk",
+    "repoName": "paye-filing-exb"
+  },
+  {
+    "serviceName": "txm-alerts-proving",
+    "artefactName": "txm-alerts",
+    "repoName": "txm-alerts"
+  },
+  {
+    "serviceName": "forms-aem-publisher",
+    "artefactName": "forms-aem-publisher",
+    "repoName": "forms-adobe-experience-manager"
+  },
+  {
+    "serviceName": "sa-filing-2324-helpdesk",
+    "artefactName": "sa-filing-2324-helpdesk",
+    "repoName": "sa-filing-2324"
+  },
+  {
+    "serviceName": "paye-filing-helpdesk",
+    "artefactName": "paye-filing-helpdesk",
+    "repoName": "paye-filing"
+  },
+  {
+    "serviceName": "paye-filing-mov-helpdesk",
+    "artefactName": "paye-filing-mov-helpdesk",
+    "repoName": "paye-filing-mov"
+  },
+  {
+    "serviceName": "hello-flask-public",
+    "artefactName": "hello-flask",
+    "repoName": "hello-flask"
+  },
+  {
+    "serviceName": "sa-filing-2021-helpdesk",
+    "artefactName": "sa-filing-2021-helpdesk",
+    "repoName": "sa-filing-2021"
+  },
+  {
+    "serviceName": "sa-filing-2122-helpdesk",
+    "artefactName": "sa-filing-2122-helpdesk",
+    "repoName": "sa-filing-2122"
+  },
+  {
+    "serviceName": "paye-core-helpdesk",
+    "artefactName": "paye-core-helpdesk",
+    "repoName": "paye-core"
+  },
+  {
+    "serviceName": "hello-flask-private",
+    "artefactName": "hello-flask",
+    "repoName": "hello-flask"
+  },
+  {
+    "serviceName": "hello-flask-public-rate",
+    "artefactName": "hello-flask",
+    "repoName": "hello-flask"
+  },
+  {
+    "serviceName": "print-and-post-forms-aem-publisher",
+    "artefactName": "print-and-post-forms-aem-publisher",
+    "repoName": "print-and-post-adobe-experience-manager"
+  },
+  {
+    "serviceName": "sa-filing-2425-helpdesk",
+    "artefactName": "sa-filing-2425-helpdesk",
+    "repoName": "sa-filing-2425"
+  }
+]
