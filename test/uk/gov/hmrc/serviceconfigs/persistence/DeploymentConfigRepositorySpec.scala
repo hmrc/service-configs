@@ -83,9 +83,9 @@ class DeploymentConfigRepositorySpec
       )
       repository.replaceEnv(Environment.Production , productionDeploymentConfigsNotApplied , !applied).futureValue
 
-      repository.find(applied , Seq(Environment.Development), Seq(serviceName1)).futureValue shouldBe developmentDeploymentConfigs         .filter(_.serviceName == serviceName1)
-      repository.find(applied , Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigs          .filter(_.serviceName == serviceName1)
-      repository.find(!applied, Seq(Environment.Production ), Seq(serviceName1)).futureValue shouldBe productionDeploymentConfigsNotApplied.filter(_.serviceName == serviceName1)
+      repository.find(applied , Seq(Environment.Development), Some(Seq(serviceName1))).futureValue shouldBe developmentDeploymentConfigs         .filter(_.serviceName == serviceName1)
+      repository.find(applied , Seq(Environment.Production ), Some(Seq(serviceName1))).futureValue shouldBe productionDeploymentConfigs          .filter(_.serviceName == serviceName1)
+      repository.find(!applied, Seq(Environment.Production ), Some(Seq(serviceName1))).futureValue shouldBe productionDeploymentConfigsNotApplied.filter(_.serviceName == serviceName1)
 
     "find by matching service names" in:
       val serviceName1 = ServiceName("serviceName1")
@@ -104,7 +104,7 @@ class DeploymentConfigRepositorySpec
       )
       repository.replaceEnv(Environment.Production , productionDeploymentConfigs , applied).futureValue
 
-      repository.find(applied, serviceNames = Seq(serviceName2)).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
+      repository.find(applied, oServiceNames = Some(Seq(serviceName2))).futureValue shouldBe (developmentDeploymentConfigs ++ productionDeploymentConfigs).filter(_.serviceName == serviceName2)
 
     "delete applied configs correctly" in:
       val deploymentConfigA1: DeploymentConfig =
@@ -132,9 +132,9 @@ class DeploymentConfigRepositorySpec
         _             <- repository.add(deploymentConfigA3)
         _             <- repository.delete(deploymentConfigA1.serviceName, deploymentConfigA1.environment, deploymentConfigA1.applied)
         updatedConfig <- repository.find(
-                           applied      = true,
-                           environments = Seq(Environment.Production),
-                           serviceNames = Seq(ServiceName("A1"), ServiceName("A2"), ServiceName("A3"))
+                           applied       = true,
+                           environments  = Seq(Environment.Production),
+                           oServiceNames = Some(Seq(ServiceName("A1"), ServiceName("A2"), ServiceName("A3")))
                          )
         _             =  updatedConfig should contain theSameElementsAs:
                            Seq(

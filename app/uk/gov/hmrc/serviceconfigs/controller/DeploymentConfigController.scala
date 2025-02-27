@@ -20,7 +20,7 @@ import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector
-import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, Environment, ServiceName, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{DeploymentConfig, DigitalService, Environment, ServiceName, TeamName}
 import uk.gov.hmrc.serviceconfigs.persistence.DeploymentConfigRepository
 
 import javax.inject.{Inject, Singleton}
@@ -36,25 +36,26 @@ class DeploymentConfigController @Inject()(
 ) extends BackendController(cc):
 
   def deploymentConfig(
-    environments: Seq[Environment],
-    serviceName : Option[ServiceName],
-    teamName    : Option[TeamName],
-    applied     : Boolean
+    environments  : Seq[Environment],
+    serviceName   : Option[ServiceName],
+    teamName      : Option[TeamName],
+    digitalService: Option[DigitalService],
+    applied       : Boolean
     ): Action[AnyContent] =
     given Writes[DeploymentConfig] = DeploymentConfig.apiFormat
     Action.async:
       for
-        serviceNames      <-
-                             if teamName.isDefined then
+        oServiceNames     <-
+                             if teamName.isDefined || digitalService.isDefined then
                                teamsAndRepositoriesConnector
-                                 .getRepos(teamName = teamName, repoType = Some("Service"))
-                                 .map:
-                                  _.map(repo => ServiceName(repo.repoName.asString))
-                                 .map: teamServiceNames =>
-                                   if serviceName.isDefined then teamServiceNames.intersect(serviceName.toSeq)
-                                   else                          teamServiceNames
+                                 .getRepos(teamName = teamName, digitalService = digitalService, repoType = Some("Service"))
+                                 .map: xs =>
+                                   Some:
+                                     xs.filter(repo => serviceName.fold(true)(_.asString == repo.repoName.asString))
+                                       .map(repo => ServiceName(repo.repoName.asString))
+
                              else
-                               Future.successful(serviceName.toSeq)
-        deploymentConfigs <- deploymentConfigRepository.find(applied, environments, serviceNames)
+                               Future.successful(serviceName.map(Seq(_)))
+        deploymentConfigs <- deploymentConfigRepository.find(applied, environments, oServiceNames)
       yield
         Ok(Json.toJson(deploymentConfigs))

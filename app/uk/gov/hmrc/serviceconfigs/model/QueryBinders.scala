@@ -97,6 +97,9 @@ object QueryBinders:
   implicit def teamNameBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[TeamName] =
     strBinder.transform(TeamName.apply, _.asString)
 
+  implicit def digitalServiceBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[DigitalService] =
+    strBinder.transform(DigitalService.apply, _.asString)
+
   implicit def artefactNameBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[ArtefactName] =
     strBinder.transform(ArtefactName.apply, _.asString)
 

@@ -22,7 +22,7 @@ import play.api.libs.json.Reads
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.serviceconfigs.model.{RepoName, ServiceType, Tag, TeamName}
+import uk.gov.hmrc.serviceconfigs.model.{DigitalService, RepoName, ServiceType, Tag, TeamName}
 
 import java.time.Instant
 import javax.inject.{Inject, Singleton}
@@ -72,15 +72,16 @@ class TeamsAndRepositoriesConnector @Inject()(
   private given HeaderCarrier = HeaderCarrier()
 
   def getRepos(
-    archived   : Option[Boolean]      = None
-  , repoType   : Option[String]       = None
-  , teamName   : Option[TeamName]     = None
-  , serviceType: Option[ServiceType]  = None
-  , tags       : Seq[Tag]             = Nil
+    archived      : Option[Boolean]        = None
+  , repoType      : Option[String]         = None
+  , teamName      : Option[TeamName]       = None
+  , digitalService: Option[DigitalService] = None
+  , serviceType   : Option[ServiceType]    = None
+  , tags          : Seq[Tag]               = Nil
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
+      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&digitalServiceName=${digitalService.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
 
   def getDeletedRepos(

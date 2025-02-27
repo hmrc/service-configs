@@ -58,7 +58,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[DigitalService]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(Seq.empty))
 
       when(mockedTeamsAndReposConnector.getDecommissionedServices())
@@ -105,7 +105,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[DigitalService]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedTeamsAndReposConnector.getDecommissionedServices())
@@ -152,7 +152,7 @@ class SlugInfoServiceSpec
       when(mockedReleasesApiConnector.getWhatsRunningWhere())
         .thenReturn(Future.successful(List.empty))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[DigitalService]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedTeamsAndReposConnector.getDecommissionedServices())
@@ -223,7 +223,7 @@ class SlugInfoServiceSpec
           ))
         )))
 
-      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[ServiceType]], any[List[Tag]]))
+      when(mockedTeamsAndReposConnector.getRepos(eqTo(Some(false)), any[Option[String]], any[Option[TeamName]], any[Option[DigitalService]], any[Option[ServiceType]], any[List[Tag]]))
         .thenReturn(Future.successful(activeServices))
 
       when(mockedTeamsAndReposConnector.getDecommissionedServices())

@@ -47,7 +47,7 @@ class DeploymentConfigControllerSpec
       val teamName = TeamName("test")
       val applied = true
 
-      when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any))
+      when(mockTeamsAndRepositoriesConnector.getRepos(any, any, any, any, any, any))
         .thenReturn(Future.successful(Seq(Repo(RepoName("test"), Seq.empty, None))))
 
       when(mockDeploymentConfigRepository.find(eqTo(applied), any, any))
@@ -57,7 +57,7 @@ class DeploymentConfigControllerSpec
 
       val result =
         call(
-          controller.deploymentConfig(Seq(Environment.Development), None, Some(teamName), applied),
+          controller.deploymentConfig(Seq(Environment.Development), None, Some(teamName), digitalService = None, applied),
           FakeRequest(GET, "")
         )
 
@@ -89,7 +89,7 @@ class DeploymentConfigControllerSpec
 
       val result =
         call(
-          controller.deploymentConfig(Seq(Environment.Development), None, None, applied),
+          controller.deploymentConfig(Seq(Environment.Development), None, None, digitalService = None, applied),
           FakeRequest(GET, "")
         )
 
