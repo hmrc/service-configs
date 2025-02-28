@@ -72,16 +72,16 @@ class DeploymentConfigRepository @Inject()(
     )
 
   def find(
-    applied     : Boolean,
-    environments: Seq[Environment] = Seq.empty,
-    serviceNames: Seq[ServiceName] = Seq.empty
+    applied      : Boolean,
+    environments : Seq[Environment]         = Seq.empty,
+    oServiceNames: Option[Seq[ServiceName]] = None
   ): Future[Seq[DeploymentConfig]] =
     collection
       .find(
         Filters.and(
           Filters.equal("applied", applied),
-          Option.when(environments.nonEmpty)(Filters.in("environment", environments                : _*)).getOrElse(Filters.empty()),
-          Option.when(serviceNames.nonEmpty)(Filters.in("name"       , serviceNames.map(_.asString): _*)).getOrElse(Filters.empty())
+          Option.when(environments.nonEmpty)(Filters.in("environment", environments: _*)).getOrElse(Filters.empty()),
+          oServiceNames.fold(Filters.empty)(names => Filters.in("name", names.map(_.asString)*))
         )
       )
       .toFuture()

@@ -19,14 +19,15 @@ package uk.gov.hmrc.serviceconfigs.model
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{Json, JsPath, Format, OFormat, OWrites, Reads}
 
-case class ArtefactName (asString: String) extends AnyVal
-case class CommitId     (asString: String) extends AnyVal
-case class RepoName     (asString: String) extends AnyVal
-case class FileName     (asString: String) extends AnyVal
-case class Content      (asString: String) extends AnyVal
-case class ServiceName  (asString: String) extends AnyVal
-case class Tag          (asString: String) extends AnyVal
-case class TeamName     (asString: String) extends AnyVal
+case class ArtefactName  (asString: String) extends AnyVal
+case class CommitId      (asString: String) extends AnyVal
+case class RepoName      (asString: String) extends AnyVal
+case class FileName      (asString: String) extends AnyVal
+case class Content       (asString: String) extends AnyVal
+case class ServiceName   (asString: String) extends AnyVal
+case class Tag           (asString: String) extends AnyVal
+case class TeamName      (asString: String) extends AnyVal
+case class DigitalService(asString: String) extends AnyVal
 
 object ArtefactName:
   val format =
