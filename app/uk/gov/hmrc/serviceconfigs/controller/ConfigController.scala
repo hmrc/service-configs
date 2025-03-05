@@ -17,16 +17,17 @@
 package uk.gov.hmrc.serviceconfigs.controller
 
 import play.api.Configuration
-import play.api.libs.functional.syntax._
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.functional.syntax.*
+import play.api.libs.json.*
+import play.api.mvc.*
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model._
+import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository, ServiceToRepoNameRepository}
+import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DeploymentEventRepository}
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigChangesError, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 
+import java.nio.file.{Files, Paths}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
@@ -35,8 +36,7 @@ class ConfigController @Inject()(
   configuration              : Configuration,
   configService              : ConfigService,
   configWarningService       : ConfigWarningService,
-  cc                         : ControllerComponents,
-  serviceToRepoNameRepository: ServiceToRepoNameRepository,
+  cc                         : ControllerComponents
 )(using
   ec: ExecutionContext
 ) extends BackendController(cc):
@@ -124,25 +124,25 @@ class ConfigController @Inject()(
         .map: res =>
           Ok(Json.toJson(res))
 
-  def repoNameForService(
-    serviceName : Option[ServiceName],
-    artefactName: Option[ArtefactName]
-  ): Action[AnyContent] =
-    Action.async:
-      given Format[RepoName] = RepoName.format
-      serviceToRepoNameRepository
-        .findServiceToRepoNames(serviceName, artefactName)
-        .map(_.headOption.map(_.repoName))
-        .map:
-          _.fold(NotFound(""))(res => Ok(Json.toJson(res)))
+  private val readServiceRepoMappings =
+    given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
+    Json.parse(Files.readString(Paths.get("resources/service-to-repo-names.json"))).as[List[ServiceToRepoName]]
 
-  def serviceRepoNameMappings: Action[AnyContent] =
-    Action.async:
-      given Writes[ServiceToRepoName] = ServiceToRepoName.apiWrites
-      serviceToRepoNameRepository
-        .findServiceToRepoNames()
-        .map: res =>
-          Ok(Json.toJson(res))
+  def repoNameForService(
+    serviceName : Option[ServiceName]  = None,
+    artefactName: Option[ArtefactName] = None
+  ): Action[AnyContent] =
+    Action:
+      given Format[RepoName] = RepoName.format
+      readServiceRepoMappings
+        .find(m => serviceName.contains(m.serviceName) || artefactName.contains(m.artefactName))
+        .map(_.repoName)
+        .fold(NotFound(""))(res => Ok(Json.toJson(res)))
+
+  val serviceRepoNameMappings: Action[AnyContent] =
+    given Writes[ServiceToRepoName] = ServiceToRepoName.apiWrites
+    Action:
+      Ok(Json.toJson(readServiceRepoMappings))
 
 object ConfigController:
   val configSourceEntriesWrites: Writes[ConfigService.ConfigSourceEntries] =

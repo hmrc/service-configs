@@ -2,86 +2,103 @@
   {
     "serviceName": "sa-filing-2223-helpdesk",
     "artefactName": "sa-filing-2223-helpdesk",
-    "repoName": "sa-filing-2223"
+    "repoName": "sa-filing-2223",
+    "disabled": false
   },
   {
     "serviceName": "hello-flask-protected-rate",
     "artefactName": "hello-flask",
-    "repoName": "hello-flask"
+    "repoName": "hello-flask",
+    "disabled": false
   },
   {
     "serviceName": "hello-flask-public-monolith",
     "artefactName": "hello-flask",
-    "repoName": "hello-flask"
+    "repoName": "hello-flask",
+    "disabled": false
   },
   {
     "serviceName": "paye-filing-exb-helpdesk",
     "artefactName": "paye-filing-exb-helpdesk",
-    "repoName": "paye-filing-exb"
+    "repoName": "paye-filing-exb",
+    "disabled": false
   },
   {
     "serviceName": "txm-alerts-proving",
     "artefactName": "txm-alerts",
-    "repoName": "txm-alerts"
+    "repoName": "txm-alerts",
+    "disabled": false
   },
   {
     "serviceName": "forms-aem-publisher",
     "artefactName": "forms-aem-publisher",
-    "repoName": "forms-adobe-experience-manager"
+    "repoName": "forms-adobe-experience-manager",
+    "disabled": false
   },
   {
     "serviceName": "sa-filing-2324-helpdesk",
     "artefactName": "sa-filing-2324-helpdesk",
-    "repoName": "sa-filing-2324"
+    "repoName": "sa-filing-2324",
+    "disabled": false
   },
   {
     "serviceName": "paye-filing-helpdesk",
     "artefactName": "paye-filing-helpdesk",
-    "repoName": "paye-filing"
+    "repoName": "paye-filing",
+    "disabled": false
   },
   {
     "serviceName": "paye-filing-mov-helpdesk",
     "artefactName": "paye-filing-mov-helpdesk",
-    "repoName": "paye-filing-mov"
+    "repoName": "paye-filing-mov",
+    "disabled": false
   },
   {
     "serviceName": "hello-flask-public",
     "artefactName": "hello-flask",
-    "repoName": "hello-flask"
+    "repoName": "hello-flask",
+    "disabled": false
   },
   {
     "serviceName": "sa-filing-2021-helpdesk",
     "artefactName": "sa-filing-2021-helpdesk",
-    "repoName": "sa-filing-2021"
+    "repoName": "sa-filing-2021",
+    "disabled": false
   },
   {
     "serviceName": "sa-filing-2122-helpdesk",
     "artefactName": "sa-filing-2122-helpdesk",
-    "repoName": "sa-filing-2122"
+    "repoName": "sa-filing-2122",
+    "disabled": false
   },
   {
     "serviceName": "paye-core-helpdesk",
     "artefactName": "paye-core-helpdesk",
-    "repoName": "paye-core"
+    "repoName": "paye-core",
+    "disabled": false
   },
   {
     "serviceName": "hello-flask-private",
     "artefactName": "hello-flask",
-    "repoName": "hello-flask"
+    "repoName": "hello-flask",
+    "disabled": false
   },
   {
     "serviceName": "hello-flask-public-rate",
     "artefactName": "hello-flask",
-    "repoName": "hello-flask"
+    "repoName": "hello-flask",
+    "disabled": false
   },
   {
     "serviceName": "print-and-post-forms-aem-publisher",
     "artefactName": "print-and-post-forms-aem-publisher",
-    "repoName": "print-and-post-adobe-experience-manager"
+    "repoName": "print-and-post-adobe-experience-manager",
+    "disabled": false
   },
   {
     "serviceName": "sa-filing-2425-helpdesk",
     "artefactName": "sa-filing-2425-helpdesk",
-    "repoName": "sa-filing-2425"
+    "repoName": "sa-filing-2425",
+    "disabled": false
   }
 ]
