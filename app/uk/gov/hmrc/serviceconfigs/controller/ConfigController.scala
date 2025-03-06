@@ -124,7 +124,7 @@ class ConfigController @Inject()(
         .map: res =>
           Ok(Json.toJson(res))
 
-  private val readServiceRepoMappings =
+  private val serviceRepoMappings =
     given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
     Json.parse(Files.readString(Paths.get("resources/service-to-repo-names.json"))).as[List[ServiceToRepoName]]
 
@@ -134,15 +134,15 @@ class ConfigController @Inject()(
   ): Action[AnyContent] =
     Action:
       given Format[RepoName] = RepoName.format
-      readServiceRepoMappings
+      serviceRepoMappings
         .find(m => serviceName.contains(m.serviceName) || artefactName.contains(m.artefactName))
         .map(_.repoName)
         .fold(NotFound(""))(res => Ok(Json.toJson(res)))
 
-  val serviceRepoNameMappings: Action[AnyContent] =
+  val getServiceRepoMappings: Action[AnyContent] =
     given Writes[ServiceToRepoName] = ServiceToRepoName.apiWrites
     Action:
-      Ok(Json.toJson(readServiceRepoMappings))
+      Ok(Json.toJson(serviceRepoMappings))
 
 object ConfigController:
   val configSourceEntriesWrites: Writes[ConfigService.ConfigSourceEntries] =
