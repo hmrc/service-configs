@@ -27,7 +27,6 @@ import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, Deployme
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigChangesError, ConfigSourceValue, KeyName, RenderedConfigSourceValue}
 import uk.gov.hmrc.serviceconfigs.service.{ConfigService, ConfigWarning, ConfigWarningService}
 
-import java.nio.file.{Files, Paths}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
@@ -126,7 +125,7 @@ class ConfigController @Inject()(
 
   private val serviceRepoMappings =
     given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
-    Json.parse(Files.readString(Paths.get("resources/service-to-repo-names.json"))).as[List[ServiceToRepoName]]
+    Json.parse(getClass.getResourceAsStream("/resources/service-to-repo-names.json")).as[List[ServiceToRepoName]]
 
   def repoNameForService(
     serviceName : Option[ServiceName]  = None,
