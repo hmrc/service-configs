@@ -17,23 +17,26 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json.{Format, Writes, __}
+import play.api.libs.json.{Reads, Writes, __}
 
 case class ServiceToRepoName(
   serviceName : ServiceName,
   artefactName: ArtefactName,
-  repoName    : RepoName
+  repoName    : RepoName,
+  disabled    : Boolean
 )
 
 object ServiceToRepoName:
-  val mongoFormat: Format[ServiceToRepoName] =
-    ( (__ \ "serviceName" ).format[ServiceName](ServiceName.format)
-    ~ (__ \ "artefactName").format[ArtefactName](ArtefactName.format)
-    ~ (__ \ "repoName"    ).format[RepoName](RepoName.format)
-    )(ServiceToRepoName.apply, o => Tuple.fromProductTyped(o))
+  val reads: Reads[ServiceToRepoName] =
+    ( (__ \ "serviceName" ).read[ServiceName](ServiceName.format)
+    ~ (__ \ "artefactName").read[ArtefactName](ArtefactName.format)
+    ~ (__ \ "repoName"    ).read[RepoName](RepoName.format)
+    ~ (__ \ "disabled"    ).read[Boolean]
+    )(ServiceToRepoName.apply _)
 
   val apiWrites: Writes[ServiceToRepoName] =
     ( (__ \ "serviceName" ).write[ServiceName](ServiceName.format)
     ~ (__ \ "artefactName").write[ArtefactName](ArtefactName.format)
     ~ (__ \ "repoName"    ).write[RepoName](RepoName.format)
+    ~ (__ \ "disabled"    ).write[Boolean]
     )(o => Tuple.fromProductTyped(o))

@@ -34,4 +34,4 @@ GET     /outage-pages/:serviceName                      uk.gov.hmrc.serviceconfi
 
 GET     /services/:serviceName/config-location          uk.gov.hmrc.serviceconfigs.controller.ConfigLocationController.configLocation(serviceName: ServiceName)
 GET     /services/repo-name                             uk.gov.hmrc.serviceconfigs.controller.ConfigController.repoNameForService(serviceName: Option[ServiceName], artefactName: Option[ArtefactName])
-GET     /service-repo-names                              uk.gov.hmrc.serviceconfigs.controller.ConfigController.serviceRepoNameMappings
+GET     /service-repo-names                             uk.gov.hmrc.serviceconfigs.controller.ConfigController.getServiceRepoMappings
