@@ -20,12 +20,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsResult, JsSuccess, JsValue, Json, Reads}
 
-import java.nio.file.{Files, Paths}
-
 class ServiceToRepoNameSpec extends AnyWordSpec with Matchers:
 
   "service-to-repo-name.json" should:
     "be valid and correctly parsed" in:
-      val json  : JsValue                           = Json.parse(Files.readString(Paths.get("resources/service-to-repo-names.json")))
+      val json  : JsValue                           = Json.parse(getClass.getResourceAsStream("/resources/service-to-repo-names.json"))
       val result: JsResult[List[ServiceToRepoName]] = json.validate[List[ServiceToRepoName]](Reads.list(ServiceToRepoName.reads))
       result shouldBe a[JsSuccess[_]]
