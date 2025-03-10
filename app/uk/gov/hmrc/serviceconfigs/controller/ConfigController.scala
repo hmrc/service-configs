@@ -125,7 +125,7 @@ class ConfigController @Inject()(
 
   private val serviceRepoMappings =
     given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
-    Json.parse(getClass.getResourceAsStream("/resources/service-to-repo-names.json")).as[List[ServiceToRepoName]]
+    Json.parse(getClass.getResourceAsStream("/service-to-repo-names.json")).as[List[ServiceToRepoName]]
 
   def repoNameForService(
     serviceName : Option[ServiceName]  = None,
