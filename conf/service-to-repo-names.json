@@ -24,12 +24,6 @@
     "disabled": false
   },
   {
-    "serviceName": "txm-alerts-proving",
-    "artefactName": "txm-alerts",
-    "repoName": "txm-alerts",
-    "disabled": false
-  },
-  {
     "serviceName": "forms-aem-publisher",
     "artefactName": "forms-aem-publisher",
     "repoName": "forms-adobe-experience-manager",
