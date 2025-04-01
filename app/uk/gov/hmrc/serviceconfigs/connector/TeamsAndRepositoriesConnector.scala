@@ -81,7 +81,7 @@ class TeamsAndRepositoriesConnector @Inject()(
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsRepo
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/v2/repositories?team=${teamName.map(_.asString)}&digitalServiceName=${digitalService.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
+      .get(url"$teamsAndServicesUrl/api/v2/repositories?organisation=mdtp&team=${teamName.map(_.asString)}&digitalServiceName=${digitalService.map(_.asString)}&serviceType=${serviceType.map(_.asString)}&tag=${tags.map(_.asString)}&repoType=${repoType}")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
 
   def getDeletedRepos(
@@ -89,12 +89,12 @@ class TeamsAndRepositoriesConnector @Inject()(
   ): Future[Seq[TeamsAndRepositoriesConnector.Repo]] =
     given Reads[TeamsAndRepositoriesConnector.Repo] = TeamsAndRepositoriesConnector.readsDeletedRepo
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/deleted-repositories?repoType=$repoType")
+      .get(url"$teamsAndServicesUrl/api/deleted-repositories?organisation=mdtp&repoType=$repoType")
       .execute[Seq[TeamsAndRepositoriesConnector.Repo]]
 
   // returns deleted or archived - which are stored in two different mongo collections
   def getDecommissionedServices(): Future[Seq[TeamsAndRepositoriesConnector.DecommissionedRepo]] =
     given Reads[TeamsAndRepositoriesConnector.DecommissionedRepo] = TeamsAndRepositoriesConnector.readsDecommissionedRepo
     httpClientV2
-      .get(url"$teamsAndServicesUrl/api/v2/decommissioned-repositories?repoType=service")
+      .get(url"$teamsAndServicesUrl/api/v2/decommissioned-repositories?organisation=mdtp&repoType=service")
       .execute[Seq[TeamsAndRepositoriesConnector.DecommissionedRepo]]
