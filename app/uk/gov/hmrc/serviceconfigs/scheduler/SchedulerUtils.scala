@@ -37,7 +37,7 @@ trait SchedulerUtils extends Logging:
     if schedulerConfig.enabled then
       val initialDelay = schedulerConfig.initialDelay
       val interval     = schedulerConfig.interval
-      logger.info(s"Enabling $label scheduler, running every $interval (after initial delay $initialDelay)")
+      logger.info(s"Scheduler $label enabled, running every $interval (after initial delay $initialDelay)")
       val cancellable =
         actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, interval): () =>
           val start = System.currentTimeMillis
@@ -46,11 +46,11 @@ trait SchedulerUtils extends Logging:
             logger.info(s"Scheduler $label finished - took ${System.currentTimeMillis - start} millis")
             res
           .recover:
-            case e => logger.error(s"$label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
+            case e => logger.error(s"Scheduler $label interrupted after ${System.currentTimeMillis - start} millis because: ${e.getMessage}", e)
 
       applicationLifecycle.addStopHook(() => Future.successful(cancellable.cancel()))
     else
-      logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
+      logger.info(s"Scheduler $label is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
 
   def scheduleWithTimePeriodLock(
     label          : String
@@ -63,9 +63,11 @@ trait SchedulerUtils extends Logging:
      ExecutionContext
   ): Unit =
     schedule(label, schedulerConfig):
-      lock.withLock(f).map:
-        case Some(_) => logger.debug(s"$label finished - releasing lock")
-        case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
+      lock
+        .withLock(f)
+        .map:
+          case Some(_) => logger.debug(s"Scheduler $label finished - releasing lock")
+          case None    => logger.debug(s"Scheduler $label cannot run - lock ${lock.lockId} is taken... skipping update")
 
   import cats.data._
   import cats.implicits._
