@@ -188,25 +188,38 @@ object SlackNotificationRequest:
          |""".stripMargin
     ).as[JsObject]
 
-    val rules = warnings.map:
+    def blockFromText(text: String): JsObject = Json.parse(
+      s"""
+         |{
+         |  "type": "section",
+         |  "text": {
+         |    "type": "mrkdwn",
+         |    "text": "$text"
+         |  }
+         |}
+         |""".stripMargin
+    ).as[JsObject]
+
+    val ruleTexts = warnings.map:
       case (serviceName, rule) =>
-        Json.parse(
-          s"""
-             |{
-             |  "type": "section",
-             |  "text": {
-             |    "type": "mrkdwn",
-             |    "text": "`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
-             |  }
-             |}
-             |""".stripMargin
-        ).as[JsObject]
+        s"`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
+
+    // Slack API limits: 50 blocks total, 3000 chars per text block
+    // With ~300 chars per service -> rule msg, we can safely fit 7 rules per block
+    // This means we can safely handle Teams with up to 343 (7 * 49 remaining blocks) bobby warnings
+    val RULES_PER_BLOCK = 7
+
+    val ruleBlocks = ruleTexts
+      .grouped(RULES_PER_BLOCK)
+      .map(_.mkString("\\n")) // literal \n so it's sent to slack
+      .map(blockFromText)
+      .toList
 
     SlackNotificationRequest(
       channelLookup   = channelLookup,
       displayName     = "BobbyWarnings",
       emoji           = ":platops-bobby:",
       text            = "There are upcoming Bobby Rules affecting your service(s)",
-      blocks          = msg :: rules,
+      blocks          = msg :: ruleBlocks,
       callbackChannel = Some("team-platops-alerts")
     )
