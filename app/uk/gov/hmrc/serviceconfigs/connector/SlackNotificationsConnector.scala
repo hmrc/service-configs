@@ -188,25 +188,47 @@ object SlackNotificationRequest:
          |""".stripMargin
     ).as[JsObject]
 
-    val rules = warnings.map:
+    def blockFromText(text: String): JsObject = Json.parse(
+      s"""
+         |{
+         |  "type": "section",
+         |  "text": {
+         |    "type": "mrkdwn",
+         |    "text": "$text"
+         |  }
+         |}
+         |""".stripMargin
+    ).as[JsObject]
+
+    val ruleTexts = warnings.map:
       case (serviceName, rule) =>
-        Json.parse(
-          s"""
-             |{
-             |  "type": "section",
-             |  "text": {
-             |    "type": "mrkdwn",
-             |    "text": "`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
-             |  }
-             |}
-             |""".stripMargin
-        ).as[JsObject]
+        s"`${serviceName.asString}` will fail from *${rule.from}* with dependency on ${rule.organisation}.${rule.name} ${rule.range} - see <https://catalogue.tax.service.gov.uk/repositories/${serviceName.asString}#environmentTabs|Catalogue>"
+
+    // Slack API limits blocks to 50 and text block to 3000 chars, so we group the messages as tightly as possible
+    val SLACK_TEXT_BLOCK_LIMIT = 3000
+    val separator = "\\n" // Using literal \n as Slack expects it
+
+    val ruleBlocks = ruleTexts.foldLeft(List.empty[List[String]]): (acc, ruleText) =>
+      acc match
+        case Nil => 
+          List(List(ruleText))
+        case currentBlock :: previousBlocks =>
+          val currentBlockText = currentBlock.mkString(separator)
+          val potentialNewBlockText = currentBlockText + separator + ruleText
+
+          if potentialNewBlockText.length > SLACK_TEXT_BLOCK_LIMIT then
+            List(ruleText) :: acc
+          else
+            (currentBlock :+ ruleText) :: previousBlocks
+    .reverse
+    .map(_.mkString(separator))
+    .map(blockFromText)
 
     SlackNotificationRequest(
       channelLookup   = channelLookup,
       displayName     = "BobbyWarnings",
       emoji           = ":platops-bobby:",
       text            = "There are upcoming Bobby Rules affecting your service(s)",
-      blocks          = msg :: rules,
+      blocks          = msg :: ruleBlocks,
       callbackChannel = Some("team-platops-alerts")
     )
