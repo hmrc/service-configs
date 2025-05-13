@@ -80,17 +80,12 @@ object SlackNotificationResponse:
       .readWithDefault[List[SlackNotificationError]](List.empty)
       .map(SlackNotificationResponse.apply)
 
-final case class GithubTeam(
-  teamName: String,
-  by: String = "github-team"
- )
-
-object GithubTeam {
-  val writes: Writes[GithubTeam] = Json.writes[GithubTeam]
-}
+enum ChannelLookup(val by: String):
+    case GithubTeam   (teamName      : String     ) extends ChannelLookup("github-team")
+    case SlackChannels(slackChannels : Seq[String]) extends ChannelLookup("slack-channel")
 
 final case class SlackNotificationRequest(
-  channelLookup  : GithubTeam,
+  channelLookup  : ChannelLookup,
   displayName    : String,
   emoji          : String,
   text           : String,
@@ -100,10 +95,23 @@ final case class SlackNotificationRequest(
 
 object SlackNotificationRequest:
   val writes: Writes[SlackNotificationRequest] =
-    given Writes[GithubTeam] = GithubTeam.writes
-    Json.writes[SlackNotificationRequest]
+    given OWrites[ChannelLookup.GithubTeam   ] = Writes.at[String     ](__ \ "teamName"      ).contramap[ChannelLookup.GithubTeam   ](_.teamName)
+    given OWrites[ChannelLookup.SlackChannels] = Writes.at[Seq[String]](__ \ "slackChannels" ).contramap[ChannelLookup.SlackChannels](_.slackChannels)
+    given Writes[ChannelLookup] =
+      Writes {
+        case s: ChannelLookup.GithubTeam    => Json.obj("by" -> s.by).deepMerge(Json.toJsObject(s))
+        case s: ChannelLookup.SlackChannels => Json.obj("by" -> s.by).deepMerge(Json.toJsObject(s))
+      }
+    
+    ( (__ \ "channelLookup"  ).write[ChannelLookup]
+    ~ (__ \ "displayName"    ).write[String]
+    ~ (__ \ "emoji"          ).write[String]
+    ~ (__ \ "text"           ).write[String]
+    ~ (__ \ "blocks"         ).write[Seq[JsValue]]
+    ~ (__ \ "callbackChannel").writeNullable[String]
+    )(o => Tuple.fromProductTyped(o))
 
-  def downstreamMarkedAsDeprecated(channelLookup: GithubTeam, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest =
+  def downstreamMarkedAsDeprecated(channelLookup: ChannelLookup, teamName: TeamName, eolRepository: RepoName, eol: Option[Instant], impactedRepositories: Seq[RepoName]): SlackNotificationRequest =
     val repositoryHref: String = s"<https://catalogue.tax.service.gov.uk/repositories/${eolRepository.asString}|${eolRepository.asString}>"
     val deprecatedText: String =
       eol match
@@ -136,7 +144,7 @@ object SlackNotificationRequest:
          |  "type": "section",
          |  "text": {
          |    "type": "mrkdwn",
-         |    "text": "Hello ${channelLookup.teamName}, \\n$deprecatedText"
+         |    "text": "Hello ${teamName.asString}, \\n$deprecatedText"
          |  }
          |}
          |""".stripMargin
@@ -175,7 +183,7 @@ object SlackNotificationRequest:
       callbackChannel = Some("team-platops-alerts")
     )
 
-  def bobbyWarning(channelLookup: GithubTeam, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest =
+  def bobbyWarning(channelLookup: ChannelLookup, teamName: TeamName, warnings: List[(ServiceName, BobbyRule)]): SlackNotificationRequest =
     val msg: JsObject = Json.parse(
       s"""
          |{
