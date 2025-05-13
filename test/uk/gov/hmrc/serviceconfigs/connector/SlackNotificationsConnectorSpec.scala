@@ -70,7 +70,7 @@ class SlackNotificationsConnectorSpec
 
         val slackMessage =
           SlackNotificationRequest(
-            channelLookup = GithubTeam(teamName = "PlatOps"),
+            channelLookup = ChannelLookup.GithubTeam(teamName = "PlatOps"),
             displayName   = "BobbyWarnings",
             emoji         = ":platops-bobby:",
             text          = "text",

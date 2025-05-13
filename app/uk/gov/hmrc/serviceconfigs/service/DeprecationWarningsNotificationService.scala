@@ -48,7 +48,8 @@ class DeprecationWarningsNotificationService @Inject()(
   private val futureDatedRuleWindow  = configuration.get[Duration]("deprecation-warnings-notification-service.rule-notification-window")
   private val endWindow              = LocalDate.now().toInstant.plus(futureDatedRuleWindow.toDays, ChronoUnit.DAYS)
   private val lastRunPeriod          = configuration.get[Duration]("deprecation-warnings-notification-service.last-run-period")
-  private lazy val testTeam          = configuration.getOptional[String]("deprecation-warnings-notification-service.test-team")
+
+  private lazy val testChannel = configuration.getOptional[String]("deprecation-warnings-notification-service.test-channel")
 
   private val bobbyNotificationEnabled     = configuration.get[Boolean]("deprecation-warnings-notification-service.bobby-notification-enabled")
   private val endOfLifeNotificationEnabled = configuration.get[Boolean]("deprecation-warnings-notification-service.end-of-life-notification-enabled")
@@ -77,7 +78,7 @@ class DeprecationWarningsNotificationService @Inject()(
         grouped                   =  rulesWithAffectedServices.groupMap(_._1)(_._2).toList
         slackResponses            <- grouped.foldLeftM(List.empty[(TeamName, SlackNotificationResponse)]):
                                        case (acc, (teamName, drs)) =>
-                                         val channelLookup = GithubTeam(testTeam.getOrElse(teamName.asString))
+                                         val channelLookup = testChannel.fold(ChannelLookup.GithubTeam(teamName.asString))(c => ChannelLookup.SlackChannels(Seq(c)))
                                          val request       = SlackNotificationRequest.bobbyWarning(channelLookup, teamName, drs)
                                          slackNotificationsConnector.sendMessage(request).map(resp => acc :+ (teamName, resp))
         _                         =  slackResponses.map:
@@ -109,7 +110,8 @@ class DeprecationWarningsNotificationService @Inject()(
                                           .map(name => name -> enrichRelationships.filter(_.teamNames.contains(name)))
                                           .foldLeftM(Seq.empty[SlackNotificationResponse]):
                                             case (acc, (teamName, repos)) =>
-                                              val msg = SlackNotificationRequest.downstreamMarkedAsDeprecated(GithubTeam(teamName), repo.repoName, repo.endOfLifeDate, repos.map(_.repoName))
+                                              val channelLookup = testChannel.fold(ChannelLookup.GithubTeam(teamName))(c => ChannelLookup.SlackChannels(Seq(c)))
+                                              val msg = SlackNotificationRequest.downstreamMarkedAsDeprecated(channelLookup, TeamName(teamName), repo.repoName, repo.endOfLifeDate, repos.map(_.repoName))
                                               slackNotificationsConnector.sendMessage(msg).map(acc :+ _)
                                           .map(acc ++ _)
       yield logger.info(s"Completed sending ${responses.length} Slack messages for deprecated repositories")
