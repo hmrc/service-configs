@@ -18,39 +18,37 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import cats.implicits.*
 import play.api.Logging
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
+import uk.gov.hmrc.serviceconfigs.connector.{ConfigAsCodeConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.persistence.ServiceManagerConfigRepository
+import uk.gov.hmrc.serviceconfigs.persistence.ServiceManagerConfigRepository.ServiceManagerConfig
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.serviceconfigs.util.ZipUtil
 
 @Singleton
 class ServiceManagerConfigService @Inject()(
   serviceManagerConfigRepository: ServiceManagerConfigRepository
-, configConnector               : ConfigConnector
+, configAsCodeConnector         : ConfigAsCodeConnector
 , teamsAndRepositoriesConnector : TeamsAndRepositoriesConnector
 )(using ec: ExecutionContext
 ) extends Logging:
 
-  private given HeaderCarrier = HeaderCarrier()
-
   def update(): Future[Unit] =
     for
-      _          <- Future.successful(logger.info(s"Updating Service Manager Config ..."))
-      smConfig   <- configConnector.serviceManagerConfig().map(_.getOrElse("").linesIterator.zipWithIndex.toList)
-      repos      <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
-                    , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
-                    ).mapN(_ ++ _)
-      items      =  repos.flatMap: repo =>
-                      smConfig
-                        .find: (line, _) =>
-                          line.contains("\"repo\"") && line.contains(s"git@github.com:hmrc/${repo.repoName.asString}.git")
-                            || line.contains("\"artifact\"") && line.contains(s"\"${repo.repoName.asString}_")
-                        .map: (_, idx ) =>
-                          ServiceManagerConfigRepository.ServiceManagerConfig(ServiceName(repo.repoName.asString), s"https://github.com/hmrc/service-manager-config/blob/main/services.json#L${idx + 1}")
-      _          =  logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
-      count      <- serviceManagerConfigRepository.putAll(items)
-      _          =  logger.info(s"Inserted $count Service Manager Config into mongo")
+      _     <- Future.successful(logger.info(s"Updating Service Manager Config ..."))
+      repos <- ( teamsAndRepositoriesConnector.getRepos(repoType = Some("Service"))
+               , teamsAndRepositoriesConnector.getDeletedRepos(repoType = Some("Service"))
+               ).mapN(_ ++ _)
+      zip   <- configAsCodeConnector.streamServiceManagerConfig()
+      regex =  """services/(.*).json""".r
+      blob  =  "https://github.com/hmrc/service-manager-config/blob"
+      items =  ZipUtil
+                 .findRepos(zip, repos.map(_.repoName), regex, blob)
+                 .map:
+                   case (name, location) => ServiceManagerConfig(serviceName = ServiceName(name.asString), location = location)
+      _     =  logger.info(s"Inserting ${items.size} Service Manager Config into mongo")
+      count <- serviceManagerConfigRepository.putAll(items)
+      _     =  logger.info(s"Inserted $count Service Manager Config into mongo")
     yield ()

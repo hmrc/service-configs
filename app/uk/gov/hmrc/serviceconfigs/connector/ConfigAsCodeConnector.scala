@@ -64,6 +64,9 @@ class ConfigAsCodeConnector @Inject()(
   def streamUpscanAppConfig(): Future[ZipInputStream] =
     streamGithub(RepoName("upscan-app-config"))
 
+  def streamServiceManagerConfig(): Future[ZipInputStream] =
+    streamGithub(RepoName("service-manager-config"), branch = "BDOG-3296")
+
   def getLatestCommitId(repo: RepoName): Future[CommitId] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD"
     httpClientV2
@@ -81,8 +84,8 @@ class ConfigAsCodeConnector @Inject()(
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
 
-  def streamGithub(repo: RepoName): Future[ZipInputStream] =
-    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/HEAD"
+  def streamGithub(repo: RepoName, branch: String = "HEAD"): Future[ZipInputStream] =
+    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/zipball/$branch"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
