@@ -65,7 +65,7 @@ class ConfigAsCodeConnector @Inject()(
     streamGithub(RepoName("upscan-app-config"))
 
   def streamServiceManagerConfig(): Future[ZipInputStream] =
-    streamGithub(RepoName("service-manager-config"), branch = "BDOG-3296")
+    streamGithub(RepoName("service-manager-config"))
 
   def getLatestCommitId(repo: RepoName): Future[CommitId] =
     val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/commits/HEAD"
