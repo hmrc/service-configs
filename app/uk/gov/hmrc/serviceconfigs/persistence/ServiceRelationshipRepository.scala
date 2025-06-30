@@ -34,7 +34,7 @@ class ServiceRelationshipRepository @Inject()(
 ) extends PlayMongoRepository[ServiceRelationship](
   mongoComponent = mongoComponent,
   collectionName = "serviceRelationships",
-  domainFormat   = ServiceRelationship.serviceRelationshipFormat,
+  domainFormat   = ServiceRelationship.format,
   indexes        = Seq(
                      IndexModel(Indexes.ascending("source"), IndexOptions().name("srSourceIdx")),
                      IndexModel(Indexes.ascending("target"), IndexOptions().name("srTargetIdx"))

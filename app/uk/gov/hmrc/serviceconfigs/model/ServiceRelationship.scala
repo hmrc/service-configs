@@ -25,7 +25,7 @@ case class ServiceRelationship(
 )
 
 object ServiceRelationship:
-  val serviceRelationshipFormat: OFormat[ServiceRelationship] =
+  val format: Format[ServiceRelationship] =
     ( (__ \ "source").format[ServiceName](ServiceName.format)
     ~ (__ \ "target").format[ServiceName](ServiceName.format)
     )(ServiceRelationship.apply, pt => Tuple.fromProductTyped(pt))

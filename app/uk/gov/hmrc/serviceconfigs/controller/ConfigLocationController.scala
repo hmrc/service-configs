@@ -21,12 +21,11 @@ import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
 import uk.gov.hmrc.serviceconfigs.model.Environment
-import uk.gov.hmrc.serviceconfigs.persistence._
+import uk.gov.hmrc.serviceconfigs.persistence.*
 import uk.gov.hmrc.serviceconfigs.service.AppConfigService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{Future, ExecutionContext}
-import uk.gov.hmrc.serviceconfigs.persistence.KibanaDashboardRepository
 
 @Singleton
 class ConfigLocationController @Inject()(
@@ -38,12 +37,12 @@ class ConfigLocationController @Inject()(
 , serviceManagerConfigRepository   : ServiceManagerConfigRepository
 , outagePageRepository             : OutagePageRepository
 , upscanConfigRepository           : UpscanConfigRepository
-,  mcc: MessagesControllerComponents
+, mcc                              : MessagesControllerComponents
 )(using
   ec: ExecutionContext
 ) extends BackendController(mcc):
 
-  import cats.implicits._
+  import cats.implicits.*
   def configLocation(serviceName: ServiceName): Action[AnyContent] =
     Action.async:
       for

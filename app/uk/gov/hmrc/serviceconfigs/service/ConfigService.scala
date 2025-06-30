@@ -22,7 +22,7 @@ import cats.syntax.all._
 import com.typesafe.config.Config
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, DependencyConfig, DeploymentConfig, DeploymentDateRange, Environment, FileName, FilterType, ServiceName, ServiceType, SlugInfo, SlugInfoFlag, Tag, TeamName, Version}
+import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.parser.{ConfigParser, ConfigValue}
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, DependencyConfigRepository, DeployedConfigRepository, DeploymentEventRepository, SlugInfoRepository}
 
@@ -223,10 +223,9 @@ class ConfigService @Inject()(
     optAppConfigCommonRaw : java.util.Properties
   )(using HeaderCarrier): Future[Seq[ConfigSourceEntries]] =
     for
-      optSlugInfo                 <- version match {
+      optSlugInfo                 <- version match
                                         case Some(v) => slugInfoRepository.getSlugInfos(serviceName, version).map(_.headOption)
                                         case None    => slugInfoRepository.getSlugInfo(serviceName, SlugInfoFlag.ForEnvironment(env))
-                                      }
       loggerConfMap               =  lookupLoggerConfig(optSlugInfo)
 
       dependencyConfigs           <- lookupDependencyConfigs(optSlugInfo)
@@ -439,15 +438,16 @@ class ConfigService @Inject()(
     valueFilterType: FilterType,
     environments   : Seq[Environment],
     teamName       : Option[TeamName],
+    digitalService : Option[DigitalService],
     serviceType    : Option[ServiceType],
     tags           : Seq[Tag],
   ): Future[Seq[AppliedConfigRepository.AppliedConfig]] =
     for
-      serviceNames <- (teamName, serviceType, tags) match
-                        case (None, None, Nil) => Future.successful(None)
-                        case _                 => teamsAndReposConnector.getRepos(teamName = teamName, serviceType = serviceType, tags = tags)
-                                                    .map(_.map(repo => ServiceName(repo.repoName.asString)))
-                                                    .map(Some.apply)
+      serviceNames <- (teamName, digitalService, serviceType, tags) match
+                        case (None, None, None, Nil) => Future.successful(None)
+                        case _                       => teamsAndReposConnector.getRepos(teamName = teamName, digitalService = digitalService, serviceType = serviceType, tags = tags)
+                                                          .map(_.map(repo => ServiceName(repo.repoName.asString)))
+                                                          .map(Some.apply)
       configRepos  <- appliedConfigRepository.search(
                         serviceNames    = serviceNames
                       , environments    = environments

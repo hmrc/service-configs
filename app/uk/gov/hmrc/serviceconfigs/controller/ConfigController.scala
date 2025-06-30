@@ -91,13 +91,14 @@ class ConfigController @Inject()(
     valueFilterType: FilterType,
     environment    : Seq[Environment],
     teamName       : Option[TeamName],
+    digitalService : Option[DigitalService],
     serviceType    : Option[ServiceType],
     tag            : Seq[Tag],
   ): Action[AnyContent] =
     Action.async:
       given Writes[AppliedConfigRepository.AppliedConfig] = AppliedConfigRepository.AppliedConfig.format
       configService
-        .search(key, keyFilterType, value, valueFilterType, environment, teamName, serviceType, tag)
+        .search(key, keyFilterType, value, valueFilterType, environment, teamName, digitalService, serviceType, tag)
         .map:
           case k if (k.size > maxSearchLimit) => Forbidden(s"Queries returning over $maxSearchLimit results are not allowed")
           case k                              => Ok(Json.toJson(k))

@@ -63,7 +63,7 @@ object ReleasesApiConnector:
 
   case class Deployment(
     serviceName   : ServiceName
-  , environment: Environment
+  , environment   : Environment
   , version       : Version
   , lastDeployed  : Instant
   , deploymentId  : String
