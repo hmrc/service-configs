@@ -87,7 +87,8 @@ class ConfigServiceSpec
         val applicationConf = """
           { "source": "applicationConf",
             "sourceUrl": "https://github.com/hmrc/test-service/blob/main/conf/application.conf",
-            "entries": {"a": "1", "b": "2", "c": "1", "list": "[1,2]"} }"""
+            "entries": {"a": "1", "b": "2", "c": "1", "list": "[1,2]"}
+          }"""
 
         def other(env: String) = s"""
           "$env": [

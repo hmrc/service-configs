@@ -68,7 +68,7 @@ class SlugHandler @Inject()(
                                                artefactProcessorConnector.getDependencyConfigs(available.name, available.version),
                                                s"DependencyConfigs for name: ${available.name}, version: ${available.version} was not found"
                                              )
-                        _                 <- EitherT[Future, String, Unit](
+                        _                 <- EitherT[Future, String, Unit]:
                                                slugConfigurationService.addSlugInfo(slugInfo)
                                                .map(Right.apply)
                                                .recover:
@@ -76,8 +76,7 @@ class SlugHandler @Inject()(
                                                    val errorMessage = s"Could not store SlugInfo for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
                                                    logger.error(errorMessage, e)
                                                    Left(s"$errorMessage ${e.getMessage}")
-                                             )
-                        _                 <- EitherT[Future, String, Unit](
+                        _                 <- EitherT[Future, String, Unit]:
                                                slugConfigurationService
                                                  .addDependencyConfigurations(dependencyConfigs)
                                                  .map(Right.apply)
@@ -86,7 +85,6 @@ class SlugHandler @Inject()(
                                                      val errorMessage = s"Could not store DependencyConfigs for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
                                                      logger.error(errorMessage, e)
                                                      Left(s"$errorMessage ${e.getMessage}")
-                                             )
                       yield
                         logger.info(s"SlugInfo message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version}) successfully processed.")
                         MessageAction.Delete(message)

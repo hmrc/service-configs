@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.controller
 
-import play.api.libs.json.{Json, OWrites}
+import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.serviceconfigs.model.{ServiceName, ServiceRelationships}
@@ -34,7 +34,7 @@ class ServiceRelationshipController @Inject()(
 ) extends BackendController(mcc):
 
   def serviceRelationships(serviceName: ServiceName): Action[AnyContent] =
-    given OWrites[ServiceRelationships] = ServiceRelationships.writes
+    given Writes[ServiceRelationships] = ServiceRelationships.writes
     Action.async:
       serviceRelationshipService
         .getServiceRelationships(serviceName)

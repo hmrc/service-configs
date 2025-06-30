@@ -2,7 +2,7 @@ import play.sbt.PlayImport.PlayKeys.playDefaultPort
 import play.sbt.routes.RoutesKeys
 import uk.gov.hmrc.DefaultBuildSettings
 
-ThisBuild / scalaVersion  := "3.3.5"
+ThisBuild / scalaVersion  := "3.3.6"
 ThisBuild / majorVersion  := 1
 ThisBuild / scalacOptions += "-Wconf:msg=Flag.*repeatedly:s"
 
