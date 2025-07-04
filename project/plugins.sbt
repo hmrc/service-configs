@@ -4,4 +4,4 @@ resolvers += Resolver.typesafeRepo("releases")
 
 addSbtPlugin("uk.gov.hmrc"       % "sbt-auto-build"     % "3.24.0")
 addSbtPlugin("uk.gov.hmrc"       % "sbt-distributables" % "2.6.0")
-addSbtPlugin("org.playframework" % "sbt-plugin"         % "3.0.7")
+addSbtPlugin("org.playframework" % "sbt-plugin"         % "3.0.8")

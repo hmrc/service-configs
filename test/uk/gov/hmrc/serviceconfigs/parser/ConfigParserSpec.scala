@@ -122,6 +122,19 @@ class ConfigParserSpec
         "list2"  -> "[{\"k\":\"ENC[...]\"}]"
       )
 
+    "preserve secret id from encrypted value" in:
+      val config = ConfigParser.parseConfString(s"""
+        |string="ENC[GPGJSON,d9727cb2-065d-44e3-825a-20fdaef6e3f1,123]"
+        |list1=["ENC[GPGJSON,135e8d20-2ef4-4bb6-b960-6b1213db447f,234]"]
+        |list2=[{"k":"ENC[GPGJSON,0828714b-bacd-4dc5-90ef-e95105c53e6f,345]"}]
+        |""".stripMargin)
+
+      ConfigParser.flattenConfigToDotNotation(config).view.mapValues(_.asString).toMap shouldBe Map(
+        "string" -> "ENC[d9727cb2-065d-44e3-825a-20fdaef6e3f1]",
+        "list1"  -> "[\"ENC[135e8d20-2ef4-4bb6-b960-6b1213db447f]\"]",
+        "list2"  -> "[{\"k\":\"ENC[0828714b-bacd-4dc5-90ef-e95105c53e6f]\"}]"
+      )
+
   "ConfigParser.parseYamlStringAsProperties" should:
     "parse yaml as properties" in:
       val res = ConfigParser.parseYamlStringAsProperties(
