@@ -302,9 +302,16 @@ object ConfigValue:
     else
       input
 
-  private val encryptionRegex = "ENC\\[[^]]*]".r
+  private val encryptionRegex = raw"ENC\[([^]]*)]".r
+  // <encType>,<UUID>,<encryptedValue>
+  private val secretIdExtractor = raw"(\w*),([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}),(.*)".r
   def suppressEncryption(input: String): String =
-    encryptionRegex.replaceAllIn(input, "ENC[...]")
+    encryptionRegex.replaceAllIn(
+      input
+    , _.group(1) match
+        case secretIdExtractor(a, id, b) => s"ENC[$id]" // preserving the id will help us identify when secrets have changed
+        case _                           => s"ENC[...]"
+    )
 
 // We don't use TSConfigValueType since distinguishing between BOOLEAN, NUMBER and STRING doesn't work with System.properties
 // and we want to add Unmerged, when we can't tell (e.g. placeholders need resolving)
