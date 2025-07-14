@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service._
 
 import javax.inject.{Inject, Singleton}
@@ -28,20 +28,22 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class ServiceRelationshipScheduler @Inject()(
-  schedulerConfigs                  : SchedulerConfigs,
-  mongoLockRepository               : MongoLockRepository,
-  serviceRelationshipService        : ServiceRelationshipService,
-  timestampSupport                  : TimestampSupport
+  configuration             : Configuration,
+  mongoLockRepository       : MongoLockRepository,
+  serviceRelationshipService: ServiceRelationshipService,
+  timestampSupport          : TimestampSupport
 )(using
   actorSystem         : ActorSystem,
   applicationLifecycle: ApplicationLifecycle,
   ec                  : ExecutionContext
 ) extends SchedulerUtils:
 
+  private val schedulerConfig = SchedulerConfig(configuration, "service-relationship-scheduler")
+
   scheduleWithTimePeriodLock(
     label           = "ServiceRelationshipScheduler",
-    schedulerConfig = schedulerConfigs.serviceRelationshipScheduler,
-    lock            = ScheduledLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfigs.serviceRelationshipScheduler.interval)
+    schedulerConfig = schedulerConfig,
+    lock            = ScheduledLockService(mongoLockRepository, "service-relationship-scheduler", timestampSupport, schedulerConfig.interval)
   ):
     logger.info("Updating service relationships")
     for

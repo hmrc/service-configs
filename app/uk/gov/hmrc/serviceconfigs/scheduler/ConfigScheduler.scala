@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.{AlertConfigService, InternalAuthConfigService, ResourceUsageService, UpscanConfigService}
 
 import java.time.Instant
@@ -30,7 +30,7 @@ import scala.concurrent.ExecutionContext
 @Singleton
 class ConfigScheduler @Inject()(
 )(using
-  schedulerConfigs          : SchedulerConfigs,
+  configuration             : Configuration,
   mongoLockRepository       : MongoLockRepository,
   alertConfigService        : AlertConfigService,
   internalAuthConfigService : InternalAuthConfigService,
@@ -43,10 +43,12 @@ class ConfigScheduler @Inject()(
    ExecutionContext
 ) extends SchedulerUtils:
 
+  private val schedulerConfig = SchedulerConfig(configuration, "config-scheduler")
+
   scheduleWithTimePeriodLock(
     label           = "ConfigScheduler",
-    schedulerConfig = schedulerConfigs.configScheduler,
-    lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfigs.configScheduler.interval)
+    schedulerConfig = schedulerConfig,
+    lock            = ScheduledLockService(mongoLockRepository, "config-scheduler", timestampSupport, schedulerConfig.interval)
   ):
     logger.info("Updating config")
     runAllAndFailWithFirstError:
