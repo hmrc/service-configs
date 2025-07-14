@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.DeprecationWarningsNotificationService
 
 import java.time.Instant
@@ -29,7 +29,7 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class DeprecationWarningsNotificationScheduler @Inject()(
-  schedulerConfigs          : SchedulerConfigs,
+  configuration             : Configuration,
   mongoLockRepository       : MongoLockRepository,
   timestampSupport          : TimestampSupport,
   deprecationWarningService : DeprecationWarningsNotificationService
@@ -39,10 +39,12 @@ class DeprecationWarningsNotificationScheduler @Inject()(
   ec                  : ExecutionContext
 ) extends SchedulerUtils:
 
+  private val schedulerConfig = SchedulerConfig(configuration, "deprecation-warnings-notification-scheduler")
+
   scheduleWithTimePeriodLock(
-    label = "deprecationWarningsNotification",
-    schedulerConfig = schedulerConfigs.deprecationWarningsNotificationScheduler,
-    lock = ScheduledLockService(mongoLockRepository, "deprecation-warnings-notification-scheduler", timestampSupport, schedulerConfigs.deprecationWarningsNotificationScheduler.interval)
+    label           = "deprecationWarningsNotification",
+    schedulerConfig = schedulerConfig,
+    lock            = ScheduledLockService(mongoLockRepository, "deprecation-warnings-notification-scheduler", timestampSupport, schedulerConfig.interval)
   ):
     logger.info("Running deprecation warning notifications")
     deprecationWarningService.sendNotifications(Instant.now())

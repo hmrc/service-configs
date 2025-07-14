@@ -17,10 +17,10 @@
 package uk.gov.hmrc.serviceconfigs.scheduler
 
 import org.apache.pekko.actor.ActorSystem
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.model.Environment
 import uk.gov.hmrc.serviceconfigs.service._
 
@@ -29,7 +29,7 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class MissedWebhookEventsScheduler @Inject()(
-  schedulerConfigs           : SchedulerConfigs,
+  configuration              : Configuration,
   mongoLockRepository        : MongoLockRepository,
   appConfigService           : AppConfigService,
   bobbyRulesService          : BobbyRulesService,
@@ -46,10 +46,12 @@ class MissedWebhookEventsScheduler @Inject()(
   ec                  : ExecutionContext
 ) extends SchedulerUtils:
 
+  private val schedulerConfig = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
+
   scheduleWithTimePeriodLock(
     label           = "MissedWebhookEventsScheduler",
-    schedulerConfig = schedulerConfigs.missedWebhookEventsScheduler,
-    lock            = ScheduledLockService(mongoLockRepository, "missed-webhook-events", timestampSupport, schedulerConfigs.missedWebhookEventsScheduler.interval)
+    schedulerConfig = schedulerConfig,
+    lock            = ScheduledLockService(mongoLockRepository, "missed-webhook-events", timestampSupport, schedulerConfig.interval)
   ):
     logger.info("Updating incase of missed webhook event")
     runAllAndFailWithFirstError(

@@ -19,18 +19,18 @@ package uk.gov.hmrc.serviceconfigs.scheduler
 import org.apache.pekko.actor.ActorSystem
 
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.TimestampSupport
 import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
-import uk.gov.hmrc.serviceconfigs.config.SchedulerConfigs
 import uk.gov.hmrc.serviceconfigs.service.SlugInfoService
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
 class SlugMetadataUpdateScheduler @Inject()(
-  schedulerConfigs    : SchedulerConfigs,
+  configuration       : Configuration,
   slugInfoService     : SlugInfoService,
   mongoLockRepository : MongoLockRepository,
   timestampSupport    : TimestampSupport
@@ -42,10 +42,12 @@ class SlugMetadataUpdateScheduler @Inject()(
 
   private given HeaderCarrier = HeaderCarrier()
 
+  private val schedulerConfig = SchedulerConfig(configuration, "slug-metadata-scheduler")
+
   scheduleWithTimePeriodLock(
     label           = "SlugMetadataUpdateScheduler",
-    schedulerConfig = schedulerConfigs.slugMetadataScheduler,
-    lock            = ScheduledLockService(mongoLockRepository, "slug-metadata-scheduler", timestampSupport, schedulerConfigs.slugMetadataScheduler.interval)
+    schedulerConfig = schedulerConfig,
+    lock            = ScheduledLockService(mongoLockRepository, "slug-metadata-scheduler", timestampSupport, schedulerConfig.interval)
   ):
     logger.info("Updating slug metadata")
     for

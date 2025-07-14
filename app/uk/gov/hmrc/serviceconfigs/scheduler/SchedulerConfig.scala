@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.serviceconfigs.config
+package uk.gov.hmrc.serviceconfigs.scheduler
 
-import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import scala.concurrent.duration.FiniteDuration
 
@@ -29,8 +28,8 @@ case class SchedulerConfig(
 
 object SchedulerConfig:
   def apply(
-    configuration   : Configuration
-  , schedulerKey    : String
+    configuration: Configuration
+  , schedulerKey : String
   ): SchedulerConfig =
     SchedulerConfig(
       enabledKey   = s"$schedulerKey.enabled"
@@ -38,12 +37,3 @@ object SchedulerConfig:
     , interval     = configuration.get[FiniteDuration](s"$schedulerKey.interval")
     , initialDelay = configuration.get[FiniteDuration](s"$schedulerKey.initialDelay")
     )
-
-@Singleton
-class SchedulerConfigs @Inject()(configuration: Configuration):
-  val configScheduler                           = SchedulerConfig(configuration, "config-scheduler")
-  val missedWebhookEventsScheduler              = SchedulerConfig(configuration, "missed-webhook-events-scheduler")
-  val slugMetadataScheduler                     = SchedulerConfig(configuration, "slug-metadata-scheduler")
-  val serviceRelationshipScheduler              = SchedulerConfig(configuration, "service-relationship-scheduler")
-  val deprecationWarningsNotificationScheduler  = SchedulerConfig(configuration, "deprecation-warnings-notification-scheduler")
-  val serviceToRepoNameScheduler                = SchedulerConfig(configuration, "service-to-repo-name-scheduler")
