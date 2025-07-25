@@ -70,8 +70,8 @@ class ConfigWarningService @Inject()(
           ).sortBy(w => (w.warning, w.key))
       .map(_.flatten)
 
-  private val ArrayRegex = "(.*)\\.\\d+(?:\\..+)?".r
-  private val Base64Regex = "(.*)\\.base64".r
+  private val ArrayRegex = raw"(.*?)\.\d+(?:\..+)?".r
+  private val Base64Regex = raw"(.*)\.base64".r
 
   private def configNotOverriding(configSourceEntries: Seq[ConfigSourceEntries]): Seq[(KeyName, ConfigSourceValue)] =
     def checkOverrides(overrideSource: String, overridableSources: Seq[String]): Seq[(KeyName, ConfigSourceValue)] =

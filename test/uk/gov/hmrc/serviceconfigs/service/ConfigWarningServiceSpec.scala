@@ -109,6 +109,20 @@ class ConfigWarningServiceSpec
 
         service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
 
+      "ignore list nested positional notation overriding list" in new Setup:
+        val value = ConfigValue("v")
+        when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
+          .thenReturn(Future.successful(
+            ( Seq(
+                ConfigSourceEntries("referenceConf"       , None, Map("list"   -> value)),
+                ConfigSourceEntries("appConfigEnvironment", None, Map("list.0.1" -> value))
+              )
+            , Option.empty[DeploymentConfig]
+            )
+          ))
+
+        service.warnings(Seq(env), serviceName, version = None, latest = true).futureValue shouldBe Seq.empty
+
       "ignore list positional notation overriding positional notation" in new Setup:
         val value = ConfigValue("v")
         when(mockedConfigService.configSourceEntries(any[ConfigService.ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
