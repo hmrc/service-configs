@@ -366,6 +366,23 @@ class ConfigWarningServiceSpec
         ConfigWarning(env, serviceName, key, value.toRenderedConfigSourceValue, "Unencrypted")
       )
 
+    "detect reused secrets" in new Setup:
+      val platformSecret = ConfigSourceValue("baseConfig", None, ConfigValue("ENC[123]"))
+      val ownSecret      = ConfigSourceValue("baseConfig", None, ConfigValue("ENC[234]"))
+
+      when(mockedConfigService.resultingConfig(any[Seq[ConfigSourceEntries]]))
+        .thenReturn(Map(
+          "cookie.encryption.key"         -> platformSecret,
+          "queryParameter.encryption.key" -> platformSecret,
+          "json.encryption.key"           -> platformSecret,
+          "mongo.secret.key"              -> ownSecret
+        ))
+
+      service.warnings(Seq(env), ServiceName("service"), version = None, latest = true).futureValue shouldBe Seq(
+        ConfigWarning(env, serviceName, "json.encryption.key", platformSecret.toRenderedConfigSourceValue, "ReusedSecret")
+      )
+
+
   trait Setup:
     val mockedConfigService = mock[ConfigService]
 

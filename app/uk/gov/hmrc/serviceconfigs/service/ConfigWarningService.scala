@@ -59,6 +59,7 @@ class ConfigWarningService @Inject()(
           tor                 =  if environment == Environment.Production then testOnlyRoutes(resultingConfig) else Seq.empty
           rmc                 =  reactiveMongoConfig(resultingConfig)
           uec                 =  unencryptedConfig(resultingConfig)
+          rus                 =  reusedSecret(resultingConfig)
         yield
           ( nov.map { case (k, csv) => toConfigWarning(k, csv, "NotOverriding"      ) } ++
             ctc.map { case (k, csv) => toConfigWarning(k, csv, "TypeChange"         ) } ++
@@ -66,7 +67,8 @@ class ConfigWarningService @Inject()(
             udb.map { case (k, csv) => toConfigWarning(k, csv, "Debug"              ) } ++
             tor.map { case (k, csv) => toConfigWarning(k, csv, "TestOnlyRoutes"     ) } ++
             rmc.map { case (k, csv) => toConfigWarning(k, csv, "ReactiveMongoConfig") } ++
-            uec.map { case (k, csv) => toConfigWarning(k, csv, "Unencrypted"        ) }
+            uec.map { case (k, csv) => toConfigWarning(k, csv, "Unencrypted"        ) } ++
+            rus.map { case (k, csv) => toConfigWarning(k, csv, "ReusedSecret"       ) }
           ).sortBy(w => (w.warning, w.key))
       .map(_.flatten)
 
@@ -219,6 +221,30 @@ class ConfigWarningService @Inject()(
                       && !csv.value.asString.contains("ENC[")
                       => k -> csv
       .toSeq
+
+  private def reusedSecret(resultingConfig: Map[KeyName, ConfigSourceValue]): Seq[(KeyName, ConfigSourceValue)] =
+    val platformSecrets =
+      Seq(
+        "play.crypto.secret",
+        "play.http.secret.key",
+        "cookie.encryption.key",
+        "cookie.deviceId.secret",
+        "sso.encryption.key"
+      )
+
+    val secretValues =
+      resultingConfig.collect { case k -> v if platformSecrets.contains(k) => v.value.asString }.toSeq
+
+    resultingConfig
+      .collect:
+        case k -> csv if !platformSecrets.contains(k)
+                      && !k.startsWith("queryParameter.encryption.") // this is defined in bootstrap to be the same as `cookie.encryption`
+                      && csv.value.valueType == ConfigValueType.SimpleValue
+                      && csv.value.asString != "ENC[...]"
+                      && secretValues.contains(csv.value.asString)
+                      => k -> csv
+      .toSeq
+
 
 case class ConfigWarning(
   environment: Environment,
