@@ -24,7 +24,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -85,3 +85,21 @@ class ConfigAsCodeConnectorSpec
           .withHeader("Authorization", equalTo(s"token $token"))
           .withHeader("Accept"       , equalTo(s"application/vnd.github.sha"))
       )
+
+  "ConfigAsCode.getVersionedFileContent" should:
+    "return file content as string" in:
+      stubFor(
+        get(urlEqualTo(s"/api/repos/hmrc/test-repo/contents/conf/prod.routes?ref=v0.0.1"))
+          .willReturn(
+            aResponse()
+              .withBody("""{ "content": "IyBBZGQgYWxsIHRoZSBhcHBsaWNhdGlvbiByb3V0ZXMgdG8gdGhlIGFwcC5yb3V0ZXMgZmlsZQotPiAgICAgICAgIC9pbnRlcm5hbC1hdXRoLWFkbWluLWZyb250ZW5kICBhcHAuUm91dGVzCi0+ICAgICAgICAgLyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGhlYWx0aC5Sb3V0ZXMK" }""")
+          )
+      )
+
+      val expected =
+        """# Add all the application routes to the app.routes file
+        |->         /internal-auth-admin-frontend  app.Routes
+        |->         /                              health.Routes
+        |""".stripMargin
+
+      connector.getVersionedFileContent(RepoName("test-repo"), "conf/prod.routes", Version(0, 0, 1)).futureValue shouldBe Some(expected)

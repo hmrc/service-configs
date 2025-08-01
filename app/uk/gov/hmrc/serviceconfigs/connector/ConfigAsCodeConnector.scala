@@ -20,14 +20,17 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Source, StreamConverters}
 import org.apache.pekko.util.ByteString
 import play.api.Logging
+import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.client.{HttpClientV2, readEitherSource}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.UpstreamErrorResponse
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName, Version}
 
 import javax.inject.{Inject, Singleton}
 import java.util.zip.ZipInputStream
+import java.util.Base64
+import java.nio.charset.StandardCharsets
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -99,3 +102,16 @@ class ConfigAsCodeConnector @Inject()(
         case Left(error)   =>
           logger.error(s"Could not call $url - ${error.getMessage}", error)
           throw error
+
+  def getVersionedFileContent(repo: RepoName, path: String, version: Version): Future[Option[String]] =
+    val url = new java.net.URL(s"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/contents/$path?ref=v$version")
+    httpClientV2
+      .get(url)
+      .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")
+      .withProxy
+      .execute[Option[JsValue]]
+      .map: optJson =>
+        for
+          json    <- optJson
+          encoded <- (json \ "content").asOpt[String]
+        yield new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)
