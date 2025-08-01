@@ -13,7 +13,8 @@ object AppDependencies {
     "org.yaml"                         %  "snakeyaml"                 % "2.4",
     "org.typelevel"                    %% "cats-core"                 % "2.13.0",
     "software.amazon.awssdk"           %  "sqs"                       % "2.30.33",
-    "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion
+    "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
+    "org.playframework"                %% "play-routes-compiler"      % "3.0.8"
   )
 
   val test: Seq[ModuleID] = Seq(
