@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.sqs.model.Message
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ArtefactProcessorConnector
 import uk.gov.hmrc.serviceconfigs.model.ServiceName
-import uk.gov.hmrc.serviceconfigs.service.SlugConfigurationService
+import uk.gov.hmrc.serviceconfigs.service.{AppRoutesService, SlugConfigurationService}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,7 +34,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlugHandler @Inject()(
   configuration             : Configuration,
   slugConfigurationService  : SlugConfigurationService,
-  artefactProcessorConnector: ArtefactProcessorConnector
+  artefactProcessorConnector: ArtefactProcessorConnector,
+  appRoutesService          : AppRoutesService
 )(using
   actorSystem               : ActorSystem,
   ec                        : ExecutionContext
@@ -73,7 +74,7 @@ class SlugHandler @Inject()(
                                                .map(Right.apply)
                                                .recover:
                                                  case e =>
-                                                   val errorMessage = s"Could not store SlugInfo for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
+                                                   val errorMessage = s"Could not store SlugInfo for message with ID '${message.messageId()}' (${slugInfo.name.asString} ${slugInfo.version})"
                                                    logger.error(errorMessage, e)
                                                    Left(s"$errorMessage ${e.getMessage}")
                         _                 <- EitherT[Future, String, Unit]:
@@ -82,9 +83,18 @@ class SlugHandler @Inject()(
                                                  .map(Right.apply)
                                                  .recover:
                                                    case e =>
-                                                     val errorMessage = s"Could not store DependencyConfigs for message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version})"
+                                                     val errorMessage = s"Could not store DependencyConfigs for message with ID '${message.messageId()}' (${slugInfo.name.asString} ${slugInfo.version})"
                                                      logger.error(errorMessage, e)
                                                      Left(s"$errorMessage ${e.getMessage}")
+                        _                 <- EitherT[Future, String, Unit]:
+                                               appRoutesService
+                                                 .update(slugInfo.name, slugInfo.version)
+                                                 .map(Right.apply)
+                                                 .recover:
+                                                    case e =>
+                                                      val errorMessage = s"Could not store AppRoutes for message with ID '${message.messageId()}' (${slugInfo.name.asString} ${slugInfo.version})"
+                                                      logger.error(errorMessage, e)
+                                                      Left(s"$errorMessage ${e.getMessage}")
                       yield
                         logger.info(s"SlugInfo message with ID '${message.messageId()}' (${slugInfo.name} ${slugInfo.version}) successfully processed.")
                         MessageAction.Delete(message)
@@ -100,6 +110,15 @@ class SlugHandler @Inject()(
                                      logger.error(errorMessage, e)
                                      Left(s"$errorMessage ${e.getMessage}")
                              )
+                        _ <- EitherT(
+                          appRoutesService.delete(ServiceName(deleted.name), deleted.version)
+                            .map(Right.apply)
+                            .recover:
+                              case e =>
+                                val errorMessage = s"Could not delete AppRoutes for message with ID '${message.messageId()}' (${deleted.name} ${deleted.version})"
+                                logger.error(errorMessage, e)
+                                Left(s"$errorMessage ${e.getMessage}")
+                        )
                       yield
                         logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
                         MessageAction.Delete(message)

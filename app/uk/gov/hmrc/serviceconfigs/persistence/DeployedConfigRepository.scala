@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.{and, equal}
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Indexes, ReplaceOptions}
 import uk.gov.hmrc.mongo.MongoComponent

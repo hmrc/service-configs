@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.instances.all.*
 import cats.syntax.all.*
-import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.*

@@ -24,9 +24,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
-import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName}
+import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName, Version}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import java.util.Base64
 
 class ConfigAsCodeConnectorSpec
   extends AnyWordSpec
@@ -85,3 +86,23 @@ class ConfigAsCodeConnectorSpec
           .withHeader("Authorization", equalTo(s"token $token"))
           .withHeader("Accept"       , equalTo(s"application/vnd.github.sha"))
       )
+
+  "ConfigAsCode.getVersionedFileContent" should:
+    "return file content as string" in:
+      val expected =
+        """# Add all the application routes to the app.routes file
+        |->         /internal-auth-admin-frontend  app.Routes
+        |->         /                              health.Routes
+        |""".stripMargin
+
+      val expectedBody = String(Base64.getEncoder().encode(expected.getBytes()))
+
+      stubFor(
+        get(urlEqualTo(s"/api/repos/hmrc/test-repo/contents/conf/prod.routes?ref=v0.0.1"))
+          .willReturn(
+            aResponse()
+              .withBody(s"""{ "content": "$expectedBody" }""")
+          )
+      )
+
+      connector.getVersionedFileContent(RepoName("test-repo"), "conf/prod.routes", Version(0, 0, 1)).futureValue shouldBe Some(expected)

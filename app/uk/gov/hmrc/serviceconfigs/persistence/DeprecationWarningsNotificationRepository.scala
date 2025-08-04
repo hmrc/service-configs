@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
-import org.mongodb.scala.SingleObservableFuture
 import org.mongodb.scala.model.{Filters, FindOneAndReplaceOptions}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._

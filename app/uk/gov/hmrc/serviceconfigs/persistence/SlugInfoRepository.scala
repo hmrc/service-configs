@@ -17,7 +17,7 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import play.api.Logging
-import org.mongodb.scala.{ClientSession, ClientSessionOptions, ObservableFuture, ReadConcern, ReadPreference, SingleObservableFuture, TransactionOptions, WriteConcern}
+import org.mongodb.scala.{ClientSession, ClientSessionOptions, ReadConcern, ReadPreference, TransactionOptions, WriteConcern}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes, Projections}
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Updates._
