@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits.toTraverseOps
-import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions, Sorts}
 import uk.gov.hmrc.mongo.MongoComponent

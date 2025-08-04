@@ -48,7 +48,7 @@ class AppRoutesServiceSpec
       when(configAsCode.getVersionedFileContent(RepoName("test-service"), "conf/app.routes", Version(1, 0, 0)))
         .thenReturn(Future.successful(Some("""
         |GET        /hello/:name   package.Controller.hello(name: String, title: Option[String] ?= None)
-        |GET        /find/*path    package.Controller.find(path: String)
+        |GET        /assets/*file  package.Controller.assets(path = "/public", file: Asset)
         |+nocsrf
         |POST       /audit         package.Controller.audit()
         |""".stripMargin)))
@@ -85,13 +85,12 @@ class AppRoutesServiceSpec
       titleParam.isQueryParam shouldBe true
       titleParam.default shouldBe Some("None")
 
-      val findRoute = routesByPath("/test-service/find/*path")
-      findRoute.verb shouldBe "GET"
-      findRoute.controller shouldBe "package.Controller"
-      findRoute.method shouldBe "find"
-      findRoute.parameters should have length 1
-      findRoute.parameters.head.name shouldBe "path"
-      findRoute.parameters.head.isPathParam shouldBe true
+      val assetsRoute = routesByPath("/test-service/assets/*file")
+      assetsRoute.verb shouldBe "GET"
+      assetsRoute.controller shouldBe "package.Controller"
+      assetsRoute.method shouldBe "assets"
+      assetsRoute.parameters should have length 2
+      assetsRoute.parameters.find(_.name == "path").get.fixed shouldBe Some("\"/public\"")
 
       val auditRoute = routesByPath("/test-service/audit")
       auditRoute.verb shouldBe "POST"

@@ -17,7 +17,6 @@
 package uk.gov.hmrc.serviceconfigs.persistence
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.{IndexModel, Indexes, ReplaceOptions}
 import org.mongodb.scala.model.Filters.{and, equal}
 import uk.gov.hmrc.mongo.MongoComponent
@@ -41,7 +40,7 @@ class AppRoutesRepository @Inject()(
   extraCodecs    = Seq(Codecs.playFormatCodec(ServiceName.format), Codecs.playFormatCodec(Version.format))
 ):
 
-  override lazy val requiresTtlIndex: Boolean = false // not sure what the plan is yet
+  override lazy val requiresTtlIndex: Boolean = false // records are deleted when the slug/version is deleted from artifactory
 
   def put(routes: AppRoutes): Future[Unit] =
     collection
@@ -56,12 +55,23 @@ class AppRoutesRepository @Inject()(
       .toFuture()
       .map(_ => ())
 
-  def find(serviceName: ServiceName, version: Version): Future[Option[AppRoutes]] =
+  def find(name: ServiceName, version: Version): Future[Option[AppRoutes]] =
     collection
       .find(
         filter = and(
-          equal("service", serviceName),
+          equal("service", name),
           equal("version", version)
         )
       )
       .headOption()
+
+  def delete(name: ServiceName, version: Version): Future[Unit] =
+    collection
+      .deleteOne(
+          and(
+            equal("service", name),
+            equal("version", version)
+          )
+        )
+      .toFuture()
+      .map(_ => ())

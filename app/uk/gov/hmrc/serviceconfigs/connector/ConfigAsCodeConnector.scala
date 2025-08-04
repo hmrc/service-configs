@@ -104,7 +104,7 @@ class ConfigAsCodeConnector @Inject()(
           throw error
 
   def getVersionedFileContent(repo: RepoName, path: String, version: Version): Future[Option[String]] =
-    val url = new java.net.URL(s"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/contents/$path?ref=v$version")
+    val url = url"${githubConfig.githubApiUrl}/repos/hmrc/${repo.asString}/contents/${path.split("/")}?ref=v$version"
     httpClientV2
       .get(url)
       .setHeader("Authorization" -> s"token ${githubConfig.githubToken}")

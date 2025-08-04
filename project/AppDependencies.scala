@@ -4,7 +4,7 @@ import sbt._
 object AppDependencies {
 
   val bootstrapPlayVersion = "9.18.2-RC2"
-  val hmrcMongoVersion     = "2.6.0"
+  val hmrcMongoVersion     = "2.7.0"
   val jacksonVersion       = "2.15.3"
 
   val compile: Seq[ModuleID] = Seq(
@@ -14,7 +14,7 @@ object AppDependencies {
     "org.typelevel"                    %% "cats-core"                 % "2.13.0",
     "software.amazon.awssdk"           %  "sqs"                       % "2.30.33",
     "com.fasterxml.jackson.dataformat" %  "jackson-dataformat-yaml"   % jacksonVersion,
-    "org.playframework"                %% "play-routes-compiler"      % "3.0.8"
+    "org.playframework"                %% "play-routes-compiler"      % PlayVersion.current
   )
 
   val test: Seq[ModuleID] = Seq(

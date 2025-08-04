@@ -41,5 +41,5 @@ class AppRoutesRepositorySpec
         )
       repository.put(routes).futureValue
 
-      repository.find(serviceName = ServiceName("test-service"), version = Version(1, 0, 0)).futureValue shouldBe Some(routes)
+      repository.find(name = ServiceName("test-service"), version = Version(1, 0, 0)).futureValue shouldBe Some(routes)
 

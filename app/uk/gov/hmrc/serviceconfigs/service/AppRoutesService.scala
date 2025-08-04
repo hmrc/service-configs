@@ -47,6 +47,9 @@ class AppRoutesService @Inject()(
       routes <- parseAllRoutes(repoName, version)
       _      <- appRoutesRepo.put(AppRoutes(serviceName, version, routes))
     } yield ()
+
+  def delete(serviceName: ServiceName, version: Version): Future[Unit] =
+    appRoutesRepo.delete(serviceName, version)
   
   private def toRepoName(serviceName: ServiceName): RepoName =
     serviceRepoMappings
@@ -87,7 +90,7 @@ class AppRoutesService @Inject()(
   private def parseRoutesContent(content: String, fileName: String): Seq[Rule] =
     // https://github.com/playframework/playframework/blob/3.0.8/dev-mode/play-routes-compiler/src/main/scala/play/routes/compiler/RoutesFileParser.scala#L33
     // only used for error reporting, doesn't need to exist on disk
-    val file = new File(fileName)
+    val file = File(fileName)
 
     RoutesFileParser.parseContent(content, file) match
       case Right(rules) => rules

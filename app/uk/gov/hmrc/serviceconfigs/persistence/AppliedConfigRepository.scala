@@ -18,7 +18,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 
 import cats.implicits._
 import play.api.Configuration
-import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.{Aggregates, DeleteOneModel, Filters, Indexes, IndexModel, ReplaceOptions, ReplaceOneModel}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}

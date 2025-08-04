@@ -19,7 +19,6 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import com.mongodb.client.model.Indexes
 
 import javax.inject.{Inject, Singleton}
-import org.mongodb.scala.ObservableFuture
 import org.mongodb.scala.model.Filters.*
 import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions}
 import uk.gov.hmrc.mongo.MongoComponent

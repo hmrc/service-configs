@@ -110,6 +110,15 @@ class SlugHandler @Inject()(
                                      logger.error(errorMessage, e)
                                      Left(s"$errorMessage ${e.getMessage}")
                              )
+                        _ <- EitherT(
+                          appRoutesService.delete(ServiceName(deleted.name), deleted.version)
+                            .map(Right.apply)
+                            .recover:
+                              case e =>
+                                val errorMessage = s"Could not delete AppRoutes for message with ID '${message.messageId()}' (${deleted.name} ${deleted.version})"
+                                logger.error(errorMessage, e)
+                                Left(s"$errorMessage ${e.getMessage}")
+                        )
                       yield
                         logger.info(s"SlugInfo deleted message with ID '${message.messageId()}' (${deleted.name} ${deleted.version}) successfully processed.")
                         MessageAction.Delete(message)
