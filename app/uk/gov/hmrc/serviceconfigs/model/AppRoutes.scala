@@ -58,32 +58,32 @@ object AppRoute:
     ~ (__ \ "modifiers" ).format[Seq[String]]
     )(apply, ar => Tuple.fromProductTyped(ar))
 
-case class LibraryRoute(
+case class UnevaluatedRoute(
   path  : String,
   router: String
 )
 
-object LibraryRoute:
-  val format: Format[LibraryRoute] =
+object UnevaluatedRoute:
+  val format: Format[UnevaluatedRoute] =
     ( (__ \ "path"  ).format[String]
     ~ (__ \ "router").format[String]
-    )(apply, lr => Tuple.fromProductTyped(lr))
+    )(apply, ur => Tuple.fromProductTyped(ur))
 
 case class AppRoutes(
-  service      : ServiceName,
-  version      : Version,
-  routes       : Seq[AppRoute],
-  libraryRoutes: Seq[LibraryRoute] = Seq.empty
+  service          : ServiceName,
+  version          : Version,
+  routes           : Seq[AppRoute],
+  unevaluatedRoutes: Seq[UnevaluatedRoute] = Seq.empty
 )
 
 object AppRoutes:
   val format: Format[AppRoutes] =
-    given Format[ServiceName]  = ServiceName.format
-    given Format[Version]      = Version.format
-    given Format[AppRoute]     = AppRoute.format
-    given Format[LibraryRoute] = LibraryRoute.format
-    ( (__ \ "service"      ).format[ServiceName]
-    ~ (__ \ "version"      ).format[Version]
-    ~ (__ \ "routes"       ).format[Seq[AppRoute]]
-    ~ (__ \ "libraryRoutes").formatWithDefault[Seq[LibraryRoute]](Seq.empty)
+    given Format[ServiceName]      = ServiceName.format
+    given Format[Version]          = Version.format
+    given Format[AppRoute]         = AppRoute.format
+    given Format[UnevaluatedRoute] = UnevaluatedRoute.format
+    ( (__ \ "service"          ).format[ServiceName]
+    ~ (__ \ "version"          ).format[Version]
+    ~ (__ \ "routes"           ).format[Seq[AppRoute]]
+    ~ (__ \ "unevaluatedRoutes").formatWithDefault[Seq[UnevaluatedRoute]](Seq.empty)
     )(apply, ar => Tuple.fromProductTyped(ar))

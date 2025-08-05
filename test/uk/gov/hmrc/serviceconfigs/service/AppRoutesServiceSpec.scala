@@ -104,7 +104,7 @@ class AppRoutesServiceSpec
     val appRoutesRepo = mock[AppRoutesRepository]
     val configAsCode  = mock[ConfigAsCodeConnector]
     val configuration = Configuration(
-      "app-routes.libraryIncludes" -> Seq("health.Routes")
+      "app-routes.unevaluatedIncludes" -> Seq("health.Routes")
     )
 
     val service = AppRoutesService(appRoutesRepo, configAsCode, configuration)
