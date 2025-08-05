@@ -114,4 +114,5 @@ class ConfigAsCodeConnector @Inject()(
         for
           json    <- optJson
           encoded <- (json \ "content").asOpt[String]
-        yield new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)
+          // github encodes using https://www.ietf.org/rfc/rfc2045.txt (see 6.8, newline every 76 chars)
+        yield new String(Base64.getMimeDecoder().decode(encoded), StandardCharsets.UTF_8)

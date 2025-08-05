@@ -22,6 +22,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
+import play.api.libs.json.Json
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.serviceconfigs.config.GithubConfig
 import uk.gov.hmrc.serviceconfigs.model.{CommitId, RepoName, Version}
@@ -95,13 +96,13 @@ class ConfigAsCodeConnectorSpec
         |->         /                              health.Routes
         |""".stripMargin
 
-      val expectedBody = String(Base64.getEncoder().encode(expected.getBytes()))
+      val expectedBody = String(Base64.getMimeEncoder().encode(expected.getBytes()))
 
       stubFor(
         get(urlEqualTo(s"/api/repos/hmrc/test-repo/contents/conf/prod.routes?ref=v0.0.1"))
           .willReturn(
             aResponse()
-              .withBody(s"""{ "content": "$expectedBody" }""")
+              .withBody(Json.obj("content" -> expectedBody).toString)
           )
       )
 
