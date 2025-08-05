@@ -12,6 +12,7 @@ GET     /config-changes-next-deployment                 uk.gov.hmrc.serviceconfi
 GET     /routes                                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.routes(serviceName: Option[ServiceName] ?= None, environment: Option[Environment] ?= None, routeType: Option[RouteType] ?= None)
 GET     /frontend-routes/search                         uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.searchByFrontendPath(frontendPath: String, environment: Option[Environment] ?= None)
 GET     /shuttering-routes/:environment                 uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.shutteringRoutes(environment: Environment)
+GET     /app-routes/:serviceName/:version               uk.gov.hmrc.serviceconfigs.controller.RouteConfigurationController.appRoutes(serviceName: ServiceName, version: Version)
 
 GET     /bobby/rules                                    uk.gov.hmrc.serviceconfigs.controller.BobbyRulesController.allRules
 GET     /alert-configs                                  uk.gov.hmrc.serviceconfigs.controller.AlertConfigController.getAlertConfigs()

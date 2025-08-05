@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
+import play.api.Configuration
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
@@ -102,5 +103,8 @@ class AppRoutesServiceSpec
   trait Setup:
     val appRoutesRepo = mock[AppRoutesRepository]
     val configAsCode  = mock[ConfigAsCodeConnector]
+    val configuration = Configuration(
+      "app-routes.libraryIncludes" -> Seq("health.Routes")
+    )
 
-    val service = AppRoutesService(appRoutesRepo, configAsCode)
+    val service = AppRoutesService(appRoutesRepo, configAsCode, configuration)

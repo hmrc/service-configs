@@ -18,10 +18,10 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import javax.inject.{Inject, Singleton}
 import cats.implicits.*
-import play.api.Logging
+import play.api.{Configuration, Logging}
 import play.routes.compiler.*
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
-import uk.gov.hmrc.serviceconfigs.model.{AppRoute, AppRoutes, RepoName, RouteParameter, ServiceName, ServiceToRepoName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{AppRoute, AppRoutes, LibraryRoute, RepoName, RouteParameter, ServiceName, ServiceToRepoName, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.AppRoutesRepository
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +31,8 @@ import play.api.libs.json.{Json, Reads}
 @Singleton
 class AppRoutesService @Inject()(
   appRoutesRepo: AppRoutesRepository,
-  configAsCode : ConfigAsCodeConnector
+  configAsCode : ConfigAsCodeConnector,
+  configuration: Configuration
 )(using ec: ExecutionContext
 ) extends Logging:
 
@@ -39,14 +40,32 @@ class AppRoutesService @Inject()(
     given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
     Json.parse(getClass.getResourceAsStream("/service-to-repo-names.json")).as[List[ServiceToRepoName]]
 
-  private val ignoredIncludes = Set("health.Routes", "hmrcfrontend.Routes")
+  private val libraryIncludes =
+    configuration
+      .get[Seq[String]]("app-routes.libraryIncludes")
+      .toSet
 
+  def getRoutes(serviceName: ServiceName, version: Version): Future[Option[AppRoutes]] =
+    appRoutesRepo.find(serviceName, version).flatMap:
+      case Some(routes) => Future.successful(Some(routes))
+      case None =>
+        val repoName = toRepoName(serviceName)
+        parseAllRoutes(repoName, version).flatMap: (routes, libraryRoutes) =>
+          val appRoutes = AppRoutes(serviceName, version, routes, libraryRoutes)
+          appRoutesRepo
+            .put(appRoutes)
+            .map(_ => Some(appRoutes))
+        .recover:
+          case ex =>
+            logger.warn(s"Failed to fetch and store routes for ${serviceName.asString}:v$version", ex)
+            None
+    
   def update(serviceName: ServiceName, version: Version): Future[Unit] =
     val repoName = toRepoName(serviceName)
-    for {
-      routes <- parseAllRoutes(repoName, version)
-      _      <- appRoutesRepo.put(AppRoutes(serviceName, version, routes))
-    } yield ()
+    for
+      (routes, libraryRoutes) <- parseAllRoutes(repoName, version)
+      _                       <- appRoutesRepo.put(AppRoutes(serviceName, version, routes, libraryRoutes))
+    yield ()
 
   def delete(serviceName: ServiceName, version: Version): Future[Unit] =
     appRoutesRepo.delete(serviceName, version)
@@ -59,7 +78,8 @@ class AppRoutesService @Inject()(
         RepoName(serviceName.asString)
       )
   
-  private def parseAllRoutes(repoName: RepoName, version: Version): Future[Seq[AppRoute]] =
+  private def parseAllRoutes(repoName: RepoName, version: Version): Future[(Seq[AppRoute], Seq[LibraryRoute])] =
+    // prod.routes is a safe assumption because play.http.router is set to prod.Routes in app-config-common
     walkRoutes(repoName, version, "conf/prod.routes", prefix = "")
 
   private def walkRoutes(
@@ -67,25 +87,27 @@ class AppRoutesService @Inject()(
     version   : Version,
     routesPath: String,
     prefix    : String
-  ): Future[Seq[AppRoute]] =
+  ): Future[(Seq[AppRoute], Seq[LibraryRoute])] =
     configAsCode
       .getVersionedFileContent(repoName, routesPath, version)
       .flatMap:
         case None =>
           logger.warn(s"Routes file not found: $routesPath for ${repoName.asString}:v$version")
-          Future.successful(Seq.empty)
+          Future.successful((Seq.empty, Seq.empty))
         case Some(content) =>
           val rules = parseRoutesContent(content, routesPath)
           rules.traverse:
             case route: Route =>
-              Future.successful(Seq(normalise(route, prefix)))
-            case include: Include if ignoredIncludes.contains(include.router) =>
-              Future.successful(Seq.empty)
+              Future.successful((Seq(normalise(route, prefix)), Seq.empty[LibraryRoute]))
+            case include: Include if libraryIncludes.contains(include.router) =>
+              val fullPath = s"/$prefix/${include.prefix}".replace("//", "/")
+              val libraryRoute = LibraryRoute(fullPath, include.router)
+              Future.successful((Seq.empty[AppRoute], Seq(libraryRoute)))
             case include: Include =>
-              val includePath = s"conf/${include.router.toLowerCase}"
+              val includePath = s"conf/${include.router.replace(".Routes", ".routes")}"
               val newPrefix   = if (prefix.isEmpty) include.prefix else s"$prefix/${include.prefix}".replace("//", "/")
               walkRoutes(repoName, version, includePath, newPrefix)
-          .map(_.flatten)
+          .map(_.combineAll)
 
   private def parseRoutesContent(content: String, fileName: String): Seq[Rule] =
     // https://github.com/playframework/playframework/blob/3.0.8/dev-mode/play-routes-compiler/src/main/scala/play/routes/compiler/RoutesFileParser.scala#L33

@@ -58,18 +58,32 @@ object AppRoute:
     ~ (__ \ "modifiers" ).format[Seq[String]]
     )(apply, ar => Tuple.fromProductTyped(ar))
 
+case class LibraryRoute(
+  path  : String,
+  router: String
+)
+
+object LibraryRoute:
+  val format: Format[LibraryRoute] =
+    ( (__ \ "path"  ).format[String]
+    ~ (__ \ "router").format[String]
+    )(apply, lr => Tuple.fromProductTyped(lr))
+
 case class AppRoutes(
-  service: ServiceName,
-  version: Version,
-  routes : Seq[AppRoute]
+  service      : ServiceName,
+  version      : Version,
+  routes       : Seq[AppRoute],
+  libraryRoutes: Seq[LibraryRoute] = Seq.empty
 )
 
 object AppRoutes:
   val format: Format[AppRoutes] =
-    given Format[ServiceName] = ServiceName.format
-    given Format[Version]     = Version.format
-    given Format[AppRoute]    = AppRoute.format
-    ( (__ \ "service").format[ServiceName]
-    ~ (__ \ "version").format[Version]
-    ~ (__ \ "routes" ).format[Seq[AppRoute]]
+    given Format[ServiceName]  = ServiceName.format
+    given Format[Version]      = Version.format
+    given Format[AppRoute]     = AppRoute.format
+    given Format[LibraryRoute] = LibraryRoute.format
+    ( (__ \ "service"      ).format[ServiceName]
+    ~ (__ \ "version"      ).format[Version]
+    ~ (__ \ "routes"       ).format[Seq[AppRoute]]
+    ~ (__ \ "libraryRoutes").formatWithDefault[Seq[LibraryRoute]](Seq.empty)
     )(apply, ar => Tuple.fromProductTyped(ar))
