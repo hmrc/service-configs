@@ -33,6 +33,7 @@ trait SchedulerUtils extends Logging:
     applicationLifecycle: ApplicationLifecycle,
     ec                  : ExecutionContext
   ): Unit =
+    org.slf4j.MDC.clear()
     if schedulerConfig.enabled then
       val initialDelay = schedulerConfig.initialDelay
       val interval     = schedulerConfig.interval

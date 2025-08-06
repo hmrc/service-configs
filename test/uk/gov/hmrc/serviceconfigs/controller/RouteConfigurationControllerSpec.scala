@@ -29,6 +29,7 @@ import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.persistence.model.{MongoFrontendRoute, MongoShutterSwitch}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
+import uk.gov.hmrc.serviceconfigs.service.AppRoutesService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -418,10 +419,12 @@ class RouteConfigurationControllerSpec
 
     val mockAdminFrontendRouteRepository = mock[AdminFrontendRouteRepository]
     val mockFrontendRouteRepository      = mock[FrontendRouteRepository]
+    val mockAppRoutesService             = mock[AppRoutesService]
 
     val controller = RouteConfigurationController(
       frontendRouteRepository      = mockFrontendRouteRepository,
       adminFrontendRouteRepository = mockAdminFrontendRouteRepository,
+      appRoutesService             = mockAppRoutesService,
       mcc                          = stubMessagesControllerComponents()
     )
 

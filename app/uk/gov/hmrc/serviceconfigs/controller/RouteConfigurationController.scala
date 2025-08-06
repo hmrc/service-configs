@@ -20,8 +20,9 @@ import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Json, Writes}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{Environment, Route, RouteType, ServiceName, ShutteringRoutes}
+import uk.gov.hmrc.serviceconfigs.model.{AppRoutes, Environment, Route, RouteType, ServiceName, ShutteringRoutes, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{AdminFrontendRouteRepository, FrontendRouteRepository}
+import uk.gov.hmrc.serviceconfigs.service.AppRoutesService
 import cats.syntax.all.*
 import cats.instances.future.*
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
@@ -32,6 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class RouteConfigurationController @Inject()(
   frontendRouteRepository     : FrontendRouteRepository,
   adminFrontendRouteRepository: AdminFrontendRouteRepository,
+  appRoutesService            : AppRoutesService,
   mcc                         : MessagesControllerComponents
 )(using
   ec: ExecutionContext
@@ -99,3 +101,10 @@ class RouteConfigurationController @Inject()(
         .map(ShutteringRoutes.fromMongo)
         .map(Json.toJson(_))
         .map(Ok(_))
+
+  def appRoutes(serviceName: ServiceName, version: Version): Action[AnyContent] =
+    given Writes[AppRoutes] = AppRoutes.format
+    Action.async:
+      appRoutesService.getRoutes(serviceName, version).map:
+        case Some(routes) => Ok(Json.toJson(routes))
+        case None         => NotFound

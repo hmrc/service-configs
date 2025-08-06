@@ -24,7 +24,7 @@ import org.mockito.Mockito.{when, verify}
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
-import uk.gov.hmrc.serviceconfigs.model.{AppRoutes, RepoName, ServiceName, Version}
+import uk.gov.hmrc.serviceconfigs.model.{AppRoutes, RepoName, ServiceName, UnevaluatedRoute, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.AppRoutesRepository
 
 import scala.concurrent.Future
@@ -53,6 +53,9 @@ class AppRoutesServiceSpec
         |POST       /audit         package.Controller.audit()
         |""".stripMargin)))
 
+      when(configAsCode.getVersionedFileContent(RepoName("test-service"), "conf/health.routes", Version(1, 0, 0)))
+        .thenReturn(Future.successful(None))
+
       when(appRoutesRepo.put(any[AppRoutes])).thenReturn(Future.unit)
 
       service.update(ServiceName("test-service"), Version(1, 0, 0)).futureValue shouldBe ()
@@ -65,6 +68,8 @@ class AppRoutesServiceSpec
       actualAppRoutes.service shouldBe ServiceName("test-service")
       actualAppRoutes.version shouldBe Version(1, 0, 0)
       actualAppRoutes.routes should have length 3
+
+      actualAppRoutes.unevaluatedRoutes shouldBe Seq(UnevaluatedRoute("", "health.Routes"))
 
       val routesByPath = actualAppRoutes.routes.groupBy(_.path).view.mapValues(_.head).toMap
 

@@ -66,6 +66,17 @@ object QueryBinders:
       override def unbind(key: String, value: ServiceType): String =
         strBinder.unbind(key, value.asString)
 
+  implicit def versionParamBindable(using strBinder: PathBindable[String]): PathBindable[Version] =
+    new PathBindable[Version]:
+      override def bind(key: String, value: String): Either[String, Version] =
+        Version.parse(value) match
+          case None          => Left(s"Invalid Version $value")
+          case Some(version) => Right(version)
+
+      override def unbind(key: String, value: Version): String =
+        strBinder.unbind(key, value.original)
+        
+
   implicit def versionBindable(using strBinder: QueryStringBindable[String]): QueryStringBindable[Version] =
     new QueryStringBindable[Version]:
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Version]] =
