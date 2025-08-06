@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs.service
 
 import javax.inject.{Inject, Singleton}
 import cats.implicits.*
-import play.api.{Configuration, Logging}
+import play.api.Logging
 import play.routes.compiler.*
 import uk.gov.hmrc.serviceconfigs.connector.ConfigAsCodeConnector
 import uk.gov.hmrc.serviceconfigs.model.{AppRoute, AppRoutes, UnevaluatedRoute, RepoName, RouteParameter, ServiceName, ServiceToRepoName, Version}
@@ -31,19 +31,13 @@ import play.api.libs.json.{Json, Reads}
 @Singleton
 class AppRoutesService @Inject()(
   appRoutesRepo: AppRoutesRepository,
-  configAsCode : ConfigAsCodeConnector,
-  configuration: Configuration
+  configAsCode : ConfigAsCodeConnector
 )(using ec: ExecutionContext
 ) extends Logging:
 
   private[service] val serviceRepoMappings: List[ServiceToRepoName] =
     given Reads[ServiceToRepoName]  = ServiceToRepoName.reads
     Json.parse(getClass.getResourceAsStream("/service-to-repo-names.json")).as[List[ServiceToRepoName]]
-
-  private val unevaluatedIncludes =
-    configuration
-      .get[Seq[String]]("app-routes.unevaluatedIncludes")
-      .toSet
 
   def getRoutes(serviceName: ServiceName, version: Version): Future[Option[AppRoutes]] =
     appRoutesRepo.find(serviceName, version).flatMap:
@@ -76,33 +70,33 @@ class AppRoutesService @Inject()(
   
   private def parseAllRoutes(repoName: RepoName, version: Version): Future[(Seq[AppRoute], Seq[UnevaluatedRoute])] =
     // prod.routes is a safe assumption because play.http.router is set to prod.Routes in app-config-common
-    walkRoutes(repoName, version, "conf/prod.routes", prefix = "")
+    walkRoutes(repoName, version, "prod.Routes", prefix = "")
 
   private def walkRoutes(
     repoName  : RepoName,
     version   : Version,
-    routesPath: String,
+    router    : String,
     prefix    : String
   ): Future[(Seq[AppRoute], Seq[UnevaluatedRoute])] =
+    val routesPath = s"conf/${router.replace(".Routes", ".routes")}"
     configAsCode
       .getVersionedFileContent(repoName, routesPath, version)
       .flatMap:
-        case None =>
-          logger.warn(s"Routes file not found: $routesPath for ${repoName.asString}:v$version")
+        case None if router == "prod.Routes" =>
+          // not a typical scala app
           Future.successful((Seq.empty, Seq.empty))
+        case None =>
+          logger.warn(s"Routes file not found: $router for ${repoName.asString}:v$version")
+          val unevaluatedRoute = UnevaluatedRoute(prefix, router)
+          Future.successful((Seq.empty, Seq(unevaluatedRoute)))
         case Some(content) =>
           val rules = parseRoutesContent(content, routesPath)
           rules.traverse:
             case route: Route =>
               Future.successful((Seq(normalise(route, prefix)), Seq.empty[UnevaluatedRoute]))
-            case include: Include if unevaluatedIncludes.contains(include.router) =>
-              val fullPath = s"/$prefix/${include.prefix}".replace("//", "/")
-              val unevaluatedRoute = UnevaluatedRoute(fullPath, include.router)
-              Future.successful((Seq.empty[AppRoute], Seq(unevaluatedRoute)))
             case include: Include =>
-              val includePath = s"conf/${include.router.replace(".Routes", ".routes")}"
               val newPrefix   = if (prefix.isEmpty) include.prefix else s"$prefix/${include.prefix}".replace("//", "/")
-              walkRoutes(repoName, version, includePath, newPrefix)
+              walkRoutes(repoName, version, include.router, newPrefix)
           .map(_.combineAll)
 
   private def parseRoutesContent(content: String, fileName: String): Seq[Rule] =
