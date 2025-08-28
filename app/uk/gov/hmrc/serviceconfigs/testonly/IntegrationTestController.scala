@@ -96,22 +96,15 @@ class IntegrationTestController @Inject()(
     validateJson[Seq[SlugInfoWithFlags]](json)
       .traverse:
         _.traverse_ { slugInfoWithFlag =>
-          def updateFlag(slugInfoWithFlag: SlugInfoWithFlags, flag: SlugInfoFlag, toSet: SlugInfoWithFlags => Boolean): Future[Unit] =
-            if toSet(slugInfoWithFlag) then
-              slugInfoRepository.setFlag(flag, slugInfoWithFlag.slugInfo.name, slugInfoWithFlag.slugInfo.version)
-            else
-              Future.unit
-
-          for
-            _ <- slugInfoRepository.add(slugInfoWithFlag.slugInfo)
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.Latest                                  , _.latest      )
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Production  ), _.production  )
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.QA          ), _.qa          )
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Staging     ), _.staging     )
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Development ), _.development )
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.ExternalTest), _.externalTest)
-            _ <- updateFlag(slugInfoWithFlag, SlugInfoFlag.ForEnvironment(Environment.Integration ), _.integration )
-          yield ()
+          slugInfoRepository.add(
+            slugInfo     = slugInfoWithFlag.slugInfo
+          , environments = Option.when[Environment](slugInfoWithFlag.production  )(Environment.Production  ).toSet ++
+                           Option.when[Environment](slugInfoWithFlag.externalTest)(Environment.ExternalTest).toSet ++
+                           Option.when[Environment](slugInfoWithFlag.staging     )(Environment.Staging     ).toSet ++
+                           Option.when[Environment](slugInfoWithFlag.qa          )(Environment.QA          ).toSet ++
+                           Option.when[Environment](slugInfoWithFlag.development )(Environment.Development ).toSet ++
+                           Option.when[Environment](slugInfoWithFlag.integration )(Environment.Integration ).toSet
+          )
         }
 
   private def addDeploymentConfigs(json: JsValue): Future[Either[JsObject, Unit]] =
