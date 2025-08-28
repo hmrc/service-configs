@@ -19,15 +19,18 @@ package uk.gov.hmrc.serviceconfigs.service
 import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.model.{DependencyConfig, ServiceName, SlugDependency, SlugInfo, SlugInfoFlag, Version}
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class SlugConfigurationService @Inject()(
-  slugInfoRepository         : SlugInfoRepository,
-  dependencyConfigRepository : DependencyConfigRepository
+  releasesApiConnector       : ReleasesApiConnector
+, slugInfoRepository         : SlugInfoRepository
+, dependencyConfigRepository : DependencyConfigRepository
 )(using ec: ExecutionContext) extends Logging:
 
   private def classpathOrderedDependencies(slugInfo: SlugInfo): List[SlugDependency] =
@@ -39,7 +42,17 @@ class SlugConfigurationService @Inject()(
       .flatMap(path => slugInfo.dependencies.filter(_.path == path))
 
   def addSlugInfo(slugInfo: SlugInfo): Future[Unit] =
-    slugInfoRepository.add(slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo)))
+    for
+      oRelease <- releasesApiConnector.getWhatsRunningWhere(slugInfo.name)(using HeaderCarrier())
+      _        <- slugInfoRepository.add(
+                    slugInfo.copy(dependencies = classpathOrderedDependencies(slugInfo))
+                  , environments = oRelease.fold(Set.empty):
+                                     _.deployments
+                                       .collect:
+                                         case d if d.version == slugInfo.version => d.environment
+                                       .toSet
+                  )
+    yield ()
 
   def deleteSlugInfo(serviceName: ServiceName, slugVersion: Version): Future[Unit] =
     slugInfoRepository.delete(serviceName, slugVersion)

@@ -547,9 +547,11 @@ class SlugInfoServiceSpec
         lastUpdated     = now
       ))
 
-
     "Not update when the deployment has already been added" in new Setup:
       val serviceName1 = ServiceName("service1")
+
+      when(mockedSlugInfoRepository.setFlag(any[SlugInfoFlag], any[ServiceName], any[Version]))
+        .thenReturn(Future.unit)
 
       when(mockedDeploymentEventRepository.findDeploymentEvent(any[String]))  // Deployment already exists
         .thenReturn(Future.successful(Some(DeploymentEventRepository.DeploymentEvent(

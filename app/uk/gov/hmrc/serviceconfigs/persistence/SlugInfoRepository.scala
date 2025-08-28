@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.persistence
 
+import cats.syntax.all._
 import play.api.Logging
 import org.mongodb.scala.{ClientSession, ClientSessionOptions, ReadConcern, ReadPreference, TransactionOptions, WriteConcern}
 import org.mongodb.scala.model.{FindOneAndReplaceOptions, IndexModel, IndexOptions, Indexes, Projections}
@@ -28,6 +29,7 @@ import uk.gov.hmrc.serviceconfigs.model.{MongoSlugInfoFormats, SlugInfo, SlugInf
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.serviceconfigs.model.Environment
 
 @Singleton
 class SlugInfoRepository @Inject()(
@@ -73,23 +75,25 @@ class SlugInfoRepository @Inject()(
                              )
     )
 
-  def add(slugInfo: SlugInfo): Future[Unit] =
+  def add(slugInfo: SlugInfo, environments: Set[Environment]): Future[Unit] =
     withSessionAndTransaction: session =>
       for
-        oMaxVersion <- getMaxVersion(slugInfo.name, session)
-        isLatest    =  oMaxVersion.fold(true)(_ <= slugInfo.version)
-        _           <- collection
-                         .findOneAndReplace(
-                           clientSession = session
-                         , filter        = equal("uri", slugInfo.uri)
-                         , replacement   = slugInfo
-                         , options       = FindOneAndReplaceOptions().upsert(true)
-                         )
-                         .toFutureOption()
-        _           =  logger.info(s"Slug ${slugInfo.name.asString} ${slugInfo.version.original} isLatest=$isLatest (max is: $oMaxVersion)")
-        _           <- if   isLatest
-                       then setFlag(SlugInfoFlag.Latest, slugInfo.name, slugInfo.version, session)
-                       else Future.unit
+        oMax   <- getMaxVersion(slugInfo.name, session)
+        latest =  oMax.fold(true)(_ <= slugInfo.version)
+        prev   <- getSlugInfos(slugInfo.name, Some(slugInfo.version)).map(_.headOption)
+        _      <- collection
+                    .findOneAndReplace(
+                      clientSession = session
+                    , filter        = equal("uri", slugInfo.uri)
+                    , replacement   = slugInfo
+                    , options       = FindOneAndReplaceOptions().upsert(true)
+                    )
+                    .toFutureOption()
+        _      =  logger.info(s"Slug ${slugInfo.name.asString} ${slugInfo.version.original} latest=$latest (max is: $oMax)")
+        _      <- if latest then setFlag(SlugInfoFlag.Latest, slugInfo.name, slugInfo.version, session) else Future.unit
+        _      =  logger.info(s"Slug ${slugInfo.name.asString} ${slugInfo.version.original} environments=${environments.mkString(", ")}")
+        _      <- environments.toSeq.foldLeftM(()):(_, env) =>
+                    setFlag(SlugInfoFlag.ForEnvironment(env), slugInfo.name, slugInfo.version, session)
       yield ()
 
   def delete(name: ServiceName, version: Version): Future[Unit] =
@@ -169,7 +173,7 @@ class SlugInfoRepository @Inject()(
     withSessionAndTransaction: session =>
       setFlag(flag, name, version, session)
 
-  def setFlag(flag: SlugInfoFlag, name: ServiceName, version: Version, session: ClientSession): Future[Unit] =
+  private def setFlag(flag: SlugInfoFlag, name: ServiceName, version: Version, session: ClientSession): Future[Unit] =
     for
       _ <- clearFlag(flag, name, session)
       _ =  logger.info(s"mark slug ${name.asString} $version with ${flag.asString} flag")
@@ -187,7 +191,7 @@ class SlugInfoRepository @Inject()(
     withSessionAndTransaction: session =>
       getMaxVersion(name, session)
 
-  def getMaxVersion(name: ServiceName, session: ClientSession): Future[Option[Version]] =
+  private def getMaxVersion(name: ServiceName, session: ClientSession): Future[Option[Version]] =
     collection
       .find[Version](session, equal("name", name))
       .projection(Projections.include("version"))

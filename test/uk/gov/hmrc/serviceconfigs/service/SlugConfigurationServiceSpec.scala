@@ -24,7 +24,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.model._
+import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector
 import uk.gov.hmrc.serviceconfigs.persistence.{DependencyConfigRepository, SlugInfoRepository}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -50,14 +52,18 @@ class SlugConfigurationServiceSpec
       )
 
       Mockito
-        .when(boot.mockedSlugInfoRepository.add(any[SlugInfo]))
+        .when(boot.mockedReleasesApiConnector.getWhatsRunningWhere(any[ServiceName])(using any[HeaderCarrier]))
+        .thenReturn(Future.successful(None))
+
+      Mockito
+        .when(boot.mockedSlugInfoRepository.add(any[SlugInfo], any[Set[Environment]]))
         .thenReturn(Future.unit)
 
       boot.service.addSlugInfo(slug).futureValue
 
       Mockito
         .verify(boot.mockedSlugInfoRepository)
-        .add(slug.copy(dependencies = List(classPathDependency)))
+        .add(slug.copy(dependencies = List(classPathDependency)), environments = Set.empty)
 
   def sampleSlugInfo(name: String, version: String, uri: String, latest: Boolean = true): SlugInfo =
     SlugInfo(
@@ -74,21 +80,25 @@ class SlugConfigurationServiceSpec
     )
 
   case class Boot(
-    mockedSlugInfoRepository: SlugInfoRepository
-  , service                 : SlugConfigurationService
+    mockedReleasesApiConnector: ReleasesApiConnector
+  , mockedSlugInfoRepository  : SlugInfoRepository
+  , service                   : SlugConfigurationService
   )
 
   object Boot:
     def init: Boot =
+      val mockedReleasesApiConnector       = mock[ReleasesApiConnector]
       val mockedSlugInfoRepository         = mock[SlugInfoRepository]
       val mockedDependencyConfigRepository = mock[DependencyConfigRepository]
 
       val service = SlugConfigurationService(
-        mockedSlugInfoRepository
+        mockedReleasesApiConnector
+      , mockedSlugInfoRepository
       , mockedDependencyConfigRepository
       )
 
       Boot(
-        mockedSlugInfoRepository
+        mockedReleasesApiConnector
+      , mockedSlugInfoRepository
       , service
       )

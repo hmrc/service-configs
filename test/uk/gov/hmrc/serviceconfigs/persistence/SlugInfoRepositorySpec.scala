@@ -37,21 +37,21 @@ class SlugInfoRepositorySpec
 
   "SlugInfoRepository" should:
     "set the latest flag to the highest version on add" in:
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 1))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 1)), environments = Set.empty).futureValue
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 1)))
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 1, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 1, 0)), environments = Set.empty).futureValue
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(0, 1, 0)))
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)), environments = Set.empty).futureValue
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 2))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 0, 2)), environments = Set.empty).futureValue
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 2, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(0, 2, 0)), environments = Set.empty).futureValue
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)))
 
     "manage by version" in:
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))   , environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))   , environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0)), environments = Set.empty).futureValue
 
       repository.getSlugInfos(ServiceName("my-slug"), version = None).futureValue shouldBe Seq(
         sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0)),
@@ -63,9 +63,9 @@ class SlugInfoRepositorySpec
       )
 
     "manage by flag" in:
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))   , environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))   , environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("other-slug"), Version(1, 0, 0)), environments = Set.empty).futureValue
       repository.setFlag(SlugInfoFlag.Latest, ServiceName("my-slug"), Version(1, 1, 0)).futureValue
       repository.setFlag(SlugInfoFlag.Latest, ServiceName("other-slug"), Version(1, 0, 0)).futureValue
 
@@ -82,10 +82,10 @@ class SlugInfoRepositorySpec
       repository.getAllLatestSlugInfos().futureValue shouldBe Seq.empty
 
     "return the max version" in:
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 1))).futureValue
-      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 0))).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 1, 0)), environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 0, 0)), environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 1)), environments = Set.empty).futureValue
+      repository.add(sampleSlugInfo(ServiceName("my-slug"), Version(1, 4, 0)), environments = Set.empty).futureValue
 
       repository.getMaxVersion(ServiceName("my-slug")).futureValue shouldBe Some(Version(1, 4, 1))
 

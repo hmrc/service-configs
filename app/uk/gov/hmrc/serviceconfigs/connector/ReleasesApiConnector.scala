@@ -47,6 +47,11 @@ class ReleasesApiConnector @Inject()(
       .get(url"$serviceUrl/releases-api/whats-running-where")
       .execute[Seq[ServiceDeploymentInformation]]
 
+  def getWhatsRunningWhere(serviceName: ServiceName)(using hc: HeaderCarrier): Future[Option[ServiceDeploymentInformation]] =
+    httpClientV2
+      .get(url"$serviceUrl/releases-api/whats-running-where/${serviceName.asString}")
+      .execute[Option[ServiceDeploymentInformation]]
+
 object ReleasesApiConnector:
   case class DeploymentConfigFile(
     repoName: RepoName,

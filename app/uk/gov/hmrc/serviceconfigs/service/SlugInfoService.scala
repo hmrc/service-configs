@@ -53,7 +53,7 @@ class SlugInfoService @Inject()(
   def updateMetadata()(using hc: HeaderCarrier): Future[Unit] =
     for
       serviceNames           <- slugInfoRepository.getUniqueSlugNames()
-      serviceDeploymentInfos <- releasesApiConnector.getWhatsRunningWhere()
+      releases               <- releasesApiConnector.getWhatsRunningWhere()
       activeRepos            <- teamsAndReposConnector.getRepos(archived = Some(false))
                                   .map(_.map(r => ServiceName(r.repoName.asString)))
       decommissionedServices <- teamsAndReposConnector.getDecommissionedServices()
@@ -63,9 +63,9 @@ class SlugInfoService @Inject()(
       inactiveServices       =  latestServices // check if deployed too since repo name may not match service name
                                   .diff(activeRepos)
                                   .filterNot: serviceName =>
-                                    serviceDeploymentInfos.exists(x => x.serviceName == serviceName && x.deployments.nonEmpty)
+                                    releases.exists(x => x.serviceName == serviceName && x.deployments.nonEmpty)
       allServiceDeployments  =  serviceNames.map { serviceName =>
-                                  val deployments      = serviceDeploymentInfos.find(_.serviceName == serviceName).map(_.deployments)
+                                  val deployments      = releases.find(_.serviceName == serviceName).map(_.deployments)
                                   val deploymentsByEnv = Environment
                                                            .values
                                                            .toList
@@ -125,7 +125,10 @@ class SlugInfoService @Inject()(
     hc: HeaderCarrier
   ): Future[Boolean] =
     deploymentEventRepository.findDeploymentEvent(deployment.deploymentId).flatMap:
-      case Some(_) => Future.successful(false) // Deployment already exists - added == false
+      case Some(_) =>
+        for
+          _ <- slugInfoRepository.setFlag(SlugInfoFlag.ForEnvironment(env), serviceName, deployment.version) // ensure the flag is correct
+        yield false // Deployment already exists - added == false
       case None    =>
         for
           previousDeploymentInfo <- deployedConfigRepository.find(serviceName, env)
