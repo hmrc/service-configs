@@ -94,5 +94,11 @@
     "artefactName": "sa-filing-2425-helpdesk",
     "repoName": "sa-filing-2425",
     "disabled": false
+  },
+  {
+    "serviceName": "sa-filing-2526-helpdesk",
+    "artefactName": "sa-filing-2526-helpdesk",
+    "repoName": "sa-filing-2526",
+    "disabled": false
   }
 ]
