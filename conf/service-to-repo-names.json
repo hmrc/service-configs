@@ -57,7 +57,7 @@
     "serviceName": "sa-filing-2021-helpdesk",
     "artefactName": "sa-filing-2021-helpdesk",
     "repoName": "sa-filing-2021",
-    "disabled": false
+    "disabled": true
   },
   {
     "serviceName": "sa-filing-2122-helpdesk",
