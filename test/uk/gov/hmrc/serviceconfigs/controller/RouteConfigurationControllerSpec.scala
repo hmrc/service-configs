@@ -281,7 +281,7 @@ class RouteConfigurationControllerSpec
   "shuttering-routes/:environment" should:
     "return frontend routes for shuttering" in new Setup:
       // when isDevhub equals false route type is a Frontend
-      when(mockFrontendRouteRepository.findRoutes(None, Some(Environment.Production), isDevhub = Some(false)))
+      when(mockFrontendRouteRepository.findRoutes(None, Some(Environment.Production), isDevhub = None))
         .thenReturn(
           Future.successful(
             Seq(
