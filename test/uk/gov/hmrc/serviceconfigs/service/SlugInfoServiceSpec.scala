@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.serviceconfigs.service
 
-import org.mockito.ArgumentMatchers.{any, eq => eqTo}
+import org.mockito.ArgumentMatchers.{any, eq as eqTo}
 import org.mockito.Mockito.{never, verify, when}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
@@ -26,9 +26,11 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.serviceconfigs.connector.ReleasesApiConnector.{Deployment, DeploymentConfigFile, ServiceDeploymentInformation}
 import uk.gov.hmrc.serviceconfigs.connector.TeamsAndRepositoriesConnector.Repo
 import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.serviceconfigs.model._
+import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
-import uk.gov.hmrc.serviceconfigs.persistence._
+import uk.gov.hmrc.serviceconfigs.persistence.*
+import uk.gov.hmrc.serviceconfigs.persistence.DeployedConfigRepository.DeployedConfig
+import uk.gov.hmrc.serviceconfigs.persistence.DeploymentEventRepository.DeploymentEvent
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries, RenderedConfigSourceValue}
 
 import java.time.temporal.ChronoUnit
@@ -494,7 +496,7 @@ class SlugInfoServiceSpec
 
     """Not update deployedConfig when:
     |  1. the latest Deployment configId is the same as that of the current deployedConfig,
-    |  2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp""".stripMargin in new Setup:
+    |  2. the current deployedConfig lastUpdated timestamp is AFTER the latest Deployment dataTimestamp""".stripMargin in new Setup:
       val serviceName1 = ServiceName("service1")
 
       when(mockedConfigService.configSourceEntries(any[ConfigEnvironment], any[ServiceName], any[Option[Version]], any[Boolean])(using any[HeaderCarrier]))
@@ -523,7 +525,7 @@ class SlugInfoServiceSpec
               appConfigBase   = Some("content1"),
               appConfigCommon = Some("content2"),
               appConfigEnv    = Some("content3"),
-              lastUpdated     = now.minus(5, ChronoUnit.MINUTES)
+              lastUpdated     = now
             )
           )
         ))
@@ -532,7 +534,7 @@ class SlugInfoServiceSpec
         DeploymentConfigFile(repoName = RepoName("app-config-base")      , fileName = FileName("service1.conf")                , commitId = CommitId("1")),
         DeploymentConfigFile(repoName = RepoName("app-config-common")    , fileName = FileName("qa-microservice-common")       , commitId = CommitId("2")),
         DeploymentConfigFile(repoName = RepoName("app-config-qa")        , fileName = FileName("service1.yaml")                , commitId = CommitId("3"))
-      ), lastDeployed = now)
+      ), lastDeployed = now.minus(5, ChronoUnit.MINUTES))
 
       service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
 
@@ -574,6 +576,37 @@ class SlugInfoServiceSpec
       service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1)
         .futureValue should be (false)
 
+    """Update deployedConfig when:
+    |  1. the latest Deployment configId is the same as that of the current deployedConfig,
+    |  2. the current deployedConfig lastUpdated timestamp is BEFORE the latest Deployment dataTimestamp""".stripMargin in  new SetupUpdateDeployment:
+      when(mockedDeployedConfigRepository.find(serviceName = serviceName1, environment = Environment.QA))
+        .thenReturn(Future.successful(
+          Some(
+            DeployedConfigRepository.DeployedConfig(
+              serviceName = serviceName1,
+              environment = Environment.QA,
+              deploymentId = "deploymentId1",
+              configId = "service1_1.0.0_app-config-base_1_app-config-common_2_app-config-qa_3",
+              appConfigBase = Some("content1"),
+              appConfigCommon = Some("content2"),
+              appConfigEnv = Some("content3"),
+              lastUpdated = now.minus(5, ChronoUnit.MINUTES)
+            )
+          )
+        ))
+
+      service.updateDeployment(env = Environment.QA, deployment = newDeployment, serviceName = serviceName1).futureValue
+
+      verify(mockedDeployedConfigRepository).put(DeployedConfigRepository.DeployedConfig(
+        serviceName = serviceName1,
+        environment = Environment.QA,
+        deploymentId = "deploymentId1",
+        configId = "service1_1.0.0_app-config-base_1_app-config-common_2_app-config-qa_3",
+        appConfigBase = Some("content1"),
+        appConfigCommon = Some("content2"),
+        appConfigEnv = Some("content3"),
+        lastUpdated = now
+      ))
 
   trait Setup:
     val mockedSlugInfoRepository         = mock[SlugInfoRepository]

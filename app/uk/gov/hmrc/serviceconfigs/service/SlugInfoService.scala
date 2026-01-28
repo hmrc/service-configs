@@ -142,10 +142,17 @@ class SlugInfoService @Inject()(
                                         , None // first deployment - config change n/a
                                         )
                                       case Some(config) if config.configId == deployment.configId =>
-                                        logger.info(s"No change in configId, no need to update for ${serviceName.asString} ${deployment.version} in $env")
-                                        ( false
-                                        , Some(false) // config hasn't changed
-                                        )
+                                        val slugChanged = config.lastUpdated.isBefore(deployment.lastDeployed)
+                                        if slugChanged then
+                                          logger.info(s"Same configId but new slug detected, updating deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env")
+                                          ( true
+                                          , Some(true) // this actually means we need to calculate if the config has changed because we could have missed a deployment
+                                          )
+                                        else
+                                          logger.info(s"No change in configId, no need to update for ${serviceName.asString} ${deployment.version} in $env")
+                                          ( false
+                                          , Some(false) // config hasn't changed
+                                          )
                                       case Some(config) if config.lastUpdated.isAfter(deployment.lastDeployed) =>
                                         logger.info(s"Detected a change in configId, but not updating the deployedConfig repository for ${serviceName.asString} ${deployment.version} in $env, " +
                                           s"as the latest update occurred after the current process began.")
