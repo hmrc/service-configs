@@ -48,7 +48,7 @@ class AlertConfigService @Inject()(
       previousHash  <- EitherT.right[Unit](lastHashRepository.getHash(hashKey).map(_.getOrElse("")))
       oHash         =  Option.when(currentHash != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates, current alert config hash matches previous alert config hash"))
-      jsonZip       <- EitherT.right[Unit](artifactoryConnector.getSensuZip())
+      jsonZip       <- EitherT.right[Unit](artifactoryConnector.getAlertZip())
       alertConfig   =  processZip(jsonZip)
       _             =  jsonZip.close()
       _             <- EitherT.fromOption[Future](alertConfig.serviceConfigs.headOption, logger.error("No service alert config found"))

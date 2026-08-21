@@ -45,7 +45,7 @@ class AlertConfigServiceSpec
     "update configs when run for the first time" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test1")))
       when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(None))
-      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
+      when(mockArtifactoryConnector.getAlertZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test1")).thenReturn(Future.unit)
@@ -60,7 +60,7 @@ class AlertConfigServiceSpec
     "update configs when Artifactory returns a new Hash" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()              ).thenReturn(Future.successful(Some("Test2")))
       when(mockLastHashRepository.getHash("alert-config")        ).thenReturn(Future.successful(Some("Test1")))
-      when(mockArtifactoryConnector.getSensuZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
+      when(mockArtifactoryConnector.getAlertZip()                ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/output.zip").openStream())))
       when(mockConfigAsCodeConnector.streamAlertConfig()         ).thenReturn(Future.successful(ZipInputStream(this.getClass.getResource("/alert-config.zip").openStream())))
       when(mockAlertEnvironmentHandlerRepository.putAll(any)     ).thenReturn(Future.unit)
       when(mockLastHashRepository.update("alert-config", "Test2")).thenReturn(Future.unit)

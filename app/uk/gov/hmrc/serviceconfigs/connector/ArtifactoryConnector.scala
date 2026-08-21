@@ -45,12 +45,12 @@ class ArtifactoryConnector @Inject()(
 
   private given HeaderCarrier = HeaderCarrier()
 
-  def getSensuZip(): Future[ZipInputStream] =
-    stream(url"$artifactoryUrl/artifactory/webstore/sensu-config/output.zip")
+  def getAlertZip(): Future[ZipInputStream] =
+    stream(url"$artifactoryUrl/artifactory/webstore/alert-config/output.zip")
 
   def getLatestHash(): Future[Option[String]] =
     httpClientV2
-      .head(url"$artifactoryUrl/artifactory/webstore/sensu-config/output.zip")
+      .head(url"$artifactoryUrl/artifactory/webstore/alert-config/output.zip")
       .transform(_.withRequestTimeout(20.seconds))
       .execute[HttpResponse]
       .map(_.header("x-checksum-sha256"))
