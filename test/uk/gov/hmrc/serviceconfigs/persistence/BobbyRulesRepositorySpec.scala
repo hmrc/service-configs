@@ -19,7 +19,7 @@ package uk.gov.hmrc.serviceconfigs.persistence
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
-import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
+import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules, Exemption}
 
 import java.time.LocalDate
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -42,7 +42,10 @@ class BobbyRulesRepositorySpec
             range          = "(,3.1.0)",
             reason         = "reason1",
             from           = LocalDate.parse("2015-11-01"),
-            exemptProjects = Seq("service-one-frontend", "service-two-front-end")
+            exemptProjects = Seq(
+              Exemption("service-one-frontend", None),
+              Exemption("service-two-front-end", None)
+            )
           )),
           plugins   = Seq(BobbyRule(
             organisation = "uk.gov.hmrc",

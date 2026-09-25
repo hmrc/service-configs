@@ -17,7 +17,17 @@
 package uk.gov.hmrc.serviceconfigs.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, __}
+import play.api.libs.json.{
+  Format,
+  JsError,
+  JsObject,
+  JsResult,
+  JsString,
+  JsSuccess,
+  JsValue,
+  Json,
+  __
+}
 
 import java.time.LocalDate
 
@@ -26,8 +36,33 @@ case class BobbyRules(
   plugins  : Seq[BobbyRule]
 )
 
+object Exemption:
+
+  def format(using localDateFormat: Format[LocalDate]): Format[Exemption] =
+    new Format[Exemption]:
+      override def reads(json: JsValue): JsResult[Exemption] =
+        json match
+          case JsString(projectName) =>
+            JsSuccess(
+              Exemption(
+                projectName = projectName,
+                expiryDate = None
+              )
+            )
+          case obj: JsObject =>
+            given Format[LocalDate] = localDateFormat
+            Json.format[Exemption].reads(obj)
+          case _ =>
+            JsError("Exemption must be a project name or an exemption object")
+
+      override def writes(exemption: Exemption): JsValue =
+        given Format[LocalDate] = localDateFormat
+        Json.format[Exemption].writes(exemption)
+
 object BobbyRules:
   private def bobbyRuleFormat(using Format[LocalDate]): Format[BobbyRule] =
+    given Format[Exemption] = Exemption.format
+
     ( (__ \ "organisation"  ).format[String]
     ~ (__ \ "name"          ).format[String]
     ~ (__ \ "range"         ).format[String]
@@ -37,7 +72,7 @@ object BobbyRules:
                              )
     ~ (__ \ "reason"        ).format[String]
     ~ (__ \ "from"          ).format[LocalDate]
-    ~ (__ \ "exemptProjects").formatWithDefault[Seq[String]](Seq.empty)
+    ~ (__ \ "exemptProjects").formatWithDefault[Seq[Exemption]](Seq.empty)
     )(BobbyRule.apply, pt => Tuple.fromProductTyped(pt))
 
   val mongoFormat: Format[BobbyRules] =
@@ -57,11 +92,18 @@ case class BobbyVersion(
   inclusive: Boolean
 )
 
+final case class Exemption(
+   projectName: String,
+   expiryDate : Option[LocalDate]
+                          )
+
+
+
 final case class BobbyRule(
   organisation: String,
   name        : String,
   range       : String,
   reason      : String,
   from        : LocalDate,
-  exemptProjects: Seq[String] = Seq.empty
+  exemptProjects: Seq[Exemption] = Seq.empty
 )
