@@ -130,7 +130,7 @@ class BobbyRulesControllerSpec
       val result = Json.fromJson[BobbyRules](json)(BobbyRules.apiFormat)
       result shouldBe JsSuccess(expected)
 
-    "deserialize legacy exemption format (strings) into Exemption objects for backward compatibility" in new Setup:
+    "support legacy string exemptions" in new Setup:
       val legacyJson = Json.parse(
         s"""{
           "libraries": [ {
@@ -164,7 +164,7 @@ class BobbyRulesControllerSpec
         )
       )
 
-    "deserialize new exemption format (objects with expiryDate) into Exemption objects" in new Setup:
+    "support exemptions with expiry dates" in new Setup:
       val newFormatJson = Json.parse(
         s"""{
           "libraries": [ {
