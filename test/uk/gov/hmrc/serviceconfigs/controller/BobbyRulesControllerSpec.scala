@@ -22,7 +22,7 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
-import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules}
+import uk.gov.hmrc.serviceconfigs.model.{BobbyRule, BobbyRules, Exemption}
 import uk.gov.hmrc.serviceconfigs.service._
 import play.api.libs.json._
 import play.api.test.FakeRequest
@@ -129,6 +129,79 @@ class BobbyRulesControllerSpec
 
       val result = Json.fromJson[BobbyRules](json)(BobbyRules.apiFormat)
       result shouldBe JsSuccess(expected)
+
+    "support legacy string exemptions" in new Setup:
+      val legacyJson = Json.parse(
+        s"""{
+          "libraries": [ {
+            "organisation"  : "uk.gov.hmrc",
+            "name"          : "test-lib",
+            "range"         : "(,1.0.0)",
+            "reason"        : "test reason",
+            "from"          : "2026-01-01",
+            "exemptProjects" : [ "service-one-frontend", "service-two-frontend" ]
+          } ],
+          "plugins": [ ]
+        }"""
+      )
+
+      val result = Json.fromJson[BobbyRules](legacyJson)(BobbyRules.apiFormat)
+
+      result shouldBe JsSuccess(
+        BobbyRules(
+          libraries = Seq(BobbyRule(
+            organisation = "uk.gov.hmrc",
+            name = "test-lib",
+            range = "(,1.0.0)",
+            reason = "test reason",
+            from = LocalDate.parse("2026-01-01"),
+            exemptProjects = Seq(
+              Exemption("service-one-frontend", None),
+              Exemption("service-two-frontend", None)
+            )
+          )),
+          plugins = Seq.empty
+        )
+      )
+
+    "support exemptions with expiry dates" in new Setup:
+      val newFormatJson = Json.parse(
+        s"""{
+          "libraries": [ {
+            "organisation"  : "uk.gov.hmrc",
+            "name"          : "test-lib",
+            "range"         : "(,1.0.0)",
+            "reason"        : "test reason",
+            "from"          : "2026-01-01",
+            "exemptProjects" : [ {
+              "projectName" : "service-one-frontend",
+              "expiryDate"  : "2027-01-31"
+            }, {
+              "projectName" : "service-two-frontend"
+            } ]
+          } ],
+          "plugins": [ ]
+        }"""
+      )
+
+      val result = Json.fromJson[BobbyRules](newFormatJson)(BobbyRules.apiFormat)
+
+      result shouldBe JsSuccess(
+        BobbyRules(
+          libraries = Seq(BobbyRule(
+            organisation = "uk.gov.hmrc",
+            name = "test-lib",
+            range = "(,1.0.0)",
+            reason = "test reason",
+            from = LocalDate.parse("2026-01-01"),
+            exemptProjects = Seq(
+              Exemption("service-one-frontend", Some(LocalDate.parse("2027-01-31"))),
+              Exemption("service-two-frontend", None)
+            )
+          )),
+          plugins = Seq.empty
+        )
+      )
 
   trait Setup:
     given ActorSystem = ActorSystem()
