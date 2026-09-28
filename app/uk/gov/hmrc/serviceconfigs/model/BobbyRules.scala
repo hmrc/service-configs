@@ -56,8 +56,12 @@ object Exemption:
             JsError("Exemption must be a project name or an exemption object")
 
       override def writes(exemption: Exemption): JsValue =
-        given Format[LocalDate] = localDateFormat
-        Json.format[Exemption].writes(exemption)
+        exemption.expiryDate match
+          case None =>
+            JsString(exemption.projectName)
+          case Some(_) =>
+            given Format[LocalDate] = localDateFormat
+            Json.format[Exemption].writes(exemption)
 
 object BobbyRules:
   private def bobbyRuleFormat(using Format[LocalDate]): Format[BobbyRule] =
