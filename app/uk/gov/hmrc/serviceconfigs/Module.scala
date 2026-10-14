@@ -18,7 +18,7 @@ package uk.gov.hmrc.serviceconfigs
 
 import play.api.inject.Binding
 import play.api.{Configuration, Environment, Logger}
-import uk.gov.hmrc.serviceconfigs.notification.{DeploymentDeadLetterHandler, DeploymentHandler, SlugDeadLetterHandler, SlugHandler}
+import uk.gov.hmrc.serviceconfigs.notification.{DeploymentHandler, SlugHandler}
 import uk.gov.hmrc.serviceconfigs.parser.{NginxRouteParser, NginxConfigParser}
 import uk.gov.hmrc.serviceconfigs.scheduler._
 
@@ -31,10 +31,8 @@ class Module extends play.api.inject.Module:
   private def ecsDeploymentsBindings(configuration: Configuration): Seq[Binding[_]] =
     if configuration.get[Boolean]("aws.sqs.enabled") then
       Seq(
-        bind[DeploymentHandler          ].toSelf.eagerly()
-      , bind[DeploymentDeadLetterHandler].toSelf.eagerly()
-      , bind[SlugHandler                ].toSelf.eagerly()
-      , bind[SlugDeadLetterHandler      ].toSelf.eagerly()
+        bind[DeploymentHandler].toSelf.eagerly()
+      , bind[SlugHandler      ].toSelf.eagerly()
       )
     else
       logger.warn("SQS handlers are disabled")
