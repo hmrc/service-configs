@@ -131,6 +131,11 @@ class NginxConfigParser @Inject()(
     def comment: Parser[COMMENT] =
       accept("comment", { case c@COMMENT(_) => c })
 
+    def internalParameter: Parser[PARAM] =
+      // The lexer emits a VALUE when there is no space after the directive name.
+      // Commit after "internal" so invalid arguments cannot fall through to parameter1.
+      ((accept(KEYWORD("internal")) | accept(VALUE("internal"))) ~! SEMICOLON()) ^^^ OTHER_PARAM("internal")
+
     def parameter1: Parser[PARAM] =
       (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
         case KEYWORD("proxy_pass") ~ List(v)          => PROXY_PASS(v.value)
@@ -154,7 +159,7 @@ class NginxConfigParser @Inject()(
       }
 
     def parameter: Parser[PARAM] =
-      parameter1 | parameter2 | paramaterViaComment
+      internalParameter | parameter1 | parameter2 | paramaterViaComment
 
     def block: Parser[List[NGINX_AST]] =
       rep1(parameter | context)
