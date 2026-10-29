@@ -84,6 +84,48 @@ class NginxConfigParserSpec
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
       cfg shouldBe Nil
 
+    "parse an internal redirect without a proxy_pass" in:
+      val config =
+        """location = /devhub-404-page {
+          |  internal;
+          |  return 302 https://developer.service.hmrc.gov.uk/devhub-support/page-not-found;
+          |}""".stripMargin
+
+      NginxConfigParser(nginxConfig).parseConfig(config) shouldBe Right(Nil)
+
+    "parse internal proxy routes with whitespace before the semicolon" in:
+      for directive <- Seq("internal;", "internal ;", "internal\t;") do
+        val config =
+          s"""location /internal {
+             |  $directive
+             |  proxy_pass https://test-frontend.public.local;
+             |}
+             |location /public {
+             |  proxy_pass https://public-frontend.public.local;
+             |}""".stripMargin
+
+        withClue(s"Directive: $directive: "):
+          NginxConfigParser(nginxConfig).parseConfig(config) shouldBe Right(List(
+            NginxRouteConfig("/internal", "https://test-frontend.public.local"),
+            NginxRouteConfig("/public", "https://public-frontend.public.local")
+          ))
+
+    "reject an internal directive without a semicolon" in:
+      val config =
+        """location /internal {
+          |  internal
+          |}""".stripMargin
+
+      NginxConfigParser(nginxConfig).parseConfig(config).isLeft shouldBe true
+
+    "reject an internal directive with arguments" in:
+      val config =
+        """location /internal {
+          |  internal on;
+          |}""".stripMargin
+
+      NginxConfigParser(nginxConfig).parseConfig(config).isLeft shouldBe true
+
     "parse s3 proxy_pass routes" in:
       val config =
         """
