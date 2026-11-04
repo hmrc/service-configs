@@ -204,7 +204,7 @@ trait ConfigParser extends Logging:
       .entrySet
       .asScala
       .foreach: e =>
-        if e.getKey.toString.startsWith(prefix) then
+        if e.getKey.toString.startsWith(prefix) || e.getKey.toString == "dynatrace_enabled" then
           newProps.setProperty(e.getKey.toString.replace(prefix, ""), e.getValue.toString)
 
     val config = ConfigFactory.parseProperties(newProps)
