@@ -20,6 +20,7 @@ import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.serviceconfigs.config.NginxConfig
 import uk.gov.hmrc.serviceconfigs.model.{NginxRouteConfig, ShutterSwitch}
 
+import scala.util.matching.Regex
 import scala.util.parsing.combinator.{Parsers, RegexParsers}
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
@@ -88,6 +89,8 @@ class NginxConfigParser @Inject()(
         .collect { case c: MARKER_COMMENT => c.comment }
         .toSet
 
+    private val nginxVariable = """\$[a-zA-Z0-9_]+""".r
+
     def locToRoute(loc: LOCATION): Option[NginxRouteConfig] =
       val ifs = loc.body.collect { case ib: IFBLOCK => ib }
 
@@ -95,9 +98,14 @@ class NginxConfigParser @Inject()(
       val shutterServiceSwitch = extractShutterSwitch(ifs)
       val markerComments = extractMarkerComments(loc)
 
+      // Resolve `set $var value;` so `proxy_pass https://$var;` reports the real upstream, e.g. https://foo.public.mdtp
+      val vars = loc.body.collect { case SET(name, v) => name -> v }.toMap
+
       loc.body
         .collectFirst:
           case pp: PROXY_PASS => pp.url
+        .map: url =>
+          nginxVariable.replaceAllIn(url, m => Regex.quoteReplacement(vars.getOrElse(m.matched, m.matched)))
         .map: proxy =>
           NginxRouteConfig(
             frontendPath         = loc.path,
@@ -117,6 +125,7 @@ class NginxConfigParser @Inject()(
     case class ERROR_PAGE(code: Int, path: String)       extends PARAM
     case class REWRITE(rule: String)                     extends PARAM
     case class PROXY_PASS(url: String)                   extends PARAM
+    case class SET(name: String, value: String)          extends PARAM
     case class RETURN(code: Int, url: Option[String])    extends PARAM
     case class MARKER_COMMENT(comment: String)           extends PARAM
     case class OTHER_PARAM(key: String, params: String*) extends PARAM
@@ -139,6 +148,7 @@ class NginxConfigParser @Inject()(
     def parameter1: Parser[PARAM] =
       (keyword ~ rep1(value) <~ SEMICOLON()) ^^ {
         case KEYWORD("proxy_pass") ~ List(v)          => PROXY_PASS(v.value)
+        case KEYWORD("set")        ~ List(n, v)       => SET(n.value, v.value)
         case KEYWORD("return")     ~ List(code, url)  => RETURN(code.value.toInt, Some(url.value))
         case KEYWORD("return")     ~ List(code)       => RETURN(code.value.toInt, None)
         case KEYWORD("error_page") ~ List(code, page) => ERROR_PAGE(code.value.toInt, page.value)
