@@ -151,6 +151,57 @@ class NginxConfigParserSpec
       val cfg = NginxConfigParser(nginxConfig).parseConfig(config).value
       cfg.head shouldBe NginxRouteConfig("/lol", "https://lol-frontend.public.local")
 
+    "resolve a variable proxy_pass from its set directive" in:
+      val config =
+        """location /tax-credits-service {
+          |  if ( -f /etc/nginx/switches/mdtp/offswitch ) {
+          |    return 503;
+          |  }
+          |
+          |  if ( -f /etc/nginx/switches/mdtp/tcs-frontend ) {
+          |    error_page 503 /shuttered/tcs-frontend;
+          |    return 503;
+          |  }
+          |
+          |  set $dynamic_upstream tcs-frontend.public.mdtp;
+          |  proxy_redirect https://tcs-frontend.public.mdtp/ /;
+          |  proxy_pass https://$dynamic_upstream;
+          |}
+          |
+          |location ~ ^/portal-content-static/ {
+          |  set $dynamic_upstream portal-content-proxy.public.mdtp;
+          |  proxy_redirect https://portal-content-proxy.public.mdtp/files/ /portal-content-static/;
+          |  proxy_pass https://$dynamic_upstream;
+          |  rewrite "(?s)^/portal\-content\-static/(.*)" /files/$1 break;
+          |}""".stripMargin
+
+      NginxConfigParser(nginxConfig).parseConfig(config) shouldBe Right(List(
+        NginxRouteConfig(
+          "/tax-credits-service",
+          "https://tcs-frontend.public.mdtp",
+          shutterKillswitch    = Some(ShutterSwitch("/etc/nginx/switches/mdtp/offswitch", Some(503))),
+          shutterServiceSwitch = Some(ShutterSwitch("/etc/nginx/switches/mdtp/tcs-frontend", Some(503), Some("/shuttered/tcs-frontend"), None))
+        ),
+        NginxRouteConfig("^/portal-content-static/", "https://portal-content-proxy.public.mdtp", isRegex = true)
+      ))
+
+    "only resolve variables set in the same location" in:
+      val config =
+        """location /a {
+          |  set $upstream a-frontend.public.mdtp;
+          |  set $up wrong.public.mdtp;
+          |  proxy_pass https://$upstream;
+          |}
+          |
+          |location /b {
+          |  proxy_pass https://$upstream;
+          |}""".stripMargin
+
+      NginxConfigParser(nginxConfig).parseConfig(config) shouldBe Right(List(
+        NginxRouteConfig("/a", "https://a-frontend.public.mdtp"),
+        NginxRouteConfig("/b", "https://$upstream")
+      ))
+
     "parse a shutter killswitch" in:
       val config =
         """location /lol {
