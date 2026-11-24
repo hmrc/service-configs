@@ -61,8 +61,8 @@ class ConfigAsCodeConnector @Inject()(
   def streamAlertConfig(): Future[ZipInputStream] =
     streamGithub(RepoName("alert-config"))
 
-  def streamFrontendRoutes(): Future[ZipInputStream] =
-    streamGithub(RepoName("mdtp-frontend-routes"))
+  def streamFrontendRoutes(branch: String): Future[ZipInputStream] =
+    streamGithub(RepoName("mdtp-frontend-routes"), branch)
 
   def streamUpscanAppConfig(): Future[ZipInputStream] =
     streamGithub(RepoName("upscan-app-config"))
