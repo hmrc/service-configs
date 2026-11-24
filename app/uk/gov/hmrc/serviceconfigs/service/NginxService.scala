@@ -50,7 +50,7 @@ class NginxService @Inject()(
   def update(environments: List[Environment]): Future[Unit] =
     for
       _          <- Future.successful(logger.info(s"Update started..."))
-      yamlConfig <- configAsCodeConnector.streamFrontendRoutes().map(getYamlRoutesFromZip)
+      yamlConfig <- configAsCodeConnector.streamFrontendRoutes(nginxConfig.configRepoBranch).map(getYamlRoutesFromZip)
       _          <- environments.traverse: environment =>
                       val yamlRoutes = yamlConfig.filter(_.environment == environment)
                       updateNginxRoutesForEnv(environment, yamlRoutes).recover:
@@ -70,7 +70,7 @@ class NginxService @Inject()(
       .foldLeft(Set.empty[MongoFrontendRoute]):
         (acc, entry) =>
           val path         = entry.getName.drop(entry.getName.indexOf('/') + 1)
-          lazy val branch  = "main"
+          lazy val branch  = nginxConfig.configRepoBranch
           lazy val url     = s"${githubConfig.githubRawUrl}/hmrc/mdtp-frontend-routes/$branch/$path"
           lazy val blobUrl = s"https://github.com/hmrc/mdtp-frontend-routes/blob/$branch/$path"
           lazy val content = Source.fromInputStream(zip).mkString

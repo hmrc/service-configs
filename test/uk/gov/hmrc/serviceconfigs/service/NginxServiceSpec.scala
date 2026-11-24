@@ -114,7 +114,8 @@ class NginxServiceSpec
           NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
         ))
 
-      when(cacConnector.streamFrontendRoutes())
+      when(nginxConfig.configRepoBranch).thenReturn("INFRA-9098")
+      when(cacConnector.streamFrontendRoutes("INFRA-9098"))
         .thenReturn(Future.successful(
           ZipInputStream(this.getClass.getResource("/empty-mdtp-frontend-routes.zip").openStream())
         ))
@@ -127,7 +128,7 @@ class NginxServiceSpec
 
       verify(repo, times(1)).replaceEnv(any, any)
       verify(nginxConnector, times(envs.length)).getNginxRoutesFile(any, any)
-      verify(cacConnector, times(1)).streamFrontendRoutes()
+      verify(cacConnector, times(1)).streamFrontendRoutes("INFRA-9098")
       verify(yamlParser, times(0)).parseConfig(any)
 
     "parse configs from nginx and yaml and save the result" in:
@@ -145,7 +146,8 @@ class NginxServiceSpec
           NginxConfigFile(environment = Environment.Production, "", testConfig, branch = "HEAD")
         ))
 
-      when(cacConnector.streamFrontendRoutes())
+      when(nginxConfig.configRepoBranch).thenReturn("INFRA-9098")
+      when(cacConnector.streamFrontendRoutes("INFRA-9098"))
         .thenReturn(Future.successful(
           ZipInputStream(this.getClass.getResource("/mdtp-frontend-routes.zip").openStream())
         ))
@@ -157,7 +159,7 @@ class NginxServiceSpec
 
       verify(repo, times(1)).replaceEnv(any, any)
       verify(nginxConnector, times(1)).getNginxRoutesFile(any, any)
-      verify(cacConnector, times(1)).streamFrontendRoutes()
+      verify(cacConnector, times(1)).streamFrontendRoutes("INFRA-9098")
       verify(yamlParser, times(3)).parseConfig(any) // there's 3 yaml files in mdtp-frontend-routes.zip
 
   "NginxService.parseConfig" should:
