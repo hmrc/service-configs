@@ -26,6 +26,7 @@ import uk.gov.hmrc.serviceconfigs.util.{YamlUtil, ZipUtil}
 import java.util.zip.ZipInputStream
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 @Singleton
 class AlertConfigService @Inject()(
@@ -49,11 +50,16 @@ class AlertConfigService @Inject()(
       oHash         =  Option.when(currentHash != previousHash)(currentHash)
       hash          <- EitherT.fromOption[Future](oHash, logger.info("No updates, current alert config hash matches previous alert config hash"))
       jsonZip       <- EitherT.right[Unit](artifactoryConnector.getAlertZip())
-      alertConfig   =  processZip(jsonZip)
+      alertConfig   <- EitherT(
+                        Future.successful(
+                          Try(processZip(jsonZip)).toEither.left.map: ex =>
+                            logger.error("Failed to process zip", ex)
+                            ()
+                        )
+                      )
       _             =  jsonZip.close()
       _             <- EitherT.fromOption[Future](alertConfig.serviceConfigs.headOption, logger.error("No service alert config found"))
-      _             <- EitherT.fromOption[Future](alertConfig.productionHandlers.headOption , logger.error("No production handler config found"))
-      _             =  logger.info(s"Alert config contains ${alertConfig.serviceConfigs.size} services and ${alertConfig.productionHandlers.size} production handlers")
+      _             =  logger.info(s"Alert config contains ${alertConfig.serviceConfigs.size} services")
       regex         =  """src/main/scala/uk/gov/hmrc/alertconfig/configs/(.*).scala""".r
       blob          =  "https://github.com/hmrc/alert-config/blob"
       repoNames     =  alertConfig.serviceConfigs.map(x => RepoName(x.serviceName.asString))
@@ -70,18 +76,11 @@ class AlertConfigService @Inject()(
      yield ()
     ).merge
 
-  def findConfigs(): Future[Seq[AlertEnvironmentHandler]] =
-    alertEnvironmentHandlerRepository.findAll()
-
-  def findConfigByServiceName(serviceName: ServiceName): Future[Option[AlertEnvironmentHandler]] =
-    alertEnvironmentHandlerRepository.findByServiceName(serviceName)
-
 object AlertConfigService:
-  import play.api.libs.json.{Json, JsValue, Reads, __}
+  import play.api.libs.json.{JsValue, Reads, __}
   import play.api.libs.functional.syntax._
 
   case class PagerDutyKey(asString: String)
-  private given Reads[PagerDutyKey] = summon[Reads[String]].map(PagerDutyKey.apply)
 
 
   case class ServiceConfig(
@@ -97,13 +96,8 @@ object AlertConfigService:
     )(ServiceConfig.apply _)
 
   case class Handler(command: String)
-
-  private given Reads[Handler] =
-    Reads.at[String]((__ \ "command")).map(Handler.apply)
-
   case class AlertConfig(
     serviceConfigs    : Seq[ServiceConfig]        = Seq.empty,
-    productionHandlers: Map[PagerDutyKey, Handler] = Map.empty
   )
 
   def processZip(zip: ZipInputStream): AlertConfig =
@@ -114,7 +108,6 @@ object AlertConfigService:
         (config, entry) =>
           entry.getName match
             case p if p.startsWith("target/output/services.yml")                 => config.copy(serviceConfigs     = (YamlUtil.fromYaml[JsValue](read(zip)) \ "services").as[Seq[ServiceConfig]])
-            case p if p.startsWith("target/output/handlers/aws_production.json") => config.copy(productionHandlers = (Json.parse(ZipUtil.NonClosableInputStream(zip)) \ "handlers").as[Map[PagerDutyKey, Handler]])
             case _                                                               => config
 
   def toAlertEnvironmentHandler(alertConfig: AlertConfig, locations: Seq[(RepoName, String)]): Seq[AlertEnvironmentHandler] =
@@ -124,7 +117,6 @@ object AlertConfigService:
                          case (name, location) if name.asString == serviceConfig.serviceName.asString => location
     yield AlertEnvironmentHandler(
       serviceName = serviceConfig.serviceName
-    , production  = serviceConfig.pagerdutyKeys.exists(key => alertConfig.productionHandlers.get(key).exists(!_.command.contains("noop.rb")))
     , location    = location
     )
 
