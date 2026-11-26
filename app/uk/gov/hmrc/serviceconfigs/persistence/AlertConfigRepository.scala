@@ -55,9 +55,3 @@ class AlertEnvironmentHandlerRepository @Inject()(
     collection
       .find(Filters.equal("serviceName", serviceName))
       .headOption()
-
-  def findAll(): Future[Seq[AlertEnvironmentHandler]] =
-    collection
-      .find()
-      .toFuture()
-      .map(_.toList)

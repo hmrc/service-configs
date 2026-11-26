@@ -24,7 +24,7 @@ import org.mongodb.scala.bson.BsonDocument
 import play.api.libs.json.{Format, JsError, Json, JsObject, JsValue, Reads}
 import play.api.mvc.{Action, AnyContent, MessagesControllerComponents}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, Environment, ResourceUsage, SlugInfo, SlugInfoFlag}
+import uk.gov.hmrc.serviceconfigs.model.{ApiSlugInfoFormats, BobbyRules, DependencyConfig, DeploymentConfig, Environment, ResourceUsage, SlugInfo}
 import uk.gov.hmrc.serviceconfigs.persistence.model.MongoFrontendRoute
 import uk.gov.hmrc.serviceconfigs.persistence.{AppliedConfigRepository, BobbyRulesRepository, DependencyConfigRepository, DeploymentConfigRepository, FrontendRouteRepository, LatestConfigRepository, ResourceUsageRepository, SlugInfoRepository}
 

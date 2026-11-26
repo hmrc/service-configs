@@ -21,7 +21,6 @@ import play.api.libs.json.{Format, __}
 
 case class AlertEnvironmentHandler(
   serviceName: ServiceName,
-  production : Boolean,
   location   : String
 )
 
@@ -29,6 +28,5 @@ object AlertEnvironmentHandler:
   val format: Format[AlertEnvironmentHandler] =
     given Format[ServiceName] = ServiceName.format
     ( (__ \ "serviceName").format[ServiceName]
-    ~ (__ \ "production" ).format[Boolean]
     ~ (__ \ "location"   ).format[String]
     )(AlertEnvironmentHandler.apply, pt => Tuple.fromProductTyped(pt))

@@ -31,6 +31,7 @@ import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import org.mockito.Mockito.never
 
 class AlertConfigServiceSpec
   extends AnyWordSpec
@@ -70,6 +71,24 @@ class AlertConfigServiceSpec
       verify(mockAlertEnvironmentHandlerRepository, times(1)).putAll(any[Seq[AlertEnvironmentHandler]])
       verify(mockLastHashRepository               , times(1)).update("alert-config", "Test2")
 
+    "fail to update configs when alert config cannot be parsed" in new Setup:
+      when(mockArtifactoryConnector.getLatestHash())
+        .thenReturn(Future.successful(Some("Test1")))
+      when(mockLastHashRepository.getHash("alert-config"))
+        .thenReturn(Future.successful(None))
+      when(mockArtifactoryConnector.getAlertZip())
+        .thenReturn(Future.successful(ZipInputStream(
+          this.getClass.getResource("/invalid-output.zip").openStream()
+        )))
+
+      alertConfigService.update().futureValue
+
+      verify(mockArtifactoryConnector, times(1)).getAlertZip()
+      verify(mockAlertEnvironmentHandlerRepository, never())
+        .putAll(any[Seq[AlertEnvironmentHandler]])
+      verify(mockLastHashRepository, never())
+        .update(org.mockito.ArgumentMatchers.eq("alert-config"), any[String])
+
     "return successful when Artifactory has no updated Hash" in new Setup:
       when(mockArtifactoryConnector.getLatestHash()      ).thenReturn(Future.successful(Some("Test3")))
       when(mockLastHashRepository.getHash("alert-config")).thenReturn(Future.successful(Some("Test3")))
@@ -84,9 +103,6 @@ class AlertConfigServiceSpec
       file.serviceConfigs.exists(_.serviceName == ServiceName("accessibility-statement-frontend")) shouldBe true
       file.serviceConfigs.exists(_.serviceName == ServiceName("add-taxes-frontend")) shouldBe true
 
-      file.productionHandlers.get(PagerDutyKey("yta"))         shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team yta -e aws_production"))
-      file.productionHandlers.get(PagerDutyKey("platform-ui")) shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
-
     "produce a AlertConfig that contains app name and None, when handler does not exist" in:
       val zip  = ZipInputStream(FileInputStream("./test/resources/missing-handler-output.zip"))
       val file = processZip(zip)
@@ -94,43 +110,33 @@ class AlertConfigServiceSpec
       file.serviceConfigs.exists(_.serviceName == ServiceName("accessibility-statement-frontend")) shouldBe true
       file.serviceConfigs.exists(_.serviceName == ServiceName("add-taxes-frontend")) shouldBe true
 
-      file.productionHandlers.get(PagerDutyKey("yta"))         shouldBe None
-      file.productionHandlers.get(PagerDutyKey("platform-ui")) shouldBe Some(Handler("/etc/sensu/handlers/hmrc_pagerduty_multiteam_env_apiv2.rb --team platform-ui -e aws_production"))
-
   "AlertConfigService.toAlertEnvironmentHandler" should:
     val locations = Seq(RepoName("test") -> "line1")
     "produce an AlertEnvironmentHandler for a service that has alert config enabled" in:
       val alertConfig = AlertConfig(
-        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
-        Map(PagerDutyKey("TEST") -> Handler("test/command"))
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST"))))
       )
-      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = true, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), location = "line1"))
 
     "produce an AlertEnvironmentHandler for a service that has Alert Config Disabled" in:
       val alertConfig = AlertConfig(
-        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
-        Map(PagerDutyKey("TEST") -> Handler("test/noop.rb"))
-      )
-      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), location = "line1"))
 
     "produce an AlertEnvironmentHandler when a service has No Matching Handler Found in Production" in:
       val alertConfig = AlertConfig(
-        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))),
-        Map.empty
-      )
-      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+        Seq(ServiceConfig(ServiceName("test"), Seq(PagerDutyKey("TEST")))))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), location = "line1"))
 
     "produce an AlertEnvironmentHandler for a service that has No Handler Name Defined in Config" in:
       val alertConfig = AlertConfig(
-        Seq(ServiceConfig(ServiceName("test"), Nil)),
-        Map(PagerDutyKey("TEST") -> Handler("test/command"))
+        Seq(ServiceConfig(ServiceName("test"), Nil))
       )
-      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), production = false, location = "line1"))
+      toAlertEnvironmentHandler(alertConfig, locations) shouldBe List(AlertEnvironmentHandler(ServiceName("test"), location = "line1"))
 
     "produce an empty list when there is No Existing Alert Config" in:
       val alertConfig = AlertConfig(
-        Seq(),
-        Map(PagerDutyKey("TEST") -> Handler("test/command"))
+        Seq()
       )
       toAlertEnvironmentHandler(alertConfig, Nil) shouldBe List.empty
 

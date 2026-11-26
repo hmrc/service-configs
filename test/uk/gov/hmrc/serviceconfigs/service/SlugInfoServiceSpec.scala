@@ -29,8 +29,6 @@ import uk.gov.hmrc.serviceconfigs.connector.{ConfigConnector, ReleasesApiConnect
 import uk.gov.hmrc.serviceconfigs.model.*
 import uk.gov.hmrc.serviceconfigs.parser.ConfigValue
 import uk.gov.hmrc.serviceconfigs.persistence.*
-import uk.gov.hmrc.serviceconfigs.persistence.DeployedConfigRepository.DeployedConfig
-import uk.gov.hmrc.serviceconfigs.persistence.DeploymentEventRepository.DeploymentEvent
 import uk.gov.hmrc.serviceconfigs.service.ConfigService.{ConfigEnvironment, ConfigSourceEntries, RenderedConfigSourceValue}
 
 import java.time.temporal.ChronoUnit
